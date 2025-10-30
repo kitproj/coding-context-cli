@@ -60,12 +60,12 @@ func run(args []string) error {
 		return fmt.Errorf("invalid usage")
 	}
 
-	if err := os.Mkdir(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
 
 	bootstrapDir := filepath.Join(outputDir, "bootstrap.d")
-	if err := os.Mkdir(bootstrapDir, 0755); err != nil {
+	if err := os.MkdirAll(bootstrapDir, 0755); err != nil {
 		return fmt.Errorf("failed to create bootstrap dir: %w", err)
 	}
 
