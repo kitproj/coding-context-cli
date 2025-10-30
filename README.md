@@ -303,8 +303,8 @@ Include bootstrap scripts for environment setup:
 Prompts use Go's `text/template` syntax. All parameters passed via `-p` are available:
 
 ```markdown
-{{ .variableName }}        # Simple substitution
-{{ if .debug }}Debug{{ end }}  # Conditionals
+{{ .variableName }}                                    # Simple substitution
+{{ if .debug }}Debug mode enabled{{ else }}Production mode{{ end }}  # Conditionals
 ```
 
 ### Directory Priority
@@ -361,4 +361,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## See Also
 
 - [Go text/template documentation](https://pkg.go.dev/text/template)
-- [YAML frontmatter](https://yaml.org/)
+- [YAML specification](https://yaml.org/)
