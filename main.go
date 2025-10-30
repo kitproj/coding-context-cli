@@ -7,16 +7,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/andygrunwald/go-jira"
 )
 
-var (
-	host     string
-	token    string
-	issueKey string
-	client   *jira.Client
-)
+var ()
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
