@@ -44,6 +44,8 @@ func parseMarkdownFile(path string, frontmatter any) (string, error) {
 			return "", fmt.Errorf("failed to write content: %w", err)
 		}
 	}
+	if err := s.Err(); err != nil {
+		return "", fmt.Errorf("failed to scan file: %w", err)
+	}
 	return content.String(), nil
-
 }
