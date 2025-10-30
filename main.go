@@ -60,8 +60,6 @@ func run(args []string) error {
 		return fmt.Errorf("invalid usage")
 	}
 
-	taskName := args[0]
-
 	if err := os.Mkdir(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
@@ -71,7 +69,7 @@ func run(args []string) error {
 		return fmt.Errorf("failed to create bootstrap dir: %w", err)
 	}
 
-	output, err := os.Open(filepath.Join(outputDir, "prompt.md"))
+	output, err := os.Create(filepath.Join(outputDir, "prompt.md"))
 	if err != nil {
 		return fmt.Errorf("failed to create prompt file: %w", err)
 	}
@@ -93,14 +91,14 @@ func run(args []string) error {
 				Bootstrap string `yaml:"bootstrap"`
 			}
 
-			content, err := parseMarkdownFile(filepath.Join(path), &frontmatter)
+			content, err := parseMarkdownFile(path, &frontmatter)
 			if err != nil {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
 			}
 
 			if bootstrap := frontmatter.Bootstrap; bootstrap != "" {
 				hash := sha256.Sum256([]byte(bootstrap))
-				bootstrapPath := filepath.Join(bootstrapDir, fmt.Sprint(hash))
+				bootstrapPath := filepath.Join(bootstrapDir, fmt.Sprintf("%x", hash))
 				if err := os.WriteFile(bootstrapPath, []byte(bootstrap), 0700); err != nil {
 					return fmt.Errorf("failed to write bootstrap file: %w", err)
 				}
@@ -122,6 +120,7 @@ func run(args []string) error {
 		return fmt.Errorf("failed to write bootstrap file: %w", err)
 	}
 
+	taskName := args[0]
 	for _, dir := range dirs {
 		promptFile := filepath.Join(dir, "prompts", taskName+".md")
 
