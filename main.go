@@ -1,43 +1,151 @@
 package main
 
 import (
-	"context"
+	"crypto/sha256"
+	_ "embed"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
-	"os/signal"
-	"syscall"
+	"path/filepath"
+	"text/template"
 )
 
-var ()
+//go:embed bootstrap
+var bootstrap string
+
+var (
+	dirs      stringSlice
+	outputDir = "."
+	params    = make(paramMap)
+)
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
+	userConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	dirs = []string{
+		".coding-agent-context",
+		filepath.Join(userConfigDir, "coding-agent-context"),
+		"/var/local/coding-agent-context",
+	}
+
+	flag.Var(&dirs, "d", "Directory to include in the context. Can be specified multiple times.")
+	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
+	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
 		fmt.Fprintf(w, "Usage:")
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  coding-agent-context <task-name")
+		fmt.Fprintln(w, "  coding-agent-context <task-name> ")
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "Options:")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 
-	if err := run(ctx, flag.Args()); err != nil {
+	if err := run(flag.Args()); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		flag.Usage()
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, args []string) error {
+func run(args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("invalid usage")
 	}
 
-	return nil
+	taskName := args[0]
 
+	if err := os.Mkdir(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output dir: %w", err)
+	}
+
+	bootstrapDir := filepath.Join(outputDir, "bootstrap.d")
+	if err := os.Mkdir(bootstrapDir, 0755); err != nil {
+		return fmt.Errorf("failed to create bootstrap dir: %w", err)
+	}
+
+	output, err := os.Open(filepath.Join(outputDir, "prompt.md"))
+	if err != nil {
+		return fmt.Errorf("failed to create prompt file: %w", err)
+	}
+	defer output.Close()
+
+	for _, dir := range dirs {
+		memoryDir := filepath.Join(dir, "memories")
+		err := filepath.Walk(memoryDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+
+			slog.Info("Including memory file", "path", path)
+
+			var frontmatter struct {
+				Bootstrap string `yaml:"bootstrap"`
+			}
+
+			content, err := parseMarkdownFile(filepath.Join(path), &frontmatter)
+			if err != nil {
+				return fmt.Errorf("failed to parse markdown file: %w", err)
+			}
+
+			if bootstrap := frontmatter.Bootstrap; bootstrap != "" {
+				hash := sha256.Sum256([]byte(bootstrap))
+				bootstrapPath := filepath.Join(bootstrapDir, fmt.Sprint(hash))
+				if err := os.WriteFile(bootstrapPath, []byte(bootstrap), 0700); err != nil {
+					return fmt.Errorf("failed to write bootstrap file: %w", err)
+				}
+			}
+
+			if _, err := output.WriteString(content + "\n\n"); err != nil {
+				return fmt.Errorf("failed to write to output file: %w", err)
+			}
+
+			return nil
+
+		})
+		if err != nil {
+			return fmt.Errorf("failed to walk memory dir: %w", err)
+		}
+	}
+
+	if err := os.WriteFile(filepath.Join(outputDir, "bootstrap"), []byte(bootstrap), 0755); err != nil {
+		return fmt.Errorf("failed to write bootstrap file: %w", err)
+	}
+
+	for _, dir := range dirs {
+		promptFile := filepath.Join(dir, "prompts", taskName+".md")
+
+		if _, err := os.Stat(promptFile); err == nil {
+			slog.Info("Using prompt file", "path", promptFile)
+
+			content, err := parseMarkdownFile(promptFile, &struct{}{})
+			if err != nil {
+				return fmt.Errorf("failed to parse prompt file: %w", err)
+			}
+
+			t, err := template.New("prompt").Parse(content)
+			if err != nil {
+				return fmt.Errorf("failed to parse prompt template: %w", err)
+			}
+
+			if err := t.Execute(output, params); err != nil {
+				return fmt.Errorf("failed to execute prompt template: %w", err)
+			}
+
+			return nil
+
+		}
+	}
+
+	return fmt.Errorf("prompt file not found for task: %s", taskName)
 }
