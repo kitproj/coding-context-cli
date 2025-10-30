@@ -1,14 +1,8 @@
-# coding-agent-context-cli
+# Coding Agent Context CLI
 
-A CLI tool for managing context files for coding agents. This tool helps you organize prompts, memories (reusable context), and bootstrap scripts that can be assembled into a single context file for AI coding agents.
+A CLI tool for managing context files for coding agents. It helps you organize prompts, memories (reusable context), and bootstrap scripts that can be assembled into a single context file for AI coding agents.
 
-## Overview
-
-`coding-agent-context-cli` allows you to:
-- Create task-specific prompts with template parameters
-- Store reusable context information (memories) that apply across multiple tasks
-- Include bootstrap scripts that run before your agent starts work
-- Generate a unified `prompt.md` file combining all relevant context
+It's aimed at coding agents with a simple interface for managing task-specific context and reusable knowledge.
 
 ## Installation
 
@@ -18,10 +12,6 @@ A CLI tool for managing context files for coding agents. This tool helps you org
 git clone https://github.com/kitproj/coding-agent-context-cli.git
 cd coding-agent-context-cli
 go build -o coding-agent-context .
-```
-
-Move the binary to your PATH:
-```bash
 sudo mv coding-agent-context /usr/local/bin/
 ```
 
@@ -31,6 +21,36 @@ sudo mv coding-agent-context /usr/local/bin/
 go install github.com/kitproj/coding-agent-context-cli@latest
 ```
 
+## Prompt
+
+Add this to your coding agent's prompt (e.g. `AGENTS.md`):
+
+```markdown
+- You can manage context for tasks using the `coding-agent-context` CLI.
+- Store reusable context in `.coding-agent-context/memories/` as Markdown files.
+- Create task-specific prompts in `.coding-agent-context/prompts/<task-name>.md`.
+- Generate combined context with `coding-agent-context <task-name>` which creates `prompt.md`.
+- Use template parameters: `coding-agent-context -p key=value <task-name>`.
+- Bootstrap scripts in memory frontmatter will be written to `bootstrap` for environment setup.
+```
+
+## Usage
+
+```
+coding-agent-context [options] <task-name>
+
+Options:
+  -d <directory>    Add a directory to include in the context (can be used multiple times)
+                    Default: .coding-agent-context, ~/.config/coding-agent-context, /var/local/coding-agent-context
+  -o <directory>    Output directory for generated files (default: .)
+  -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
+```
+
+**Example:**
+```bash
+coding-agent-context -p feature="Authentication" -p language=Go add-feature
+```
+
 ## Quick Start
 
 1. Create a context directory structure:
@@ -38,16 +58,7 @@ go install github.com/kitproj/coding-agent-context-cli@latest
 mkdir -p .coding-agent-context/{prompts,memories}
 ```
 
-2. Create a prompt file (`.coding-agent-context/prompts/my-task.md`):
-```markdown
----
----
-# Task: {{ .taskName }}
-
-Please help me with this task. The project uses {{ .language }}.
-```
-
-3. Create a memory file (`.coding-agent-context/memories/project-info.md`):
+2. Create a memory file (`.coding-agent-context/memories/project-info.md`):
 ```markdown
 ---
 ---
@@ -57,132 +68,108 @@ Please help me with this task. The project uses {{ .language }}.
 - Purpose: Manage AI agent context
 ```
 
+3. Create a prompt file (`.coding-agent-context/prompts/my-task.md`):
+```markdown
+---
+---
+# Task: {{ .taskName }}
+
+Please help me with this task. The project uses {{ .language }}.
+```
+
 4. Run the tool:
 ```bash
 coding-agent-context -p taskName="Fix Bug" -p language=Go my-task
 ```
 
-This generates `./prompt.md` combining your memories and prompt.
+This generates `./prompt.md` combining your memories and the task prompt.
+
 
 ## Directory Structure
 
-The tool looks for context files in these directories (in order):
+The tool searches these directories for context files (in priority order):
 1. `.coding-agent-context/` (project-local)
 2. `~/.config/coding-agent-context/` (user-specific)
 3. `/var/local/coding-agent-context/` (system-wide)
 
-Each directory can contain:
+Each directory should contain:
 ```
 .coding-agent-context/
 ├── prompts/          # Task-specific prompt templates
-│   ├── task1.md
-│   └── task2.md
-└── memories/         # Reusable context files
-    ├── project.md
-    └── conventions.md
+│   └── <task-name>.md
+└── memories/         # Reusable context files (included in all outputs)
+    └── *.md
 ```
 
-## Usage
-
-```
-coding-agent-context [options] <task-name>
-```
-
-### Options
-
-- `-d <directory>` - Add a directory to include in the context. Can be specified multiple times.
-  - Default directories: `.coding-agent-context`, `~/.config/coding-agent-context`, `/var/local/coding-agent-context`
-  
-- `-o <directory>` - Output directory for generated files (default: `.`)
-
-- `-p <key=value>` - Template parameter for prompt substitution. Can be specified multiple times.
-
-### Arguments
-
-- `<task-name>` - The name of the task/prompt file (without `.md` extension)
 
 ## File Formats
 
 ### Prompt Files
 
-Prompt files are Markdown documents with optional YAML frontmatter and support Go template syntax.
+Markdown files with YAML frontmatter and Go template support.
 
-**Location:** `.coding-agent-context/prompts/<task-name>.md`
-
-**Example:**
+**Example** (`.coding-agent-context/prompts/add-feature.md`):
 ```markdown
 ---
 ---
 # Task: {{ .feature }}
 
 Implement {{ .feature }} in {{ .language }}.
-
-Requirements:
-- Write tests
-- Follow existing patterns
 ```
 
-Use it:
+Run with:
 ```bash
-coding-agent-context -p feature="User Login" -p language=Go implement-feature
+coding-agent-context -p feature="User Login" -p language=Go add-feature
 ```
 
 ### Memory Files
 
-Memory files are Markdown documents that get included in every generated context. They can include bootstrap scripts.
+Markdown files included in every generated context. Can include bootstrap scripts in frontmatter.
 
-**Location:** `.coding-agent-context/memories/*.md`
-
-**Example:**
-```markdown
----
----
-# Coding Standards
-
-- Use tabs for indentation
-- Write descriptive commit messages
-- All functions must have tests
-```
-
-**Example with Bootstrap:**
+**Example** (`.coding-agent-context/memories/setup.md`):
 ```markdown
 ---
 bootstrap: |
   #!/bin/bash
   npm install
-  npm run build
 ---
 # Development Setup
 
-This project requires Node.js dependencies to be installed.
+This project requires Node.js dependencies.
 ```
+
 
 ## Output Files
 
-Running the tool generates:
+- **`prompt.md`** - Combined output with all memories and the task prompt
+- **`bootstrap`** - Executable script that runs all bootstrap scripts from memories
+- **`bootstrap.d/`** - Individual bootstrap scripts (SHA256 named)
 
-- **`prompt.md`** - Combined output including all memories and the task prompt
-- **`bootstrap`** - Shell script that executes all bootstrap scripts from memories
-- **`bootstrap.d/`** - Directory containing individual bootstrap scripts (identified by SHA256 hash)
-
-### Bootstrap Execution
-
-The generated `bootstrap` script executes all bootstrap scripts defined in memory files:
-
+Run the bootstrap script to set up your environment:
 ```bash
-# Run the bootstrap script
 ./bootstrap
 ```
 
-The bootstrap script automatically finds and executes all scripts in `bootstrap.d/`.
 
 ## Examples
 
-### Example 1: Simple Task
+### Basic Usage
 
-Create a prompt:
 ```bash
-mkdir -p .coding-agent-context/prompts
+# Create structure
+mkdir -p .coding-agent-context/{prompts,memories}
+
+# Add a memory
+cat > .coding-agent-context/memories/conventions.md << 'EOF'
+---
+---
+# Coding Conventions
+
+- Use tabs for indentation
+- Write tests for all functions
+EOF
+
+# Create a task prompt
 cat > .coding-agent-context/prompts/refactor.md << 'EOF'
 ---
 ---
@@ -190,117 +177,48 @@ cat > .coding-agent-context/prompts/refactor.md << 'EOF'
 
 Please refactor the codebase to improve code quality.
 EOF
-```
 
-Run:
-```bash
+# Generate context
 coding-agent-context refactor
 ```
 
-### Example 2: Parameterized Prompt
+### With Template Parameters
 
-Create a parameterized prompt:
 ```bash
 cat > .coding-agent-context/prompts/add-feature.md << 'EOF'
 ---
 ---
 # Add Feature: {{ .featureName }}
 
-Implement {{ .featureName }} following these requirements:
-- Language: {{ .language }}
-- Framework: {{ .framework }}
+Implement {{ .featureName }} in {{ .language }}.
 EOF
+
+coding-agent-context -p featureName="Authentication" -p language=Go add-feature
 ```
 
-Run with parameters:
-```bash
-coding-agent-context \
-  -p featureName="Authentication" \
-  -p language=Go \
-  -p framework="net/http" \
-  add-feature
-```
+### With Bootstrap Scripts
 
-### Example 3: With Memory and Bootstrap
-
-Create a memory with bootstrap:
 ```bash
-mkdir -p .coding-agent-context/memories
 cat > .coding-agent-context/memories/setup.md << 'EOF'
 ---
 bootstrap: |
   #!/bin/bash
-  set -e
-  echo "Installing dependencies..."
   go mod download
-  echo "Dependencies installed!"
 ---
 # Project Setup
 
-This Go project uses modules for dependency management.
+This Go project uses modules.
 EOF
+
+coding-agent-context -o ./output my-task
+cd output && ./bootstrap
 ```
-
-Create a simple prompt:
-```bash
-cat > .coding-agent-context/prompts/test.md << 'EOF'
----
----
-# Write Tests
-
-Add unit tests for the new features.
-EOF
-```
-
-Run and execute bootstrap:
-```bash
-coding-agent-context -o ./output test
-cd output
-./bootstrap  # Runs go mod download
-```
-
-### Example 4: Multiple Context Directories
-
-```bash
-# Add project-specific context
-coding-agent-context -d .coding-agent-context -d ../shared-context my-task
-```
-
-### Example 5: Custom Output Location
-
-```bash
-# Generate context in a specific directory
-coding-agent-context -o /tmp/agent-context my-task
-```
-
-## Use Cases
-
-### For AI Coding Agents
-
-Provide consistent context to your coding agent:
-1. Store project conventions in memories
-2. Create task-specific prompts
-3. Generate unified context before each agent session
-
-### For Team Workflows
-
-Share context across teams:
-1. Project context in `.coding-agent-context/` (version controlled)
-2. Personal preferences in `~/.config/coding-agent-context/`
-3. Organization standards in `/var/local/coding-agent-context/`
-
-### For Automated Workflows
-
-Include bootstrap scripts for environment setup:
-- Install dependencies
-- Configure tools
-- Run health checks
 
 ## Advanced Usage
 
 ### Template Functions
 
-Prompts use Go's `text/template` syntax. All parameters passed via `-p` are available:
+Prompts use Go's `text/template` syntax:
 
 ```markdown
 {{ .variableName }}                                    # Simple substitution
@@ -314,51 +232,23 @@ When the same task exists in multiple directories, the first match wins:
 2. `~/.config/coding-agent-context/`
 3. `/var/local/coding-agent-context/` (lowest priority)
 
-### Bootstrap Script Hashing
-
-Bootstrap scripts are stored by SHA256 hash to avoid duplication and ensure consistency.
-
 ## Troubleshooting
 
-### "prompt file not found for task"
+**"prompt file not found for task"**
+- Ensure `<task-name>.md` exists in a `prompts/` subdirectory
 
-Make sure your prompt file:
-- Is named `<task-name>.md`
-- Is in a `prompts/` subdirectory
-- Is in one of the searched directories
-
-### "failed to walk memory dir"
-
-Ensure the `memories/` directory exists in at least one context directory:
+**"failed to walk memory dir"**
 ```bash
 mkdir -p .coding-agent-context/memories
 ```
 
-### Template parameter shows `<no value>`
-
-You forgot to pass the parameter via `-p`:
+**Template parameter shows `<no value>`**
 ```bash
 coding-agent-context -p myvar="value" my-task
 ```
 
-### Bootstrap script not executing
-
-1. Check the script has execute permissions:
+**Bootstrap script not executing**
 ```bash
 chmod +x bootstrap
 ```
 
-2. Ensure the script is valid shell syntax
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## See Also
-
-- [Go text/template documentation](https://pkg.go.dev/text/template)
-- [YAML specification](https://yaml.org/)
