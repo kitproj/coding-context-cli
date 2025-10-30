@@ -6,32 +6,17 @@ It's aimed at coding agents with a simple interface for managing task-specific c
 
 ## Installation
 
-### From Source
+Download the binary for your platform from the release page:
 
 ```bash
-git clone https://github.com/kitproj/coding-agent-context-cli.git
-cd coding-agent-context-cli
-go build -o coding-agent-context .
-sudo mv coding-agent-context /usr/local/bin/
+sudo curl -fsL -o /usr/local/bin/coding-agent-context https://github.com/kitproj/coding-agent-context-cli/releases/download/v0.0.1/coding-agent-context_v0.0.1_linux_arm64
+sudo chmod +x /usr/local/bin/coding-agent-context
 ```
 
 ### Using Go Install
 
 ```bash
 go install github.com/kitproj/coding-agent-context-cli@latest
-```
-
-## Prompt
-
-Add this to your coding agent's prompt (e.g. `AGENTS.md`):
-
-```markdown
-- You can manage context for tasks using the `coding-agent-context` CLI.
-- Store reusable context in `.coding-agent-context/memories/` as Markdown files.
-- Create task-specific prompts in `.coding-agent-context/prompts/<task-name>.md`.
-- Generate combined context with `coding-agent-context <task-name>` which creates `prompt.md`.
-- Use template parameters: `coding-agent-context -p key=value <task-name>`.
-- Bootstrap scripts in memory frontmatter will be written to `bootstrap` for environment setup.
 ```
 
 ## Usage
