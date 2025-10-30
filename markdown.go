@@ -20,7 +20,7 @@ func parseMarkdownFile(path string, frontmatter any) (string, error) {
 
 	s := bufio.NewScanner(fh)
 
-	if s.Text() != "---" {
+	if s.Scan() && s.Text() == "---" {
 		var frontMatterBytes bytes.Buffer
 		for s.Scan() {
 			line := s.Text()
@@ -40,7 +40,7 @@ func parseMarkdownFile(path string, frontmatter any) (string, error) {
 
 	var content bytes.Buffer
 	for s.Scan() {
-		if _, err := content.Write(s.Bytes()); err != nil {
+		if _, err := content.WriteString(s.Text() + "\n"); err != nil {
 			return "", fmt.Errorf("failed to write content: %w", err)
 		}
 	}
