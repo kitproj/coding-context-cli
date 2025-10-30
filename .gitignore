@@ -13,6 +13,7 @@
 
 # Binary output
 coding-agent-context-cli
+coding-agent-context
 
 # Build artifacts
 /dist/
