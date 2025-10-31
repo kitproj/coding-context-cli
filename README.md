@@ -346,7 +346,7 @@ The bootstrap script mechanism is especially useful for integrating external CLI
 
 The `kitproj/jira-cli` tool allows agents to interact with Jira issues programmatically. Here's how to set it up:
 
-**Step 1: Create a memory file with Jira context** (`.prompts/memories/jira-setup.md`)
+**Step 1: Create a memory file with Jira context** (`.prompts/memories/jira.md`)
 
 ```markdown
 ---
@@ -371,7 +371,7 @@ The Jira CLI is configured with:
 - Authentication: Token-based (set via JIRA_API_TOKEN environment variable)
 ```
 
-**Step 2: Create a bootstrap script** (`.prompts/memories/jira-setup-bootstrap`)
+**Step 2: Create a bootstrap script** (`.prompts/memories/jira-bootstrap`)
 
 ```bash
 #!/bin/bash
@@ -410,7 +410,7 @@ jira --version
 **Step 3: Make the bootstrap script executable**
 
 ```bash
-chmod +x .prompts/memories/jira-setup-bootstrap
+chmod +x .prompts/memories/jira-bootstrap
 ```
 
 **Step 4: Use with a task that needs Jira**
@@ -429,7 +429,7 @@ Now when an agent starts work, the bootstrap script will ensure `jira-cli` is in
 
 The `kitproj/slack-cli` tool allows agents to send notifications and interact with Slack channels. Here's the setup:
 
-**Step 1: Create a memory file with Slack context** (`.prompts/memories/slack-setup.md`)
+**Step 1: Create a memory file with Slack context** (`.prompts/memories/slack.md`)
 
 ```markdown
 ---
@@ -461,7 +461,7 @@ The Slack CLI requires:
 - Alert on failures: `slack send-message "#alerts" "Test suite failed on main branch"`
 ```
 
-**Step 2: Create a bootstrap script** (`.prompts/memories/slack-setup-bootstrap`)
+**Step 2: Create a bootstrap script** (`.prompts/memories/slack-bootstrap`)
 
 ```bash
 #!/bin/bash
@@ -500,7 +500,7 @@ slack --version
 **Step 3: Make the bootstrap script executable**
 
 ```bash
-chmod +x .prompts/memories/slack-setup-bootstrap
+chmod +x .prompts/memories/slack-bootstrap
 ```
 
 **Step 4: Create a task that uses Slack** (`.prompts/tasks/slack-deploy-alert.md`)
