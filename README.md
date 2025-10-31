@@ -59,8 +59,6 @@ mkdir -p .coding-agent-context/{prompts,memories}
 
 2. Create a memory file (`.coding-agent-context/memories/project-info.md`):
 ```markdown
----
----
 # Project Context
 
 - Framework: Go CLI
@@ -69,8 +67,6 @@ mkdir -p .coding-agent-context/{prompts,memories}
 
 3. Create a prompt file (`.coding-agent-context/prompts/my-task.md`):
 ```markdown
----
----
 # Task: {{ .taskName }}
 
 Please help me with this task. The project uses {{ .language }}.
@@ -109,8 +105,6 @@ Markdown files with YAML frontmatter and Go template support.
 
 **Example** (`.coding-agent-context/prompts/add-feature.md`):
 ```markdown
----
----
 # Task: {{ .feature }}
 
 Implement {{ .feature }} in {{ .language }}.
@@ -217,8 +211,6 @@ mkdir -p .coding-agent-context/{prompts,memories}
 
 # Add a memory
 cat > .coding-agent-context/memories/conventions.md << 'EOF'
----
----
 # Coding Conventions
 
 - Use tabs for indentation
@@ -227,8 +219,6 @@ EOF
 
 # Create a task prompt
 cat > .coding-agent-context/prompts/refactor.md << 'EOF'
----
----
 # Refactoring Task
 
 Please refactor the codebase to improve code quality.
@@ -242,8 +232,6 @@ coding-agent-context refactor
 
 ```bash
 cat > .coding-agent-context/prompts/add-feature.md << 'EOF'
----
----
 # Add Feature: {{ .featureName }}
 
 Implement {{ .featureName }} in {{ .language }}.
@@ -256,8 +244,6 @@ coding-agent-context -p featureName="Authentication" -p language=Go add-feature
 
 ```bash
 cat > .coding-agent-context/memories/setup.md << 'EOF'
----
----
 # Project Setup
 
 This Go project uses modules.
