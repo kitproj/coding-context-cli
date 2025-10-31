@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -77,6 +78,12 @@ func run(args []string) error {
 
 	for _, dir := range dirs {
 		memoryDir := filepath.Join(dir, "memories")
+		
+		// Skip if the directory doesn't exist
+		if _, err := os.Stat(memoryDir); os.IsNotExist(err) {
+			continue
+		}
+		
 		err := filepath.Walk(memoryDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -85,21 +92,27 @@ func run(args []string) error {
 				return nil
 			}
 
-			slog.Info("Including memory file", "path", path)
-
-			var frontmatter struct {
-				Bootstrap string `yaml:"bootstrap"`
+			// Only process .md files as memory files
+			if filepath.Ext(path) != ".md" {
+				return nil
 			}
 
-			content, err := parseMarkdownFile(path, &frontmatter)
+			slog.Info("Including memory file", "path", path)
+
+			content, err := parseMarkdownFile(path, &struct{}{})
 			if err != nil {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
 			}
 
-			if bootstrap := frontmatter.Bootstrap; bootstrap != "" {
-				hash := sha256.Sum256([]byte(bootstrap))
+			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
+			// For example, setup.md -> setup-bootstrap
+			baseNameWithoutExt := strings.TrimSuffix(path, ".md")
+			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
+
+			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
+				hash := sha256.Sum256(bootstrapContent)
 				bootstrapPath := filepath.Join(bootstrapDir, fmt.Sprintf("%x", hash))
-				if err := os.WriteFile(bootstrapPath, []byte(bootstrap), 0700); err != nil {
+				if err := os.WriteFile(bootstrapPath, bootstrapContent, 0700); err != nil {
 					return fmt.Errorf("failed to write bootstrap file: %w", err)
 				}
 			}
