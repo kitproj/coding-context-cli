@@ -307,6 +307,40 @@ EOF
 coding-context refactor
 ```
 
+### Including Common AI Assistant Folders
+
+Many AI coding assistants store their rules and prompts in specific directories. You can include these as additional context sources using the `-d` flag:
+
+```bash
+# Include Cursor rules directory
+coding-context -d .cursor/rules my-task
+
+# Include .cursorrules file location (if organized as a directory)
+coding-context -d .cursorrules my-task
+
+# Include Windsurf rules directory
+coding-context -d .windsurf/rules my-task
+
+# Include Augment rules directory
+coding-context -d .augment/rules my-task
+
+# Combine multiple AI assistant directories
+coding-context -d .cursor/rules -d .windsurf/rules -d .augment/rules my-task
+
+# Include AI assistant folders along with default .prompts
+# (The -d flag adds to the default directories, it doesn't replace them)
+coding-context -d .cursor/rules add-feature
+```
+
+**Note:** These directories should follow the same structure as `.prompts/`:
+```
+.cursor/rules/
+├── tasks/          # Task-specific prompt templates
+│   └── <task-name>.md
+└── memories/       # Reusable context files
+    └── *.md
+```
+
 ### With Template Parameters
 
 ```bash
