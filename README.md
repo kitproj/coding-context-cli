@@ -29,8 +29,8 @@ Options:
                     Default: .coding-agent-context, ~/.config/coding-agent-context, /var/local/coding-agent-context
   -o <directory>    Output directory for generated files (default: .)
   -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
-  -s <key=value>    Selector to filter memories (can be used multiple times)
-                    Format: key=value (include only) or key!=value (exclude)
+  -s <key=value>    Include memories with matching frontmatter (can be used multiple times)
+  -S <key=value>    Exclude memories with matching frontmatter (can be used multiple times)
 ```
 
 **Example:**
@@ -44,10 +44,10 @@ coding-agent-context -p feature="Authentication" -p language=Go add-feature
 coding-agent-context -s env=production deploy
 
 # Exclude test memories
-coding-agent-context -s env!=test deploy
+coding-agent-context -S env=test deploy
 
-# Combine multiple selectors (AND logic)
-coding-agent-context -s env=production -s language=go deploy
+# Combine include and exclude selectors
+coding-agent-context -s env=production -S language=python deploy
 ```
 
 ## Quick Start
@@ -147,13 +147,14 @@ For each memory file `<name>.md`, you can optionally create a corresponding `<na
 
 ## Filtering Memories with Selectors
 
-Use the `-s` flag to filter which memory files are included based on their frontmatter metadata.
+Use the `-s` and `-S` flags to filter which memory files are included based on their frontmatter metadata.
 
 ### Selector Syntax
 
-- **`key=value`** - Include only memories where the frontmatter key matches the value
-- **`key!=value`** - Exclude memories where the frontmatter key matches the value
-- Multiple selectors use AND logic (all must match)
+- **`-s key=value`** - Include memories where the frontmatter key matches the value
+- **`-S key=value`** - Exclude memories where the frontmatter key matches the value
+- If a key doesn't exist in a memory's frontmatter, the memory is allowed (not filtered out)
+- Multiple selectors of the same type use AND logic (all must match)
 
 ### Examples
 
@@ -164,10 +165,16 @@ coding-agent-context -s env=production deploy
 
 **Exclude test environment:**
 ```bash
-coding-agent-context -s env!=test deploy
+coding-agent-context -S env=test deploy
 ```
 
-**Combine multiple criteria:**
+**Combine include and exclude:**
+```bash
+# Include production but exclude python
+coding-agent-context -s env=production -S language=python deploy
+```
+
+**Multiple includes:**
 ```bash
 # Only production Go backend memories
 coding-agent-context -s env=production -s language=go -s tier=backend deploy
@@ -179,8 +186,11 @@ When you run with selectors, the tool logs which files are included or excluded:
 
 ```
 INFO Including memory file path=.coding-agent-context/memories/production.md
-INFO Excluding memory file (does not match selectors) path=.coding-agent-context/memories/development.md
+INFO Excluding memory file (does not match include selectors) path=.coding-agent-context/memories/development.md
+INFO Including memory file path=.coding-agent-context/memories/nofrontmatter.md
 ```
+
+**Important:** Files without the specified frontmatter keys are still included. This allows you to have generic memories that apply to all scenarios.
 
 If no selectors are specified, all memory files are included.
 
