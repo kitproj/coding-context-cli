@@ -82,7 +82,7 @@ func run(args []string) error {
 	}
 	defer output.Close()
 
-	// Process memory files from three sources:
+	// Process memory files from two sources:
 	// 1. From dirs - look for memories/ subdirectory
 	// 2. From memories - direct paths to directories or files
 	
@@ -123,7 +123,7 @@ func run(args []string) error {
 		return fmt.Errorf("failed to write bootstrap file: %w", err)
 	}
 
-	// Process task files from three sources:
+	// Process task files from two sources:
 	// 1. From dirs - look for tasks/ subdirectory
 	// 2. From tasks - direct paths to directories or files
 	
