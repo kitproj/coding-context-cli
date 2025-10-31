@@ -351,28 +351,52 @@ cat > .prompts/tasks/implement-jira-story.md << 'EOF'
 # Implement Jira Story: {{ .storyId }}
 
 ## Story Details
-- Story ID: {{ .storyId }}
-- Title: {{ .title }}
+
+First, get the full story details from Jira:
+```bash
+jira get-issue {{ .storyId }}
+```
 
 ## Requirements
+
 Please implement the feature described in the Jira story. Follow these steps:
 
-1. Review the acceptance criteria in the story
-2. Design the solution following project conventions
-3. Implement the feature with proper error handling
-4. Add comprehensive unit tests (aim for >80% coverage)
-5. Update documentation if needed
-6. Ensure all tests pass and code is lint-free
+1. **Review the Story**
+   - Read the story details, acceptance criteria, and comments
+   - Get all comments: `jira get-comments {{ .storyId }}`
+   - Clarify any uncertainties by adding comments: `jira add-comment {{ .storyId }} "Your question"`
+
+2. **Start Development**
+   - Create a feature branch with the story ID in the name (e.g., `feature/{{ .storyId }}-implement-auth`)
+   - Move the story to "In Progress": `jira update-issue-status {{ .storyId }} "In Progress"`
+
+3. **Implementation**
+   - Design the solution following project conventions
+   - Implement the feature with proper error handling
+   - Add comprehensive unit tests (aim for >80% coverage)
+   - Update documentation if needed
+   - Ensure all tests pass and code is lint-free
+
+4. **Update Jira Throughout**
+   - Add progress updates: `jira add-comment {{ .storyId }} "Completed implementation, working on tests"`
+   - Keep stakeholders informed of any blockers or changes
+
+5. **Complete the Story**
+   - Ensure all acceptance criteria are met
+   - Create a pull request
+   - Move to review: `jira update-issue-status {{ .storyId }} "In Review"`
+   - Once merged, close: `jira update-issue-status {{ .storyId }} "Done"`
 
 ## Success Criteria
 - All acceptance criteria are met
 - Code follows project coding standards
 - Tests are passing
 - Documentation is updated
+- Jira story is properly tracked through workflow
 EOF
 
 # Usage
-coding-context -p storyId="PROJ-123" -p title="Add user authentication" implement-jira-story
+coding-context -p storyId="PROJ-123" implement-jira-story
 ```
 
 #### Triage Jira Bug
@@ -383,39 +407,51 @@ cat > .prompts/tasks/triage-jira-bug.md << 'EOF'
 ---
 # Triage Jira Bug: {{ .bugId }}
 
-## Bug Details
-- Bug ID: {{ .bugId }}
-- Severity: {{ .severity }}
+## Get Bug Details
+
+First, retrieve the full bug report from Jira:
+```bash
+jira get-issue {{ .bugId }}
+jira get-comments {{ .bugId }}
+```
 
 ## Triage Steps
 
-1. **Reproduce the Issue**
+1. **Acknowledge and Take Ownership**
+   - Add initial comment: `jira add-comment {{ .bugId }} "Triaging this bug now"`
+   - Move to investigation: `jira update-issue-status {{ .bugId }} "In Progress"`
+
+2. **Reproduce the Issue**
    - Follow the steps to reproduce in the bug report
    - Verify the issue exists in the reported environment
    - Document actual vs. expected behavior
+   - Update Jira: `jira add-comment {{ .bugId }} "Reproduced on [environment]. Actual: [X], Expected: [Y]"`
 
-2. **Investigate Root Cause**
+3. **Investigate Root Cause**
    - Review relevant code and logs
    - Identify the component/module causing the issue
    - Determine if this is a regression (check git history)
+   - Document findings: `jira add-comment {{ .bugId }} "Root cause: [description]"`
 
-3. **Assess Impact**
+4. **Assess Impact**
    - How many users are affected?
    - Is there a workaround available?
    - What is the risk if left unfixed?
+   - Add assessment: `jira add-comment {{ .bugId }} "Impact: [severity]. Workaround: [yes/no]. Affected users: [estimate]"`
 
-4. **Provide Triage Report**
+5. **Provide Triage Report**
    - Root cause analysis
    - Recommended priority level
    - Estimated effort to fix
    - Suggested assignee/team
+   - Final summary: `jira add-comment {{ .bugId }} "Triage complete. Priority: [level]. Effort: [estimate]. Recommended assignee: [name]"`
 
 ## Output
-Please provide a detailed triage report with your findings and recommendations.
+Provide a detailed triage report with your findings and recommendations, and post it as a comment to the Jira issue.
 EOF
 
 # Usage
-coding-context -p bugId="PROJ-456" -p severity="High" triage-jira-bug
+coding-context -p bugId="PROJ-456" triage-jira-bug
 ```
 
 #### Respond to Jira Comment
@@ -426,12 +462,15 @@ cat > .prompts/tasks/respond-to-jira-comment.md << 'EOF'
 ---
 # Respond to Jira Comment: {{ .issueId }}
 
-## Issue Details
-- Issue ID: {{ .issueId }}
-- Comment from: {{ .commenter }}
+## Get Issue and Comments
 
-## Comment Content
-{{ .comment }}
+First, retrieve the issue details and all comments:
+```bash
+jira get-issue {{ .issueId }}
+jira get-comments {{ .issueId }}
+```
+
+Review the latest comment and the full context of the issue.
 
 ## Instructions
 
@@ -448,10 +487,22 @@ Please analyze the comment and provide a professional response:
 - Provide code examples if relevant
 - Link to documentation when helpful
 - Offer to discuss further if needed
+
+## Post Your Response
+
+Once you've formulated your response, add it to the Jira issue:
+```bash
+jira add-comment {{ .issueId }} "Your detailed response here"
+```
+
+If the comment requires action on your part, update the issue status accordingly:
+```bash
+jira update-issue-status {{ .issueId }} "In Progress"
+```
 EOF
 
 # Usage
-coding-context -p issueId="PROJ-789" -p commenter="John" -p comment="Can we use a different approach?" respond-to-jira-comment
+coding-context -p issueId="PROJ-789" respond-to-jira-comment
 ```
 
 #### Review Pull Request
