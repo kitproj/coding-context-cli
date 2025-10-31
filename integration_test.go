@@ -545,3 +545,228 @@ Missing var: ${missingVar}
 		t.Errorf("Expected ${missingVar} to be replaced with empty string, got:\n%s", contentStr)
 	}
 }
+
+func TestDirectMemoryFile(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	outputDir := filepath.Join(tmpDir, "output")
+
+	// Create a memory file directly (not in a memories/ subdirectory)
+	memoryFile := filepath.Join(tmpDir, "custom-memory.md")
+	memoryContent := `---
+---
+# Direct Memory File
+
+This is a memory file specified directly.
+`
+	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tmpDir, "my-task.md")
+	taskContent := `---
+---
+# My Task
+
+This is the task.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary with -m flag for direct memory file and -t flag for task file
+	cmd = exec.Command(binaryPath, "-m", memoryFile, "-t", taskFile, "-o", outputDir, "my-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that the prompt.md file was created
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify memory content is included
+	if !strings.Contains(contentStr, "Direct Memory File") {
+		t.Errorf("Expected memory content in output, got:\n%s", contentStr)
+	}
+
+	// Verify task content is included
+	if !strings.Contains(contentStr, "My Task") {
+		t.Errorf("Expected task content in output, got:\n%s", contentStr)
+	}
+}
+
+func TestDirectMemoryDirectory(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	outputDir := filepath.Join(tmpDir, "output")
+
+	// Create a custom memories directory (not nested under .prompts)
+	customMemDir := filepath.Join(tmpDir, "custom-memories")
+	if err := os.MkdirAll(customMemDir, 0755); err != nil {
+		t.Fatalf("failed to create custom memories dir: %v", err)
+	}
+
+	// Add memory files to it
+	if err := os.WriteFile(filepath.Join(customMemDir, "mem1.md"), []byte("---\n---\n# Memory 1\nContent 1\n"), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(customMemDir, "mem2.md"), []byte("---\n---\n# Memory 2\nContent 2\n"), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tmpDir, "test-task.md")
+	if err := os.WriteFile(taskFile, []byte("---\n---\n# Task\n"), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary with -m flag for custom memory directory
+	cmd = exec.Command(binaryPath, "-m", customMemDir, "-t", taskFile, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that both memory files are included
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	if !strings.Contains(contentStr, "Memory 1") {
+		t.Errorf("Expected Memory 1 in output")
+	}
+	if !strings.Contains(contentStr, "Memory 2") {
+		t.Errorf("Expected Memory 2 in output")
+	}
+}
+
+func TestDirectTaskDirectory(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	outputDir := filepath.Join(tmpDir, "output")
+
+	// Create a custom tasks directory (not nested under .prompts)
+	customTaskDir := filepath.Join(tmpDir, "custom-tasks")
+	if err := os.MkdirAll(customTaskDir, 0755); err != nil {
+		t.Fatalf("failed to create custom tasks dir: %v", err)
+	}
+
+	// Add a task file to it
+	if err := os.WriteFile(filepath.Join(customTaskDir, "my-task.md"), []byte("---\n---\n# Custom Task\nTask content\n"), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary with -t flag for custom task directory
+	cmd = exec.Command(binaryPath, "-t", customTaskDir, "-o", outputDir, "my-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that the task file was found and used
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	if !strings.Contains(contentStr, "Custom Task") {
+		t.Errorf("Expected Custom Task in output, got:\n%s", contentStr)
+	}
+}
+
+func TestMixedDirectoryAndDirectPaths(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create memory file in standard location
+	if err := os.WriteFile(filepath.Join(memoriesDir, "standard.md"), []byte("---\n---\n# Standard Memory\n"), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+
+	// Create direct memory file
+	directMemFile := filepath.Join(tmpDir, "direct.md")
+	if err := os.WriteFile(directMemFile, []byte("---\n---\n# Direct Memory\n"), 0644); err != nil {
+		t.Fatalf("failed to write direct memory file: %v", err)
+	}
+
+	// Create task file in standard location
+	if err := os.WriteFile(filepath.Join(tasksDir, "test-task.md"), []byte("---\n---\n# Task\n"), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary with both -d and -m flags
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-m", directMemFile, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that both memory files are included
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	if !strings.Contains(contentStr, "Standard Memory") {
+		t.Errorf("Expected Standard Memory in output")
+	}
+	if !strings.Contains(contentStr, "Direct Memory") {
+		t.Errorf("Expected Direct Memory in output")
+	}
+}
