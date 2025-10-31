@@ -31,9 +31,9 @@ func main() {
 	}
 
 	dirs = []string{
-		".coding-agent-context",
-		filepath.Join(userConfigDir, "coding-agent-context"),
-		"/var/local/coding-agent-context",
+		".coding-context",
+		filepath.Join(userConfigDir, "coding-context"),
+		"/var/local/coding-context",
 	}
 
 	flag.Var(&dirs, "d", "Directory to include in the context. Can be specified multiple times.")
@@ -46,7 +46,7 @@ func main() {
 		w := flag.CommandLine.Output()
 		fmt.Fprintf(w, "Usage:")
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  coding-agent-context <task-name> ")
+		fmt.Fprintln(w, "  coding-context <task-name> ")
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "Options:")
 		flag.PrintDefaults()

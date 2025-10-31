@@ -10,7 +10,7 @@ import (
 
 func TestBootstrapFromFile(t *testing.T) {
 	// Build the binary
-	binaryPath := filepath.Join(t.TempDir(), "coding-agent-context")
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to build binary: %v\n%s", err, output)
@@ -18,7 +18,7 @@ func TestBootstrapFromFile(t *testing.T) {
 
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
-	contextDir := filepath.Join(tmpDir, ".coding-agent-context")
+	contextDir := filepath.Join(tmpDir, ".coding-context")
 	memoriesDir := filepath.Join(contextDir, "memories")
 	promptsDir := filepath.Join(contextDir, "prompts")
 	outputDir := filepath.Join(tmpDir, "output")
@@ -107,7 +107,7 @@ Please help with this task.
 
 func TestBootstrapFileNotRequired(t *testing.T) {
 	// Build the binary
-	binaryPath := filepath.Join(t.TempDir(), "coding-agent-context")
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to build binary: %v\n%s", err, output)
@@ -115,7 +115,7 @@ func TestBootstrapFileNotRequired(t *testing.T) {
 
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
-	contextDir := filepath.Join(tmpDir, ".coding-agent-context")
+	contextDir := filepath.Join(tmpDir, ".coding-context")
 	memoriesDir := filepath.Join(contextDir, "memories")
 	promptsDir := filepath.Join(contextDir, "prompts")
 	outputDir := filepath.Join(tmpDir, "output")
@@ -177,7 +177,7 @@ Please help with this task.
 
 func TestMultipleBootstrapFiles(t *testing.T) {
 	// Build the binary
-	binaryPath := filepath.Join(t.TempDir(), "coding-agent-context")
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to build binary: %v\n%s", err, output)
@@ -185,7 +185,7 @@ func TestMultipleBootstrapFiles(t *testing.T) {
 
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
-	contextDir := filepath.Join(tmpDir, ".coding-agent-context")
+	contextDir := filepath.Join(tmpDir, ".coding-context")
 	memoriesDir := filepath.Join(contextDir, "memories")
 	promptsDir := filepath.Join(contextDir, "prompts")
 	outputDir := filepath.Join(tmpDir, "output")
@@ -238,7 +238,7 @@ func TestMultipleBootstrapFiles(t *testing.T) {
 
 func TestSelectorFiltering(t *testing.T) {
 	// Build the binary
-	binaryPath := filepath.Join(t.TempDir(), "coding-agent-context")
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to build binary: %v\n%s", err, output)
@@ -246,7 +246,7 @@ func TestSelectorFiltering(t *testing.T) {
 
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
-	contextDir := filepath.Join(tmpDir, ".coding-agent-context")
+	contextDir := filepath.Join(tmpDir, ".coding-context")
 	memoriesDir := filepath.Join(contextDir, "memories")
 	promptsDir := filepath.Join(contextDir, "prompts")
 	outputDir := filepath.Join(tmpDir, "output")
