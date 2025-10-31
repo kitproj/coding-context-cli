@@ -83,6 +83,8 @@ coding-context [options] <task-name>
 Options:
   -d <directory>    Add a directory to include in the context (can be used multiple times)
                     Default: .prompts, ~/.config/prompts, /var/local/prompts
+  -f <file>         Specific file to include as memory (can be used multiple times)
+                    Example: .cursorrules, .aiignore, or any other file
   -o <directory>    Output directory for generated files (default: .)
   -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
   -s <key=value>    Include memories with matching frontmatter (can be used multiple times)
@@ -92,6 +94,15 @@ Options:
 **Example:**
 ```bash
 coding-context -p feature="Authentication" -p language=Go add-feature
+```
+
+**Example with specific files:**
+```bash
+# Include .cursorrules file as a memory
+coding-context -f .cursorrules add-feature
+
+# Include multiple specific files
+coding-context -f .cursorrules -f .aiignore add-feature
 ```
 
 **Example with selectors:**
@@ -217,6 +228,42 @@ npm install
 
 For each memory file `<name>.md`, you can optionally create a corresponding `<name>-bootstrap` file that will be executed during setup.
 
+### Specific Files
+
+In addition to memory files in the `memories/` directory, you can include specific files directly using the `-f` flag. This is useful for project-specific configuration files like `.cursorrules`, `.aiignore`, or any other files that contain rules or context.
+
+**Example** (`.cursorrules`):
+```markdown
+---
+tool: cursor
+priority: high
+---
+# Cursor IDE Rules
+
+- Always use TypeScript for new files
+- Prefer functional components in React
+- Write unit tests for all new functions
+```
+
+**Bootstrap file** (`.cursorrules-bootstrap`):
+```bash
+#!/bin/bash
+npm install --save-dev eslint prettier
+```
+
+Run with:
+```bash
+coding-context -f .cursorrules add-feature
+```
+
+**Key features:**
+- Specific files can be any file (not just `.md` files)
+- They support YAML frontmatter for selector filtering
+- Bootstrap files follow the pattern `<filename>-bootstrap`
+- Multiple specific files can be included: `-f .cursorrules -f .aiignore`
+- Files are processed before memory directories
+- Selectors (`-s` and `-S`) work with specific files too
+
 
 ## Filtering Memories with Selectors
 
@@ -336,6 +383,73 @@ chmod +x .prompts/memories/setup-bootstrap
 
 coding-context -o ./output my-task
 cd output && ./bootstrap
+```
+
+### Using Specific Files (like .cursorrules)
+
+Sometimes project rules or configuration are stored in specific files rather than in the memories directory. You can include these files directly:
+
+```bash
+# Create a .cursorrules file for Cursor IDE
+cat > .cursorrules << 'EOF'
+---
+tool: cursor
+---
+# Cursor Rules
+
+- Always use TypeScript for new files
+- Prefer functional components in React
+- Write unit tests for all new functions
+- Use ESLint and Prettier for code formatting
+EOF
+
+# Create a bootstrap script for the rules (optional)
+cat > .cursorrules-bootstrap << 'EOF'
+#!/bin/bash
+echo "Installing development tools..."
+npm install --save-dev eslint prettier @typescript-eslint/parser
+EOF
+chmod +x .cursorrules-bootstrap
+
+# Use the specific file in your context
+coding-context -f .cursorrules -p feature="User Authentication" add-feature
+```
+
+You can also combine multiple specific files:
+
+```bash
+# Create multiple configuration files
+cat > .aiignore << 'EOF'
+---
+---
+# AI Ignore Patterns
+
+Ignore the following directories:
+- node_modules/
+- dist/
+- .git/
+EOF
+
+cat > .code-style << 'EOF'
+---
+language: typescript
+---
+# Code Style Guide
+
+- Use 2 spaces for indentation
+- Maximum line length: 100 characters
+- Always use semicolons
+EOF
+
+# Include all of them
+coding-context -f .cursorrules -f .aiignore -f .code-style my-task
+```
+
+Specific files also work with selectors for filtering:
+
+```bash
+# Only include TypeScript-specific files
+coding-context -f .code-style -f .other-config -s language=typescript my-task
 ```
 
 ### Integrating External CLI Tools

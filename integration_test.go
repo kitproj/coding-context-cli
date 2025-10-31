@@ -451,8 +451,8 @@ The project is for $company.
 	}
 
 	// Run the binary with parameters
-	cmd = exec.Command(binaryPath, 
-		"-d", contextDir, 
+	cmd = exec.Command(binaryPath,
+		"-d", contextDir,
 		"-o", outputDir,
 		"-p", "taskName=AddAuth",
 		"-p", "feature=Authentication",
@@ -516,8 +516,8 @@ Missing var: ${missingVar}
 	}
 
 	// Run the binary with only one parameter
-	cmd = exec.Command(binaryPath, 
-		"-d", contextDir, 
+	cmd = exec.Command(binaryPath,
+		"-d", contextDir,
 		"-o", outputDir,
 		"-p", "providedVar=ProvidedValue",
 		"test-missing")
@@ -539,7 +539,7 @@ Missing var: ${missingVar}
 	if !strings.Contains(contentStr, "Task: ProvidedValue") {
 		t.Errorf("Expected 'Task: ProvidedValue' in output, got:\n%s", contentStr)
 	}
-	
+
 	// Verify missing variable is replaced with empty string
 	if strings.Contains(contentStr, "${missingVar}") {
 		t.Errorf("Expected ${missingVar} to be replaced with empty string, got:\n%s", contentStr)
@@ -876,12 +876,12 @@ func TestSpecificFileNotFound(t *testing.T) {
 	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-f", nonExistentFile, "test-task")
 	cmd.Dir = tmpDir
 	output, err := cmd.CombinedOutput()
-	
+
 	// Should fail with an error about file not found
 	if err == nil {
 		t.Errorf("Expected error for non-existent file, but command succeeded")
 	}
-	
+
 	outputStr := string(output)
 	if !strings.Contains(outputStr, "specific file not found") {
 		t.Errorf("Expected 'specific file not found' error, got: %s", outputStr)
