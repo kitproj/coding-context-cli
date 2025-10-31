@@ -20,7 +20,19 @@ func parseMarkdownFile(path string, frontmatter any) (string, error) {
 
 	s := bufio.NewScanner(fh)
 
-	if s.Scan() && s.Text() == "---" {
+	var content bytes.Buffer
+	
+	// Check if there's a first line
+	if !s.Scan() {
+		// Empty file or only contains no content
+		if err := s.Err(); err != nil {
+			return "", fmt.Errorf("failed to scan file: %w", err)
+		}
+		return "", nil
+	}
+	
+	// First line exists, check if it's frontmatter delimiter
+	if s.Text() == "---" {
 		var frontMatterBytes bytes.Buffer
 		for s.Scan() {
 			line := s.Text()
@@ -36,9 +48,14 @@ func parseMarkdownFile(path string, frontmatter any) (string, error) {
 		if err := yaml.Unmarshal(frontMatterBytes.Bytes(), frontmatter); err != nil {
 			return "", fmt.Errorf("failed to unmarshal frontmatter: %w", err)
 		}
+	} else {
+		// First line was not "---", so it's content, not frontmatter
+		// We need to include this line in the content
+		if _, err := content.WriteString(s.Text() + "\n"); err != nil {
+			return "", fmt.Errorf("failed to write content: %w", err)
+		}
 	}
 
-	var content bytes.Buffer
 	for s.Scan() {
 		if _, err := content.WriteString(s.Text() + "\n"); err != nil {
 			return "", fmt.Errorf("failed to write content: %w", err)
