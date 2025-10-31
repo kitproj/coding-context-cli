@@ -230,10 +230,30 @@ For each memory file `<name>.md`, you can optionally create a corresponding `<na
 
 ### Specific Files
 
-In addition to memory files in the `memories/` directory, you can include specific files directly using the `-f` flag. This is useful for project-specific configuration files like `.cursorrules`, `.aiignore`, or any other files that contain rules or context.
+In addition to memory files in the `memories/` directory, you can include specific files directly using the `-f` flag. This is useful for project-specific configuration files used by various AI coding tools.
 
-**Example** (`.cursorrules`):
-```markdown
+**Common AI agent configuration files supported out of the box:**
+- `.cursorrules` - Cursor IDE rules
+- `.cursor/rules/` - Cursor rules directory (include individual files with `-f`)
+- `.continuerules` - Continue.dev rules
+- `.github/copilot-instructions.md` - GitHub Copilot instructions
+- `AGENTS.md` - General agent instructions
+- `CLAUDE.md` - Claude-specific instructions
+- Any other custom configuration files
+
+**Key features:**
+- Specific files can be any file (not just `.md` files)
+- They support YAML frontmatter for selector filtering
+- Bootstrap files follow the pattern `<filename>-bootstrap`
+- Multiple specific files can be included: `-f .cursorrules -f AGENTS.md`
+- Files are processed before memory directories
+- Selectors (`-s` and `-S`) work with specific files too
+
+#### Example: Cursor IDE (.cursorrules)
+
+```bash
+# Create a .cursorrules file
+cat > .cursorrules << 'EOF'
 ---
 tool: cursor
 priority: high
@@ -243,26 +263,188 @@ priority: high
 - Always use TypeScript for new files
 - Prefer functional components in React
 - Write unit tests for all new functions
+- Use ESLint and Prettier for code formatting
+EOF
+
+# Use it in your context
+coding-context -f .cursorrules add-feature
 ```
 
-**Bootstrap file** (`.cursorrules-bootstrap`):
+#### Example: GitHub Copilot (.github/copilot-instructions.md)
+
+```bash
+# Create GitHub Copilot instructions
+mkdir -p .github
+cat > .github/copilot-instructions.md << 'EOF'
+---
+tool: github-copilot
+---
+# GitHub Copilot Instructions
+
+## Code Style
+- Follow the project's ESLint configuration
+- Use TypeScript strict mode
+- Prefer functional programming patterns
+
+## Testing
+- Write tests using Jest
+- Aim for 80%+ code coverage
+- Include edge cases in test suites
+
+## Documentation
+- Add JSDoc comments for public APIs
+- Update README.md when adding features
+EOF
+
+# Include in context
+coding-context -f .github/copilot-instructions.md implement-feature
+```
+
+#### Example: Claude Instructions (CLAUDE.md)
+
+```bash
+# Create Claude-specific instructions
+cat > CLAUDE.md << 'EOF'
+---
+tool: claude
+---
+# Claude Project Instructions
+
+## Project Overview
+This is a TypeScript/React project with a Node.js backend.
+
+## Development Workflow
+1. Create feature branches from `main`
+2. Write tests before implementation (TDD)
+3. Run linter and tests before committing
+4. Submit PR with description and test results
+
+## Code Conventions
+- Use async/await instead of promises
+- Prefer const over let
+- Use arrow functions for callbacks
+- Keep functions small and focused
+EOF
+
+# Use with Claude
+coding-context -f CLAUDE.md refactor-code
+```
+
+#### Example: General Agent Instructions (AGENTS.md)
+
+```bash
+# Create general agent instructions
+cat > AGENTS.md << 'EOF'
+---
+priority: critical
+applies-to: all
+---
+# AI Agent Instructions
+
+## Security Requirements
+- Never commit API keys or secrets
+- Always validate user input
+- Use parameterized queries for database access
+- Implement proper error handling
+
+## Architecture Patterns
+- Follow MVC pattern for backend
+- Use Redux for state management in frontend
+- Implement repository pattern for data access
+- Use dependency injection for services
+
+## Deployment
+- All changes must pass CI/CD pipeline
+- Deployments are automated via GitHub Actions
+- Staging must be tested before production
+EOF
+
+# Include for all tasks
+coding-context -f AGENTS.md implement-auth
+```
+
+#### Example: Continue.dev (.continuerules)
+
+```bash
+# Create Continue.dev rules
+cat > .continuerules << 'EOF'
+---
+tool: continue
+---
+# Continue.dev Rules
+
+## Context
+This project uses:
+- React 18 with TypeScript
+- Tailwind CSS for styling
+- React Query for data fetching
+- Vite for building
+
+## Preferences
+- Use modern React patterns (hooks, functional components)
+- Leverage TypeScript for type safety
+- Follow atomic design principles
+- Use Tailwind utility classes instead of custom CSS
+EOF
+
+# Use it
+coding-context -f .continuerules add-component
+```
+
+#### Example: Cursor Rules Directory (.cursor/rules/)
+
+```bash
+# Create cursor rules directory
+mkdir -p .cursor/rules
+
+# Create individual rule files
+cat > .cursor/rules/typescript.md << 'EOF'
+---
+language: typescript
+---
+# TypeScript Rules
+- Use strict mode
+- Define interfaces for all data structures
+- Avoid 'any' type
+EOF
+
+cat > .cursor/rules/react.md << 'EOF'
+---
+framework: react
+---
+# React Rules
+- Use functional components
+- Implement proper error boundaries
+- Use React.memo for expensive components
+EOF
+
+# Include multiple rules
+coding-context -f .cursor/rules/typescript.md -f .cursor/rules/react.md build-feature
+```
+
+#### Example: Combining Multiple Agent Files
+
+```bash
+# Use multiple agent configuration files together
+coding-context \
+  -f AGENTS.md \
+  -f .cursorrules \
+  -f .github/copilot-instructions.md \
+  -p feature="OAuth Integration" \
+  implement-feature
+```
+
+**Bootstrap file example** (`.cursorrules-bootstrap`):
 ```bash
 #!/bin/bash
-npm install --save-dev eslint prettier
+npm install --save-dev eslint prettier @typescript-eslint/parser
 ```
 
 Run with:
 ```bash
 coding-context -f .cursorrules add-feature
+cd output && ./bootstrap
 ```
-
-**Key features:**
-- Specific files can be any file (not just `.md` files)
-- They support YAML frontmatter for selector filtering
-- Bootstrap files follow the pattern `<filename>-bootstrap`
-- Multiple specific files can be included: `-f .cursorrules -f .aiignore`
-- Files are processed before memory directories
-- Selectors (`-s` and `-S`) work with specific files too
 
 
 ## Filtering Memories with Selectors
@@ -385,72 +567,38 @@ coding-context -o ./output my-task
 cd output && ./bootstrap
 ```
 
-### Using Specific Files (like .cursorrules)
+### Using Specific Files for AI Agent Configuration
 
-Sometimes project rules or configuration are stored in specific files rather than in the memories directory. You can include these files directly:
-
-```bash
-# Create a .cursorrules file for Cursor IDE
-cat > .cursorrules << 'EOF'
----
-tool: cursor
----
-# Cursor Rules
-
-- Always use TypeScript for new files
-- Prefer functional components in React
-- Write unit tests for all new functions
-- Use ESLint and Prettier for code formatting
-EOF
-
-# Create a bootstrap script for the rules (optional)
-cat > .cursorrules-bootstrap << 'EOF'
-#!/bin/bash
-echo "Installing development tools..."
-npm install --save-dev eslint prettier @typescript-eslint/parser
-EOF
-chmod +x .cursorrules-bootstrap
-
-# Use the specific file in your context
-coding-context -f .cursorrules -p feature="User Authentication" add-feature
-```
-
-You can also combine multiple specific files:
+Common AI coding tools store their configuration in specific files. The `-f` flag makes it easy to include these:
 
 ```bash
-# Create multiple configuration files
-cat > .aiignore << 'EOF'
----
----
-# AI Ignore Patterns
+# Cursor IDE
+coding-context -f .cursorrules add-feature
 
-Ignore the following directories:
-- node_modules/
-- dist/
-- .git/
-EOF
+# GitHub Copilot
+coding-context -f .github/copilot-instructions.md implement-feature
 
-cat > .code-style << 'EOF'
----
-language: typescript
----
-# Code Style Guide
+# Claude
+coding-context -f CLAUDE.md refactor-code
 
-- Use 2 spaces for indentation
-- Maximum line length: 100 characters
-- Always use semicolons
-EOF
+# Continue.dev
+coding-context -f .continuerules add-component
 
-# Include all of them
-coding-context -f .cursorrules -f .aiignore -f .code-style my-task
+# General agent instructions
+coding-context -f AGENTS.md implement-auth
+
+# Combine multiple agent configurations
+coding-context -f AGENTS.md -f .cursorrules -f CLAUDE.md my-task
 ```
 
-Specific files also work with selectors for filtering:
+You can also use selectors to filter which files are included:
 
 ```bash
-# Only include TypeScript-specific files
-coding-context -f .code-style -f .other-config -s language=typescript my-task
+# Only include Cursor-specific files
+coding-context -f .cursorrules -f AGENTS.md -s tool=cursor my-task
 ```
+
+See the **Specific Files** section under **File Formats** for detailed examples of each configuration file format.
 
 ### Integrating External CLI Tools
 
