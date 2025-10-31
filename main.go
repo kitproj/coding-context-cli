@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	_ "embed"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 //go:embed bootstrap
@@ -24,6 +27,9 @@ var (
 )
 
 func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -54,14 +60,14 @@ func main() {
 	}
 	flag.Parse()
 
-	if err := run(flag.Args()); err != nil {
+	if err := run(ctx, flag.Args()); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		flag.Usage()
 		os.Exit(1)
 	}
 }
 
-func run(args []string) error {
+func run(ctx context.Context, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("invalid usage")
 	}
@@ -189,7 +195,7 @@ func run(args []string) error {
 
 				fmt.Fprintf(os.Stdout, "Running bootstrap script: %s\n", absBootstrapPath)
 
-				cmd := exec.Command(absBootstrapPath)
+				cmd := exec.CommandContext(ctx, absBootstrapPath)
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
 				cmd.Dir = outputDir
