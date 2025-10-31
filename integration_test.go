@@ -105,6 +105,96 @@ Please help with this task.
 	}
 }
 
+func TestBootstrapFileNaming(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a memory file
+	memoryFile := filepath.Join(memoriesDir, "jira.md")
+	memoryContent := `---
+---
+# Jira Integration
+`
+	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+
+	// Create a bootstrap file for the memory (jira.md -> jira-bootstrap)
+	bootstrapFile := filepath.Join(memoriesDir, "jira-bootstrap")
+	bootstrapContent := `#!/bin/bash
+echo "Setting up Jira"
+`
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0755); err != nil {
+		t.Fatalf("failed to write bootstrap file: %v", err)
+	}
+
+	// Create a prompt file
+	promptFile := filepath.Join(tasksDir, "test-task.md")
+	promptContent := `---
+---
+# Test Task
+`
+	if err := os.WriteFile(promptFile, []byte(promptContent), 0644); err != nil {
+		t.Fatalf("failed to write prompt file: %v", err)
+	}
+
+	// Run the binary
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that the bootstrap file has the correct naming format
+	bootstrapDDir := filepath.Join(outputDir, "bootstrap.d")
+	files, err := os.ReadDir(bootstrapDDir)
+	if err != nil {
+		t.Fatalf("failed to read bootstrap.d dir: %v", err)
+	}
+	if len(files) != 1 {
+		t.Errorf("expected 1 bootstrap file, got %d", len(files))
+	}
+
+	// Verify the naming format: jira-bootstrap-<8-hex-chars>
+	if len(files) > 0 {
+		fileName := files[0].Name()
+		// Should start with "jira-bootstrap-"
+		if !strings.HasPrefix(fileName, "jira-bootstrap-") {
+			t.Errorf("bootstrap file name should start with 'jira-bootstrap-', got: %s", fileName)
+		}
+		// Should have exactly 8 hex characters after the prefix
+		suffix := strings.TrimPrefix(fileName, "jira-bootstrap-")
+		if len(suffix) != 8 {
+			t.Errorf("bootstrap file name should have 8 hex characters after prefix, got %d: %s", len(suffix), fileName)
+		}
+		// Verify all characters in suffix are hex
+		for _, c := range suffix {
+			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+				t.Errorf("bootstrap file name suffix should only contain hex characters, got: %s", fileName)
+				break
+			}
+		}
+	}
+}
+
 func TestBootstrapFileNotRequired(t *testing.T) {
 	// Build the binary
 	binaryPath := filepath.Join(t.TempDir(), "coding-context")
