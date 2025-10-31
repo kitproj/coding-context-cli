@@ -19,17 +19,17 @@ func parseMarkdownFile(path string, frontmatter any) (string, error) {
 	defer fh.Close()
 
 	s := bufio.NewScanner(fh)
-
-	var content bytes.Buffer
 	
 	// Check if there's a first line
 	if !s.Scan() {
-		// Empty file or only contains no content
+		// Empty file or file contains no content
 		if err := s.Err(); err != nil {
 			return "", fmt.Errorf("failed to scan file: %w", err)
 		}
 		return "", nil
 	}
+	
+	var content bytes.Buffer
 	
 	// First line exists, check if it's frontmatter delimiter
 	if s.Text() == "---" {
