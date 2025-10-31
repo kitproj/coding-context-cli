@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -172,15 +171,15 @@ func run(args []string) error {
 
 			// Check if file matches include and exclude selectors
 			if !includes.matchesIncludes(frontmatter) {
-				slog.Info("Excluding memory file (does not match include selectors)", "path", path)
+				fmt.Fprintf(os.Stdout, "Excluding memory file (does not match include selectors): %s\n", path)
 				return nil
 			}
 			if !excludes.matchesExcludes(frontmatter) {
-				slog.Info("Excluding memory file (matches exclude selectors)", "path", path)
+				fmt.Fprintf(os.Stdout, "Excluding memory file (matches exclude selectors): %s\n", path)
 				return nil
 			}
 
-			slog.Info("Including memory file", "path", path)
+			fmt.Fprintf(os.Stdout, "Including memory file: %s\n", path)
 
 			// Record this file as processed (store raw content for similarity checks)
 			canonicalToOriginalPath[canonicalPath] = path
@@ -221,7 +220,7 @@ func run(args []string) error {
 		promptFile := filepath.Join(dir, "tasks", taskName+".md")
 
 		if _, err := os.Stat(promptFile); err == nil {
-			slog.Info("Using prompt file", "path", promptFile)
+			fmt.Fprintf(os.Stdout, "Using prompt file: %s\n", promptFile)
 
 			content, err := parseMarkdownFile(promptFile, &struct{}{})
 			if err != nil {
