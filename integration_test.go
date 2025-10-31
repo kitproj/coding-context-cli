@@ -234,3 +234,153 @@ func TestMultipleBootstrapFiles(t *testing.T) {
 		t.Errorf("expected 2 bootstrap files, got %d", len(files))
 	}
 }
+
+func TestSelectorFiltering(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-agent-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".coding-agent-context")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	promptsDir := filepath.Join(contextDir, "prompts")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(promptsDir, 0755); err != nil {
+		t.Fatalf("failed to create prompts dir: %v", err)
+	}
+
+	// Create memory files with different frontmatter
+	if err := os.WriteFile(filepath.Join(memoriesDir, "prod.md"), []byte("---\nenv: production\nlanguage: go\n---\n# Production\nProd content\n"), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(memoriesDir, "dev.md"), []byte("---\nenv: development\nlanguage: python\n---\n# Development\nDev content\n"), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(memoriesDir, "test.md"), []byte("---\nenv: test\nlanguage: go\n---\n# Test\nTest content\n"), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+
+	// Create a prompt file
+	if err := os.WriteFile(filepath.Join(promptsDir, "test-task.md"), []byte("---\n---\n# Test Task\n"), 0644); err != nil {
+		t.Fatalf("failed to write prompt file: %v", err)
+	}
+
+	// Test 1: Filter by env=production
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-s", "env=production", "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+	contentStr := string(content)
+	if !contains(contentStr, "Prod content") {
+		t.Errorf("Expected production content in output")
+	}
+	if contains(contentStr, "Dev content") {
+		t.Errorf("Did not expect development content in output")
+	}
+	if contains(contentStr, "Test content") {
+		t.Errorf("Did not expect test content in output")
+	}
+
+	// Clean output for next test
+	os.RemoveAll(outputDir)
+
+	// Test 2: Filter by language=go (should include prod and test)
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-s", "language=go", "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	content, err = os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+	contentStr = string(content)
+	if !contains(contentStr, "Prod content") {
+		t.Errorf("Expected production content in output")
+	}
+	if contains(contentStr, "Dev content") {
+		t.Errorf("Did not expect development content in output")
+	}
+	if !contains(contentStr, "Test content") {
+		t.Errorf("Expected test content in output")
+	}
+
+	// Clean output for next test
+	os.RemoveAll(outputDir)
+
+	// Test 3: Filter by env!=production (should include dev and test)
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-s", "env!=production", "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	content, err = os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+	contentStr = string(content)
+	if contains(contentStr, "Prod content") {
+		t.Errorf("Did not expect production content in output")
+	}
+	if !contains(contentStr, "Dev content") {
+		t.Errorf("Expected development content in output")
+	}
+	if !contains(contentStr, "Test content") {
+		t.Errorf("Expected test content in output")
+	}
+
+	// Clean output for next test
+	os.RemoveAll(outputDir)
+
+	// Test 4: Multiple selectors env=production language=go (should include only prod)
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-s", "env=production", "-s", "language=go", "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	content, err = os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+	contentStr = string(content)
+	if !contains(contentStr, "Prod content") {
+		t.Errorf("Expected production content in output")
+	}
+	if contains(contentStr, "Dev content") {
+		t.Errorf("Did not expect development content in output")
+	}
+	if contains(contentStr, "Test content") {
+		t.Errorf("Did not expect test content in output")
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) > 0 && len(substr) > 0 && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsSubstring(s, substr)))
+}
+
+func containsSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
