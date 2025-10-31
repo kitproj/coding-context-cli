@@ -32,6 +32,7 @@ func main() {
 
 	dirs = []string{
 		".prompts",
+		".github/prompts",
 		filepath.Join(userConfigDir, "prompts"),
 		"/var/local/prompts",
 	}
@@ -58,6 +59,90 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
+}
+
+// findPromptFile looks for a prompt file with the given task name
+// Supports both .md and .prompt.md extensions for VS Code compatibility
+func findPromptFile(dir, taskName string) (string, error) {
+	// Try .prompt.md first (VS Code Copilot format)
+	promptFile := filepath.Join(dir, "tasks", taskName+".prompt.md")
+	if _, err := os.Stat(promptFile); err == nil {
+		return promptFile, nil
+	}
+	
+	// Fall back to .md (standard format)
+	promptFile = filepath.Join(dir, "tasks", taskName+".md")
+	if _, err := os.Stat(promptFile); err == nil {
+		return promptFile, nil
+	}
+	
+	return "", os.ErrNotExist
+}
+
+// convertVSCodeVariables converts VS Code variable syntax ${var} to Go template syntax {{ .var }}
+// Also handles input variables like ${input:varName} -> {{ .varName }}
+func convertVSCodeVariables(content string) string {
+	result := content
+	
+	for i := 0; i < len(result); {
+		// Check for ${input:varName} or ${input:varName:placeholder}
+		if i+8 <= len(result) && result[i:i+8] == "${input:" {
+			// Find the closing }
+			end := i + 8
+			for end < len(result) && result[end] != '}' {
+				end++
+			}
+			if end < len(result) {
+				// Extract the content between ${input: and }
+				varPart := result[i+8 : end]
+				// Split by : to get variable name (ignore placeholder if present)
+				colonIdx := strings.Index(varPart, ":")
+				var varName string
+				if colonIdx >= 0 {
+					varName = varPart[:colonIdx]
+				} else {
+					varName = varPart
+				}
+				
+				// Replace with Go template syntax
+				replacement := "{{ ." + varName + " }}"
+				result = result[:i] + replacement + result[end+1:]
+				i += len(replacement)
+				continue
+			}
+		}
+		
+		// Check for simple ${varName}
+		if i+2 <= len(result) && result[i:i+2] == "${" {
+			// Find the closing }
+			end := i + 2
+			for end < len(result) && result[end] != '}' {
+				end++
+			}
+			if end < len(result) {
+				// Extract variable name
+				varName := result[i+2 : end]
+				
+				// Skip special VS Code variables that we don't support
+				if strings.HasPrefix(varName, "workspace") || 
+				   strings.HasPrefix(varName, "file") || 
+				   strings.HasPrefix(varName, "selection") ||
+				   strings.HasPrefix(varName, "selected") {
+					i = end + 1
+					continue
+				}
+				
+				// Replace with Go template syntax
+				replacement := "{{ ." + varName + " }}"
+				result = result[:i] + replacement + result[end+1:]
+				i += len(replacement)
+				continue
+			}
+		}
+		i++
+	}
+	
+	return result
 }
 
 func run(args []string) error {
@@ -96,8 +181,9 @@ func run(args []string) error {
 				return nil
 			}
 
-			// Only process .md files as memory files
-			if filepath.Ext(path) != ".md" {
+			// Only process .md and .prompt.md files as memory files
+			ext := filepath.Ext(path)
+			if ext != ".md" {
 				return nil
 			}
 
@@ -121,8 +207,13 @@ func run(args []string) error {
 			slog.Info("Including memory file", "path", path)
 
 			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
-			// For example, setup.md -> setup-bootstrap
-			baseNameWithoutExt := strings.TrimSuffix(path, ".md")
+			// For example, setup.md -> setup-bootstrap or setup.prompt.md -> setup.prompt-bootstrap
+			var baseNameWithoutExt string
+			if strings.HasSuffix(path, ".prompt.md") {
+				baseNameWithoutExt = strings.TrimSuffix(path, ".prompt.md")
+			} else {
+				baseNameWithoutExt = strings.TrimSuffix(path, ".md")
+			}
 			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
 
 			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
@@ -151,28 +242,31 @@ func run(args []string) error {
 
 	taskName := args[0]
 	for _, dir := range dirs {
-		promptFile := filepath.Join(dir, "tasks", taskName+".md")
-
-		if _, err := os.Stat(promptFile); err == nil {
-			slog.Info("Using prompt file", "path", promptFile)
-
-			content, err := parseMarkdownFile(promptFile, &struct{}{})
-			if err != nil {
-				return fmt.Errorf("failed to parse prompt file: %w", err)
-			}
-
-			t, err := template.New("prompt").Parse(content)
-			if err != nil {
-				return fmt.Errorf("failed to parse prompt template: %w", err)
-			}
-
-			if err := t.Execute(output, params); err != nil {
-				return fmt.Errorf("failed to execute prompt template: %w", err)
-			}
-
-			return nil
-
+		promptFile, err := findPromptFile(dir, taskName)
+		if err != nil {
+			continue
 		}
+
+		slog.Info("Using prompt file", "path", promptFile)
+
+		content, err := parseMarkdownFile(promptFile, &struct{}{})
+		if err != nil {
+			return fmt.Errorf("failed to parse prompt file: %w", err)
+		}
+
+		// Convert VS Code variable syntax to Go template syntax
+		content = convertVSCodeVariables(content)
+
+		t, err := template.New("prompt").Parse(content)
+		if err != nil {
+			return fmt.Errorf("failed to parse prompt template: %w", err)
+		}
+
+		if err := t.Execute(output, params); err != nil {
+			return fmt.Errorf("failed to execute prompt template: %w", err)
+		}
+
+		return nil
 	}
 
 	return fmt.Errorf("prompt file not found for task: %s", taskName)
