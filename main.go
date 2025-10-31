@@ -16,6 +16,7 @@ var bootstrap string
 
 var (
 	dirs      stringSlice
+	files     stringSlice
 	outputDir = "."
 	params    = make(paramMap)
 	includes  = make(selectorMap)
@@ -36,6 +37,7 @@ func main() {
 	}
 
 	flag.Var(&dirs, "d", "Directory to include in the context. Can be specified multiple times.")
+	flag.Var(&files, "f", "Specific file to include as memory. Can be specified multiple times.")
 	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include memories with matching frontmatter. Can be specified multiple times as key=value.")
@@ -79,6 +81,32 @@ func run(args []string) error {
 	}
 	defer output.Close()
 
+	// Process specific files first (if provided)
+	for _, file := range files {
+		// Resolve relative paths
+		absPath := file
+		if !filepath.IsAbs(file) {
+			var err error
+			absPath, err = filepath.Abs(file)
+			if err != nil {
+				return fmt.Errorf("failed to resolve path %s: %w", file, err)
+			}
+		}
+
+		// Check if file exists
+		if _, err := os.Stat(absPath); os.IsNotExist(err) {
+			return fmt.Errorf("specific file not found: %s", file)
+		} else if err != nil {
+			return fmt.Errorf("failed to stat specific file %s: %w", file, err)
+		}
+
+		// Process the file
+		if err := processMemoryFile(absPath, output, bootstrapDir); err != nil {
+			return fmt.Errorf("failed to process specific file %s: %w", file, err)
+		}
+	}
+
+	// Process memory directories
 	for _, dir := range dirs {
 		memoryDir := filepath.Join(dir, "memories")
 		
@@ -100,44 +128,7 @@ func run(args []string) error {
 				return nil
 			}
 
-			// Parse frontmatter to check selectors
-			var frontmatter map[string]string
-			content, err := parseMarkdownFile(path, &frontmatter)
-			if err != nil {
-				return fmt.Errorf("failed to parse markdown file: %w", err)
-			}
-
-			// Check if file matches include and exclude selectors
-			if !includes.matchesIncludes(frontmatter) {
-				slog.Info("Excluding memory file (does not match include selectors)", "path", path)
-				return nil
-			}
-			if !excludes.matchesExcludes(frontmatter) {
-				slog.Info("Excluding memory file (matches exclude selectors)", "path", path)
-				return nil
-			}
-
-			slog.Info("Including memory file", "path", path)
-
-			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
-			// For example, setup.md -> setup-bootstrap
-			baseNameWithoutExt := strings.TrimSuffix(path, ".md")
-			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
-
-			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
-				hash := sha256.Sum256(bootstrapContent)
-				bootstrapPath := filepath.Join(bootstrapDir, fmt.Sprintf("%x", hash))
-				if err := os.WriteFile(bootstrapPath, bootstrapContent, 0700); err != nil {
-					return fmt.Errorf("failed to write bootstrap file: %w", err)
-				}
-			}
-
-			if _, err := output.WriteString(content + "\n\n"); err != nil {
-				return fmt.Errorf("failed to write to output file: %w", err)
-			}
-
-			return nil
-
+			return processMemoryFile(path, output, bootstrapDir)
 		})
 		if err != nil {
 			return fmt.Errorf("failed to walk memory dir: %w", err)
@@ -177,4 +168,51 @@ func run(args []string) error {
 	}
 
 	return fmt.Errorf("prompt file not found for task: %s", taskName)
+}
+
+// processMemoryFile processes a single memory file and writes its content to the output
+func processMemoryFile(path string, output *os.File, bootstrapDir string) error {
+	// Parse frontmatter to check selectors
+	var frontmatter map[string]string
+	content, err := parseMarkdownFile(path, &frontmatter)
+	if err != nil {
+		return fmt.Errorf("failed to parse markdown file: %w", err)
+	}
+
+	// Check if file matches include and exclude selectors
+	if !includes.matchesIncludes(frontmatter) {
+		slog.Info("Excluding memory file (does not match include selectors)", "path", path)
+		return nil
+	}
+	if !excludes.matchesExcludes(frontmatter) {
+		slog.Info("Excluding memory file (matches exclude selectors)", "path", path)
+		return nil
+	}
+
+	slog.Info("Including memory file", "path", path)
+
+	// Check for a bootstrap file
+	// For .md files: setup.md -> setup-bootstrap
+	// For other files: .cursorrules -> .cursorrules-bootstrap
+	var bootstrapFilePath string
+	if filepath.Ext(path) == ".md" {
+		baseNameWithoutExt := strings.TrimSuffix(path, ".md")
+		bootstrapFilePath = baseNameWithoutExt + "-bootstrap"
+	} else {
+		bootstrapFilePath = path + "-bootstrap"
+	}
+
+	if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
+		hash := sha256.Sum256(bootstrapContent)
+		bootstrapPath := filepath.Join(bootstrapDir, fmt.Sprintf("%x", hash))
+		if err := os.WriteFile(bootstrapPath, bootstrapContent, 0700); err != nil {
+			return fmt.Errorf("failed to write bootstrap file: %w", err)
+		}
+	}
+
+	if _, err := output.WriteString(content + "\n\n"); err != nil {
+		return fmt.Errorf("failed to write to output file: %w", err)
+	}
+
+	return nil
 }

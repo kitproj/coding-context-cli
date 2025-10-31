@@ -545,3 +545,345 @@ Missing var: ${missingVar}
 		t.Errorf("Expected ${missingVar} to be replaced with empty string, got:\n%s", contentStr)
 	}
 }
+
+func TestSpecificFileSupport(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a specific file in the project root (like .cursorrules)
+	specificFile := filepath.Join(tmpDir, ".cursorrules")
+	specificContent := `---
+env: development
+---
+# Cursor Rules
+
+These are coding rules for Cursor.
+
+- Use tabs for indentation
+- Write clear comments
+`
+	if err := os.WriteFile(specificFile, []byte(specificContent), 0644); err != nil {
+		t.Fatalf("failed to write specific file: %v", err)
+	}
+
+	// Create a prompt file
+	promptFile := filepath.Join(tasksDir, "test-task.md")
+	promptContent := `---
+---
+# Test Task
+
+Please complete this task.
+`
+	if err := os.WriteFile(promptFile, []byte(promptContent), 0644); err != nil {
+		t.Fatalf("failed to write prompt file: %v", err)
+	}
+
+	// Run the binary with the specific file flag
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-f", specificFile, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that the prompt.md file was created
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify the specific file content is included
+	if !strings.Contains(contentStr, "Cursor Rules") {
+		t.Errorf("Expected content from .cursorrules in output, got:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "Use tabs for indentation") {
+		t.Errorf("Expected rules from .cursorrules in output, got:\n%s", contentStr)
+	}
+
+	// Verify the prompt content is included
+	if !strings.Contains(contentStr, "Test Task") {
+		t.Errorf("Expected prompt content in output, got:\n%s", contentStr)
+	}
+}
+
+func TestSpecificFileWithBootstrap(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a specific file with associated bootstrap
+	specificFile := filepath.Join(tmpDir, ".cursorrules")
+	specificContent := `---
+---
+# Rules
+
+Some rules here.
+`
+	if err := os.WriteFile(specificFile, []byte(specificContent), 0644); err != nil {
+		t.Fatalf("failed to write specific file: %v", err)
+	}
+
+	// Create bootstrap for the specific file
+	bootstrapFile := filepath.Join(tmpDir, ".cursorrules-bootstrap")
+	bootstrapContent := `#!/bin/bash
+echo "Setting up cursor environment"
+`
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0755); err != nil {
+		t.Fatalf("failed to write bootstrap file: %v", err)
+	}
+
+	// Create a prompt file
+	promptFile := filepath.Join(tasksDir, "test-task.md")
+	if err := os.WriteFile(promptFile, []byte("---\n---\n# Task\n"), 0644); err != nil {
+		t.Fatalf("failed to write prompt file: %v", err)
+	}
+
+	// Run the binary with the specific file flag
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-f", specificFile, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that the bootstrap was created
+	bootstrapDDir := filepath.Join(outputDir, "bootstrap.d")
+	files, err := os.ReadDir(bootstrapDDir)
+	if err != nil {
+		t.Fatalf("failed to read bootstrap.d dir: %v", err)
+	}
+	if len(files) != 1 {
+		t.Errorf("expected 1 bootstrap file, got %d", len(files))
+	}
+
+	// Verify bootstrap content
+	if len(files) > 0 {
+		bootstrapPath := filepath.Join(bootstrapDDir, files[0].Name())
+		content, err := os.ReadFile(bootstrapPath)
+		if err != nil {
+			t.Fatalf("failed to read bootstrap file: %v", err)
+		}
+		if string(content) != bootstrapContent {
+			t.Errorf("bootstrap content mismatch:\ngot: %q\nwant: %q", string(content), bootstrapContent)
+		}
+	}
+}
+
+func TestSpecificFileWithSelectors(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create two specific files with different frontmatter
+	prodFile := filepath.Join(tmpDir, ".prod-rules")
+	prodContent := `---
+env: production
+---
+# Production Rules
+Use production settings.
+`
+	if err := os.WriteFile(prodFile, []byte(prodContent), 0644); err != nil {
+		t.Fatalf("failed to write prod file: %v", err)
+	}
+
+	devFile := filepath.Join(tmpDir, ".dev-rules")
+	devContent := `---
+env: development
+---
+# Development Rules
+Use development settings.
+`
+	if err := os.WriteFile(devFile, []byte(devContent), 0644); err != nil {
+		t.Fatalf("failed to write dev file: %v", err)
+	}
+
+	// Create a prompt file
+	promptFile := filepath.Join(tasksDir, "test-task.md")
+	if err := os.WriteFile(promptFile, []byte("---\n---\n# Task\n"), 0644); err != nil {
+		t.Fatalf("failed to write prompt file: %v", err)
+	}
+
+	// Test 1: Include only production files
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-f", prodFile, "-f", devFile, "-s", "env=production", "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "Production Rules") {
+		t.Errorf("Expected production rules in output")
+	}
+	if strings.Contains(contentStr, "Development Rules") {
+		t.Errorf("Did not expect development rules in output")
+	}
+
+	// Clean for next test
+	os.RemoveAll(outputDir)
+
+	// Test 2: Exclude production files
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-f", prodFile, "-f", devFile, "-S", "env=production", "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	content, err = os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr = string(content)
+	if strings.Contains(contentStr, "Production Rules") {
+		t.Errorf("Did not expect production rules in output")
+	}
+	if !strings.Contains(contentStr, "Development Rules") {
+		t.Errorf("Expected development rules in output")
+	}
+}
+
+func TestMultipleSpecificFiles(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create multiple specific files
+	file1 := filepath.Join(tmpDir, ".cursorrules")
+	if err := os.WriteFile(file1, []byte("---\n---\n# Cursor Rules\nRule 1\n"), 0644); err != nil {
+		t.Fatalf("failed to write file1: %v", err)
+	}
+
+	file2 := filepath.Join(tmpDir, ".aiignore")
+	if err := os.WriteFile(file2, []byte("---\n---\n# AI Ignore\nIgnore patterns\n"), 0644); err != nil {
+		t.Fatalf("failed to write file2: %v", err)
+	}
+
+	// Create a prompt file
+	promptFile := filepath.Join(tasksDir, "test-task.md")
+	if err := os.WriteFile(promptFile, []byte("---\n---\n# Task\n"), 0644); err != nil {
+		t.Fatalf("failed to write prompt file: %v", err)
+	}
+
+	// Run with multiple specific files
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-f", file1, "-f", file2, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Verify both files are included
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "Cursor Rules") {
+		t.Errorf("Expected Cursor Rules in output")
+	}
+	if !strings.Contains(contentStr, "AI Ignore") {
+		t.Errorf("Expected AI Ignore in output")
+	}
+}
+
+func TestSpecificFileNotFound(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a prompt file
+	promptFile := filepath.Join(tasksDir, "test-task.md")
+	if err := os.WriteFile(promptFile, []byte("---\n---\n# Task\n"), 0644); err != nil {
+		t.Fatalf("failed to write prompt file: %v", err)
+	}
+
+	// Run with a non-existent specific file
+	nonExistentFile := filepath.Join(tmpDir, ".nonexistent")
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-f", nonExistentFile, "test-task")
+	cmd.Dir = tmpDir
+	output, err := cmd.CombinedOutput()
+	
+	// Should fail with an error about file not found
+	if err == nil {
+		t.Errorf("Expected error for non-existent file, but command succeeded")
+	}
+	
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "specific file not found") {
+		t.Errorf("Expected 'specific file not found' error, got: %s", outputStr)
+	}
+}
