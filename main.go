@@ -81,18 +81,18 @@ func run(args []string) error {
 
 	// Track processed files to avoid duplicates
 	// Map of canonical path -> original path (for symlink deduplication)
-	processedPaths := make(map[string]string)
-	// Map of content hash -> original path (for content deduplication)
-	processedHashes := make(map[string]string)
+	canonicalToOriginalPath := make(map[string]string)
+	// Map of raw file content hash -> original path (for content deduplication)
+	contentHashToOriginalPath := make(map[string]string)
 
 	for _, dir := range dirs {
 		memoryDir := filepath.Join(dir, "memories")
-		
+
 		// Skip if the directory doesn't exist
 		if _, err := os.Stat(memoryDir); os.IsNotExist(err) {
 			continue
 		}
-		
+
 		err := filepath.Walk(memoryDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -114,10 +114,27 @@ func run(args []string) error {
 			}
 
 			// Check if we've already processed this canonical path (symlink duplicate)
-			if originalPath, exists := processedPaths[canonicalPath]; exists {
-				slog.Info("Skipping duplicate memory file (symlink or same file)", 
-					"path", path, 
+			if originalPath, exists := canonicalToOriginalPath[canonicalPath]; exists {
+				slog.Info("Skipping duplicate memory file (symlink or same file)",
+					"path", path,
 					"canonical_path", canonicalPath,
+					"original_path", originalPath)
+				return nil
+			}
+
+			// Read raw file content for hash calculation (before parsing)
+			rawContent, err := os.ReadFile(path)
+			if err != nil {
+				return fmt.Errorf("failed to read file: %w", err)
+			}
+
+			// Calculate content hash on raw file bytes for duplicate detection
+			contentHash := fmt.Sprintf("%x", sha256.Sum256(rawContent))
+
+			// Check if we've already processed this content (copy duplicate)
+			if originalPath, exists := contentHashToOriginalPath[contentHash]; exists {
+				slog.Info("Skipping duplicate memory file (identical content)",
+					"path", path,
 					"original_path", originalPath)
 				return nil
 			}
@@ -127,17 +144,6 @@ func run(args []string) error {
 			content, err := parseMarkdownFile(path, &frontmatter)
 			if err != nil {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
-			}
-
-			// Calculate content hash for duplicate detection
-			contentHash := fmt.Sprintf("%x", sha256.Sum256([]byte(content)))
-
-			// Check if we've already processed this content (copy duplicate)
-			if originalPath, exists := processedHashes[contentHash]; exists {
-				slog.Info("Skipping duplicate memory file (identical content)", 
-					"path", path, 
-					"original_path", originalPath)
-				return nil
 			}
 
 			// Check if file matches include and exclude selectors
@@ -153,8 +159,8 @@ func run(args []string) error {
 			slog.Info("Including memory file", "path", path)
 
 			// Record this file as processed
-			processedPaths[canonicalPath] = path
-			processedHashes[contentHash] = path
+			canonicalToOriginalPath[canonicalPath] = path
+			contentHashToOriginalPath[contentHash] = path
 
 			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
 			// For example, setup.md -> setup-bootstrap

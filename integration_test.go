@@ -451,8 +451,8 @@ The project is for $company.
 	}
 
 	// Run the binary with parameters
-	cmd = exec.Command(binaryPath, 
-		"-d", contextDir, 
+	cmd = exec.Command(binaryPath,
+		"-d", contextDir,
 		"-o", outputDir,
 		"-p", "taskName=AddAuth",
 		"-p", "feature=Authentication",
@@ -516,8 +516,8 @@ Missing var: ${missingVar}
 	}
 
 	// Run the binary with only one parameter
-	cmd = exec.Command(binaryPath, 
-		"-d", contextDir, 
+	cmd = exec.Command(binaryPath,
+		"-d", contextDir,
 		"-o", outputDir,
 		"-p", "providedVar=ProvidedValue",
 		"test-missing")
@@ -539,7 +539,7 @@ Missing var: ${missingVar}
 	if !strings.Contains(contentStr, "Task: ProvidedValue") {
 		t.Errorf("Expected 'Task: ProvidedValue' in output, got:\n%s", contentStr)
 	}
-	
+
 	// Verify missing variable is replaced with empty string
 	if strings.Contains(contentStr, "${missingVar}") {
 		t.Errorf("Expected ${missingVar} to be replaced with empty string, got:\n%s", contentStr)

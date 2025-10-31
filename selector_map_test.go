@@ -225,7 +225,7 @@ func TestSelectorMap_String(t *testing.T) {
 	s := make(selectorMap)
 	s.Set("env=production")
 	s.Set("language=go")
-	
+
 	str := s.String()
 	if str == "" {
 		t.Error("String() returned empty string")

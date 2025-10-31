@@ -379,3 +379,84 @@ Only in context 2.
 		t.Errorf("Expected context 2 unique content to appear once, but found %d occurrences", unique2Occurrences)
 	}
 }
+
+func TestDifferentFrontmatterNotDeduplicated(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create two files with the same body content but different frontmatter
+	file1Content := `---
+env: production
+---
+# Common Content
+
+This is the body content.
+`
+	file1 := filepath.Join(memoriesDir, "prod.md")
+	if err := os.WriteFile(file1, []byte(file1Content), 0644); err != nil {
+		t.Fatalf("failed to write file 1: %v", err)
+	}
+
+	file2Content := `---
+env: development
+---
+# Common Content
+
+This is the body content.
+`
+	file2 := filepath.Join(memoriesDir, "dev.md")
+	if err := os.WriteFile(file2, []byte(file2Content), 0644); err != nil {
+		t.Fatalf("failed to write file 2: %v", err)
+	}
+
+	// Create a prompt file
+	promptFile := filepath.Join(tasksDir, "test-task.md")
+	promptContent := `---
+---
+# Test Task
+`
+	if err := os.WriteFile(promptFile, []byte(promptContent), 0644); err != nil {
+		t.Fatalf("failed to write prompt file: %v", err)
+	}
+
+	// Run the binary
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Read the output
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// The body content should appear TWICE since the files have different frontmatter
+	// (and therefore different raw content)
+	bodyOccurrences := strings.Count(contentStr, "This is the body content.")
+	if bodyOccurrences != 2 {
+		t.Errorf("Expected body content to appear twice (different frontmatter = different files), but found %d occurrences. Content:\n%s", bodyOccurrences, contentStr)
+	}
+}
