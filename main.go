@@ -82,25 +82,30 @@ func run(args []string) error {
 	}
 	defer output.Close()
 
-	// Process memory files from two sources:
-	// 1. From dirs - look for memories/ subdirectory
-	// 2. From memories - direct paths to directories or files
+	// Add dir/memories to memories list and dir/tasks to tasks list
+	memoriesToProcess := make([]string, 0, len(memories)+len(dirs))
+	tasksToProcess := make([]string, 0, len(tasks)+len(dirs))
 	
-	// Process memories from dirs
+	// Add directories from dirs
 	for _, dir := range dirs {
-		memoryDir := filepath.Join(dir, "memories")
-		if err := processMemoryDir(memoryDir, output, bootstrapDir); err != nil {
-			// Skip if directory doesn't exist
-			if !os.IsNotExist(err) {
-				return err
-			}
-		}
+		memoriesToProcess = append(memoriesToProcess, filepath.Join(dir, "memories"))
+		tasksToProcess = append(tasksToProcess, filepath.Join(dir, "tasks"))
 	}
 	
-	// Process memories from direct paths
-	for _, memPath := range memories {
+	// Add direct memory paths
+	memoriesToProcess = append(memoriesToProcess, memories...)
+	
+	// Add direct task paths
+	tasksToProcess = append(tasksToProcess, tasks...)
+	
+	// Process all memory paths
+	for _, memPath := range memoriesToProcess {
 		info, err := os.Stat(memPath)
 		if err != nil {
+			// Skip if path doesn't exist
+			if os.IsNotExist(err) {
+				continue
+			}
 			return fmt.Errorf("failed to stat memory path %s: %w", memPath, err)
 		}
 		
@@ -123,24 +128,16 @@ func run(args []string) error {
 		return fmt.Errorf("failed to write bootstrap file: %w", err)
 	}
 
-	// Process task files from two sources:
-	// 1. From dirs - look for tasks/ subdirectory
-	// 2. From tasks - direct paths to directories or files
-	
+	// Process all task paths to find the requested task
 	taskName := args[0]
 	
-	// First try to find task in dirs
-	for _, dir := range dirs {
-		promptFile := filepath.Join(dir, "tasks", taskName+".md")
-		if _, err := os.Stat(promptFile); err == nil {
-			return processTaskFile(promptFile, output)
-		}
-	}
-	
-	// Then try to find task in direct paths
-	for _, taskPath := range tasks {
+	for _, taskPath := range tasksToProcess {
 		info, err := os.Stat(taskPath)
 		if err != nil {
+			// Skip if path doesn't exist
+			if os.IsNotExist(err) {
+				continue
+			}
 			return fmt.Errorf("failed to stat task path %s: %w", taskPath, err)
 		}
 		
