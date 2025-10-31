@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -286,13 +287,13 @@ func TestSelectorFiltering(t *testing.T) {
 		t.Fatalf("failed to read prompt output: %v", err)
 	}
 	contentStr := string(content)
-	if !contains(contentStr, "Prod content") {
+	if !strings.Contains(contentStr, "Prod content") {
 		t.Errorf("Expected production content in output")
 	}
-	if contains(contentStr, "Dev content") {
+	if strings.Contains(contentStr, "Dev content") {
 		t.Errorf("Did not expect development content in output")
 	}
-	if contains(contentStr, "Test content") {
+	if strings.Contains(contentStr, "Test content") {
 		t.Errorf("Did not expect test content in output")
 	}
 
@@ -311,13 +312,13 @@ func TestSelectorFiltering(t *testing.T) {
 		t.Fatalf("failed to read prompt output: %v", err)
 	}
 	contentStr = string(content)
-	if !contains(contentStr, "Prod content") {
+	if !strings.Contains(contentStr, "Prod content") {
 		t.Errorf("Expected production content in output")
 	}
-	if contains(contentStr, "Dev content") {
+	if strings.Contains(contentStr, "Dev content") {
 		t.Errorf("Did not expect development content in output")
 	}
-	if !contains(contentStr, "Test content") {
+	if !strings.Contains(contentStr, "Test content") {
 		t.Errorf("Expected test content in output")
 	}
 
@@ -336,13 +337,13 @@ func TestSelectorFiltering(t *testing.T) {
 		t.Fatalf("failed to read prompt output: %v", err)
 	}
 	contentStr = string(content)
-	if contains(contentStr, "Prod content") {
+	if strings.Contains(contentStr, "Prod content") {
 		t.Errorf("Did not expect production content in output")
 	}
-	if !contains(contentStr, "Dev content") {
+	if !strings.Contains(contentStr, "Dev content") {
 		t.Errorf("Expected development content in output")
 	}
-	if !contains(contentStr, "Test content") {
+	if !strings.Contains(contentStr, "Test content") {
 		t.Errorf("Expected test content in output")
 	}
 
@@ -361,26 +362,13 @@ func TestSelectorFiltering(t *testing.T) {
 		t.Fatalf("failed to read prompt output: %v", err)
 	}
 	contentStr = string(content)
-	if !contains(contentStr, "Prod content") {
+	if !strings.Contains(contentStr, "Prod content") {
 		t.Errorf("Expected production content in output")
 	}
-	if contains(contentStr, "Dev content") {
+	if strings.Contains(contentStr, "Dev content") {
 		t.Errorf("Did not expect development content in output")
 	}
-	if contains(contentStr, "Test content") {
+	if strings.Contains(contentStr, "Test content") {
 		t.Errorf("Did not expect test content in output")
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsSubstring(s, substr)))
-}
-
-func containsSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
