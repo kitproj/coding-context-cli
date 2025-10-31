@@ -2,7 +2,63 @@
 
 A CLI tool for managing context files for coding agents. It helps you organize prompts, memories (reusable context), and bootstrap scripts that can be assembled into a single context file for AI coding agents.
 
-It's aimed at coding agents with a simple interface for managing task-specific context and reusable knowledge.
+## Why Use This?
+
+When working with AI coding agents (like GitHub Copilot, ChatGPT, Claude, etc.), providing the right context is crucial for getting quality results. However, managing this context becomes challenging when:
+
+- **Context is scattered**: Project conventions, coding standards, and setup instructions are spread across multiple documents
+- **Repetition is tedious**: You find yourself copy-pasting the same information into every AI chat session
+- **Context size is limited**: AI models have token limits, so you need to efficiently select what's relevant
+- **Onboarding is manual**: New team members or agents need step-by-step setup instructions
+
+**This tool solves these problems by:**
+
+1. **Centralizing reusable context** - Store project conventions, coding standards, and setup instructions once in "memory" files
+2. **Creating task-specific prompts** - Define templated prompts for common tasks (e.g., "add feature", "fix bug", "refactor")
+3. **Automating environment setup** - Package bootstrap scripts that prepare the environment before an agent starts work
+4. **Filtering context dynamically** - Use selectors to include only relevant context (e.g., production vs. development, Python vs. Go)
+5. **Composing everything together** - Generate a single `prompt.md` file combining all relevant context and the task prompt
+
+## When to Use
+
+This tool is ideal for:
+
+- **Working with AI coding agents** - Prepare comprehensive context before starting a coding session
+- **Team standardization** - Share common prompts and conventions across your team
+- **Complex projects** - Manage large amounts of project-specific context efficiently
+- **Onboarding automation** - New developers or agents can run bootstrap scripts to set up their environment
+- **Multi-environment projects** - Filter context based on environment (dev/staging/prod) or technology stack
+
+## How It Works
+
+The basic workflow is:
+
+1. **Organize your context** - Create memory files (shared context) and prompt files (task-specific instructions)
+2. **Run the CLI** - Execute `coding-context <task-name>` with optional parameters
+3. **Get assembled output** - The tool generates:
+   - `prompt.md` - Combined context + task prompt with template variables filled in
+   - `bootstrap` - Executable script to set up the environment
+   - `bootstrap.d/` - Individual bootstrap scripts from your memory files
+4. **Use with AI agents** - Share `prompt.md` with your AI coding agent, or run `./bootstrap` to prepare the environment first
+
+**Visual flow:**
+```
++---------------------+       +--------------------------+
+| Memory Files (*.md) |       | Prompt Template          |
+|                     |       | (task-name.md)           |
++----------+----------+       +------------+-------------+
+           |                               |
+           | Filter by selectors           | Apply template params
+           v                               v
++---------------------+       +--------------------------+
+| Filtered Memories   +-------+ Rendered Prompt          |
++---------------------+       +------------+-------------+
+                                           |
+                                           v
+                              +----------------------------+
+                              | prompt.md (combined output)|
+                              +----------------------------+
+```
 
 ## Installation
 
@@ -52,12 +108,17 @@ coding-context -s env=production -S language=python deploy
 
 ## Quick Start
 
-1. Create a context directory structure:
+This 4-step guide shows how to set up and generate your first context:
+
+**Step 1: Create a context directory structure**
 ```bash
 mkdir -p .coding-context/{prompts,memories}
 ```
 
-2. Create a memory file (`.coding-context/memories/project-info.md`):
+**Step 2: Create a memory file** (`.coding-context/memories/project-info.md`)
+
+Memory files are included in every generated context. They contain reusable information like project conventions, architecture notes, or coding standards.
+
 ```markdown
 # Project Context
 
@@ -65,19 +126,37 @@ mkdir -p .coding-context/{prompts,memories}
 - Purpose: Manage AI agent context
 ```
 
-3. Create a prompt file (`.coding-context/prompts/my-task.md`):
+**Step 3: Create a prompt file** (`.coding-context/prompts/my-task.md`)
+
+Prompt files define specific tasks. They can use template variables (like `{{ .taskName }}`) that you provide via command-line parameters.
+
 ```markdown
 # Task: {{ .taskName }}
 
 Please help me with this task. The project uses {{ .language }}.
 ```
 
-4. Run the tool:
+**Step 4: Generate your context file**
+
 ```bash
 coding-context -p taskName="Fix Bug" -p language=Go my-task
 ```
 
-This generates `./prompt.md` combining your memories and the task prompt.
+**Result:** This generates `./prompt.md` combining your memories and the task prompt with template variables filled in. You can now share this complete context with your AI coding agent!
+
+**What you'll see in `prompt.md`:**
+```markdown
+# Project Context
+
+- Framework: Go CLI
+- Purpose: Manage AI agent context
+
+
+
+# Task: Fix Bug
+
+Please help me with this task. The project uses Go.
+```
 
 
 ## Directory Structure
