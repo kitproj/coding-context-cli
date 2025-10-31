@@ -126,7 +126,7 @@ func run(args []string) error {
 
 			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
 				hash := sha256.Sum256(bootstrapContent)
-				// Use original filename as prefix with first 8 chars of hash as suffix
+				// Use original filename as prefix with first 4 bytes of hash as 8-char hex suffix
 				// e.g., jira-bootstrap-9e2e8bc8
 				baseBootstrapName := filepath.Base(bootstrapFilePath)
 				bootstrapFileName := fmt.Sprintf("%s-%08x", baseBootstrapName, hash[:4])
