@@ -18,16 +18,16 @@ func TestBootstrapFromFile(t *testing.T) {
 
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
-	contextDir := filepath.Join(tmpDir, ".coding-context")
+	contextDir := filepath.Join(tmpDir, ".prompts")
 	memoriesDir := filepath.Join(contextDir, "memories")
-	promptsDir := filepath.Join(contextDir, "prompts")
+	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
 	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
 		t.Fatalf("failed to create memories dir: %v", err)
 	}
-	if err := os.MkdirAll(promptsDir, 0755); err != nil {
-		t.Fatalf("failed to create prompts dir: %v", err)
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create a memory file
@@ -53,7 +53,7 @@ npm install
 	}
 
 	// Create a prompt file
-	promptFile := filepath.Join(promptsDir, "test-task.md")
+	promptFile := filepath.Join(tasksDir, "test-task.md")
 	promptContent := `---
 ---
 # Test Task
@@ -115,16 +115,16 @@ func TestBootstrapFileNotRequired(t *testing.T) {
 
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
-	contextDir := filepath.Join(tmpDir, ".coding-context")
+	contextDir := filepath.Join(tmpDir, ".prompts")
 	memoriesDir := filepath.Join(contextDir, "memories")
-	promptsDir := filepath.Join(contextDir, "prompts")
+	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
 	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
 		t.Fatalf("failed to create memories dir: %v", err)
 	}
-	if err := os.MkdirAll(promptsDir, 0755); err != nil {
-		t.Fatalf("failed to create prompts dir: %v", err)
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create a memory file WITHOUT a bootstrap
@@ -140,7 +140,7 @@ Just some information.
 	}
 
 	// Create a prompt file
-	promptFile := filepath.Join(promptsDir, "test-task.md")
+	promptFile := filepath.Join(tasksDir, "test-task.md")
 	promptContent := `---
 ---
 # Test Task
@@ -185,16 +185,16 @@ func TestMultipleBootstrapFiles(t *testing.T) {
 
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
-	contextDir := filepath.Join(tmpDir, ".coding-context")
+	contextDir := filepath.Join(tmpDir, ".prompts")
 	memoriesDir := filepath.Join(contextDir, "memories")
-	promptsDir := filepath.Join(contextDir, "prompts")
+	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
 	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
 		t.Fatalf("failed to create memories dir: %v", err)
 	}
-	if err := os.MkdirAll(promptsDir, 0755); err != nil {
-		t.Fatalf("failed to create prompts dir: %v", err)
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create first memory file with bootstrap
@@ -214,7 +214,7 @@ func TestMultipleBootstrapFiles(t *testing.T) {
 	}
 
 	// Create a prompt file
-	if err := os.WriteFile(filepath.Join(promptsDir, "test-task.md"), []byte("---\n---\n# Test\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tasksDir, "test-task.md"), []byte("---\n---\n# Test\n"), 0644); err != nil {
 		t.Fatalf("failed to write prompt file: %v", err)
 	}
 
@@ -246,16 +246,16 @@ func TestSelectorFiltering(t *testing.T) {
 
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
-	contextDir := filepath.Join(tmpDir, ".coding-context")
+	contextDir := filepath.Join(tmpDir, ".prompts")
 	memoriesDir := filepath.Join(contextDir, "memories")
-	promptsDir := filepath.Join(contextDir, "prompts")
+	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
 	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
 		t.Fatalf("failed to create memories dir: %v", err)
 	}
-	if err := os.MkdirAll(promptsDir, 0755); err != nil {
-		t.Fatalf("failed to create prompts dir: %v", err)
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create memory files with different frontmatter
@@ -274,7 +274,7 @@ func TestSelectorFiltering(t *testing.T) {
 	}
 
 	// Create a prompt file
-	if err := os.WriteFile(filepath.Join(promptsDir, "test-task.md"), []byte("---\n---\n# Test Task\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tasksDir, "test-task.md"), []byte("---\n---\n# Test Task\n"), 0644); err != nil {
 		t.Fatalf("failed to write prompt file: %v", err)
 	}
 

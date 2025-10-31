@@ -31,9 +31,9 @@ func main() {
 	}
 
 	dirs = []string{
-		".coding-context",
-		filepath.Join(userConfigDir, "coding-context"),
-		"/var/local/coding-context",
+		".prompts",
+		filepath.Join(userConfigDir, "prompts"),
+		"/var/local/prompts",
 	}
 
 	flag.Var(&dirs, "d", "Directory to include in the context. Can be specified multiple times.")
@@ -151,7 +151,7 @@ func run(args []string) error {
 
 	taskName := args[0]
 	for _, dir := range dirs {
-		promptFile := filepath.Join(dir, "prompts", taskName+".md")
+		promptFile := filepath.Join(dir, "tasks", taskName+".md")
 
 		if _, err := os.Stat(promptFile); err == nil {
 			slog.Info("Using prompt file", "path", promptFile)

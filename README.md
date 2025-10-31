@@ -82,7 +82,7 @@ coding-context [options] <task-name>
 
 Options:
   -d <directory>    Add a directory to include in the context (can be used multiple times)
-                    Default: .coding-context, ~/.config/coding-context, /var/local/coding-context
+                    Default: .prompts, ~/.config/prompts, /var/local/prompts
   -o <directory>    Output directory for generated files (default: .)
   -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
   -s <key=value>    Include memories with matching frontmatter (can be used multiple times)
@@ -112,10 +112,10 @@ This 4-step guide shows how to set up and generate your first context:
 
 **Step 1: Create a context directory structure**
 ```bash
-mkdir -p .coding-context/{prompts,memories}
+mkdir -p .prompts/{tasks,memories}
 ```
 
-**Step 2: Create a memory file** (`.coding-context/memories/project-info.md`)
+**Step 2: Create a memory file** (`.prompts/memories/project-info.md`)
 
 Memory files are included in every generated context. They contain reusable information like project conventions, architecture notes, or coding standards.
 
@@ -126,7 +126,7 @@ Memory files are included in every generated context. They contain reusable info
 - Purpose: Manage AI agent context
 ```
 
-**Step 3: Create a prompt file** (`.coding-context/prompts/my-task.md`)
+**Step 3: Create a prompt file** (`.prompts/tasks/my-task.md`)
 
 Prompt files define specific tasks. They can use template variables (like `{{ .taskName }}`) that you provide via command-line parameters.
 
@@ -162,14 +162,14 @@ Please help me with this task. The project uses Go.
 ## Directory Structure
 
 The tool searches these directories for context files (in priority order):
-1. `.coding-context/` (project-local)
-2. `~/.config/coding-context/` (user-specific)
-3. `/var/local/coding-context/` (system-wide)
+1. `.prompts/` (project-local)
+2. `~/.config/prompts/` (user-specific)
+3. `/var/local/prompts/` (system-wide)
 
 Each directory should contain:
 ```
-.coding-context/
-├── prompts/          # Task-specific prompt templates
+.prompts/
+├── tasks/          # Task-specific prompt templates
 │   └── <task-name>.md
 └── memories/         # Reusable context files (included in all outputs)
     └── *.md
@@ -182,7 +182,7 @@ Each directory should contain:
 
 Markdown files with YAML frontmatter and Go template support.
 
-**Example** (`.coding-context/prompts/add-feature.md`):
+**Example** (`.prompts/tasks/add-feature.md`):
 ```markdown
 # Task: {{ .feature }}
 
@@ -198,7 +198,7 @@ coding-context -p feature="User Login" -p language=Go add-feature
 
 Markdown files included in every generated context. Bootstrap scripts can be provided in separate files.
 
-**Example** (`.coding-context/memories/setup.md`):
+**Example** (`.prompts/memories/setup.md`):
 ```markdown
 ---
 env: development
@@ -209,7 +209,7 @@ language: go
 This project requires Node.js dependencies.
 ```
 
-**Bootstrap file** (`.coding-context/memories/setup-bootstrap`):
+**Bootstrap file** (`.prompts/memories/setup-bootstrap`):
 ```bash
 #!/bin/bash
 npm install
@@ -258,9 +258,9 @@ coding-context -s env=production -s language=go -s tier=backend deploy
 When you run with selectors, the tool logs which files are included or excluded:
 
 ```
-INFO Including memory file path=.coding-context/memories/production.md
-INFO Excluding memory file (does not match include selectors) path=.coding-context/memories/development.md
-INFO Including memory file path=.coding-context/memories/nofrontmatter.md
+INFO Including memory file path=.prompts/memories/production.md
+INFO Excluding memory file (does not match include selectors) path=.prompts/memories/development.md
+INFO Including memory file path=.prompts/memories/nofrontmatter.md
 ```
 
 **Important:** Files without the specified frontmatter keys are still included. This allows you to have generic memories that apply to all scenarios.
@@ -286,10 +286,10 @@ Run the bootstrap script to set up your environment:
 
 ```bash
 # Create structure
-mkdir -p .coding-context/{prompts,memories}
+mkdir -p .prompts/{tasks,memories}
 
 # Add a memory
-cat > .coding-context/memories/conventions.md << 'EOF'
+cat > .prompts/memories/conventions.md << 'EOF'
 # Coding Conventions
 
 - Use tabs for indentation
@@ -297,7 +297,7 @@ cat > .coding-context/memories/conventions.md << 'EOF'
 EOF
 
 # Create a task prompt
-cat > .coding-context/prompts/refactor.md << 'EOF'
+cat > .prompts/tasks/refactor.md << 'EOF'
 # Refactoring Task
 
 Please refactor the codebase to improve code quality.
@@ -310,7 +310,7 @@ coding-context refactor
 ### With Template Parameters
 
 ```bash
-cat > .coding-context/prompts/add-feature.md << 'EOF'
+cat > .prompts/tasks/add-feature.md << 'EOF'
 # Add Feature: {{ .featureName }}
 
 Implement {{ .featureName }} in {{ .language }}.
@@ -322,20 +322,342 @@ coding-context -p featureName="Authentication" -p language=Go add-feature
 ### With Bootstrap Scripts
 
 ```bash
-cat > .coding-context/memories/setup.md << 'EOF'
+cat > .prompts/memories/setup.md << 'EOF'
 # Project Setup
 
 This Go project uses modules.
 EOF
 
-cat > .coding-context/memories/setup-bootstrap << 'EOF'
+cat > .prompts/memories/setup-bootstrap << 'EOF'
 #!/bin/bash
 go mod download
 EOF
-chmod +x .coding-context/memories/setup-bootstrap
+chmod +x .prompts/memories/setup-bootstrap
 
 coding-context -o ./output my-task
 cd output && ./bootstrap
+```
+
+### Real-World Task Examples
+
+Here are some practical task templates for common development workflows:
+
+#### Implement Jira Story
+
+```bash
+cat > .prompts/tasks/implement-jira-story.md << 'EOF'
+---
+---
+# Implement Jira Story: {{ .storyId }}
+
+## Story Details
+
+First, get the full story details from Jira:
+```bash
+jira get-issue {{ .storyId }}
+```
+
+## Requirements
+
+Please implement the feature described in the Jira story. Follow these steps:
+
+1. **Review the Story**
+   - Read the story details, acceptance criteria, and comments
+   - Get all comments: `jira get-comments {{ .storyId }}`
+   - Clarify any uncertainties by adding comments: `jira add-comment {{ .storyId }} "Your question"`
+
+2. **Start Development**
+   - Create a feature branch with the story ID in the name (e.g., `feature/{{ .storyId }}-implement-auth`)
+   - Move the story to "In Progress": `jira update-issue-status {{ .storyId }} "In Progress"`
+
+3. **Implementation**
+   - Design the solution following project conventions
+   - Implement the feature with proper error handling
+   - Add comprehensive unit tests (aim for >80% coverage)
+   - Update documentation if needed
+   - Ensure all tests pass and code is lint-free
+
+4. **Update Jira Throughout**
+   - Add progress updates: `jira add-comment {{ .storyId }} "Completed implementation, working on tests"`
+   - Keep stakeholders informed of any blockers or changes
+
+5. **Complete the Story**
+   - Ensure all acceptance criteria are met
+   - Create a pull request
+   - Move to review: `jira update-issue-status {{ .storyId }} "In Review"`
+   - Once merged, close: `jira update-issue-status {{ .storyId }} "Done"`
+
+## Success Criteria
+- All acceptance criteria are met
+- Code follows project coding standards
+- Tests are passing
+- Documentation is updated
+- Jira story is properly tracked through workflow
+EOF
+
+# Usage
+coding-context -p storyId="PROJ-123" implement-jira-story
+```
+
+#### Triage Jira Bug
+
+```bash
+cat > .prompts/tasks/triage-jira-bug.md << 'EOF'
+---
+---
+# Triage Jira Bug: {{ .bugId }}
+
+## Get Bug Details
+
+First, retrieve the full bug report from Jira:
+```bash
+jira get-issue {{ .bugId }}
+jira get-comments {{ .bugId }}
+```
+
+## Triage Steps
+
+1. **Acknowledge and Take Ownership**
+   - Add initial comment: `jira add-comment {{ .bugId }} "Triaging this bug now"`
+   - Move to investigation: `jira update-issue-status {{ .bugId }} "In Progress"`
+
+2. **Reproduce the Issue**
+   - Follow the steps to reproduce in the bug report
+   - Verify the issue exists in the reported environment
+   - Document actual vs. expected behavior
+   - Update Jira: `jira add-comment {{ .bugId }} "Reproduced on [environment]. Actual: [X], Expected: [Y]"`
+
+3. **Investigate Root Cause**
+   - Review relevant code and logs
+   - Identify the component/module causing the issue
+   - Determine if this is a regression (check git history)
+   - Document findings: `jira add-comment {{ .bugId }} "Root cause: [description]"`
+
+4. **Assess Impact**
+   - How many users are affected?
+   - Is there a workaround available?
+   - What is the risk if left unfixed?
+   - Add assessment: `jira add-comment {{ .bugId }} "Impact: [severity]. Workaround: [yes/no]. Affected users: [estimate]"`
+
+5. **Provide Triage Report**
+   - Root cause analysis
+   - Recommended priority level
+   - Estimated effort to fix
+   - Suggested assignee/team
+   - Final summary: `jira add-comment {{ .bugId }} "Triage complete. Priority: [level]. Effort: [estimate]. Recommended assignee: [name]"`
+
+## Output
+Provide a detailed triage report with your findings and recommendations, and post it as a comment to the Jira issue.
+EOF
+
+# Usage
+coding-context -p bugId="PROJ-456" triage-jira-bug
+```
+
+#### Respond to Jira Comment
+
+```bash
+cat > .prompts/tasks/respond-to-jira-comment.md << 'EOF'
+---
+---
+# Respond to Jira Comment: {{ .issueId }}
+
+## Get Issue and Comments
+
+First, retrieve the issue details and all comments:
+```bash
+jira get-issue {{ .issueId }}
+jira get-comments {{ .issueId }}
+```
+
+Review the latest comment and the full context of the issue.
+
+## Instructions
+
+Please analyze the comment and provide a professional response:
+
+1. **Acknowledge** the comment and any concerns raised
+2. **Address** each question or point made
+3. **Provide** technical details or clarifications as needed
+4. **Suggest** next steps or actions if appropriate
+5. **Maintain** a collaborative and helpful tone
+
+## Response Guidelines
+- Be clear and concise
+- Provide code examples if relevant
+- Link to documentation when helpful
+- Offer to discuss further if needed
+
+## Post Your Response
+
+Once you've formulated your response, add it to the Jira issue:
+```bash
+jira add-comment {{ .issueId }} "Your detailed response here"
+```
+
+If the comment requires action on your part, update the issue status accordingly:
+```bash
+jira update-issue-status {{ .issueId }} "In Progress"
+```
+EOF
+
+# Usage
+coding-context -p issueId="PROJ-789" respond-to-jira-comment
+```
+
+#### Review Pull Request
+
+```bash
+cat > .prompts/tasks/review-pull-request.md << 'EOF'
+---
+---
+# Review Pull Request: {{ .prNumber }}
+
+## PR Details
+- PR #{{ .prNumber }}
+- Author: {{ .author }}
+- Title: {{ .title }}
+
+## Review Checklist
+
+### Code Quality
+- [ ] Code follows project style guidelines
+- [ ] No obvious bugs or logic errors
+- [ ] Error handling is appropriate
+- [ ] No security vulnerabilities introduced
+- [ ] Performance considerations addressed
+
+### Testing
+- [ ] Tests are included for new functionality
+- [ ] Tests cover edge cases
+- [ ] All tests pass
+- [ ] Test quality is high (clear, maintainable)
+
+### Documentation
+- [ ] Public APIs are documented
+- [ ] Complex logic has explanatory comments
+- [ ] README updated if needed
+- [ ] Breaking changes are noted
+
+### Architecture
+- [ ] Changes align with project architecture
+- [ ] No unnecessary dependencies added
+- [ ] Code is modular and reusable
+- [ ] Separation of concerns maintained
+
+## Instructions
+Please review the pull request thoroughly and provide:
+1. Constructive feedback on any issues found
+2. Suggestions for improvements
+3. Approval or request for changes
+4. Specific line-by-line comments where helpful
+
+Be thorough but encouraging. Focus on learning and improvement.
+EOF
+
+# Usage
+coding-context -p prNumber="42" -p author="Jane" -p title="Add feature X" review-pull-request
+```
+
+#### Respond to Pull Request Comment
+
+```bash
+cat > .prompts/tasks/respond-to-pull-request-comment.md << 'EOF'
+---
+---
+# Respond to Pull Request Comment
+
+## PR Details
+- PR #{{ .prNumber }}
+- Reviewer: {{ .reviewer }}
+- File: {{ .file }}
+
+## Comment
+{{ .comment }}
+
+## Instructions
+
+Please address the pull request review comment:
+
+1. **Analyze** the feedback carefully
+2. **Determine** if the comment is valid
+3. **Respond** professionally:
+   - If you agree: Acknowledge and describe your fix
+   - If you disagree: Respectfully explain your reasoning
+   - If unclear: Ask clarifying questions
+
+4. **Make changes** if needed:
+   - Fix the issue raised
+   - Add tests if applicable
+   - Update documentation
+   - Ensure code still works
+
+5. **Reply** with:
+   - What you changed (with commit reference)
+   - Why you made that choice
+   - Any additional context needed
+
+## Tone
+Be collaborative, open to feedback, and focused on code quality.
+EOF
+
+# Usage
+coding-context -p prNumber="42" -p reviewer="Bob" -p file="main.go" -p comment="Consider using a switch here" respond-to-pull-request-comment
+```
+
+#### Fix Failing Check
+
+```bash
+cat > .prompts/tasks/fix-failing-check.md << 'EOF'
+---
+---
+# Fix Failing Check: {{ .checkName }}
+
+## Check Details
+- Check Name: {{ .checkName }}
+- Branch: {{ .branch }}
+- Status: FAILED
+
+## Debugging Steps
+
+1. **Identify the Failure**
+   - Review the check logs
+   - Identify the specific error message
+   - Determine which component is failing
+
+2. **Reproduce Locally**
+   - Pull the latest code from {{ .branch }}
+   - Run the same check locally
+   - Verify you can reproduce the failure
+
+3. **Root Cause Analysis**
+   - Is this a new failure or regression?
+   - What recent changes might have caused it?
+   - Is it environment-specific?
+
+4. **Fix the Issue**
+   - Implement the fix
+   - Verify the check passes locally
+   - Ensure no other checks are broken
+   - Add tests to prevent regression
+
+5. **Validate**
+   - Run all relevant checks locally
+   - Push changes and verify CI passes
+   - Update any related documentation
+
+## Common Check Types
+- **Tests**: Fix failing unit/integration tests
+- **Linter**: Address code style issues
+- **Build**: Resolve compilation errors
+- **Security**: Fix vulnerability scans
+- **Coverage**: Improve test coverage
+
+Please fix the failing check and ensure all CI checks pass.
+EOF
+
+# Usage
+coding-context -p checkName="Unit Tests" -p branch="main" fix-failing-check
 ```
 
 ## Advanced Usage
@@ -352,18 +674,18 @@ Prompts use Go's `text/template` syntax:
 ### Directory Priority
 
 When the same task exists in multiple directories, the first match wins:
-1. `.coding-context/` (highest priority)
-2. `~/.config/coding-context/`
-3. `/var/local/coding-context/` (lowest priority)
+1. `.prompts/` (highest priority)
+2. `~/.config/prompts/`
+3. `/var/local/prompts/` (lowest priority)
 
 ## Troubleshooting
 
 **"prompt file not found for task"**
-- Ensure `<task-name>.md` exists in a `prompts/` subdirectory
+- Ensure `<task-name>.md` exists in a `tasks/` subdirectory
 
 **"failed to walk memory dir"**
 ```bash
-mkdir -p .coding-context/memories
+mkdir -p .prompts/memories
 ```
 
 **Template parameter shows `<no value>`**
