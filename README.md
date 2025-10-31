@@ -173,9 +173,13 @@ coding-context -p featureName="Authentication" -p language="Go" create-feature
 
 The following VS Code-specific variables are **not supported** and will be left as-is:
 - `${workspaceFolder}` - Workspace folder path
+- `${workspaceFolderBasename}` - Workspace folder name
 - `${file}` - Current file path
-- `${selection}` - Selected text
-- `${selectedText}` - Selected text
+- `${fileBasename}` - Current file name
+- `${fileDirname}` - Current file directory
+- `${fileBasenameNoExtension}` - Current file name without extension
+- `${selection}` - Selected text in editor
+- `${selectedText}` - Selected text in editor
 
 These variables are specific to VS Code's editor context and don't have equivalents in the CLI environment.
 

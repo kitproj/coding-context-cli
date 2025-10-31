@@ -40,14 +40,34 @@ func TestConvertVSCodeVariables(t *testing.T) {
 			expected: "Path: ${workspaceFolder}/src",
 		},
 		{
+			name:     "workspaceFolderBasename variable (ignored)",
+			input:    "Basename: ${workspaceFolderBasename}",
+			expected: "Basename: ${workspaceFolderBasename}",
+		},
+		{
 			name:     "file variable (ignored)",
 			input:    "File: ${file}",
 			expected: "File: ${file}",
 		},
 		{
+			name:     "fileBasename variable (ignored)",
+			input:    "File: ${fileBasename}",
+			expected: "File: ${fileBasename}",
+		},
+		{
 			name:     "selection variable (ignored)",
 			input:    "Selected: ${selection}",
 			expected: "Selected: ${selection}",
+		},
+		{
+			name:     "user variable starting with 'file' (converted)",
+			input:    "Type: ${fileType}",
+			expected: "Type: {{ .fileType }}",
+		},
+		{
+			name:     "user variable starting with 'workspace' (converted)",
+			input:    "Config: ${workspaceConfig}",
+			expected: "Config: {{ .workspaceConfig }}",
 		},
 		{
 			name:     "mixed variables",

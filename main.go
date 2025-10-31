@@ -123,11 +123,16 @@ func convertVSCodeVariables(content string) string {
 				// Extract variable name
 				varName := result[i+2 : end]
 				
-				// Skip special VS Code variables that we don't support
-				if strings.HasPrefix(varName, "workspace") || 
-				   strings.HasPrefix(varName, "file") || 
-				   strings.HasPrefix(varName, "selection") ||
-				   strings.HasPrefix(varName, "selected") {
+				// Skip known VS Code-specific variables that we don't support
+				// Use exact matches to avoid false positives
+				if varName == "workspaceFolder" || 
+				   varName == "workspaceFolderBasename" ||
+				   varName == "file" || 
+				   varName == "fileBasename" ||
+				   varName == "fileDirname" ||
+				   varName == "fileBasenameNoExtension" ||
+				   varName == "selection" ||
+				   varName == "selectedText" {
 					i = end + 1
 					continue
 				}
@@ -181,7 +186,7 @@ func run(args []string) error {
 				return nil
 			}
 
-			// Only process .md and .prompt.md files as memory files
+			// Only process .md files (this includes .prompt.md files since filepath.Ext returns ".md" for both)
 			ext := filepath.Ext(path)
 			if ext != ".md" {
 				return nil
