@@ -1,4 +1,4 @@
 #!/bin/bash
 set -euo pipefail
 
-find bootstrap.d -type f -exec {} \;
+find bootstrap.d -type f -exec sh -c 'echo "Running: $1"; "$1"' _ {} \;
