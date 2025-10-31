@@ -82,7 +82,7 @@ coding-context [options] <task-name>
 
 Options:
   -d <directory>    Add a directory to include in the context (can be used multiple times)
-                    Default: .coding-context, ~/.config/coding-context, /var/local/coding-context
+                    Default: .prompts, ~/.config/prompts, /var/local/prompts
   -o <directory>    Output directory for generated files (default: .)
   -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
   -s <key=value>    Include memories with matching frontmatter (can be used multiple times)
@@ -112,10 +112,10 @@ This 4-step guide shows how to set up and generate your first context:
 
 **Step 1: Create a context directory structure**
 ```bash
-mkdir -p .coding-context/{prompts,memories}
+mkdir -p .prompts/{tasks,memories}
 ```
 
-**Step 2: Create a memory file** (`.coding-context/memories/project-info.md`)
+**Step 2: Create a memory file** (`.prompts/memories/project-info.md`)
 
 Memory files are included in every generated context. They contain reusable information like project conventions, architecture notes, or coding standards.
 
@@ -126,7 +126,7 @@ Memory files are included in every generated context. They contain reusable info
 - Purpose: Manage AI agent context
 ```
 
-**Step 3: Create a prompt file** (`.coding-context/prompts/my-task.md`)
+**Step 3: Create a prompt file** (`.prompts/tasks/my-task.md`)
 
 Prompt files define specific tasks. They can use template variables (like `{{ .taskName }}`) that you provide via command-line parameters.
 
@@ -162,14 +162,14 @@ Please help me with this task. The project uses Go.
 ## Directory Structure
 
 The tool searches these directories for context files (in priority order):
-1. `.coding-context/` (project-local)
-2. `~/.config/coding-context/` (user-specific)
-3. `/var/local/coding-context/` (system-wide)
+1. `.prompts/` (project-local)
+2. `~/.config/prompts/` (user-specific)
+3. `/var/local/prompts/` (system-wide)
 
 Each directory should contain:
 ```
-.coding-context/
-├── prompts/          # Task-specific prompt templates
+.prompts/
+├── tasks/          # Task-specific prompt templates
 │   └── <task-name>.md
 └── memories/         # Reusable context files (included in all outputs)
     └── *.md
@@ -182,7 +182,7 @@ Each directory should contain:
 
 Markdown files with YAML frontmatter and Go template support.
 
-**Example** (`.coding-context/prompts/add-feature.md`):
+**Example** (`.prompts/tasks/add-feature.md`):
 ```markdown
 # Task: {{ .feature }}
 
@@ -198,7 +198,7 @@ coding-context -p feature="User Login" -p language=Go add-feature
 
 Markdown files included in every generated context. Bootstrap scripts can be provided in separate files.
 
-**Example** (`.coding-context/memories/setup.md`):
+**Example** (`.prompts/memories/setup.md`):
 ```markdown
 ---
 env: development
@@ -209,7 +209,7 @@ language: go
 This project requires Node.js dependencies.
 ```
 
-**Bootstrap file** (`.coding-context/memories/setup-bootstrap`):
+**Bootstrap file** (`.prompts/memories/setup-bootstrap`):
 ```bash
 #!/bin/bash
 npm install
@@ -258,9 +258,9 @@ coding-context -s env=production -s language=go -s tier=backend deploy
 When you run with selectors, the tool logs which files are included or excluded:
 
 ```
-INFO Including memory file path=.coding-context/memories/production.md
-INFO Excluding memory file (does not match include selectors) path=.coding-context/memories/development.md
-INFO Including memory file path=.coding-context/memories/nofrontmatter.md
+INFO Including memory file path=.prompts/memories/production.md
+INFO Excluding memory file (does not match include selectors) path=.prompts/memories/development.md
+INFO Including memory file path=.prompts/memories/nofrontmatter.md
 ```
 
 **Important:** Files without the specified frontmatter keys are still included. This allows you to have generic memories that apply to all scenarios.
@@ -286,10 +286,10 @@ Run the bootstrap script to set up your environment:
 
 ```bash
 # Create structure
-mkdir -p .coding-context/{prompts,memories}
+mkdir -p .prompts/{tasks,memories}
 
 # Add a memory
-cat > .coding-context/memories/conventions.md << 'EOF'
+cat > .prompts/memories/conventions.md << 'EOF'
 # Coding Conventions
 
 - Use tabs for indentation
@@ -297,7 +297,7 @@ cat > .coding-context/memories/conventions.md << 'EOF'
 EOF
 
 # Create a task prompt
-cat > .coding-context/prompts/refactor.md << 'EOF'
+cat > .prompts/tasks/refactor.md << 'EOF'
 # Refactoring Task
 
 Please refactor the codebase to improve code quality.
@@ -310,7 +310,7 @@ coding-context refactor
 ### With Template Parameters
 
 ```bash
-cat > .coding-context/prompts/add-feature.md << 'EOF'
+cat > .prompts/tasks/add-feature.md << 'EOF'
 # Add Feature: {{ .featureName }}
 
 Implement {{ .featureName }} in {{ .language }}.
@@ -322,17 +322,17 @@ coding-context -p featureName="Authentication" -p language=Go add-feature
 ### With Bootstrap Scripts
 
 ```bash
-cat > .coding-context/memories/setup.md << 'EOF'
+cat > .prompts/memories/setup.md << 'EOF'
 # Project Setup
 
 This Go project uses modules.
 EOF
 
-cat > .coding-context/memories/setup-bootstrap << 'EOF'
+cat > .prompts/memories/setup-bootstrap << 'EOF'
 #!/bin/bash
 go mod download
 EOF
-chmod +x .coding-context/memories/setup-bootstrap
+chmod +x .prompts/memories/setup-bootstrap
 
 coding-context -o ./output my-task
 cd output && ./bootstrap
@@ -352,18 +352,18 @@ Prompts use Go's `text/template` syntax:
 ### Directory Priority
 
 When the same task exists in multiple directories, the first match wins:
-1. `.coding-context/` (highest priority)
-2. `~/.config/coding-context/`
-3. `/var/local/coding-context/` (lowest priority)
+1. `.prompts/` (highest priority)
+2. `~/.config/prompts/`
+3. `/var/local/prompts/` (lowest priority)
 
 ## Troubleshooting
 
 **"prompt file not found for task"**
-- Ensure `<task-name>.md` exists in a `prompts/` subdirectory
+- Ensure `<task-name>.md` exists in a `tasks/` subdirectory
 
 **"failed to walk memory dir"**
 ```bash
-mkdir -p .coding-context/memories
+mkdir -p .prompts/memories
 ```
 
 **Template parameter shows `<no value>`**
