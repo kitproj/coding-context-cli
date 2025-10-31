@@ -338,6 +338,277 @@ coding-context -o ./output my-task
 cd output && ./bootstrap
 ```
 
+### Real-World Task Examples
+
+Here are some practical task templates for common development workflows:
+
+#### Implement Jira Story
+
+```bash
+cat > .prompts/tasks/implement-jira-story.md << 'EOF'
+---
+---
+# Implement Jira Story: {{ .storyId }}
+
+## Story Details
+- Story ID: {{ .storyId }}
+- Title: {{ .title }}
+
+## Requirements
+Please implement the feature described in the Jira story. Follow these steps:
+
+1. Review the acceptance criteria in the story
+2. Design the solution following project conventions
+3. Implement the feature with proper error handling
+4. Add comprehensive unit tests (aim for >80% coverage)
+5. Update documentation if needed
+6. Ensure all tests pass and code is lint-free
+
+## Success Criteria
+- All acceptance criteria are met
+- Code follows project coding standards
+- Tests are passing
+- Documentation is updated
+EOF
+
+# Usage
+coding-context -p storyId="PROJ-123" -p title="Add user authentication" implement-jira-story
+```
+
+#### Triage Jira Bug
+
+```bash
+cat > .prompts/tasks/triage-jira-bug.md << 'EOF'
+---
+---
+# Triage Jira Bug: {{ .bugId }}
+
+## Bug Details
+- Bug ID: {{ .bugId }}
+- Severity: {{ .severity }}
+
+## Triage Steps
+
+1. **Reproduce the Issue**
+   - Follow the steps to reproduce in the bug report
+   - Verify the issue exists in the reported environment
+   - Document actual vs. expected behavior
+
+2. **Investigate Root Cause**
+   - Review relevant code and logs
+   - Identify the component/module causing the issue
+   - Determine if this is a regression (check git history)
+
+3. **Assess Impact**
+   - How many users are affected?
+   - Is there a workaround available?
+   - What is the risk if left unfixed?
+
+4. **Provide Triage Report**
+   - Root cause analysis
+   - Recommended priority level
+   - Estimated effort to fix
+   - Suggested assignee/team
+
+## Output
+Please provide a detailed triage report with your findings and recommendations.
+EOF
+
+# Usage
+coding-context -p bugId="PROJ-456" -p severity="High" triage-jira-bug
+```
+
+#### Respond to Jira Comment
+
+```bash
+cat > .prompts/tasks/respond-to-jira-comment.md << 'EOF'
+---
+---
+# Respond to Jira Comment: {{ .issueId }}
+
+## Issue Details
+- Issue ID: {{ .issueId }}
+- Comment from: {{ .commenter }}
+
+## Comment Content
+{{ .comment }}
+
+## Instructions
+
+Please analyze the comment and provide a professional response:
+
+1. **Acknowledge** the comment and any concerns raised
+2. **Address** each question or point made
+3. **Provide** technical details or clarifications as needed
+4. **Suggest** next steps or actions if appropriate
+5. **Maintain** a collaborative and helpful tone
+
+## Response Guidelines
+- Be clear and concise
+- Provide code examples if relevant
+- Link to documentation when helpful
+- Offer to discuss further if needed
+EOF
+
+# Usage
+coding-context -p issueId="PROJ-789" -p commenter="John" -p comment="Can we use a different approach?" respond-to-jira-comment
+```
+
+#### Review Pull Request
+
+```bash
+cat > .prompts/tasks/review-pull-request.md << 'EOF'
+---
+---
+# Review Pull Request: {{ .prNumber }}
+
+## PR Details
+- PR #{{ .prNumber }}
+- Author: {{ .author }}
+- Title: {{ .title }}
+
+## Review Checklist
+
+### Code Quality
+- [ ] Code follows project style guidelines
+- [ ] No obvious bugs or logic errors
+- [ ] Error handling is appropriate
+- [ ] No security vulnerabilities introduced
+- [ ] Performance considerations addressed
+
+### Testing
+- [ ] Tests are included for new functionality
+- [ ] Tests cover edge cases
+- [ ] All tests pass
+- [ ] Test quality is high (clear, maintainable)
+
+### Documentation
+- [ ] Public APIs are documented
+- [ ] Complex logic has explanatory comments
+- [ ] README updated if needed
+- [ ] Breaking changes are noted
+
+### Architecture
+- [ ] Changes align with project architecture
+- [ ] No unnecessary dependencies added
+- [ ] Code is modular and reusable
+- [ ] Separation of concerns maintained
+
+## Instructions
+Please review the pull request thoroughly and provide:
+1. Constructive feedback on any issues found
+2. Suggestions for improvements
+3. Approval or request for changes
+4. Specific line-by-line comments where helpful
+
+Be thorough but encouraging. Focus on learning and improvement.
+EOF
+
+# Usage
+coding-context -p prNumber="42" -p author="Jane" -p title="Add feature X" review-pull-request
+```
+
+#### Respond to Pull Request Comment
+
+```bash
+cat > .prompts/tasks/respond-to-pull-request-comment.md << 'EOF'
+---
+---
+# Respond to Pull Request Comment
+
+## PR Details
+- PR #{{ .prNumber }}
+- Reviewer: {{ .reviewer }}
+- File: {{ .file }}
+
+## Comment
+{{ .comment }}
+
+## Instructions
+
+Please address the pull request review comment:
+
+1. **Analyze** the feedback carefully
+2. **Determine** if the comment is valid
+3. **Respond** professionally:
+   - If you agree: Acknowledge and describe your fix
+   - If you disagree: Respectfully explain your reasoning
+   - If unclear: Ask clarifying questions
+
+4. **Make changes** if needed:
+   - Fix the issue raised
+   - Add tests if applicable
+   - Update documentation
+   - Ensure code still works
+
+5. **Reply** with:
+   - What you changed (with commit reference)
+   - Why you made that choice
+   - Any additional context needed
+
+## Tone
+Be collaborative, open to feedback, and focused on code quality.
+EOF
+
+# Usage
+coding-context -p prNumber="42" -p reviewer="Bob" -p file="main.go" -p comment="Consider using a switch here" respond-to-pull-request-comment
+```
+
+#### Fix Failing Check
+
+```bash
+cat > .prompts/tasks/fix-failing-check.md << 'EOF'
+---
+---
+# Fix Failing Check: {{ .checkName }}
+
+## Check Details
+- Check Name: {{ .checkName }}
+- Branch: {{ .branch }}
+- Status: FAILED
+
+## Debugging Steps
+
+1. **Identify the Failure**
+   - Review the check logs
+   - Identify the specific error message
+   - Determine which component is failing
+
+2. **Reproduce Locally**
+   - Pull the latest code from {{ .branch }}
+   - Run the same check locally
+   - Verify you can reproduce the failure
+
+3. **Root Cause Analysis**
+   - Is this a new failure or regression?
+   - What recent changes might have caused it?
+   - Is it environment-specific?
+
+4. **Fix the Issue**
+   - Implement the fix
+   - Verify the check passes locally
+   - Ensure no other checks are broken
+   - Add tests to prevent regression
+
+5. **Validate**
+   - Run all relevant checks locally
+   - Push changes and verify CI passes
+   - Update any related documentation
+
+## Common Check Types
+- **Tests**: Fix failing unit/integration tests
+- **Linter**: Address code style issues
+- **Build**: Resolve compilation errors
+- **Security**: Fix vulnerability scans
+- **Coverage**: Improve test coverage
+
+Please fix the failing check and ensure all CI checks pass.
+EOF
+
+# Usage
+coding-context -p checkName="Unit Tests" -p branch="main" fix-failing-check
+```
+
 ## Advanced Usage
 
 ### Template Functions
