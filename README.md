@@ -81,6 +81,7 @@ go install github.com/kitproj/coding-agent-context-cli@latest
 coding-context [options] <task-name>
 
 Options:
+  -b                Automatically run the bootstrap script after generating it
   -d <directory>    Add a directory to include in the context (can be used multiple times)
                     Default: .prompts, ~/.config/prompts, /var/local/prompts
   -o <directory>    Output directory for generated files (default: .)
@@ -279,6 +280,11 @@ Run the bootstrap script to set up your environment:
 ./bootstrap
 ```
 
+Or use the `-b` flag to automatically run the bootstrap script after generating it:
+```bash
+coding-context -b my-task
+```
+
 
 ## Examples
 
@@ -336,6 +342,11 @@ chmod +x .prompts/memories/setup-bootstrap
 
 coding-context -o ./output my-task
 cd output && ./bootstrap
+```
+
+Alternatively, use the `-b` flag to automatically run the bootstrap script:
+```bash
+coding-context -o ./output -b my-task
 ```
 
 ### Integrating External CLI Tools
