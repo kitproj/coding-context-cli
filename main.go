@@ -82,10 +82,15 @@ func run(args []string) error {
 	for _, dir := range dirs {
 		memoryDir := filepath.Join(dir, "memories")
 		
-		// Skip if the directory doesn't exist
+		// Check if the directory exists
 		if _, err := os.Stat(memoryDir); os.IsNotExist(err) {
+			slog.Debug("Memory directory does not exist, skipping", "path", memoryDir)
 			continue
+		} else if err != nil {
+			return fmt.Errorf("failed to check memory directory: %w", err)
 		}
+		
+		slog.Debug("Scanning memory directory", "path", memoryDir)
 		
 		err := filepath.Walk(memoryDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -149,8 +154,12 @@ func run(args []string) error {
 	}
 
 	taskName := args[0]
+	var searchedDirs []string
 	for _, dir := range dirs {
 		promptFile := filepath.Join(dir, "tasks", taskName+".md")
+		searchedDirs = append(searchedDirs, promptFile)
+		
+		slog.Debug("Looking for prompt file", "path", promptFile)
 
 		if _, err := os.Stat(promptFile); err == nil {
 			slog.Info("Using prompt file", "path", promptFile)
@@ -176,5 +185,5 @@ func run(args []string) error {
 		}
 	}
 
-	return fmt.Errorf("prompt file not found for task: %s", taskName)
+	return fmt.Errorf("prompt file not found for task: %s (searched: %s)", taskName, strings.Join(searchedDirs, ", "))
 }

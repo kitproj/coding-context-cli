@@ -14,7 +14,11 @@
 # Binary output
 coding-agent-context-cli
 coding-agent-context
+coding-context
 
 # Build artifacts
 /dist/
 /tmp/
+prompt.md
+bootstrap
+bootstrap.d/

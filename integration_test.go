@@ -545,3 +545,44 @@ Missing var: ${missingVar}
 		t.Errorf("Expected ${missingVar} to be replaced with empty string, got:\n%s", contentStr)
 	}
 }
+
+func TestDirectoryNotFound(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	outputDir := filepath.Join(tmpDir, "output")
+	
+	// Try to run with a non-existent directory
+	nonExistentDir := filepath.Join(tmpDir, "nonexistent")
+	cmd = exec.Command(binaryPath, "-d", nonExistentDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	output, err := cmd.CombinedOutput()
+	
+	// Should fail with appropriate error
+	if err == nil {
+		t.Fatalf("expected error when task not found, but succeeded")
+	}
+	
+	outputStr := string(output)
+	
+	// Verify the error message includes the searched paths
+	if !strings.Contains(outputStr, "prompt file not found for task: test-task") {
+		t.Errorf("Expected error message about task not found, got:\n%s", outputStr)
+	}
+	
+	// Verify the error message includes the non-existent directory that was searched
+	if !strings.Contains(outputStr, nonExistentDir) {
+		t.Errorf("Expected error message to include searched directory %s, got:\n%s", nonExistentDir, outputStr)
+	}
+	
+	// Verify the error message includes "searched:"
+	if !strings.Contains(outputStr, "searched:") {
+		t.Errorf("Expected error message to include list of searched directories, got:\n%s", outputStr)
+	}
+}
