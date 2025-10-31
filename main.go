@@ -102,7 +102,7 @@ func run(args []string) error {
 			ext := filepath.Ext(path)
 			baseNameWithoutExt := path[:len(path)-len(ext)]
 			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
-			
+
 			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
 				hash := sha256.Sum256(bootstrapContent)
 				bootstrapPath := filepath.Join(bootstrapDir, fmt.Sprintf("%x", hash))
