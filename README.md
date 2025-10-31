@@ -29,11 +29,25 @@ Options:
                     Default: .coding-agent-context, ~/.config/coding-agent-context, /var/local/coding-agent-context
   -o <directory>    Output directory for generated files (default: .)
   -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
+  -s <key=value>    Selector to filter memories (can be used multiple times)
+                    Format: key=value (include only) or key!=value (exclude)
 ```
 
 **Example:**
 ```bash
 coding-agent-context -p feature="Authentication" -p language=Go add-feature
+```
+
+**Example with selectors:**
+```bash
+# Include only production memories
+coding-agent-context -s env=production deploy
+
+# Exclude test memories
+coding-agent-context -s env!=test deploy
+
+# Combine multiple selectors (AND logic)
+coding-agent-context -s env=production -s language=go deploy
 ```
 
 ## Quick Start
@@ -114,6 +128,8 @@ Markdown files included in every generated context. Bootstrap scripts can be pro
 **Example** (`.coding-agent-context/memories/setup.md`):
 ```markdown
 ---
+env: development
+language: go
 ---
 # Development Setup
 
@@ -127,6 +143,46 @@ npm install
 ```
 
 For each memory file `<name>.md`, you can optionally create a corresponding `<name>-bootstrap` file that will be executed during setup.
+
+
+## Filtering Memories with Selectors
+
+Use the `-s` flag to filter which memory files are included based on their frontmatter metadata.
+
+### Selector Syntax
+
+- **`key=value`** - Include only memories where the frontmatter key matches the value
+- **`key!=value`** - Exclude memories where the frontmatter key matches the value
+- Multiple selectors use AND logic (all must match)
+
+### Examples
+
+**Include only production memories:**
+```bash
+coding-agent-context -s env=production deploy
+```
+
+**Exclude test environment:**
+```bash
+coding-agent-context -s env!=test deploy
+```
+
+**Combine multiple criteria:**
+```bash
+# Only production Go backend memories
+coding-agent-context -s env=production -s language=go -s tier=backend deploy
+```
+
+### How It Works
+
+When you run with selectors, the tool logs which files are included or excluded:
+
+```
+INFO Including memory file path=.coding-agent-context/memories/production.md
+INFO Excluding memory file (does not match selectors) path=.coding-agent-context/memories/development.md
+```
+
+If no selectors are specified, all memory files are included.
 
 
 ## Output Files
