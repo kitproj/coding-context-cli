@@ -460,3 +460,125 @@ This is the body content.
 		t.Errorf("Expected body content to appear twice (different frontmatter = different files), but found %d occurrences. Content:\n%s", bodyOccurrences, contentStr)
 	}
 }
+
+func TestSimilarityBasedDeduplication(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create an original file
+	originalContent := `---
+---
+# Development Setup Guide
+
+This project requires the following setup steps:
+
+1. Install Node.js version 18 or higher
+2. Run npm install to install dependencies
+3. Create a .env file with your configuration
+4. Run npm test to verify everything works
+
+Make sure to follow these steps carefully.
+`
+	originalFile := filepath.Join(memoriesDir, "setup-original.md")
+	if err := os.WriteFile(originalFile, []byte(originalContent), 0644); err != nil {
+		t.Fatalf("failed to write original file: %v", err)
+	}
+
+	// Create a very similar file (minor typo/rewording - should be caught as similar)
+	similarContent := `---
+---
+# Development Setup Guide
+
+This project requires the following setup steps:
+
+1. Install Node.js version 18 or higher
+2. Run npm install to install dependencies  
+3. Create a .env file with your configuration
+4. Run npm test to verify everything works
+
+Make sure to follow these instructions carefully.
+`
+	similarFile := filepath.Join(memoriesDir, "setup-similar.md")
+	if err := os.WriteFile(similarFile, []byte(similarContent), 0644); err != nil {
+		t.Fatalf("failed to write similar file: %v", err)
+	}
+
+	// Create a different file (should NOT be caught as similar)
+	differentContent := `---
+---
+# Coding Standards
+
+Please follow these coding standards:
+
+- Use 2 spaces for indentation
+- Write descriptive variable names
+- Add comments for complex logic
+`
+	differentFile := filepath.Join(memoriesDir, "standards.md")
+	if err := os.WriteFile(differentFile, []byte(differentContent), 0644); err != nil {
+		t.Fatalf("failed to write different file: %v", err)
+	}
+
+	// Create a prompt file
+	promptFile := filepath.Join(tasksDir, "test-task.md")
+	promptContent := `---
+---
+# Test Task
+`
+	if err := os.WriteFile(promptFile, []byte(promptContent), 0644); err != nil {
+		t.Fatalf("failed to write prompt file: %v", err)
+	}
+
+	// Run the binary
+	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Read the output
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// The similar file should be deduplicated (only one setup guide should appear)
+	setupOccurrences := strings.Count(contentStr, "Development Setup Guide")
+	if setupOccurrences != 1 {
+		t.Errorf("Expected setup guide to appear once (similar file should be deduplicated), but found %d occurrences", setupOccurrences)
+	}
+
+	// The different file should still be included
+	if !strings.Contains(contentStr, "Coding Standards") {
+		t.Errorf("Expected coding standards to be included (different content)")
+	}
+
+	// Verify that "follow these steps carefully" or "follow these instructions carefully" appears only once
+	stepsCount := strings.Count(contentStr, "steps carefully")
+	instructionsCount := strings.Count(contentStr, "instructions carefully")
+	totalOccurrences := stepsCount + instructionsCount
+	if totalOccurrences != 1 {
+		t.Errorf("Expected either 'steps carefully' or 'instructions carefully' to appear once, but found %d total occurrences", totalOccurrences)
+	}
+}

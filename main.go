@@ -9,6 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/adrg/strutil"
+	"github.com/adrg/strutil/metrics"
 )
 
 //go:embed bootstrap
@@ -84,6 +87,14 @@ func run(args []string) error {
 	canonicalToOriginalPath := make(map[string]string)
 	// Map of raw file content hash -> original path (for content deduplication)
 	contentHashToOriginalPath := make(map[string]string)
+	// Map of original path -> raw file content (for similarity deduplication)
+	pathToContent := make(map[string]string)
+
+	// Similarity threshold (95% similar or more will be considered duplicate)
+	const similarityThreshold = 0.95
+	// Initialize Sorensen-Dice metric for text similarity comparison
+	similarityMetric := metrics.NewSorensenDice()
+	similarityMetric.NgramSize = 2 // Use bigrams for better text comparison
 
 	for _, dir := range dirs {
 		memoryDir := filepath.Join(dir, "memories")
@@ -139,6 +150,19 @@ func run(args []string) error {
 				return nil
 			}
 
+			// Check for similarity with already processed files (using raw content)
+			rawContentStr := string(rawContent)
+			for processedPath, processedRawContent := range pathToContent {
+				similarity := strutil.Similarity(rawContentStr, processedRawContent, similarityMetric)
+				if similarity >= similarityThreshold {
+					slog.Info("Skipping duplicate memory file (similar content)",
+						"path", path,
+						"original_path", processedPath,
+						"similarity", fmt.Sprintf("%.2f", similarity))
+					return nil
+				}
+			}
+
 			// Parse frontmatter to check selectors
 			var frontmatter map[string]string
 			content, err := parseMarkdownFile(path, &frontmatter)
@@ -158,9 +182,10 @@ func run(args []string) error {
 
 			slog.Info("Including memory file", "path", path)
 
-			// Record this file as processed
+			// Record this file as processed (store raw content for similarity checks)
 			canonicalToOriginalPath[canonicalPath] = path
 			contentHashToOriginalPath[contentHash] = path
+			pathToContent[path] = rawContentStr
 
 			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
 			// For example, setup.md -> setup-bootstrap
