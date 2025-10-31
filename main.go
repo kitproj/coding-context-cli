@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -105,8 +106,7 @@ func run(args []string) error {
 
 			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
 			// For example, setup.md -> setup-bootstrap
-			ext := filepath.Ext(path)
-			baseNameWithoutExt := path[:len(path)-len(ext)]
+			baseNameWithoutExt := strings.TrimSuffix(path, ".md")
 			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
 
 			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
