@@ -61,16 +61,8 @@ func main() {
 }
 
 // findPromptFile looks for a prompt file with the given task name
-// Supports both .md and .prompt.md extensions for VS Code compatibility
 func findPromptFile(dir, taskName string) (string, error) {
-	// Try .prompt.md first (VS Code Copilot format)
-	promptFile := filepath.Join(dir, "tasks", taskName+".prompt.md")
-	if _, err := os.Stat(promptFile); err == nil {
-		return promptFile, nil
-	}
-	
-	// Fall back to .md (standard format)
-	promptFile = filepath.Join(dir, "tasks", taskName+".md")
+	promptFile := filepath.Join(dir, "tasks", taskName+".md")
 	if _, err := os.Stat(promptFile); err == nil {
 		return promptFile, nil
 	}
@@ -171,7 +163,7 @@ func run(args []string) error {
 				return nil
 			}
 
-			// Only process .md files (this includes .prompt.md files since filepath.Ext returns ".md" for both)
+			// Only process .md files
 			ext := filepath.Ext(path)
 			if ext != ".md" {
 				return nil
@@ -197,13 +189,8 @@ func run(args []string) error {
 			slog.Info("Including memory file", "path", path)
 
 			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
-			// For example, setup.md -> setup-bootstrap or setup.prompt.md -> setup.prompt-bootstrap
-			var baseNameWithoutExt string
-			if strings.HasSuffix(path, ".prompt.md") {
-				baseNameWithoutExt = strings.TrimSuffix(path, ".prompt.md")
-			} else {
-				baseNameWithoutExt = strings.TrimSuffix(path, ".md")
-			}
+			// For example, setup.md -> setup-bootstrap
+			baseNameWithoutExt := strings.TrimSuffix(path, ".md")
 			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
 
 			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {

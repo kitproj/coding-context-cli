@@ -129,8 +129,8 @@ func TestPromptMdExtension(t *testing.T) {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a prompt file with .prompt.md extension
-	promptFile := filepath.Join(tasksDir, "test-vscode-task.prompt.md")
+	// Create a prompt file with .md extension
+	promptFile := filepath.Join(tasksDir, "test-vscode-task.md")
 	promptContent := `---
 description: 'Test VS Code prompt'
 mode: 'ask'
@@ -183,7 +183,7 @@ func TestVSCodeVariableConversion(t *testing.T) {
 	}
 
 	// Create a prompt file with VS Code variable syntax
-	promptFile := filepath.Join(tasksDir, "vscode-vars.prompt.md")
+	promptFile := filepath.Join(tasksDir, "vscode-vars.md")
 	promptContent := `---
 description: 'Test variable conversion'
 ---
@@ -246,7 +246,7 @@ func TestGitHubPromptsDirectory(t *testing.T) {
 	}
 
 	// Create a memory file
-	memoryFile := filepath.Join(memoriesDir, "context.prompt.md")
+	memoryFile := filepath.Join(memoriesDir, "context.md")
 	memoryContent := `---
 ---
 # Project Context
@@ -258,7 +258,7 @@ This is from .github/prompts directory.
 	}
 
 	// Create a prompt file
-	promptFile := filepath.Join(tasksDir, "github-task.prompt.md")
+	promptFile := filepath.Join(tasksDir, "github-task.md")
 	promptContent := `---
 ---
 # GitHub Task
@@ -307,13 +307,6 @@ func TestFindPromptFile(t *testing.T) {
 		expectedFile  string
 	}{
 		{
-			name:         "finds .prompt.md",
-			createFile:   "test.prompt.md",
-			taskName:     "test",
-			shouldFind:   true,
-			expectedFile: "test.prompt.md",
-		},
-		{
 			name:         "finds .md",
 			createFile:   "test.md",
 			taskName:     "test",
@@ -361,31 +354,4 @@ func TestFindPromptFile(t *testing.T) {
 	}
 }
 
-func TestPromptMdPriority(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, "tasks")
-	if err := os.MkdirAll(tasksDir, 0755); err != nil {
-		t.Fatalf("failed to create tasks dir: %v", err)
-	}
 
-	// Create both .prompt.md and .md files
-	promptMdFile := filepath.Join(tasksDir, "test.prompt.md")
-	if err := os.WriteFile(promptMdFile, []byte("---\n---\nprompt.md content"), 0644); err != nil {
-		t.Fatalf("failed to create .prompt.md file: %v", err)
-	}
-
-	mdFile := filepath.Join(tasksDir, "test.md")
-	if err := os.WriteFile(mdFile, []byte("---\n---\n.md content"), 0644); err != nil {
-		t.Fatalf("failed to create .md file: %v", err)
-	}
-
-	// findPromptFile should prefer .prompt.md
-	found, err := findPromptFile(tmpDir, "test")
-	if err != nil {
-		t.Fatalf("failed to find prompt file: %v", err)
-	}
-
-	if !strings.HasSuffix(found, ".prompt.md") {
-		t.Errorf("expected to find .prompt.md file, got: %s", found)
-	}
-}

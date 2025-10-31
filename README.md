@@ -112,7 +112,6 @@ This tool uses **VS Code Copilot variable syntax** natively, making it fully com
 
 ### Supported Features
 
-- **`.prompt.md` extension**: The tool recognizes both `.md` and `.prompt.md` file extensions
 - **`.github/prompts/` directory**: Automatically searches for prompts in `.github/prompts/` (VS Code's default location) as well as `.prompts/`
 - **VS Code variable syntax**: Uses `${variable}` and `${input:variable}` syntax for variable substitution
 
@@ -152,7 +151,7 @@ Create a prompt file in VS Code format:
 
 ```bash
 mkdir -p .github/prompts/tasks
-cat > .github/prompts/tasks/create-feature.prompt.md << 'EOF'
+cat > .github/prompts/tasks/create-feature.md << 'EOF'
 ---
 description: 'Create a new feature'
 mode: 'ask'
@@ -247,11 +246,9 @@ Each directory should contain:
 ```
 .prompts/  (or .github/prompts/)
 ├── tasks/          # Task-specific prompt templates
-│   ├── <task-name>.md           # Traditional format
-│   └── <task-name>.prompt.md    # VS Code Copilot format
+│   └── <task-name>.md
 └── memories/       # Reusable context files (included in all outputs)
-    ├── *.md                     # Traditional format
-    └── *.prompt.md              # VS Code Copilot format (also supported)
+    └── *.md
 ```
 
 
@@ -761,7 +758,7 @@ When the same task exists in multiple directories, the first match wins:
 ## Troubleshooting
 
 **"prompt file not found for task"**
-- Ensure `<task-name>.md` or `<task-name>.prompt.md` exists in a `tasks/` subdirectory
+- Ensure `<task-name>.md` exists in a `tasks/` subdirectory
 
 **"failed to walk memory dir"**
 ```bash
