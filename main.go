@@ -77,6 +77,12 @@ func run(args []string) error {
 
 	for _, dir := range dirs {
 		memoryDir := filepath.Join(dir, "memories")
+		
+		// Skip if the directory doesn't exist
+		if _, err := os.Stat(memoryDir); os.IsNotExist(err) {
+			continue
+		}
+		
 		err := filepath.Walk(memoryDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
