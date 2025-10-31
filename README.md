@@ -884,7 +884,7 @@ Communicate deployment status to stakeholders via Slack.
 
 4. **Alert stakeholders for production deployments**
    ```bash
-   slack send-message "#general" "📢 Production deployment {{ .buildStatus }}: version {{ .version }} is now live!"
+   slack send-message "#general" "📢 Production deployment completed: version {{ .version }} is now live!"
    ```
 
 5. **Update status thread**
