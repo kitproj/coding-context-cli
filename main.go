@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -14,11 +15,12 @@ import (
 var bootstrap string
 
 var (
-	dirs      stringSlice
-	outputDir = "."
-	params    = make(paramMap)
-	includes  = make(selectorMap)
-	excludes  = make(selectorMap)
+	dirs           stringSlice
+	outputDir      = "."
+	params         = make(paramMap)
+	includes       = make(selectorMap)
+	excludes       = make(selectorMap)
+	runBootstrap   bool
 )
 
 func main() {
@@ -39,6 +41,7 @@ func main() {
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include memories with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Var(&excludes, "S", "Exclude memories with matching frontmatter. Can be specified multiple times as key=value.")
+	flag.BoolVar(&runBootstrap, "b", false, "Automatically run the bootstrap script after generating it.")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
@@ -172,6 +175,28 @@ func run(args []string) error {
 
 			if _, err := output.WriteString(expanded); err != nil {
 				return fmt.Errorf("failed to write expanded prompt: %w", err)
+			}
+
+			// Run bootstrap if requested
+			if runBootstrap {
+				bootstrapPath := filepath.Join(outputDir, "bootstrap")
+				
+				// Convert to absolute path
+				absBootstrapPath, err := filepath.Abs(bootstrapPath)
+				if err != nil {
+					return fmt.Errorf("failed to get absolute path for bootstrap script: %w", err)
+				}
+				
+				fmt.Fprintf(os.Stdout, "Running bootstrap script: %s\n", absBootstrapPath)
+				
+				cmd := exec.Command(absBootstrapPath)
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				cmd.Dir = outputDir
+				
+				if err := cmd.Run(); err != nil {
+					return fmt.Errorf("failed to run bootstrap script: %w", err)
+				}
 			}
 
 			return nil
