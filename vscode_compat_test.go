@@ -40,34 +40,34 @@ func TestSubstituteVariables(t *testing.T) {
 			expected: "Task MyTask in Go",
 		},
 		{
-			name:     "workspace variable (ignored)",
+			name:     "workspace variable (not provided, becomes empty)",
 			input:    "Path: ${workspaceFolder}/src",
 			params:   map[string]string{},
-			expected: "Path: ${workspaceFolder}/src",
+			expected: "Path: /src",
 		},
 		{
-			name:     "workspaceFolderBasename variable (ignored)",
+			name:     "workspaceFolderBasename variable (not provided, becomes empty)",
 			input:    "Basename: ${workspaceFolderBasename}",
 			params:   map[string]string{},
-			expected: "Basename: ${workspaceFolderBasename}",
+			expected: "Basename: ",
 		},
 		{
-			name:     "file variable (ignored)",
+			name:     "file variable (not provided, becomes empty)",
 			input:    "File: ${file}",
 			params:   map[string]string{},
-			expected: "File: ${file}",
+			expected: "File: ",
 		},
 		{
-			name:     "fileBasename variable (ignored)",
+			name:     "fileBasename variable (not provided, becomes empty)",
 			input:    "File: ${fileBasename}",
 			params:   map[string]string{},
-			expected: "File: ${fileBasename}",
+			expected: "File: ",
 		},
 		{
-			name:     "selection variable (ignored)",
+			name:     "selection variable (not provided, becomes empty)",
 			input:    "Selected: ${selection}",
 			params:   map[string]string{},
-			expected: "Selected: ${selection}",
+			expected: "Selected: ",
 		},
 		{
 			name:     "user variable starting with 'file' (substituted)",
@@ -85,7 +85,7 @@ func TestSubstituteVariables(t *testing.T) {
 			name:     "mixed variables",
 			input:    "Task ${taskName} in ${workspaceFolder} with ${language}",
 			params:   map[string]string{"taskName": "MyTask", "language": "Go"},
-			expected: "Task MyTask in ${workspaceFolder} with Go",
+			expected: "Task MyTask in  with Go",
 		},
 		{
 			name:     "no variables",
@@ -121,7 +121,7 @@ func TestPromptMdExtension(t *testing.T) {
 
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
-	contextDir := filepath.Join(tmpDir, ".github", "prompts")
+	contextDir := filepath.Join(tmpDir, ".prompts")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
@@ -174,7 +174,7 @@ func TestVSCodeVariableConversion(t *testing.T) {
 
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
-	contextDir := filepath.Join(tmpDir, ".github", "prompts")
+	contextDir := filepath.Join(tmpDir, ".prompts")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
@@ -223,7 +223,7 @@ Implement ${input:featureName:Enter feature name} in ${language}.
 	}
 }
 
-func TestGitHubPromptsDirectory(t *testing.T) {
+func TestPromptsDirectory(t *testing.T) {
 	// Build the binary
 	binaryPath := filepath.Join(t.TempDir(), "coding-context")
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
@@ -231,9 +231,9 @@ func TestGitHubPromptsDirectory(t *testing.T) {
 		t.Fatalf("failed to build binary: %v\n%s", err, output)
 	}
 
-	// Create a temporary directory structure using .github/prompts
+	// Create a temporary directory structure using .prompts
 	tmpDir := t.TempDir()
-	contextDir := filepath.Join(tmpDir, ".github", "prompts")
+	contextDir := filepath.Join(tmpDir, ".prompts")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	memoriesDir := filepath.Join(contextDir, "memories")
 	outputDir := filepath.Join(tmpDir, "output")
@@ -251,26 +251,26 @@ func TestGitHubPromptsDirectory(t *testing.T) {
 ---
 # Project Context
 
-This is from .github/prompts directory.
+This is from .prompts directory.
 `
 	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
 		t.Fatalf("failed to write memory file: %v", err)
 	}
 
 	// Create a prompt file
-	promptFile := filepath.Join(tasksDir, "github-task.md")
+	promptFile := filepath.Join(tasksDir, "test-task.md")
 	promptContent := `---
 ---
-# GitHub Task
+# Test Task
 
-This uses the .github/prompts location.
+This uses the .prompts location.
 `
 	if err := os.WriteFile(promptFile, []byte(promptContent), 0644); err != nil {
 		t.Fatalf("failed to write prompt file: %v", err)
 	}
 
-	// Run the binary - it should find files in .github/prompts by default
-	cmd = exec.Command(binaryPath, "-o", outputDir, "github-task")
+	// Run the binary - it should find files in .prompts by default
+	cmd = exec.Command(binaryPath, "-o", outputDir, "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -284,11 +284,11 @@ This uses the .github/prompts location.
 	}
 
 	contentStr := string(content)
-	if !strings.Contains(contentStr, "This is from .github/prompts directory") {
-		t.Errorf("Expected memory content from .github/prompts")
+	if !strings.Contains(contentStr, "This is from .prompts directory") {
+		t.Errorf("Expected memory content from .prompts")
 	}
-	if !strings.Contains(contentStr, "This uses the .github/prompts location") {
-		t.Errorf("Expected task content from .github/prompts")
+	if !strings.Contains(contentStr, "This uses the .prompts location") {
+		t.Errorf("Expected task content from .prompts")
 	}
 }
 

@@ -82,7 +82,7 @@ coding-context [options] <task-name>
 
 Options:
   -d <directory>    Add a directory to include in the context (can be used multiple times)
-                    Default: .prompts, .github/prompts, ~/.config/prompts, /var/local/prompts
+                    Default: .prompts, ~/.config/prompts, /var/local/prompts
   -o <directory>    Output directory for generated files (default: .)
   -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
   -s <key=value>    Include memories with matching frontmatter (can be used multiple times)
@@ -112,16 +112,14 @@ This tool uses **VS Code Copilot variable syntax** natively, making it fully com
 
 ### Supported Features
 
-- **`.github/prompts/` directory**: Automatically searches for prompts in `.github/prompts/` (VS Code's default location) as well as `.prompts/`
 - **VS Code variable syntax**: Uses `${variable}` and `${input:variable}` syntax for variable substitution
 
 ### Directory Search Order
 
 The tool searches these directories in priority order:
 1. `.prompts/` (project-local)
-2. `.github/prompts/` (project-local, VS Code's default)
-3. `~/.config/prompts/` (user-specific)
-4. `/var/local/prompts/` (system-wide)
+2. `~/.config/prompts/` (user-specific)
+3. `/var/local/prompts/` (system-wide)
 
 ### Variable Syntax
 
@@ -150,8 +148,8 @@ Implement Auth in Go.
 Create a prompt file in VS Code format:
 
 ```bash
-mkdir -p .github/prompts/tasks
-cat > .github/prompts/tasks/create-feature.md << 'EOF'
+mkdir -p .prompts/tasks
+cat > .prompts/tasks/create-feature.md << 'EOF'
 ---
 description: 'Create a new feature'
 mode: 'ask'
@@ -166,20 +164,6 @@ Run it with the CLI:
 ```bash
 coding-context -p featureName="Authentication" -p language="Go" create-feature
 ```
-
-### Limitations
-
-The following VS Code-specific variables are **not supported** and will be left as-is:
-- `${workspaceFolder}` - Workspace folder path
-- `${workspaceFolderBasename}` - Workspace folder name
-- `${file}` - Current file path
-- `${fileBasename}` - Current file name
-- `${fileDirname}` - Current file directory
-- `${fileBasenameNoExtension}` - Current file name without extension
-- `${selection}` - Selected text in editor
-- `${selectedText}` - Selected text in editor
-
-These variables are specific to VS Code's editor context and don't have equivalents in the CLI environment.
 
 ## Quick Start
 
@@ -237,14 +221,13 @@ Please help me with this task. The project uses Go.
 ## Directory Structure
 
 The tool searches these directories for context files (in priority order):
-1. `.prompts/` (project-local, traditional format)
-2. `.github/prompts/` (project-local, VS Code Copilot format)
-3. `~/.config/prompts/` (user-specific)
-4. `/var/local/prompts/` (system-wide)
+1. `.prompts/` (project-local)
+2. `~/.config/prompts/` (user-specific)
+3. `/var/local/prompts/` (system-wide)
 
 Each directory should contain:
 ```
-.prompts/  (or .github/prompts/)
+.prompts/
 ├── tasks/          # Task-specific prompt templates
 │   └── <task-name>.md
 └── memories/       # Reusable context files (included in all outputs)
