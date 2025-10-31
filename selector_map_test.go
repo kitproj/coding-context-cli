@@ -40,7 +40,7 @@ func TestSelectorMap_Set(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var s selectorMap
+			s := make(selectorMap)
 			err := s.Set(tt.value)
 
 			if (err != nil) != tt.wantErr {
@@ -53,11 +53,8 @@ func TestSelectorMap_Set(t *testing.T) {
 					t.Errorf("Set() resulted in %d selectors, want 1", len(s))
 					return
 				}
-				if s[0].key != tt.wantKey {
-					t.Errorf("Set() key = %q, want %q", s[0].key, tt.wantKey)
-				}
-				if s[0].value != tt.wantVal {
-					t.Errorf("Set() value = %q, want %q", s[0].value, tt.wantVal)
+				if s[tt.wantKey] != tt.wantVal {
+					t.Errorf("Set() s[%q] = %q, want %q", tt.wantKey, s[tt.wantKey], tt.wantVal)
 				}
 			}
 		})
@@ -65,7 +62,7 @@ func TestSelectorMap_Set(t *testing.T) {
 }
 
 func TestSelectorMap_SetMultiple(t *testing.T) {
-	var s selectorMap
+	s := make(selectorMap)
 	if err := s.Set("env=production"); err != nil {
 		t.Fatalf("Set() error = %v", err)
 	}
@@ -137,7 +134,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var s selectorMap
+			s := make(selectorMap)
 			for _, sel := range tt.selectors {
 				if err := s.Set(sel); err != nil {
 					t.Fatalf("Set() error = %v", err)
@@ -210,7 +207,7 @@ func TestSelectorMap_MatchesExcludes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var s selectorMap
+			s := make(selectorMap)
 			for _, sel := range tt.selectors {
 				if err := s.Set(sel); err != nil {
 					t.Fatalf("Set() error = %v", err)
@@ -225,7 +222,7 @@ func TestSelectorMap_MatchesExcludes(t *testing.T) {
 }
 
 func TestSelectorMap_String(t *testing.T) {
-	var s selectorMap
+	s := make(selectorMap)
 	s.Set("env=production")
 	s.Set("language=go")
 	

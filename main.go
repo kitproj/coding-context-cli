@@ -16,11 +16,11 @@ import (
 var bootstrap string
 
 var (
-	dirs     stringSlice
+	dirs      stringSlice
 	outputDir = "."
-	params   = make(paramMap)
-	includes selectorMap
-	excludes selectorMap
+	params    = make(paramMap)
+	includes  = make(selectorMap)
+	excludes  = make(selectorMap)
 )
 
 func main() {
