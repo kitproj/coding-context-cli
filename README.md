@@ -315,9 +315,6 @@ Many AI coding assistants store their rules and prompts in specific directories.
 # Include Cursor rules directory
 coding-context -d .cursor/rules my-task
 
-# Include .cursorrules file location (if organized as a directory)
-coding-context -d .cursorrules my-task
-
 # Include Windsurf rules directory
 coding-context -d .windsurf/rules my-task
 
