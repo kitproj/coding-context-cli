@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
 )
 
 //go:embed bootstrap
@@ -79,9 +78,8 @@ func findPromptFile(dir, taskName string) (string, error) {
 	return "", os.ErrNotExist
 }
 
-// convertVSCodeVariables converts VS Code variable syntax ${var} to Go template syntax {{ .var }}
-// Also handles input variables like ${input:varName} -> {{ .varName }}
-func convertVSCodeVariables(content string) string {
+// substituteVariables replaces VS Code variable syntax ${var} and ${input:var} with their values
+func substituteVariables(content string, params map[string]string) string {
 	result := content
 	
 	for i := 0; i < len(result); {
@@ -104,8 +102,8 @@ func convertVSCodeVariables(content string) string {
 					varName = varPart
 				}
 				
-				// Replace with Go template syntax
-				replacement := "{{ ." + varName + " }}"
+				// Replace with the parameter value
+				replacement := params[varName]
 				result = result[:i] + replacement + result[end+1:]
 				i += len(replacement)
 				continue
@@ -124,7 +122,7 @@ func convertVSCodeVariables(content string) string {
 				varName := result[i+2 : end]
 				
 				// Skip known VS Code-specific variables that we don't support
-				// Use exact matches to avoid false positives
+				// These are editor-specific and don't have CLI equivalents
 				if varName == "workspaceFolder" || 
 				   varName == "workspaceFolderBasename" ||
 				   varName == "file" || 
@@ -137,8 +135,8 @@ func convertVSCodeVariables(content string) string {
 					continue
 				}
 				
-				// Replace with Go template syntax
-				replacement := "{{ ." + varName + " }}"
+				// Replace with the parameter value
+				replacement := params[varName]
 				result = result[:i] + replacement + result[end+1:]
 				i += len(replacement)
 				continue
@@ -259,16 +257,11 @@ func run(args []string) error {
 			return fmt.Errorf("failed to parse prompt file: %w", err)
 		}
 
-		// Convert VS Code variable syntax to Go template syntax
-		content = convertVSCodeVariables(content)
+		// Substitute VS Code variable syntax ${var} with parameter values
+		content = substituteVariables(content, params)
 
-		t, err := template.New("prompt").Parse(content)
-		if err != nil {
-			return fmt.Errorf("failed to parse prompt template: %w", err)
-		}
-
-		if err := t.Execute(output, params); err != nil {
-			return fmt.Errorf("failed to execute prompt template: %w", err)
+		if _, err := output.WriteString(content); err != nil {
+			return fmt.Errorf("failed to write to output file: %w", err)
 		}
 
 		return nil

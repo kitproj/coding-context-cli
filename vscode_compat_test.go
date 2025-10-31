@@ -8,89 +8,104 @@ import (
 	"testing"
 )
 
-func TestConvertVSCodeVariables(t *testing.T) {
+func TestSubstituteVariables(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
+		params   map[string]string
 		expected string
 	}{
 		{
 			name:     "simple variable",
 			input:    "Hello ${name}",
-			expected: "Hello {{ .name }}",
+			params:   map[string]string{"name": "World"},
+			expected: "Hello World",
 		},
 		{
 			name:     "input variable",
 			input:    "Feature: ${input:featureName}",
-			expected: "Feature: {{ .featureName }}",
+			params:   map[string]string{"featureName": "Authentication"},
+			expected: "Feature: Authentication",
 		},
 		{
 			name:     "input variable with placeholder",
 			input:    "Feature: ${input:featureName:Enter feature name}",
-			expected: "Feature: {{ .featureName }}",
+			params:   map[string]string{"featureName": "UserProfile"},
+			expected: "Feature: UserProfile",
 		},
 		{
 			name:     "multiple variables",
 			input:    "Task ${taskName} in ${language}",
-			expected: "Task {{ .taskName }} in {{ .language }}",
+			params:   map[string]string{"taskName": "MyTask", "language": "Go"},
+			expected: "Task MyTask in Go",
 		},
 		{
 			name:     "workspace variable (ignored)",
 			input:    "Path: ${workspaceFolder}/src",
+			params:   map[string]string{},
 			expected: "Path: ${workspaceFolder}/src",
 		},
 		{
 			name:     "workspaceFolderBasename variable (ignored)",
 			input:    "Basename: ${workspaceFolderBasename}",
+			params:   map[string]string{},
 			expected: "Basename: ${workspaceFolderBasename}",
 		},
 		{
 			name:     "file variable (ignored)",
 			input:    "File: ${file}",
+			params:   map[string]string{},
 			expected: "File: ${file}",
 		},
 		{
 			name:     "fileBasename variable (ignored)",
 			input:    "File: ${fileBasename}",
+			params:   map[string]string{},
 			expected: "File: ${fileBasename}",
 		},
 		{
 			name:     "selection variable (ignored)",
 			input:    "Selected: ${selection}",
+			params:   map[string]string{},
 			expected: "Selected: ${selection}",
 		},
 		{
-			name:     "user variable starting with 'file' (converted)",
+			name:     "user variable starting with 'file' (substituted)",
 			input:    "Type: ${fileType}",
-			expected: "Type: {{ .fileType }}",
+			params:   map[string]string{"fileType": "markdown"},
+			expected: "Type: markdown",
 		},
 		{
-			name:     "user variable starting with 'workspace' (converted)",
+			name:     "user variable starting with 'workspace' (substituted)",
 			input:    "Config: ${workspaceConfig}",
-			expected: "Config: {{ .workspaceConfig }}",
+			params:   map[string]string{"workspaceConfig": "config.json"},
+			expected: "Config: config.json",
 		},
 		{
 			name:     "mixed variables",
 			input:    "Task ${taskName} in ${workspaceFolder} with ${language}",
-			expected: "Task {{ .taskName }} in ${workspaceFolder} with {{ .language }}",
+			params:   map[string]string{"taskName": "MyTask", "language": "Go"},
+			expected: "Task MyTask in ${workspaceFolder} with Go",
 		},
 		{
 			name:     "no variables",
 			input:    "Plain text without variables",
+			params:   map[string]string{},
 			expected: "Plain text without variables",
 		},
 		{
-			name:     "already Go template syntax",
-			input:    "Task {{ .taskName }}",
-			expected: "Task {{ .taskName }}",
+			name:     "missing parameter",
+			input:    "Task ${taskName}",
+			params:   map[string]string{},
+			expected: "Task ",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertVSCodeVariables(tt.input)
+			result := substituteVariables(tt.input, tt.params)
 			if result != tt.expected {
-				t.Errorf("convertVSCodeVariables() = %q, want %q", result, tt.expected)
+				t.Errorf("substituteVariables() = %q, want %q", result, tt.expected)
 			}
 		})
 	}

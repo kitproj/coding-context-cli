@@ -108,43 +108,42 @@ coding-context -s env=production -S language=python deploy
 
 ## VS Code Copilot Compatibility
 
-This tool is **compatible with VS Code Copilot prompt files**, allowing you to use prompt files created for VS Code Copilot with this CLI tool and vice versa.
+This tool uses **VS Code Copilot variable syntax** natively, making it fully compatible with VS Code Copilot prompt files.
 
 ### Supported Features
 
 - **`.prompt.md` extension**: The tool recognizes both `.md` and `.prompt.md` file extensions
 - **`.github/prompts/` directory**: Automatically searches for prompts in `.github/prompts/` (VS Code's default location) as well as `.prompts/`
-- **Variable syntax conversion**: Automatically converts VS Code variable syntax (`${variable}` and `${input:variable}`) to Go template syntax (`{{ .variable }}`)
+- **VS Code variable syntax**: Uses `${variable}` and `${input:variable}` syntax for variable substitution
 
 ### Directory Search Order
 
 The tool searches these directories in priority order:
-1. `.prompts/` (project-local, traditional format)
-2. `.github/prompts/` (project-local, VS Code format)
+1. `.prompts/` (project-local)
+2. `.github/prompts/` (project-local, VS Code's default)
 3. `~/.config/prompts/` (user-specific)
 4. `/var/local/prompts/` (system-wide)
 
-### Variable Syntax Support
+### Variable Syntax
 
-The tool supports both variable syntaxes:
+The tool uses VS Code Copilot variable syntax:
 
-**VS Code Copilot syntax** (automatically converted):
 ```markdown
 # Task: ${input:taskName}
 
 Implement ${input:featureName:Enter feature name} in ${language}.
 ```
 
-**Go template syntax** (native):
-```markdown
-# Task: {{ .taskName }}
-
-Implement {{ .featureName }} in {{ .language }}.
-```
-
-Both syntaxes work identically when you run:
+When you run:
 ```bash
 coding-context -p taskName="MyTask" -p featureName="Auth" -p language="Go" my-task
+```
+
+The variables are substituted with their values:
+```markdown
+# Task: MyTask
+
+Implement Auth in Go.
 ```
 
 ### Example: Using VS Code Prompt Files
@@ -205,12 +204,12 @@ Memory files are included in every generated context. They contain reusable info
 
 **Step 3: Create a prompt file** (`.prompts/tasks/my-task.md`)
 
-Prompt files define specific tasks. They can use template variables (like `{{ .taskName }}`) that you provide via command-line parameters.
+Prompt files define specific tasks. They can use template variables (like `${taskName}`) that you provide via command-line parameters.
 
 ```markdown
-# Task: {{ .taskName }}
+# Task: ${taskName}
 
-Please help me with this task. The project uses {{ .language }}.
+Please help me with this task. The project uses ${language}.
 ```
 
 **Step 4: Generate your context file**
@@ -260,13 +259,13 @@ Each directory should contain:
 
 ### Prompt Files
 
-Markdown files with YAML frontmatter and Go template support.
+Markdown files with YAML frontmatter and VS Code variable syntax support.
 
 **Example** (`.prompts/tasks/add-feature.md`):
 ```markdown
-# Task: {{ .feature }}
+# Task: ${feature}
 
-Implement {{ .feature }} in {{ .language }}.
+Implement ${feature} in ${language}.
 ```
 
 Run with:
@@ -391,9 +390,9 @@ coding-context refactor
 
 ```bash
 cat > .prompts/tasks/add-feature.md << 'EOF'
-# Add Feature: {{ .featureName }}
+# Add Feature: ${featureName}
 
-Implement {{ .featureName }} in {{ .language }}.
+Implement ${featureName} in ${language}.
 EOF
 
 coding-context -p featureName="Authentication" -p language=Go add-feature
@@ -428,13 +427,13 @@ Here are some practical task templates for common development workflows:
 cat > .prompts/tasks/implement-jira-story.md << 'EOF'
 ---
 ---
-# Implement Jira Story: {{ .storyId }}
+# Implement Jira Story: ${storyId}
 
 ## Story Details
 
 First, get the full story details from Jira:
 ```bash
-jira get-issue {{ .storyId }}
+jira get-issue ${storyId}
 ```
 
 ## Requirements
@@ -443,12 +442,12 @@ Please implement the feature described in the Jira story. Follow these steps:
 
 1. **Review the Story**
    - Read the story details, acceptance criteria, and comments
-   - Get all comments: `jira get-comments {{ .storyId }}`
-   - Clarify any uncertainties by adding comments: `jira add-comment {{ .storyId }} "Your question"`
+   - Get all comments: `jira get-comments ${storyId}`
+   - Clarify any uncertainties by adding comments: `jira add-comment ${storyId} "Your question"`
 
 2. **Start Development**
-   - Create a feature branch with the story ID in the name (e.g., `feature/{{ .storyId }}-implement-auth`)
-   - Move the story to "In Progress": `jira update-issue-status {{ .storyId }} "In Progress"`
+   - Create a feature branch with the story ID in the name (e.g., `feature/${storyId}-implement-auth`)
+   - Move the story to "In Progress": `jira update-issue-status ${storyId} "In Progress"`
 
 3. **Implementation**
    - Design the solution following project conventions
@@ -458,14 +457,14 @@ Please implement the feature described in the Jira story. Follow these steps:
    - Ensure all tests pass and code is lint-free
 
 4. **Update Jira Throughout**
-   - Add progress updates: `jira add-comment {{ .storyId }} "Completed implementation, working on tests"`
+   - Add progress updates: `jira add-comment ${storyId} "Completed implementation, working on tests"`
    - Keep stakeholders informed of any blockers or changes
 
 5. **Complete the Story**
    - Ensure all acceptance criteria are met
    - Create a pull request
-   - Move to review: `jira update-issue-status {{ .storyId }} "In Review"`
-   - Once merged, close: `jira update-issue-status {{ .storyId }} "Done"`
+   - Move to review: `jira update-issue-status ${storyId} "In Review"`
+   - Once merged, close: `jira update-issue-status ${storyId} "Done"`
 
 ## Success Criteria
 - All acceptance criteria are met
@@ -485,46 +484,46 @@ coding-context -p storyId="PROJ-123" implement-jira-story
 cat > .prompts/tasks/triage-jira-bug.md << 'EOF'
 ---
 ---
-# Triage Jira Bug: {{ .bugId }}
+# Triage Jira Bug: ${bugId}
 
 ## Get Bug Details
 
 First, retrieve the full bug report from Jira:
 ```bash
-jira get-issue {{ .bugId }}
-jira get-comments {{ .bugId }}
+jira get-issue ${bugId}
+jira get-comments ${bugId}
 ```
 
 ## Triage Steps
 
 1. **Acknowledge and Take Ownership**
-   - Add initial comment: `jira add-comment {{ .bugId }} "Triaging this bug now"`
-   - Move to investigation: `jira update-issue-status {{ .bugId }} "In Progress"`
+   - Add initial comment: `jira add-comment ${bugId} "Triaging this bug now"`
+   - Move to investigation: `jira update-issue-status ${bugId} "In Progress"`
 
 2. **Reproduce the Issue**
    - Follow the steps to reproduce in the bug report
    - Verify the issue exists in the reported environment
    - Document actual vs. expected behavior
-   - Update Jira: `jira add-comment {{ .bugId }} "Reproduced on [environment]. Actual: [X], Expected: [Y]"`
+   - Update Jira: `jira add-comment ${bugId} "Reproduced on [environment]. Actual: [X], Expected: [Y]"`
 
 3. **Investigate Root Cause**
    - Review relevant code and logs
    - Identify the component/module causing the issue
    - Determine if this is a regression (check git history)
-   - Document findings: `jira add-comment {{ .bugId }} "Root cause: [description]"`
+   - Document findings: `jira add-comment ${bugId} "Root cause: [description]"`
 
 4. **Assess Impact**
    - How many users are affected?
    - Is there a workaround available?
    - What is the risk if left unfixed?
-   - Add assessment: `jira add-comment {{ .bugId }} "Impact: [severity]. Workaround: [yes/no]. Affected users: [estimate]"`
+   - Add assessment: `jira add-comment ${bugId} "Impact: [severity]. Workaround: [yes/no]. Affected users: [estimate]"`
 
 5. **Provide Triage Report**
    - Root cause analysis
    - Recommended priority level
    - Estimated effort to fix
    - Suggested assignee/team
-   - Final summary: `jira add-comment {{ .bugId }} "Triage complete. Priority: [level]. Effort: [estimate]. Recommended assignee: [name]"`
+   - Final summary: `jira add-comment ${bugId} "Triage complete. Priority: [level]. Effort: [estimate]. Recommended assignee: [name]"`
 
 ## Output
 Provide a detailed triage report with your findings and recommendations, and post it as a comment to the Jira issue.
@@ -540,14 +539,14 @@ coding-context -p bugId="PROJ-456" triage-jira-bug
 cat > .prompts/tasks/respond-to-jira-comment.md << 'EOF'
 ---
 ---
-# Respond to Jira Comment: {{ .issueId }}
+# Respond to Jira Comment: ${issueId}
 
 ## Get Issue and Comments
 
 First, retrieve the issue details and all comments:
 ```bash
-jira get-issue {{ .issueId }}
-jira get-comments {{ .issueId }}
+jira get-issue ${issueId}
+jira get-comments ${issueId}
 ```
 
 Review the latest comment and the full context of the issue.
@@ -572,12 +571,12 @@ Please analyze the comment and provide a professional response:
 
 Once you've formulated your response, add it to the Jira issue:
 ```bash
-jira add-comment {{ .issueId }} "Your detailed response here"
+jira add-comment ${issueId} "Your detailed response here"
 ```
 
 If the comment requires action on your part, update the issue status accordingly:
 ```bash
-jira update-issue-status {{ .issueId }} "In Progress"
+jira update-issue-status ${issueId} "In Progress"
 ```
 EOF
 
@@ -591,12 +590,12 @@ coding-context -p issueId="PROJ-789" respond-to-jira-comment
 cat > .prompts/tasks/review-pull-request.md << 'EOF'
 ---
 ---
-# Review Pull Request: {{ .prNumber }}
+# Review Pull Request: ${prNumber}
 
 ## PR Details
-- PR #{{ .prNumber }}
-- Author: {{ .author }}
-- Title: {{ .title }}
+- PR #${prNumber}
+- Author: ${author}
+- Title: ${title}
 
 ## Review Checklist
 
@@ -648,12 +647,12 @@ cat > .prompts/tasks/respond-to-pull-request-comment.md << 'EOF'
 # Respond to Pull Request Comment
 
 ## PR Details
-- PR #{{ .prNumber }}
-- Reviewer: {{ .reviewer }}
-- File: {{ .file }}
+- PR #${prNumber}
+- Reviewer: ${reviewer}
+- File: ${file}
 
 ## Comment
-{{ .comment }}
+${comment}
 
 ## Instructions
 
@@ -691,11 +690,11 @@ coding-context -p prNumber="42" -p reviewer="Bob" -p file="main.go" -p comment="
 cat > .prompts/tasks/fix-failing-check.md << 'EOF'
 ---
 ---
-# Fix Failing Check: {{ .checkName }}
+# Fix Failing Check: ${checkName}
 
 ## Check Details
-- Check Name: {{ .checkName }}
-- Branch: {{ .branch }}
+- Check Name: ${checkName}
+- Branch: ${branch}
 - Status: FAILED
 
 ## Debugging Steps
@@ -706,7 +705,7 @@ cat > .prompts/tasks/fix-failing-check.md << 'EOF'
    - Determine which component is failing
 
 2. **Reproduce Locally**
-   - Pull the latest code from {{ .branch }}
+   - Pull the latest code from ${branch}
    - Run the same check locally
    - Verify you can reproduce the failure
 
@@ -742,13 +741,14 @@ coding-context -p checkName="Unit Tests" -p branch="main" fix-failing-check
 
 ## Advanced Usage
 
-### Template Functions
+### Variable Syntax
 
-Prompts use Go's `text/template` syntax:
+Prompts use VS Code variable syntax:
 
 ```markdown
-{{ .variableName }}                                    # Simple substitution
-{{ if .debug }}Debug mode enabled{{ else }}Production mode{{ end }}  # Conditionals
+${variableName}                    # Simple substitution
+${input:varName}                   # Input variable
+${input:varName:placeholder}       # Input variable with placeholder
 ```
 
 ### Directory Priority
@@ -761,14 +761,14 @@ When the same task exists in multiple directories, the first match wins:
 ## Troubleshooting
 
 **"prompt file not found for task"**
-- Ensure `<task-name>.md` exists in a `tasks/` subdirectory
+- Ensure `<task-name>.md` or `<task-name>.prompt.md` exists in a `tasks/` subdirectory
 
 **"failed to walk memory dir"**
 ```bash
 mkdir -p .prompts/memories
 ```
 
-**Template parameter shows `<no value>`**
+**Variable not substituted (shows `${myvar}` in output)**
 ```bash
 coding-context -p myvar="value" my-task
 ```
