@@ -1,27 +1,35 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	_ "embed"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 //go:embed bootstrap
 var bootstrap string
 
 var (
-	dirs      stringSlice
-	outputDir = "."
-	params    = make(paramMap)
-	includes  = make(selectorMap)
-	excludes  = make(selectorMap)
+	dirs           stringSlice
+	outputDir      = "."
+	params         = make(paramMap)
+	includes       = make(selectorMap)
+	excludes       = make(selectorMap)
+	runBootstrap   bool
 )
 
 func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -39,6 +47,7 @@ func main() {
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include memories with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Var(&excludes, "S", "Exclude memories with matching frontmatter. Can be specified multiple times as key=value.")
+	flag.BoolVar(&runBootstrap, "b", false, "Automatically run the bootstrap script after generating it.")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
@@ -51,14 +60,14 @@ func main() {
 	}
 	flag.Parse()
 
-	if err := run(flag.Args()); err != nil {
+	if err := run(ctx, flag.Args()); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		flag.Usage()
 		os.Exit(1)
 	}
 }
 
-func run(args []string) error {
+func run(ctx context.Context, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("invalid usage")
 	}
@@ -80,12 +89,12 @@ func run(args []string) error {
 
 	for _, dir := range dirs {
 		memoryDir := filepath.Join(dir, "memories")
-		
+
 		// Skip if the directory doesn't exist
 		if _, err := os.Stat(memoryDir); os.IsNotExist(err) {
 			continue
 		}
-		
+
 		err := filepath.Walk(memoryDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -172,6 +181,28 @@ func run(args []string) error {
 
 			if _, err := output.WriteString(expanded); err != nil {
 				return fmt.Errorf("failed to write expanded prompt: %w", err)
+			}
+
+			// Run bootstrap if requested
+			if runBootstrap {
+				bootstrapPath := filepath.Join(outputDir, "bootstrap")
+
+				// Convert to absolute path
+				absBootstrapPath, err := filepath.Abs(bootstrapPath)
+				if err != nil {
+					return fmt.Errorf("failed to get absolute path for bootstrap script: %w", err)
+				}
+
+				fmt.Fprintf(os.Stdout, "Running bootstrap script: %s\n", absBootstrapPath)
+
+				cmd := exec.CommandContext(ctx, absBootstrapPath)
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				cmd.Dir = outputDir
+
+				if err := cmd.Run(); err != nil {
+					return fmt.Errorf("failed to run bootstrap script: %w", err)
+				}
 			}
 
 			return nil
