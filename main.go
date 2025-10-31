@@ -79,73 +79,60 @@ func findPromptFile(dir, taskName string) (string, error) {
 }
 
 // substituteVariables replaces VS Code variable syntax ${var} and ${input:var} with their values
+// Uses os.Expand for variable substitution
 func substituteVariables(content string, params map[string]string) string {
+	// First pass: convert ${input:varName} and ${input:varName:placeholder} to ${varName}
+	// This needs to be done before os.Expand since os.Expand doesn't handle the input: prefix
 	result := content
-	
-	for i := 0; i < len(result); {
-		// Check for ${input:varName} or ${input:varName:placeholder}
-		if i+8 <= len(result) && result[i:i+8] == "${input:" {
-			// Find the closing }
-			end := i + 8
-			for end < len(result) && result[end] != '}' {
-				end++
-			}
-			if end < len(result) {
-				// Extract the content between ${input: and }
-				varPart := result[i+8 : end]
-				// Split by : to get variable name (ignore placeholder if present)
-				colonIdx := strings.Index(varPart, ":")
-				var varName string
-				if colonIdx >= 0 {
-					varName = varPart[:colonIdx]
-				} else {
-					varName = varPart
-				}
-				
-				// Replace with the parameter value
-				replacement := params[varName]
-				result = result[:i] + replacement + result[end+1:]
-				i += len(replacement)
-				continue
-			}
+	for {
+		start := strings.Index(result, "${input:")
+		if start == -1 {
+			break
 		}
 		
-		// Check for simple ${varName}
-		if i+2 <= len(result) && result[i:i+2] == "${" {
-			// Find the closing }
-			end := i + 2
-			for end < len(result) && result[end] != '}' {
-				end++
-			}
-			if end < len(result) {
-				// Extract variable name
-				varName := result[i+2 : end]
-				
-				// Skip known VS Code-specific variables that we don't support
-				// These are editor-specific and don't have CLI equivalents
-				if varName == "workspaceFolder" || 
-				   varName == "workspaceFolderBasename" ||
-				   varName == "file" || 
-				   varName == "fileBasename" ||
-				   varName == "fileDirname" ||
-				   varName == "fileBasenameNoExtension" ||
-				   varName == "selection" ||
-				   varName == "selectedText" {
-					i = end + 1
-					continue
-				}
-				
-				// Replace with the parameter value
-				replacement := params[varName]
-				result = result[:i] + replacement + result[end+1:]
-				i += len(replacement)
-				continue
-			}
+		// Find the closing }
+		end := start + 8
+		for end < len(result) && result[end] != '}' {
+			end++
 		}
-		i++
+		if end >= len(result) {
+			break
+		}
+		
+		// Extract the content between ${input: and }
+		varPart := result[start+8 : end]
+		// Split by : to get variable name (ignore placeholder if present)
+		colonIdx := strings.Index(varPart, ":")
+		var varName string
+		if colonIdx >= 0 {
+			varName = varPart[:colonIdx]
+		} else {
+			varName = varPart
+		}
+		
+		// Replace ${input:varName...} with ${varName}
+		result = result[:start] + "${" + varName + "}" + result[end+1:]
 	}
 	
-	return result
+	// Second pass: use os.Expand to substitute variables
+	return os.Expand(result, func(varName string) string {
+		// Skip known VS Code-specific variables that we don't support
+		// These are editor-specific and don't have CLI equivalents
+		if varName == "workspaceFolder" ||
+			varName == "workspaceFolderBasename" ||
+			varName == "file" ||
+			varName == "fileBasename" ||
+			varName == "fileDirname" ||
+			varName == "fileBasenameNoExtension" ||
+			varName == "selection" ||
+			varName == "selectedText" {
+			// Return the original variable syntax to preserve it
+			return "${" + varName + "}"
+		}
+		
+		// Return the parameter value, or empty string if not found
+		return params[varName]
+	})
 }
 
 func run(args []string) error {
