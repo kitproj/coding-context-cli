@@ -1,6 +1,6 @@
 # Coding Agent Context CLI
 
-A CLI tool for managing context files for coding agents. It helps you organize prompts, memories (reusable context), and bootstrap scripts that can be assembled into a single context file for AI coding agents.
+A CLI tool for managing context files for coding agents. It helps you organize prompts and memories (reusable context) that can be assembled into a single context file for AI coding agents.
 
 It's aimed at coding agents with a simple interface for managing task-specific context and reusable knowledge.
 
@@ -109,14 +109,11 @@ coding-agent-context -p feature="User Login" -p language=Go add-feature
 
 ### Memory Files
 
-Markdown files included in every generated context. Can include bootstrap scripts in frontmatter.
+Markdown files included in every generated context.
 
 **Example** (`.coding-agent-context/memories/setup.md`):
 ```markdown
 ---
-bootstrap: |
-  #!/bin/bash
-  npm install
 ---
 # Development Setup
 
@@ -127,13 +124,6 @@ This project requires Node.js dependencies.
 ## Output Files
 
 - **`prompt.md`** - Combined output with all memories and the task prompt
-- **`bootstrap`** - Executable script that runs all bootstrap scripts from memories
-- **`bootstrap.d/`** - Individual bootstrap scripts (SHA256 named)
-
-Run the bootstrap script to set up your environment:
-```bash
-./bootstrap
-```
 
 
 ## Examples
@@ -181,24 +171,6 @@ EOF
 coding-agent-context -p featureName="Authentication" -p language=Go add-feature
 ```
 
-### With Bootstrap Scripts
-
-```bash
-cat > .coding-agent-context/memories/setup.md << 'EOF'
----
-bootstrap: |
-  #!/bin/bash
-  go mod download
----
-# Project Setup
-
-This Go project uses modules.
-EOF
-
-coding-agent-context -o ./output my-task
-cd output && ./bootstrap
-```
-
 ## Advanced Usage
 
 ### Template Functions
@@ -230,10 +202,5 @@ mkdir -p .coding-agent-context/memories
 **Template parameter shows `<no value>`**
 ```bash
 coding-agent-context -p myvar="value" my-task
-```
-
-**Bootstrap script not executing**
-```bash
-chmod +x bootstrap
 ```
 

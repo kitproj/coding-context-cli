@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
-	_ "embed"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -10,9 +8,6 @@ import (
 	"path/filepath"
 	"text/template"
 )
-
-//go:embed bootstrap
-var bootstrap string
 
 var (
 	dirs      stringSlice
@@ -64,11 +59,6 @@ func run(args []string) error {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
 
-	bootstrapDir := filepath.Join(outputDir, "bootstrap.d")
-	if err := os.MkdirAll(bootstrapDir, 0755); err != nil {
-		return fmt.Errorf("failed to create bootstrap dir: %w", err)
-	}
-
 	output, err := os.Create(filepath.Join(outputDir, "prompt.md"))
 	if err != nil {
 		return fmt.Errorf("failed to create prompt file: %w", err)
@@ -87,21 +77,9 @@ func run(args []string) error {
 
 			slog.Info("Including memory file", "path", path)
 
-			var frontmatter struct {
-				Bootstrap string `yaml:"bootstrap"`
-			}
-
-			content, err := parseMarkdownFile(path, &frontmatter)
+			content, err := parseMarkdownFile(path, &struct{}{})
 			if err != nil {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
-			}
-
-			if bootstrap := frontmatter.Bootstrap; bootstrap != "" {
-				hash := sha256.Sum256([]byte(bootstrap))
-				bootstrapPath := filepath.Join(bootstrapDir, fmt.Sprintf("%x", hash))
-				if err := os.WriteFile(bootstrapPath, []byte(bootstrap), 0700); err != nil {
-					return fmt.Errorf("failed to write bootstrap file: %w", err)
-				}
 			}
 
 			if _, err := output.WriteString(content + "\n\n"); err != nil {
@@ -114,10 +92,6 @@ func run(args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to walk memory dir: %w", err)
 		}
-	}
-
-	if err := os.WriteFile(filepath.Join(outputDir, "bootstrap"), []byte(bootstrap), 0755); err != nil {
-		return fmt.Errorf("failed to write bootstrap file: %w", err)
 	}
 
 	taskName := args[0]
