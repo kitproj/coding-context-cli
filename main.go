@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
 )
 
 //go:embed bootstrap
@@ -161,13 +160,15 @@ func run(args []string) error {
 				return fmt.Errorf("failed to parse prompt file: %w", err)
 			}
 
-			t, err := template.New("prompt").Parse(content)
-			if err != nil {
-				return fmt.Errorf("failed to parse prompt template: %w", err)
-			}
+			expanded := os.Expand(content, func(key string) string {
+				if val, ok := params[key]; ok {
+					return val
+				}
+				return ""
+			})
 
-			if err := t.Execute(output, params); err != nil {
-				return fmt.Errorf("failed to execute prompt template: %w", err)
+			if _, err := output.WriteString(expanded); err != nil {
+				return fmt.Errorf("failed to write expanded prompt: %w", err)
 			}
 
 			return nil

@@ -128,12 +128,12 @@ Memory files are included in every generated context. They contain reusable info
 
 **Step 3: Create a prompt file** (`.prompts/tasks/my-task.md`)
 
-Prompt files define specific tasks. They can use template variables (like `{{ .taskName }}`) that you provide via command-line parameters.
+Prompt files define specific tasks. They can use template variables (like `${taskName}` or `$taskName`) that you provide via command-line parameters.
 
 ```markdown
-# Task: {{ .taskName }}
+# Task: ${taskName}
 
-Please help me with this task. The project uses {{ .language }}.
+Please help me with this task. The project uses ${language}.
 ```
 
 **Step 4: Generate your context file**
@@ -184,9 +184,9 @@ Markdown files with YAML frontmatter and Go template support.
 
 **Example** (`.prompts/tasks/add-feature.md`):
 ```markdown
-# Task: {{ .feature }}
+# Task: ${feature}
 
-Implement {{ .feature }} in {{ .language }}.
+Implement ${feature} in ${language}.
 ```
 
 Run with:
@@ -311,9 +311,9 @@ coding-context refactor
 
 ```bash
 cat > .prompts/tasks/add-feature.md << 'EOF'
-# Add Feature: {{ .featureName }}
+# Add Feature: ${featureName}
 
-Implement {{ .featureName }} in {{ .language }}.
+Implement ${featureName} in ${language}.
 EOF
 
 coding-context -p featureName="Authentication" -p language=Go add-feature
@@ -506,7 +506,7 @@ chmod +x .prompts/memories/slack-setup-bootstrap
 **Step 4: Create a task that uses Slack** (`.prompts/tasks/slack-deploy-alert.md`)
 
 ```markdown
-# Slack Deployment Alert: {{ .environment }}
+# Slack Deployment Alert: ${environment}
 
 ## Task
 
@@ -515,23 +515,23 @@ Send a deployment notification to the team via Slack.
 ## Steps
 
 1. **Prepare the notification message**
-   - Include environment: {{ .environment }}
+   - Include environment: ${environment}
    - Include deployment status
    - Include relevant details (version, commit, etc.)
 
 2. **Send to appropriate channels**
    ```bash
-   slack send-message "#deployments" "🚀 Deployment to {{ .environment }} started"
+   slack send-message "#deployments" "🚀 Deployment to ${environment} started"
    ```
 
 3. **Update on completion**
    ```bash
-   slack send-message "#deployments" "✅ Deployment to {{ .environment }} completed successfully"
+   slack send-message "#deployments" "✅ Deployment to ${environment} completed successfully"
    ```
 
 4. **Alert on failures** (if needed)
    ```bash
-   slack send-message "#alerts" "❌ Deployment to {{ .environment }} failed. Check logs for details."
+   slack send-message "#alerts" "❌ Deployment to ${environment} failed. Check logs for details."
    ```
 
 ## Success Criteria
@@ -602,13 +602,13 @@ Here are some practical task templates for common development workflows:
 cat > .prompts/tasks/implement-jira-story.md << 'EOF'
 ---
 ---
-# Implement Jira Story: {{ .storyId }}
+# Implement Jira Story: ${storyId}
 
 ## Story Details
 
 First, get the full story details from Jira:
 ```bash
-jira get-issue {{ .storyId }}
+jira get-issue ${storyId}
 ```
 
 ## Requirements
@@ -617,12 +617,12 @@ Please implement the feature described in the Jira story. Follow these steps:
 
 1. **Review the Story**
    - Read the story details, acceptance criteria, and comments
-   - Get all comments: `jira get-comments {{ .storyId }}`
-   - Clarify any uncertainties by adding comments: `jira add-comment {{ .storyId }} "Your question"`
+   - Get all comments: `jira get-comments ${storyId}`
+   - Clarify any uncertainties by adding comments: `jira add-comment ${storyId} "Your question"`
 
 2. **Start Development**
-   - Create a feature branch with the story ID in the name (e.g., `feature/{{ .storyId }}-implement-auth`)
-   - Move the story to "In Progress": `jira update-issue-status {{ .storyId }} "In Progress"`
+   - Create a feature branch with the story ID in the name (e.g., `feature/${storyId}-implement-auth`)
+   - Move the story to "In Progress": `jira update-issue-status ${storyId} "In Progress"`
 
 3. **Implementation**
    - Design the solution following project conventions
@@ -632,14 +632,14 @@ Please implement the feature described in the Jira story. Follow these steps:
    - Ensure all tests pass and code is lint-free
 
 4. **Update Jira Throughout**
-   - Add progress updates: `jira add-comment {{ .storyId }} "Completed implementation, working on tests"`
+   - Add progress updates: `jira add-comment ${storyId} "Completed implementation, working on tests"`
    - Keep stakeholders informed of any blockers or changes
 
 5. **Complete the Story**
    - Ensure all acceptance criteria are met
    - Create a pull request
-   - Move to review: `jira update-issue-status {{ .storyId }} "In Review"`
-   - Once merged, close: `jira update-issue-status {{ .storyId }} "Done"`
+   - Move to review: `jira update-issue-status ${storyId} "In Review"`
+   - Once merged, close: `jira update-issue-status ${storyId} "Done"`
 
 ## Success Criteria
 - All acceptance criteria are met
@@ -661,46 +661,46 @@ coding-context -p storyId="PROJ-123" implement-jira-story
 cat > .prompts/tasks/triage-jira-bug.md << 'EOF'
 ---
 ---
-# Triage Jira Bug: {{ .bugId }}
+# Triage Jira Bug: ${bugId}
 
 ## Get Bug Details
 
 First, retrieve the full bug report from Jira:
 ```bash
-jira get-issue {{ .bugId }}
-jira get-comments {{ .bugId }}
+jira get-issue ${bugId}
+jira get-comments ${bugId}
 ```
 
 ## Triage Steps
 
 1. **Acknowledge and Take Ownership**
-   - Add initial comment: `jira add-comment {{ .bugId }} "Triaging this bug now"`
-   - Move to investigation: `jira update-issue-status {{ .bugId }} "In Progress"`
+   - Add initial comment: `jira add-comment ${bugId} "Triaging this bug now"`
+   - Move to investigation: `jira update-issue-status ${bugId} "In Progress"`
 
 2. **Reproduce the Issue**
    - Follow the steps to reproduce in the bug report
    - Verify the issue exists in the reported environment
    - Document actual vs. expected behavior
-   - Update Jira: `jira add-comment {{ .bugId }} "Reproduced on [environment]. Actual: [X], Expected: [Y]"`
+   - Update Jira: `jira add-comment ${bugId} "Reproduced on [environment]. Actual: [X], Expected: [Y]"`
 
 3. **Investigate Root Cause**
    - Review relevant code and logs
    - Identify the component/module causing the issue
    - Determine if this is a regression (check git history)
-   - Document findings: `jira add-comment {{ .bugId }} "Root cause: [description]"`
+   - Document findings: `jira add-comment ${bugId} "Root cause: [description]"`
 
 4. **Assess Impact**
    - How many users are affected?
    - Is there a workaround available?
    - What is the risk if left unfixed?
-   - Add assessment: `jira add-comment {{ .bugId }} "Impact: [severity]. Workaround: [yes/no]. Affected users: [estimate]"`
+   - Add assessment: `jira add-comment ${bugId} "Impact: [severity]. Workaround: [yes/no]. Affected users: [estimate]"`
 
 5. **Provide Triage Report**
    - Root cause analysis
    - Recommended priority level
    - Estimated effort to fix
    - Suggested assignee/team
-   - Final summary: `jira add-comment {{ .bugId }} "Triage complete. Priority: [level]. Effort: [estimate]. Recommended assignee: [name]"`
+   - Final summary: `jira add-comment ${bugId} "Triage complete. Priority: [level]. Effort: [estimate]. Recommended assignee: [name]"`
 
 ## Output
 Provide a detailed triage report with your findings and recommendations, and post it as a comment to the Jira issue.
@@ -718,14 +718,14 @@ coding-context -p bugId="PROJ-456" triage-jira-bug
 cat > .prompts/tasks/respond-to-jira-comment.md << 'EOF'
 ---
 ---
-# Respond to Jira Comment: {{ .issueId }}
+# Respond to Jira Comment: ${issueId}
 
 ## Get Issue and Comments
 
 First, retrieve the issue details and all comments:
 ```bash
-jira get-issue {{ .issueId }}
-jira get-comments {{ .issueId }}
+jira get-issue ${issueId}
+jira get-comments ${issueId}
 ```
 
 Review the latest comment and the full context of the issue.
@@ -750,12 +750,12 @@ Please analyze the comment and provide a professional response:
 
 Once you've formulated your response, add it to the Jira issue:
 ```bash
-jira add-comment {{ .issueId }} "Your detailed response here"
+jira add-comment ${issueId} "Your detailed response here"
 ```
 
 If the comment requires action on your part, update the issue status accordingly:
 ```bash
-jira update-issue-status {{ .issueId }} "In Progress"
+jira update-issue-status ${issueId} "In Progress"
 ```
 EOF
 
@@ -771,17 +771,17 @@ coding-context -p issueId="PROJ-789" respond-to-jira-comment
 cat > .prompts/tasks/notify-build-status.md << 'EOF'
 ---
 ---
-# Notify Build Status: {{ .buildStatus }}
+# Notify Build Status: ${buildStatus}
 
 ## Task
 
 Send a build status notification to the team via Slack.
 
 ## Build Information
-- Status: {{ .buildStatus }}
-- Branch: {{ .branch }}
-- Commit: {{ .commit }}
-- Build Time: {{ .buildTime }}
+- Status: ${buildStatus}
+- Branch: ${branch}
+- Commit: ${commit}
+- Build Time: ${buildTime}
 
 ## Steps
 
@@ -794,30 +794,30 @@ Send a build status notification to the team via Slack.
 
    For successful builds:
    ```bash
-   slack send-message "#builds" "✅ Build succeeded on {{ .branch }}
-Commit: {{ .commit }}
-Time: {{ .buildTime }}
-Status: {{ .buildStatus }}"
+   slack send-message "#builds" "✅ Build succeeded on ${branch}
+Commit: ${commit}
+Time: ${buildTime}
+Status: ${buildStatus}"
    ```
 
    For failed builds:
    ```bash
-   slack send-message "#builds" "❌ Build failed on {{ .branch }}
-Commit: {{ .commit }}
-Time: {{ .buildTime }}
-Status: {{ .buildStatus }}
+   slack send-message "#builds" "❌ Build failed on ${branch}
+Commit: ${commit}
+Time: ${buildTime}
+Status: ${buildStatus}
 Please check the build logs for details."
    ```
 
 3. **Alert in #alerts channel for failures** (if build failed)
    ```bash
-   slack send-message "#alerts" "🚨 Build failure detected on {{ .branch }}. Immediate attention needed."
+   slack send-message "#alerts" "🚨 Build failure detected on ${branch}. Immediate attention needed."
    ```
 
 4. **Update thread if this is a rebuild**
    If responding to a previous build notification:
    ```bash
-   slack send-thread-reply "#builds" "<thread-timestamp>" "Rebuild completed: {{ .buildStatus }}"
+   slack send-thread-reply "#builds" "<thread-timestamp>" "Rebuild completed: ${buildStatus}"
    ```
 
 ## Success Criteria
@@ -839,24 +839,24 @@ coding-context -p buildStatus="SUCCESS" -p branch="main" -p commit="abc123" -p b
 cat > .prompts/tasks/notify-deployment.md << 'EOF'
 ---
 ---
-# Notify Deployment: {{ .environment }}
+# Notify Deployment: ${environment}
 
 ## Task
 
 Communicate deployment status to stakeholders via Slack.
 
 ## Deployment Details
-- Environment: {{ .environment }}
-- Version: {{ .version }}
-- Deployer: {{ .deployer }}
+- Environment: ${environment}
+- Version: ${version}
+- Deployer: ${deployer}
 
 ## Instructions
 
 1. **Announce deployment start**
    ```bash
-   slack send-message "#deployments" "🚀 Deployment to {{ .environment }} started
-Version: {{ .version }}
-Deployer: {{ .deployer }}
+   slack send-message "#deployments" "🚀 Deployment to ${environment} started
+Version: ${version}
+Deployer: ${deployer}
 Started at: $(date)"
    ```
 
@@ -868,23 +868,23 @@ Started at: $(date)"
 
    For successful deployments:
    ```bash
-   slack send-message "#deployments" "✅ Deployment to {{ .environment }} completed successfully
-Version: {{ .version }}
+   slack send-message "#deployments" "✅ Deployment to ${environment} completed successfully
+Version: ${version}
 Completed at: $(date)
 All services are healthy and running."
    ```
 
    For failed deployments:
    ```bash
-   slack send-message "#deployments" "❌ Deployment to {{ .environment }} failed
-Version: {{ .version }}
+   slack send-message "#deployments" "❌ Deployment to ${environment} failed
+Version: ${version}
 Failed at: $(date)
 Rolling back to previous version..."
    ```
 
 4. **Alert stakeholders for production deployments**
    ```bash
-   slack send-message "#general" "📢 Production deployment completed: version {{ .version }} is now live!"
+   slack send-message "#general" "📢 Production deployment completed: version ${version} is now live!"
    ```
 
 5. **Update status thread**
@@ -908,12 +908,12 @@ coding-context -p environment="production" -p version="v2.1.0" -p deployer="depl
 cat > .prompts/tasks/review-pull-request.md << 'EOF'
 ---
 ---
-# Review Pull Request: {{ .prNumber }}
+# Review Pull Request: ${prNumber}
 
 ## PR Details
-- PR #{{ .prNumber }}
-- Author: {{ .author }}
-- Title: {{ .title }}
+- PR #${prNumber}
+- Author: ${author}
+- Title: ${title}
 
 ## Review Checklist
 
@@ -965,12 +965,12 @@ cat > .prompts/tasks/respond-to-pull-request-comment.md << 'EOF'
 # Respond to Pull Request Comment
 
 ## PR Details
-- PR #{{ .prNumber }}
-- Reviewer: {{ .reviewer }}
-- File: {{ .file }}
+- PR #${prNumber}
+- Reviewer: ${reviewer}
+- File: ${file}
 
 ## Comment
-{{ .comment }}
+${comment}
 
 ## Instructions
 
@@ -1008,11 +1008,11 @@ coding-context -p prNumber="42" -p reviewer="Bob" -p file="main.go" -p comment="
 cat > .prompts/tasks/fix-failing-check.md << 'EOF'
 ---
 ---
-# Fix Failing Check: {{ .checkName }}
+# Fix Failing Check: ${checkName}
 
 ## Check Details
-- Check Name: {{ .checkName }}
-- Branch: {{ .branch }}
+- Check Name: ${checkName}
+- Branch: ${branch}
 - Status: FAILED
 
 ## Debugging Steps
@@ -1023,7 +1023,7 @@ cat > .prompts/tasks/fix-failing-check.md << 'EOF'
    - Determine which component is failing
 
 2. **Reproduce Locally**
-   - Pull the latest code from {{ .branch }}
+   - Pull the latest code from ${branch}
    - Run the same check locally
    - Verify you can reproduce the failure
 
@@ -1059,14 +1059,16 @@ coding-context -p checkName="Unit Tests" -p branch="main" fix-failing-check
 
 ## Advanced Usage
 
-### Template Functions
+### Template Variables
 
-Prompts use Go's `text/template` syntax:
+Prompts use shell-style variable expansion via `os.Expand`:
 
 ```markdown
-{{ .variableName }}                                    # Simple substitution
-{{ if .debug }}Debug mode enabled{{ else }}Production mode{{ end }}  # Conditionals
+${variableName}    # Braced variable substitution
+$variableName      # Simple variable substitution (works with alphanumeric names)
 ```
+
+Variables that are not provided via `-p` flag are replaced with empty strings.
 
 ### Directory Priority
 
