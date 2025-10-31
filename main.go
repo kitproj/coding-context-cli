@@ -87,7 +87,6 @@ func run(args []string) error {
 			}
 
 			return nil
-
 		})
 		if err != nil {
 			return fmt.Errorf("failed to walk memory dir: %w", err)
@@ -116,7 +115,6 @@ func run(args []string) error {
 			}
 
 			return nil
-
 		}
 	}
 
