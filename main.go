@@ -19,6 +19,8 @@ var (
 	dirs      stringSlice
 	outputDir = "."
 	params    = make(paramMap)
+	includes  = make(selectorMap)
+	excludes  = make(selectorMap)
 )
 
 func main() {
@@ -37,6 +39,8 @@ func main() {
 	flag.Var(&dirs, "d", "Directory to include in the context. Can be specified multiple times.")
 	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
+	flag.Var(&includes, "s", "Include memories with matching frontmatter. Can be specified multiple times as key=value.")
+	flag.Var(&excludes, "S", "Exclude memories with matching frontmatter. Can be specified multiple times as key=value.")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
@@ -97,12 +101,24 @@ func run(args []string) error {
 				return nil
 			}
 
-			slog.Info("Including memory file", "path", path)
-
-			content, err := parseMarkdownFile(path, &struct{}{})
+			// Parse frontmatter to check selectors
+			var frontmatter map[string]string
+			content, err := parseMarkdownFile(path, &frontmatter)
 			if err != nil {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
 			}
+
+			// Check if file matches include and exclude selectors
+			if !includes.matchesIncludes(frontmatter) {
+				slog.Info("Excluding memory file (does not match include selectors)", "path", path)
+				return nil
+			}
+			if !excludes.matchesExcludes(frontmatter) {
+				slog.Info("Excluding memory file (matches exclude selectors)", "path", path)
+				return nil
+			}
+
+			slog.Info("Including memory file", "path", path)
 
 			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
 			// For example, setup.md -> setup-bootstrap
