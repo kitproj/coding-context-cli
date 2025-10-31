@@ -43,14 +43,21 @@ The basic workflow is:
 
 **Visual flow:**
 ```
-Memory Files (*.md)              Prompt Template (task-name.md)
-        |                                    |
-        | (filter by selectors)              | (apply template params)
-        v                                    v
-   Filtered Memories  -------+-------  Rendered Prompt
-                              |
-                              v
-                        prompt.md (combined output)
++---------------------+       +--------------------------+
+| Memory Files (*.md) |       | Prompt Template          |
+|                     |       | (task-name.md)           |
++----------+----------+       +------------+-------------+
+           |                               |
+           | Filter by selectors           | Apply template params
+           v                               v
++---------------------+       +--------------------------+
+| Filtered Memories   +-------+ Rendered Prompt          |
++---------------------+       +------------+-------------+
+                                           |
+                                           v
+                              +----------------------------+
+                              | prompt.md (combined output)|
+                              +----------------------------+
 ```
 
 ## Installation
