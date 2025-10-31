@@ -120,8 +120,6 @@ mkdir -p .coding-context/{prompts,memories}
 Memory files are included in every generated context. They contain reusable information like project conventions, architecture notes, or coding standards.
 
 ```markdown
----
----
 # Project Context
 
 - Framework: Go CLI
@@ -133,8 +131,6 @@ Memory files are included in every generated context. They contain reusable info
 Prompt files define specific tasks. They can use template variables (like `{{ .taskName }}`) that you provide via command-line parameters.
 
 ```markdown
----
----
 # Task: {{ .taskName }}
 
 Please help me with this task. The project uses {{ .language }}.
@@ -188,8 +184,6 @@ Markdown files with YAML frontmatter and Go template support.
 
 **Example** (`.coding-context/prompts/add-feature.md`):
 ```markdown
----
----
 # Task: {{ .feature }}
 
 Implement {{ .feature }} in {{ .language }}.
@@ -296,8 +290,6 @@ mkdir -p .coding-context/{prompts,memories}
 
 # Add a memory
 cat > .coding-context/memories/conventions.md << 'EOF'
----
----
 # Coding Conventions
 
 - Use tabs for indentation
@@ -306,8 +298,6 @@ EOF
 
 # Create a task prompt
 cat > .coding-context/prompts/refactor.md << 'EOF'
----
----
 # Refactoring Task
 
 Please refactor the codebase to improve code quality.
@@ -321,8 +311,6 @@ coding-context refactor
 
 ```bash
 cat > .coding-context/prompts/add-feature.md << 'EOF'
----
----
 # Add Feature: {{ .featureName }}
 
 Implement {{ .featureName }} in {{ .language }}.
@@ -335,8 +323,6 @@ coding-context -p featureName="Authentication" -p language=Go add-feature
 
 ```bash
 cat > .coding-context/memories/setup.md << 'EOF'
----
----
 # Project Setup
 
 This Go project uses modules.
