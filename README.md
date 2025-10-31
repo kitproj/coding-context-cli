@@ -82,7 +82,7 @@ coding-context [options] <task-name>
 
 Options:
   -d <directory>    Add a directory to include in the context (can be used multiple times)
-                    Default: .prompts, ~/.config/prompts, /var/local/prompts
+                    Default: .prompts, .github/prompts, ~/.config/prompts, /var/local/prompts
   -o <directory>    Output directory for generated files (default: .)
   -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
   -s <key=value>    Include memories with matching frontmatter (can be used multiple times)
@@ -105,6 +105,79 @@ coding-context -S env=test deploy
 # Combine include and exclude selectors
 coding-context -s env=production -S language=python deploy
 ```
+
+## VS Code Copilot Compatibility
+
+This tool is **compatible with VS Code Copilot prompt files**, allowing you to use prompt files created for VS Code Copilot with this CLI tool and vice versa.
+
+### Supported Features
+
+- **`.prompt.md` extension**: The tool recognizes both `.md` and `.prompt.md` file extensions
+- **`.github/prompts/` directory**: Automatically searches for prompts in `.github/prompts/` (VS Code's default location) as well as `.prompts/`
+- **Variable syntax conversion**: Automatically converts VS Code variable syntax (`${variable}` and `${input:variable}`) to Go template syntax (`{{ .variable }}`)
+
+### Directory Search Order
+
+The tool searches these directories in priority order:
+1. `.prompts/` (project-local, traditional format)
+2. `.github/prompts/` (project-local, VS Code format)
+3. `~/.config/prompts/` (user-specific)
+4. `/var/local/prompts/` (system-wide)
+
+### Variable Syntax Support
+
+The tool supports both variable syntaxes:
+
+**VS Code Copilot syntax** (automatically converted):
+```markdown
+# Task: ${input:taskName}
+
+Implement ${input:featureName:Enter feature name} in ${language}.
+```
+
+**Go template syntax** (native):
+```markdown
+# Task: {{ .taskName }}
+
+Implement {{ .featureName }} in {{ .language }}.
+```
+
+Both syntaxes work identically when you run:
+```bash
+coding-context -p taskName="MyTask" -p featureName="Auth" -p language="Go" my-task
+```
+
+### Example: Using VS Code Prompt Files
+
+Create a prompt file in VS Code format:
+
+```bash
+mkdir -p .github/prompts/tasks
+cat > .github/prompts/tasks/create-feature.prompt.md << 'EOF'
+---
+description: 'Create a new feature'
+mode: 'ask'
+---
+# Create Feature: ${input:featureName}
+
+Please implement **${input:featureName:Enter feature name}** using ${language}.
+EOF
+```
+
+Run it with the CLI:
+```bash
+coding-context -p featureName="Authentication" -p language="Go" create-feature
+```
+
+### Limitations
+
+The following VS Code-specific variables are **not supported** and will be left as-is:
+- `${workspaceFolder}` - Workspace folder path
+- `${file}` - Current file path
+- `${selection}` - Selected text
+- `${selectedText}` - Selected text
+
+These variables are specific to VS Code's editor context and don't have equivalents in the CLI environment.
 
 ## Quick Start
 
@@ -162,17 +235,20 @@ Please help me with this task. The project uses Go.
 ## Directory Structure
 
 The tool searches these directories for context files (in priority order):
-1. `.prompts/` (project-local)
-2. `~/.config/prompts/` (user-specific)
-3. `/var/local/prompts/` (system-wide)
+1. `.prompts/` (project-local, traditional format)
+2. `.github/prompts/` (project-local, VS Code Copilot format)
+3. `~/.config/prompts/` (user-specific)
+4. `/var/local/prompts/` (system-wide)
 
 Each directory should contain:
 ```
-.prompts/
+.prompts/  (or .github/prompts/)
 ├── tasks/          # Task-specific prompt templates
-│   └── <task-name>.md
-└── memories/         # Reusable context files (included in all outputs)
-    └── *.md
+│   ├── <task-name>.md           # Traditional format
+│   └── <task-name>.prompt.md    # VS Code Copilot format
+└── memories/       # Reusable context files (included in all outputs)
+    ├── *.md                     # Traditional format
+    └── *.prompt.md              # VS Code Copilot format (also supported)
 ```
 
 
