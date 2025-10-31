@@ -43,17 +43,14 @@ The basic workflow is:
 
 **Visual flow:**
 ```
-Memory Files (*.md)          Prompt Template (task-name.md)
-       +                              +
-       |                              |
-       v                              v
-   [Filter by                  [Apply template
-    selectors]                  parameters]
-       |                              |
-       +-------------+----------------+
-                     |
-                     v
-               prompt.md (final output)
+Memory Files (*.md)              Prompt Template (task-name.md)
+        |                                    |
+        | (filter by selectors)              | (apply template params)
+        v                                    v
+   Filtered Memories  -------+-------  Rendered Prompt
+                              |
+                              v
+                        prompt.md (combined output)
 ```
 
 ## Installation
@@ -104,7 +101,7 @@ coding-context -s env=production -S language=python deploy
 
 ## Quick Start
 
-This 4-step guide shows how to create your first context file:
+This 4-step guide shows how to set up and generate your first context:
 
 **Step 1: Create a context directory structure**
 ```bash
