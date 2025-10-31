@@ -168,7 +168,7 @@ func run(args []string) error {
 			})
 
 			if _, err := output.WriteString(expanded); err != nil {
-				return fmt.Errorf("failed to write prompt template: %w", err)
+				return fmt.Errorf("failed to write expanded prompt: %w", err)
 			}
 
 			return nil
