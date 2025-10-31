@@ -503,10 +503,10 @@ slack --version
 chmod +x .prompts/memories/slack-setup-bootstrap
 ```
 
-**Step 4: Create a task that uses Slack** (`.prompts/tasks/notify-deployment.md`)
+**Step 4: Create a task that uses Slack** (`.prompts/tasks/slack-deploy-alert.md`)
 
 ```markdown
-# Notify Deployment: {{ .environment }}
+# Slack Deployment Alert: {{ .environment }}
 
 ## Task
 
@@ -543,7 +543,7 @@ Send a deployment notification to the team via Slack.
 **Step 5: Use the task**
 
 ```bash
-coding-context -p environment="production" notify-deployment
+coding-context -p environment="production" slack-deploy-alert
 ./bootstrap  # Installs slack-cli if needed
 ```
 
@@ -795,18 +795,18 @@ Send a build status notification to the team via Slack.
    For successful builds:
    ```bash
    slack send-message "#builds" "✅ Build succeeded on {{ .branch }}
-   Commit: {{ .commit }}
-   Time: {{ .buildTime }}
-   Status: {{ .buildStatus }}"
+Commit: {{ .commit }}
+Time: {{ .buildTime }}
+Status: {{ .buildStatus }}"
    ```
 
    For failed builds:
    ```bash
    slack send-message "#builds" "❌ Build failed on {{ .branch }}
-   Commit: {{ .commit }}
-   Time: {{ .buildTime }}
-   Status: {{ .buildStatus }}
-   Please check the build logs for details."
+Commit: {{ .commit }}
+Time: {{ .buildTime }}
+Status: {{ .buildStatus }}
+Please check the build logs for details."
    ```
 
 3. **Alert in #alerts channel for failures** (if build failed)
@@ -855,9 +855,9 @@ Communicate deployment status to stakeholders via Slack.
 1. **Announce deployment start**
    ```bash
    slack send-message "#deployments" "🚀 Deployment to {{ .environment }} started
-   Version: {{ .version }}
-   Deployer: {{ .deployer }}
-   Started at: $(date)"
+Version: {{ .version }}
+Deployer: {{ .deployer }}
+Started at: $(date)"
    ```
 
 2. **Monitor deployment progress**
@@ -869,17 +869,17 @@ Communicate deployment status to stakeholders via Slack.
    For successful deployments:
    ```bash
    slack send-message "#deployments" "✅ Deployment to {{ .environment }} completed successfully
-   Version: {{ .version }}
-   Completed at: $(date)
-   All services are healthy and running."
+Version: {{ .version }}
+Completed at: $(date)
+All services are healthy and running."
    ```
 
    For failed deployments:
    ```bash
    slack send-message "#deployments" "❌ Deployment to {{ .environment }} failed
-   Version: {{ .version }}
-   Failed at: $(date)
-   Rolling back to previous version..."
+Version: {{ .version }}
+Failed at: $(date)
+Rolling back to previous version..."
    ```
 
 4. **Alert stakeholders for production deployments**
