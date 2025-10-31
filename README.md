@@ -109,19 +109,24 @@ coding-agent-context -p feature="User Login" -p language=Go add-feature
 
 ### Memory Files
 
-Markdown files included in every generated context. Can include bootstrap scripts in frontmatter.
+Markdown files included in every generated context. Bootstrap scripts can be provided in separate files.
 
 **Example** (`.coding-agent-context/memories/setup.md`):
 ```markdown
 ---
-bootstrap: |
-  #!/bin/bash
-  npm install
 ---
 # Development Setup
 
 This project requires Node.js dependencies.
 ```
+
+**Bootstrap file** (`.coding-agent-context/memories/setup-bootstrap`):
+```bash
+#!/bin/bash
+npm install
+```
+
+For each memory file `<name>.md`, you can optionally create a corresponding `<name>-bootstrap` file that will be executed during setup.
 
 
 ## Output Files
@@ -186,14 +191,17 @@ coding-agent-context -p featureName="Authentication" -p language=Go add-feature
 ```bash
 cat > .coding-agent-context/memories/setup.md << 'EOF'
 ---
-bootstrap: |
-  #!/bin/bash
-  go mod download
 ---
 # Project Setup
 
 This Go project uses modules.
 EOF
+
+cat > .coding-agent-context/memories/setup-bootstrap << 'EOF'
+#!/bin/bash
+go mod download
+EOF
+chmod +x .coding-agent-context/memories/setup-bootstrap
 
 coding-agent-context -o ./output my-task
 cd output && ./bootstrap
