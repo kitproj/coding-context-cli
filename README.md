@@ -338,11 +338,265 @@ coding-context -o ./output my-task
 cd output && ./bootstrap
 ```
 
+### Integrating External CLI Tools
+
+The bootstrap script mechanism is especially useful for integrating external CLI tools like `kitproj/jira-cli` and `kitproj/slack-cli`. These tools can be installed automatically when an agent starts working on a task.
+
+#### Example: Using kitproj/jira-cli
+
+The `kitproj/jira-cli` tool allows agents to interact with Jira issues programmatically. Here's how to set it up:
+
+**Step 1: Create a memory file with Jira context** (`.prompts/memories/jira-setup.md`)
+
+```markdown
+---
+tools: jira
+---
+# Jira Integration
+
+This project uses Jira for issue tracking. The `jira` CLI tool is available for interacting with issues.
+
+## Available Commands
+
+- `jira get-issue <issue-id>` - Get details of a Jira issue
+- `jira get-comments <issue-id>` - Get all comments on an issue
+- `jira add-comment <issue-id> <comment-text>` - Add a comment to an issue
+- `jira update-issue-status <issue-id> <status>` - Update the status of an issue
+- `jira create-issue <project-key> <summary> <description>` - Create a new issue
+
+## Configuration
+
+The Jira CLI is configured with:
+- Server URL: https://your-company.atlassian.net
+- Authentication: Token-based (set via JIRA_API_TOKEN environment variable)
+```
+
+**Step 2: Create a bootstrap script** (`.prompts/memories/jira-setup-bootstrap`)
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Install jira-cli if not already installed
+if ! command -v jira &> /dev/null; then
+    echo "Installing jira-cli..."
+    
+    # Detect OS and architecture
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
+    
+    # Map architecture names
+    case "$ARCH" in
+        x86_64) ARCH="amd64" ;;
+        aarch64|arm64) ARCH="arm64" ;;
+    esac
+    
+    # Download and install the latest version
+    VERSION="v0.1.0"  # Update to the latest version
+    BINARY_URL="https://github.com/kitproj/jira-cli/releases/download/${VERSION}/jira-cli_${VERSION}_${OS}_${ARCH}"
+    
+    sudo curl -fsSL -o /usr/local/bin/jira "$BINARY_URL"
+    sudo chmod +x /usr/local/bin/jira
+    
+    echo "jira-cli installed successfully"
+else
+    echo "jira-cli is already installed"
+fi
+
+# Verify installation
+jira --version
+```
+
+**Step 3: Make the bootstrap script executable**
+
+```bash
+chmod +x .prompts/memories/jira-setup-bootstrap
+```
+
+**Step 4: Use with a task that needs Jira**
+
+```bash
+# The bootstrap will automatically run when you generate context
+coding-context -p storyId="PROJ-123" implement-jira-story
+
+# This creates ./bootstrap which installs jira-cli when executed
+./bootstrap
+```
+
+Now when an agent starts work, the bootstrap script will ensure `jira-cli` is installed and ready to use!
+
+#### Example: Using kitproj/slack-cli
+
+The `kitproj/slack-cli` tool allows agents to send notifications and interact with Slack channels. Here's the setup:
+
+**Step 1: Create a memory file with Slack context** (`.prompts/memories/slack-setup.md`)
+
+```markdown
+---
+tools: slack
+---
+# Slack Integration
+
+This project uses Slack for team communication. The `slack` CLI tool is available for sending messages and notifications.
+
+## Available Commands
+
+- `slack send-message <channel> <message>` - Send a message to a channel
+- `slack send-thread-reply <channel> <thread-ts> <message>` - Reply to a thread
+- `slack upload-file <channel> <file-path>` - Upload a file to a channel
+- `slack set-status <status-text> <emoji>` - Set your Slack status
+- `slack get-channel-history <channel> <limit>` - Get recent messages from a channel
+
+## Configuration
+
+The Slack CLI requires:
+- Workspace: your-workspace.slack.com
+- Authentication: Bot token (set via SLACK_BOT_TOKEN environment variable)
+- Channels: Use channel IDs or names (e.g., #engineering, #alerts)
+
+## Common Use Cases
+
+- Send build notifications: `slack send-message "#builds" "Build completed successfully"`
+- Report deployment status: `slack send-message "#deployments" "Production deployment started"`
+- Alert on failures: `slack send-message "#alerts" "Test suite failed on main branch"`
+```
+
+**Step 2: Create a bootstrap script** (`.prompts/memories/slack-setup-bootstrap`)
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Install slack-cli if not already installed
+if ! command -v slack &> /dev/null; then
+    echo "Installing slack-cli..."
+    
+    # Detect OS and architecture
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
+    
+    # Map architecture names
+    case "$ARCH" in
+        x86_64) ARCH="amd64" ;;
+        aarch64|arm64) ARCH="arm64" ;;
+    esac
+    
+    # Download and install the latest version
+    VERSION="v0.1.0"  # Update to the latest version
+    BINARY_URL="https://github.com/kitproj/slack-cli/releases/download/${VERSION}/slack-cli_${VERSION}_${OS}_${ARCH}"
+    
+    sudo curl -fsSL -o /usr/local/bin/slack "$BINARY_URL"
+    sudo chmod +x /usr/local/bin/slack
+    
+    echo "slack-cli installed successfully"
+else
+    echo "slack-cli is already installed"
+fi
+
+# Verify installation
+slack --version
+```
+
+**Step 3: Make the bootstrap script executable**
+
+```bash
+chmod +x .prompts/memories/slack-setup-bootstrap
+```
+
+**Step 4: Create a task that uses Slack** (`.prompts/tasks/slack-deploy-alert.md`)
+
+```markdown
+# Slack Deployment Alert: {{ .environment }}
+
+## Task
+
+Send a deployment notification to the team via Slack.
+
+## Steps
+
+1. **Prepare the notification message**
+   - Include environment: {{ .environment }}
+   - Include deployment status
+   - Include relevant details (version, commit, etc.)
+
+2. **Send to appropriate channels**
+   ```bash
+   slack send-message "#deployments" "🚀 Deployment to {{ .environment }} started"
+   ```
+
+3. **Update on completion**
+   ```bash
+   slack send-message "#deployments" "✅ Deployment to {{ .environment }} completed successfully"
+   ```
+
+4. **Alert on failures** (if needed)
+   ```bash
+   slack send-message "#alerts" "❌ Deployment to {{ .environment }} failed. Check logs for details."
+   ```
+
+## Success Criteria
+- Team is notified of deployment status
+- Appropriate channels receive updates
+- Messages are clear and actionable
+```
+
+**Step 5: Use the task**
+
+```bash
+coding-context -p environment="production" slack-deploy-alert
+./bootstrap  # Installs slack-cli if needed
+```
+
+#### Writing Bootstrap Scripts - Best Practices
+
+When writing bootstrap scripts for external CLI tools:
+
+1. **Check if already installed** - Avoid reinstalling if the tool exists
+   ```bash
+   if ! command -v toolname &> /dev/null; then
+       # Install logic here
+   fi
+   ```
+
+2. **Handle multiple platforms** - Detect OS and architecture
+   ```bash
+   OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+   ARCH=$(uname -m)
+   case "$ARCH" in
+       x86_64) ARCH="amd64" ;;
+       aarch64|arm64) ARCH="arm64" ;;
+   esac
+   ```
+
+3. **Use specific versions** - Pin to a specific version for reproducibility
+   ```bash
+   VERSION="v0.1.0"
+   ```
+
+4. **Set error handling** - Use `set -euo pipefail` to catch errors early
+   ```bash
+   #!/bin/bash
+   set -euo pipefail
+   ```
+
+5. **Verify installation** - Check that the tool works after installation
+   ```bash
+   toolname --version
+   ```
+
+6. **Provide clear output** - Echo messages to show progress
+   ```bash
+   echo "Installing toolname..."
+   echo "Installation complete"
+   ```
+
 ### Real-World Task Examples
 
 Here are some practical task templates for common development workflows:
 
 #### Implement Jira Story
+
+**Note:** This example assumes you've set up the Jira CLI integration as shown in the [Using kitproj/jira-cli](#example-using-kitprojjira-cli) section above. The bootstrap script will automatically install the `jira` command.
 
 ```bash
 cat > .prompts/tasks/implement-jira-story.md << 'EOF'
@@ -401,6 +655,8 @@ coding-context -p storyId="PROJ-123" implement-jira-story
 
 #### Triage Jira Bug
 
+**Note:** This example requires the Jira CLI integration. See [Using kitproj/jira-cli](#example-using-kitprojjira-cli) for setup instructions.
+
 ```bash
 cat > .prompts/tasks/triage-jira-bug.md << 'EOF'
 ---
@@ -456,6 +712,8 @@ coding-context -p bugId="PROJ-456" triage-jira-bug
 
 #### Respond to Jira Comment
 
+**Note:** This example requires the Jira CLI integration. See [Using kitproj/jira-cli](#example-using-kitprojjira-cli) for setup instructions.
+
 ```bash
 cat > .prompts/tasks/respond-to-jira-comment.md << 'EOF'
 ---
@@ -503,6 +761,145 @@ EOF
 
 # Usage
 coding-context -p issueId="PROJ-789" respond-to-jira-comment
+```
+
+#### Send Slack Notification on Build Completion
+
+**Note:** This example requires the Slack CLI integration. See [Using kitproj/slack-cli](#example-using-kitprojslack-cli) for setup instructions.
+
+```bash
+cat > .prompts/tasks/notify-build-status.md << 'EOF'
+---
+---
+# Notify Build Status: {{ .buildStatus }}
+
+## Task
+
+Send a build status notification to the team via Slack.
+
+## Build Information
+- Status: {{ .buildStatus }}
+- Branch: {{ .branch }}
+- Commit: {{ .commit }}
+- Build Time: {{ .buildTime }}
+
+## Steps
+
+1. **Prepare the notification message**
+   - Determine the appropriate emoji based on status
+   - Include all relevant build details
+   - Add links to build logs or artifacts
+
+2. **Send notification to #builds channel**
+
+   For successful builds:
+   ```bash
+   slack send-message "#builds" "✅ Build succeeded on {{ .branch }}
+Commit: {{ .commit }}
+Time: {{ .buildTime }}
+Status: {{ .buildStatus }}"
+   ```
+
+   For failed builds:
+   ```bash
+   slack send-message "#builds" "❌ Build failed on {{ .branch }}
+Commit: {{ .commit }}
+Time: {{ .buildTime }}
+Status: {{ .buildStatus }}
+Please check the build logs for details."
+   ```
+
+3. **Alert in #alerts channel for failures** (if build failed)
+   ```bash
+   slack send-message "#alerts" "🚨 Build failure detected on {{ .branch }}. Immediate attention needed."
+   ```
+
+4. **Update thread if this is a rebuild**
+   If responding to a previous build notification:
+   ```bash
+   slack send-thread-reply "#builds" "<thread-timestamp>" "Rebuild completed: {{ .buildStatus }}"
+   ```
+
+## Success Criteria
+- Appropriate channels are notified
+- Message includes all relevant details
+- Team can quickly assess build status
+- Failed builds trigger alerts
+EOF
+
+# Usage
+coding-context -p buildStatus="SUCCESS" -p branch="main" -p commit="abc123" -p buildTime="2m 30s" notify-build-status
+```
+
+#### Post Deployment Notification to Slack
+
+**Note:** This example requires the Slack CLI integration. See [Using kitproj/slack-cli](#example-using-kitprojslack-cli) for setup instructions.
+
+```bash
+cat > .prompts/tasks/notify-deployment.md << 'EOF'
+---
+---
+# Notify Deployment: {{ .environment }}
+
+## Task
+
+Communicate deployment status to stakeholders via Slack.
+
+## Deployment Details
+- Environment: {{ .environment }}
+- Version: {{ .version }}
+- Deployer: {{ .deployer }}
+
+## Instructions
+
+1. **Announce deployment start**
+   ```bash
+   slack send-message "#deployments" "🚀 Deployment to {{ .environment }} started
+Version: {{ .version }}
+Deployer: {{ .deployer }}
+Started at: $(date)"
+   ```
+
+2. **Monitor deployment progress**
+   - Track deployment steps
+   - Note any issues or delays
+
+3. **Send completion notification**
+
+   For successful deployments:
+   ```bash
+   slack send-message "#deployments" "✅ Deployment to {{ .environment }} completed successfully
+Version: {{ .version }}
+Completed at: $(date)
+All services are healthy and running."
+   ```
+
+   For failed deployments:
+   ```bash
+   slack send-message "#deployments" "❌ Deployment to {{ .environment }} failed
+Version: {{ .version }}
+Failed at: $(date)
+Rolling back to previous version..."
+   ```
+
+4. **Alert stakeholders for production deployments**
+   ```bash
+   slack send-message "#general" "📢 Production deployment completed: version {{ .version }} is now live!"
+   ```
+
+5. **Update status thread**
+   - Reply to the initial announcement with final status
+   - Include any post-deployment tasks or notes
+
+## Success Criteria
+- Deployment timeline is clearly communicated
+- All stakeholders are informed
+- Status updates are timely and accurate
+- Issues are escalated appropriately
+EOF
+
+# Usage
+coding-context -p environment="production" -p version="v2.1.0" -p deployer="deploy-bot" notify-deployment
 ```
 
 #### Review Pull Request
