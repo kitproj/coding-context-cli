@@ -35,7 +35,17 @@ of the markdown file.
 			content: `This is a simple markdown file
 without any frontmatter.
 `,
-			wantContent: "without any frontmatter.\n",
+			wantContent: "This is a simple markdown file\nwithout any frontmatter.\n",
+			wantFrontmatter: map[string]string{},
+			wantErr: false,
+		},
+		{
+			name: "markdown with title as first line",
+			content: `# My Title
+
+This is the content.
+`,
+			wantContent: "# My Title\n\nThis is the content.\n",
 			wantFrontmatter: map[string]string{},
 			wantErr: false,
 		},
