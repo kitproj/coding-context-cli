@@ -125,7 +125,11 @@ func run(args []string) error {
 
 			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
 				hash := sha256.Sum256(bootstrapContent)
-				bootstrapPath := filepath.Join(bootstrapDir, fmt.Sprintf("%x", hash))
+				// Use original filename as prefix with first 4 bytes of hash as 8-char hex suffix
+				// e.g., jira-bootstrap-9e2e8bc8
+				baseBootstrapName := filepath.Base(bootstrapFilePath)
+				bootstrapFileName := fmt.Sprintf("%s-%08x", baseBootstrapName, hash[:4])
+				bootstrapPath := filepath.Join(bootstrapDir, bootstrapFileName)
 				if err := os.WriteFile(bootstrapPath, bootstrapContent, 0700); err != nil {
 					return fmt.Errorf("failed to write bootstrap file: %w", err)
 				}
