@@ -417,3 +417,131 @@ func TestSelectorFiltering(t *testing.T) {
 		t.Errorf("Expected no frontmatter content in output (missing keys should be allowed)")
 	}
 }
+
+func TestTemplateExpansionWithOsExpand(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a prompt file with os.Expand style templates
+	promptFile := filepath.Join(tasksDir, "test-expand.md")
+	promptContent := `---
+---
+# Test Task: ${taskName}
+
+Please implement ${feature} using ${language}.
+
+The project is for $company.
+`
+	if err := os.WriteFile(promptFile, []byte(promptContent), 0644); err != nil {
+		t.Fatalf("failed to write prompt file: %v", err)
+	}
+
+	// Run the binary with parameters
+	cmd = exec.Command(binaryPath, 
+		"-d", contextDir, 
+		"-o", outputDir,
+		"-p", "taskName=AddAuth",
+		"-p", "feature=Authentication",
+		"-p", "language=Go",
+		"-p", "company=Acme Corp",
+		"test-expand")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Read the output
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify substitutions
+	if !strings.Contains(contentStr, "Test Task: AddAuth") {
+		t.Errorf("Expected 'Test Task: AddAuth' in output, got:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "Please implement Authentication using Go") {
+		t.Errorf("Expected 'Please implement Authentication using Go' in output, got:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "The project is for Acme Corp") {
+		t.Errorf("Expected 'The project is for Acme Corp' in output, got:\n%s", contentStr)
+	}
+}
+
+func TestTemplateExpansionWithMissingParams(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a prompt file with variables that won't be provided
+	promptFile := filepath.Join(tasksDir, "test-missing.md")
+	promptContent := `---
+---
+# Task: ${providedVar}
+
+Missing var: ${missingVar}
+`
+	if err := os.WriteFile(promptFile, []byte(promptContent), 0644); err != nil {
+		t.Fatalf("failed to write prompt file: %v", err)
+	}
+
+	// Run the binary with only one parameter
+	cmd = exec.Command(binaryPath, 
+		"-d", contextDir, 
+		"-o", outputDir,
+		"-p", "providedVar=ProvidedValue",
+		"test-missing")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Read the output
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify provided variable is substituted
+	if !strings.Contains(contentStr, "Task: ProvidedValue") {
+		t.Errorf("Expected 'Task: ProvidedValue' in output, got:\n%s", contentStr)
+	}
+	
+	// Verify missing variable is replaced with empty string
+	if strings.Contains(contentStr, "${missingVar}") {
+		t.Errorf("Expected ${missingVar} to be replaced with empty string, got:\n%s", contentStr)
+	}
+}
