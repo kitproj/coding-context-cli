@@ -130,16 +130,32 @@ func run(ctx context.Context, args []string) error {
 			}
 
 			// Check if file matches include and exclude selectors
-			if !includes.matchesIncludes(frontmatter) {
-				fmt.Fprintf(os.Stdout, "Excluding memory file (does not match include selectors): %s\n", path)
+			includeMatch, includeExplanation := includes.explainIncludes(frontmatter)
+			if !includeMatch {
+				fmt.Fprintf(os.Stdout, "Excluding memory file: %s (%s)\n", path, includeExplanation)
 				return nil
 			}
-			if !excludes.matchesExcludes(frontmatter) {
-				fmt.Fprintf(os.Stdout, "Excluding memory file (matches exclude selectors): %s\n", path)
+			excludeMatch, excludeExplanation := excludes.explainExcludes(frontmatter)
+			if !excludeMatch {
+				fmt.Fprintf(os.Stdout, "Excluding memory file: %s (%s)\n", path, excludeExplanation)
 				return nil
 			}
 
-			fmt.Fprintf(os.Stdout, "Including memory file: %s\n", path)
+			// Build explanation for why file is included
+			var explanation string
+			if len(includes) > 0 || len(excludes) > 0 {
+				var parts []string
+				if includeExplanation != "no include selectors specified" {
+					parts = append(parts, includeExplanation)
+				}
+				if excludeExplanation != "no exclude selectors specified" {
+					parts = append(parts, excludeExplanation)
+				}
+				if len(parts) > 0 {
+					explanation = " (" + strings.Join(parts, "; ") + ")"
+				}
+			}
+			fmt.Fprintf(os.Stdout, "Including memory file: %s%s\n", path, explanation)
 
 			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
 			// For example, setup.md -> setup-bootstrap
@@ -197,12 +213,34 @@ func run(ctx context.Context, args []string) error {
 			return fmt.Errorf("failed to parse prompt file: %w", err)
 		}
 
+		// Track which parameters are used and which are missing
+		usedParams := make(map[string]string)
+		missingParams := make(map[string]bool)
+		
 		expanded := os.Expand(content, func(key string) string {
 			if val, ok := params[key]; ok {
+				usedParams[key] = val
 				return val
 			}
+			missingParams[key] = true
 			return ""
 		})
+
+		// Report parameter substitutions
+		if len(usedParams) > 0 {
+			var paramList []string
+			for key, value := range usedParams {
+				paramList = append(paramList, fmt.Sprintf("%s=%q", key, value))
+			}
+			fmt.Fprintf(os.Stdout, "Substituted parameters: %s\n", strings.Join(paramList, ", "))
+		}
+		if len(missingParams) > 0 {
+			var paramList []string
+			for key := range missingParams {
+				paramList = append(paramList, key)
+			}
+			fmt.Fprintf(os.Stdout, "Parameters not provided (substituted with empty string): %s\n", strings.Join(paramList, ", "))
+		}
 
 		if _, err := output.WriteString(expanded); err != nil {
 			return fmt.Errorf("failed to write expanded prompt: %w", err)

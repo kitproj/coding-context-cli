@@ -231,3 +231,129 @@ func TestSelectorMap_String(t *testing.T) {
 		t.Error("String() returned empty string")
 	}
 }
+
+func TestSelectorMap_ExplainIncludes(t *testing.T) {
+	tests := []struct {
+		name              string
+		selectors         []string
+		frontmatter       map[string]string
+		wantMatch         bool
+		wantExplanation   string
+		checkExplanation  bool
+	}{
+		{
+			name:              "single include - match",
+			selectors:         []string{"env=production"},
+			frontmatter:       map[string]string{"env": "production"},
+			wantMatch:         true,
+			wantExplanation:   "matches env=production",
+			checkExplanation:  true,
+		},
+		{
+			name:              "single include - no match",
+			selectors:         []string{"env=production"},
+			frontmatter:       map[string]string{"env": "development"},
+			wantMatch:         false,
+			wantExplanation:   "does not match include selector(s): env=production (has env=development)",
+			checkExplanation:  true,
+		},
+		{
+			name:              "single include - key missing (allowed)",
+			selectors:         []string{"env=production"},
+			frontmatter:       map[string]string{"language": "go"},
+			wantMatch:         true,
+			wantExplanation:   "allows missing env (key not in frontmatter)",
+			checkExplanation:  true,
+		},
+		{
+			name:              "no selectors",
+			selectors:         []string{},
+			frontmatter:       map[string]string{"env": "production"},
+			wantMatch:         true,
+			wantExplanation:   "no include selectors specified",
+			checkExplanation:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := make(selectorMap)
+			for _, sel := range tt.selectors {
+				if err := s.Set(sel); err != nil {
+					t.Fatalf("Set() error = %v", err)
+				}
+			}
+
+			gotMatch, gotExplanation := s.explainIncludes(tt.frontmatter)
+			if gotMatch != tt.wantMatch {
+				t.Errorf("explainIncludes() match = %v, want %v", gotMatch, tt.wantMatch)
+			}
+			if tt.checkExplanation && gotExplanation != tt.wantExplanation {
+				t.Errorf("explainIncludes() explanation = %q, want %q", gotExplanation, tt.wantExplanation)
+			}
+		})
+	}
+}
+
+func TestSelectorMap_ExplainExcludes(t *testing.T) {
+	tests := []struct {
+		name              string
+		selectors         []string
+		frontmatter       map[string]string
+		wantMatch         bool
+		wantExplanation   string
+		checkExplanation  bool
+	}{
+		{
+			name:              "single exclude - doesn't match (allowed)",
+			selectors:         []string{"env=production"},
+			frontmatter:       map[string]string{"env": "development"},
+			wantMatch:         true,
+			wantExplanation:   "does not match exclude env!=production (has env=development)",
+			checkExplanation:  true,
+		},
+		{
+			name:              "single exclude - matches (excluded)",
+			selectors:         []string{"env=production"},
+			frontmatter:       map[string]string{"env": "production"},
+			wantMatch:         false,
+			wantExplanation:   "matches exclude selector(s): env=production",
+			checkExplanation:  true,
+		},
+		{
+			name:              "single exclude - key missing (allowed)",
+			selectors:         []string{"env=production"},
+			frontmatter:       map[string]string{"language": "go"},
+			wantMatch:         true,
+			wantExplanation:   "allows missing env (key not in frontmatter)",
+			checkExplanation:  true,
+		},
+		{
+			name:              "no selectors",
+			selectors:         []string{},
+			frontmatter:       map[string]string{"env": "production"},
+			wantMatch:         true,
+			wantExplanation:   "no exclude selectors specified",
+			checkExplanation:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := make(selectorMap)
+			for _, sel := range tt.selectors {
+				if err := s.Set(sel); err != nil {
+					t.Fatalf("Set() error = %v", err)
+				}
+			}
+
+			gotMatch, gotExplanation := s.explainExcludes(tt.frontmatter)
+			if gotMatch != tt.wantMatch {
+				t.Errorf("explainExcludes() match = %v, want %v", gotMatch, tt.wantMatch)
+			}
+			if tt.checkExplanation && gotExplanation != tt.wantExplanation {
+				t.Errorf("explainExcludes() explanation = %q, want %q", gotExplanation, tt.wantExplanation)
+			}
+		})
+	}
+}
