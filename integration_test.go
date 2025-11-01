@@ -1388,6 +1388,7 @@ func TestMemoryDeduplication(t *testing.T) {
 	// Create base memory file (coding-standards.md)
 	baseMemory := filepath.Join(memoriesDir, "coding-standards.md")
 	baseContent := `---
+name: CodingStandards
 ---
 # General Coding Standards
 
@@ -1400,7 +1401,8 @@ Use clean code principles.
 	// Create specialized memory file that replaces the base (go-coding-standards.md)
 	specializedMemory := filepath.Join(memoriesDir, "go-coding-standards.md")
 	specializedContent := `---
-replaces: coding-standards.md
+name: GoCodingStandards
+replaces: CodingStandards
 ---
 # Go Coding Standards
 
@@ -1496,20 +1498,21 @@ func TestMemoryDeduplicationMultipleReplacements(t *testing.T) {
 
 	// Create first base memory file
 	base1 := filepath.Join(memoriesDir, "base1.md")
-	if err := os.WriteFile(base1, []byte("---\n---\n# Base 1\n"), 0644); err != nil {
+	if err := os.WriteFile(base1, []byte("---\nname: Base1\n---\n# Base 1\n"), 0644); err != nil {
 		t.Fatalf("failed to write base1 memory file: %v", err)
 	}
 
 	// Create second base memory file
 	base2 := filepath.Join(memoriesDir, "base2.md")
-	if err := os.WriteFile(base2, []byte("---\n---\n# Base 2\n"), 0644); err != nil {
+	if err := os.WriteFile(base2, []byte("---\nname: Base2\n---\n# Base 2\n"), 0644); err != nil {
 		t.Fatalf("failed to write base2 memory file: %v", err)
 	}
 
 	// Create specialized memory that replaces both
 	specialized := filepath.Join(memoriesDir, "specialized.md")
 	specializedContent := `---
-replaces: base1.md, base2.md
+name: SpecializedMemory
+replaces: Base1, Base2
 ---
 # Specialized Memory
 
@@ -1580,6 +1583,7 @@ func TestMemoryDeduplicationWithSelectors(t *testing.T) {
 	// Create base memory for production
 	baseProd := filepath.Join(memoriesDir, "base-prod.md")
 	baseProdContent := `---
+name: BaseProdConfig
 env: production
 ---
 # Base Production Config
@@ -1591,8 +1595,9 @@ env: production
 	// Create specialized memory that replaces base, also for production
 	specProd := filepath.Join(memoriesDir, "spec-prod.md")
 	specProdContent := `---
+name: SpecializedProdConfig
 env: production
-replaces: base-prod.md
+replaces: BaseProdConfig
 ---
 # Specialized Production Config
 `

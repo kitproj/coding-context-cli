@@ -179,7 +179,7 @@ func run(ctx context.Context, args []string) error {
 		frontmatter map[string]string
 	}
 	var memoryFiles []memoryFile
-	replacedFiles := make(map[string]bool) // Maps base filenames to replacement status
+	replacedNames := make(map[string]bool) // Maps symbolic names to replacement status
 
 	for _, memory := range memories {
 		// Skip if the path doesn't exist
@@ -226,14 +226,14 @@ func run(ctx context.Context, args []string) error {
 				frontmatter: frontmatter,
 			})
 
-			// Track files that this memory replaces
+			// Track symbolic names that this memory replaces
 			if replaces, ok := frontmatter["replaces"]; ok && replaces != "" {
-				// Support comma-separated list of files to replace
+				// Support comma-separated list of symbolic names to replace
 				replacements := strings.Split(replaces, ",")
 				for _, r := range replacements {
 					r = strings.TrimSpace(r)
 					if r != "" {
-						replacedFiles[r] = true
+						replacedNames[r] = true
 					}
 				}
 			}
@@ -247,13 +247,12 @@ func run(ctx context.Context, args []string) error {
 
 	// Second pass: output non-replaced memory files
 	for _, mf := range memoryFiles {
-		// Get the base filename (without directory path)
-		baseFilename := filepath.Base(mf.path)
-
-		// Check if this file is replaced by another
-		if replacedFiles[baseFilename] {
-			fmt.Fprintf(os.Stdout, "Excluding memory file (replaced by another memory): %s\n", mf.path)
-			continue
+		// Check if this memory has a symbolic name and if it's been replaced
+		if name, hasName := mf.frontmatter["name"]; hasName && name != "" {
+			if replacedNames[name] {
+				fmt.Fprintf(os.Stdout, "Excluding memory file (replaced by another memory): %s (name: %s)\n", mf.path, name)
+				continue
+			}
 		}
 
 		// Estimate tokens for this file
