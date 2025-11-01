@@ -104,7 +104,7 @@ func run(ctx context.Context, args []string) error {
 
 	for _, memory := range memories {
 
-		// Skip if the file doesn't exist
+		// Skip if the path doesn't exist
 		if _, err := os.Stat(memory); os.IsNotExist(err) {
 			continue
 		}
