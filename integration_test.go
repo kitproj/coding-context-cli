@@ -99,10 +99,19 @@ Please help with this task.
 		}
 	}
 
-	// Check that the prompt.md file was created
-	promptOutput := filepath.Join(outputDir, "prompt.md")
-	if _, err := os.Stat(promptOutput); os.IsNotExist(err) {
-		t.Errorf("prompt.md file was not created")
+	// Check that the three output files were created
+	personaOutput := filepath.Join(outputDir, "persona.md")
+	memoriesOutput := filepath.Join(outputDir, "memories.md")
+	taskOutput := filepath.Join(outputDir, "task.md")
+	
+	if _, err := os.Stat(personaOutput); os.IsNotExist(err) {
+		t.Errorf("persona.md file was not created")
+	}
+	if _, err := os.Stat(memoriesOutput); os.IsNotExist(err) {
+		t.Errorf("memories.md file was not created")
+	}
+	if _, err := os.Stat(taskOutput); os.IsNotExist(err) {
+		t.Errorf("task.md file was not created")
 	}
 }
 
@@ -259,10 +268,15 @@ Please help with this task.
 		t.Errorf("expected 0 bootstrap files, got %d", len(files))
 	}
 
-	// Check that the prompt.md file was still created
-	promptOutput := filepath.Join(outputDir, "prompt.md")
-	if _, err := os.Stat(promptOutput); os.IsNotExist(err) {
-		t.Errorf("prompt.md file was not created")
+	// Check that the three output files were still created
+	memoriesOutput := filepath.Join(outputDir, "memories.md")
+	taskOutput := filepath.Join(outputDir, "task.md")
+	
+	if _, err := os.Stat(memoriesOutput); os.IsNotExist(err) {
+		t.Errorf("memories.md file was not created")
+	}
+	if _, err := os.Stat(taskOutput); os.IsNotExist(err) {
+		t.Errorf("task.md file was not created")
 	}
 }
 
@@ -376,10 +390,10 @@ func TestSelectorFiltering(t *testing.T) {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	promptOutput := filepath.Join(outputDir, "prompt.md")
-	content, err := os.ReadFile(promptOutput)
+	memoriesOutput := filepath.Join(outputDir, "memories.md")
+	content, err := os.ReadFile(memoriesOutput)
 	if err != nil {
-		t.Fatalf("failed to read prompt output: %v", err)
+		t.Fatalf("failed to read memories output: %v", err)
 	}
 	contentStr := string(content)
 	if !strings.Contains(contentStr, "Prod content") {
@@ -406,9 +420,9 @@ func TestSelectorFiltering(t *testing.T) {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	content, err = os.ReadFile(promptOutput)
+	content, err = os.ReadFile(memoriesOutput)
 	if err != nil {
-		t.Fatalf("failed to read prompt output: %v", err)
+		t.Fatalf("failed to read memories output: %v", err)
 	}
 	contentStr = string(content)
 	if !strings.Contains(contentStr, "Prod content") {
@@ -434,9 +448,9 @@ func TestSelectorFiltering(t *testing.T) {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	content, err = os.ReadFile(promptOutput)
+	content, err = os.ReadFile(memoriesOutput)
 	if err != nil {
-		t.Fatalf("failed to read prompt output: %v", err)
+		t.Fatalf("failed to read memories output: %v", err)
 	}
 	contentStr = string(content)
 	if strings.Contains(contentStr, "Prod content") {
@@ -462,9 +476,9 @@ func TestSelectorFiltering(t *testing.T) {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	content, err = os.ReadFile(promptOutput)
+	content, err = os.ReadFile(memoriesOutput)
 	if err != nil {
-		t.Fatalf("failed to read prompt output: %v", err)
+		t.Fatalf("failed to read memories output: %v", err)
 	}
 	contentStr = string(content)
 	if !strings.Contains(contentStr, "Prod content") {
@@ -490,9 +504,9 @@ func TestSelectorFiltering(t *testing.T) {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	content, err = os.ReadFile(promptOutput)
+	content, err = os.ReadFile(memoriesOutput)
 	if err != nil {
-		t.Fatalf("failed to read prompt output: %v", err)
+		t.Fatalf("failed to read memories output: %v", err)
 	}
 	contentStr = string(content)
 	if !strings.Contains(contentStr, "Prod content") {
@@ -555,11 +569,11 @@ The project is for $company.
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	// Read the output
-	promptOutput := filepath.Join(outputDir, "prompt.md")
-	content, err := os.ReadFile(promptOutput)
+	// Read the task output (template expansion happens in task.md)
+	taskOutput := filepath.Join(outputDir, "task.md")
+	content, err := os.ReadFile(taskOutput)
 	if err != nil {
-		t.Fatalf("failed to read prompt output: %v", err)
+		t.Fatalf("failed to read task output: %v", err)
 	}
 
 	contentStr := string(content)
@@ -617,11 +631,11 @@ Missing var: ${missingVar}
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	// Read the output
-	promptOutput := filepath.Join(outputDir, "prompt.md")
-	content, err := os.ReadFile(promptOutput)
+	// Read the task output (template expansion happens in task.md)
+	taskOutput := filepath.Join(outputDir, "task.md")
+	content, err := os.ReadFile(taskOutput)
 	if err != nil {
-		t.Fatalf("failed to read prompt output: %v", err)
+		t.Fatalf("failed to read task output: %v", err)
 	}
 
 	contentStr := string(content)
@@ -919,10 +933,10 @@ func TestTaskNameBuiltinFilter(t *testing.T) {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	promptOutput := filepath.Join(outputDir, "prompt.md")
-	content, err := os.ReadFile(promptOutput)
+	memoriesOutput := filepath.Join(outputDir, "memories.md")
+	content, err := os.ReadFile(memoriesOutput)
 	if err != nil {
-		t.Fatalf("failed to read prompt output: %v", err)
+		t.Fatalf("failed to read memories output: %v", err)
 	}
 	contentStr := string(content)
 	if !strings.Contains(contentStr, "Deploy-specific content") {
@@ -945,9 +959,9 @@ func TestTaskNameBuiltinFilter(t *testing.T) {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	content, err = os.ReadFile(promptOutput)
+	content, err = os.ReadFile(memoriesOutput)
 	if err != nil {
-		t.Fatalf("failed to read prompt output: %v", err)
+		t.Fatalf("failed to read memories output: %v", err)
 	}
 	contentStr = string(content)
 	if strings.Contains(contentStr, "Deploy-specific content") {
@@ -1030,44 +1044,46 @@ Please help with ${feature}.
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	// Check the output
-	promptOutput := filepath.Join(outputDir, "prompt.md")
-	content, err := os.ReadFile(promptOutput)
+	// Check the output - now we have three separate files
+	personaOutput := filepath.Join(outputDir, "persona.md")
+	personaBytes, err := os.ReadFile(personaOutput)
 	if err != nil {
-		t.Fatalf("failed to read prompt output: %v", err)
+		t.Fatalf("failed to read persona output: %v", err)
+	}
+	
+	memoriesOutput := filepath.Join(outputDir, "memories.md")
+	memoriesBytes, err2 := os.ReadFile(memoriesOutput)
+	if err2 != nil {
+		t.Fatalf("failed to read memories output: %v", err2)
+	}
+	
+	taskOutput := filepath.Join(outputDir, "task.md")
+	taskBytes, err3 := os.ReadFile(taskOutput)
+	if err3 != nil {
+		t.Fatalf("failed to read task output: %v", err3)
 	}
 
-	contentStr := string(content)
-
-	// Verify persona appears first
-	expertIdx := strings.Index(contentStr, "Expert Persona")
-	contextIdx := strings.Index(contentStr, "# Context")
-	taskIdx := strings.Index(contentStr, "# Task")
-
-	if expertIdx == -1 {
-		t.Errorf("Expected to find 'Expert Persona' in output")
+	// Verify persona content
+	personaStr := string(personaBytes)
+	if !strings.Contains(personaStr, "Expert Persona") {
+		t.Errorf("Expected to find 'Expert Persona' in persona.md")
 	}
-	if contextIdx == -1 {
-		t.Errorf("Expected to find '# Context' in output")
-	}
-	if taskIdx == -1 {
-		t.Errorf("Expected to find '# Task' in output")
-	}
-
-	// Verify order: persona -> context -> task
-	if expertIdx > contextIdx {
-		t.Errorf("Persona should appear before context. Persona at %d, Context at %d", expertIdx, contextIdx)
-	}
-	if contextIdx > taskIdx {
-		t.Errorf("Context should appear before task. Context at %d, Task at %d", contextIdx, taskIdx)
-	}
-
-	// Verify persona content is not expanded (no template substitution)
-	if !strings.Contains(contentStr, "You are an expert in Go") {
+	if !strings.Contains(personaStr, "You are an expert in Go") {
 		t.Errorf("Expected persona content to remain as-is without template expansion")
 	}
-	// Verify task template substitution still works
-	if !strings.Contains(contentStr, "Please help with auth") {
+
+	// Verify memories content
+	memoriesStr := string(memoriesBytes)
+	if !strings.Contains(memoriesStr, "# Context") {
+		t.Errorf("Expected to find '# Context' in memories.md")
+	}
+
+	// Verify task content
+	taskStr := string(taskBytes)
+	if !strings.Contains(taskStr, "# Task") {
+		t.Errorf("Expected to find '# Task' in task.md")
+	}
+	if !strings.Contains(taskStr, "Please help with auth") {
 		t.Errorf("Expected task template to be expanded with feature=auth")
 	}
 }
@@ -1125,21 +1141,25 @@ Please help.
 		t.Fatalf("failed to run binary without persona: %v\n%s", err, output)
 	}
 
-	// Check the output
-	promptOutput := filepath.Join(outputDir, "prompt.md")
-	content, err := os.ReadFile(promptOutput)
+	// Check the memories and task outputs
+	memoriesOutput := filepath.Join(outputDir, "memories.md")
+	memoriesBytes, err := os.ReadFile(memoriesOutput)
 	if err != nil {
-		t.Fatalf("failed to read prompt output: %v", err)
+		t.Fatalf("failed to read memories output: %v", err)
 	}
 
-	contentStr := string(content)
+	taskOutput := filepath.Join(outputDir, "task.md")
+	taskBytes, err2 := os.ReadFile(taskOutput)
+	if err2 != nil {
+		t.Fatalf("failed to read task output: %v", err2)
+	}
 
 	// Verify context and task are present
-	if !strings.Contains(contentStr, "# Context") {
-		t.Errorf("Expected to find '# Context' in output")
+	if !strings.Contains(string(memoriesBytes), "# Context") {
+		t.Errorf("Expected to find '# Context' in memories.md")
 	}
-	if !strings.Contains(contentStr, "# Task") {
-		t.Errorf("Expected to find '# Task' in output")
+	if !strings.Contains(string(taskBytes), "# Task") {
+		t.Errorf("Expected to find '# Task' in task.md")
 	}
 }
 
@@ -1241,19 +1261,29 @@ func TestWorkDirOption(t *testing.T) {
 		t.Fatalf("failed to run binary with -C option: %v\n%s", err, output)
 	}
 
-	// Verify that prompt.md was created in the output directory
-	promptFile := filepath.Join(outputDir, "prompt.md")
-	if _, err := os.Stat(promptFile); os.IsNotExist(err) {
-		t.Errorf("prompt.md was not created in output directory")
+	// Verify that the three output files were created in the output directory
+	memoriesOutFile := filepath.Join(outputDir, "memories.md")
+	taskOutFile := filepath.Join(outputDir, "task.md")
+	personaOutFile := filepath.Join(outputDir, "persona.md")
+	
+	var statErr error
+	if _, statErr = os.Stat(memoriesOutFile); os.IsNotExist(statErr) {
+		t.Errorf("memories.md was not created in output directory")
+	}
+	if _, statErr = os.Stat(taskOutFile); os.IsNotExist(statErr) {
+		t.Errorf("task.md was not created in output directory")
+	}
+	if _, statErr = os.Stat(personaOutFile); os.IsNotExist(statErr) {
+		t.Errorf("persona.md was not created in output directory")
 	}
 
 	// Verify the content includes the memory
-	content, err := os.ReadFile(promptFile)
+	content, err := os.ReadFile(memoriesOutFile)
 	if err != nil {
-		t.Fatalf("failed to read prompt.md: %v", err)
+		t.Fatalf("failed to read memories.md: %v", err)
 	}
 	if !strings.Contains(string(content), "Test Memory") {
-		t.Errorf("prompt.md does not contain expected memory content")
+		t.Errorf("memories.md does not contain expected memory content")
 	}
 }
 
