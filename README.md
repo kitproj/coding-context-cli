@@ -34,7 +34,7 @@ This tool is ideal for:
 The basic workflow is:
 
 1. **Organize your context** - Create persona files (optional), memory files (shared context), and task files (task-specific instructions)
-2. **Run the CLI** - Execute `coding-context <task-name>` with optional `-persona` and parameters
+2. **Run the CLI** - Execute `coding-context [options] <task-name> [persona-name]`
 3. **Get assembled output** - The tool generates:
    - `prompt.md` - Combined persona (if specified) + memories + task with template variables filled in
    - `bootstrap` - Executable script to set up the environment
