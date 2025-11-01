@@ -67,6 +67,8 @@ func reorderArgs(args []string) []string {
 			// Check if this is a boolean flag
 			if !boolFlags[flagName] {
 				// Non-boolean flag expects a value
+				// If the next arg exists and is not a flag, treat it as the value
+				// If no value is present, the flag package will report an error during Parse
 				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
 					i++ // Move to the next argument (the value)
 					flags = append(flags, args[i])
