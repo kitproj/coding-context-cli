@@ -216,7 +216,7 @@ func run(ctx context.Context, args []string) error {
 		// Track which parameters are used and which are missing
 		usedParams := make(map[string]string)
 		missingParams := make(map[string]bool)
-		
+
 		expanded := os.Expand(content, func(key string) string {
 			if val, ok := params[key]; ok {
 				usedParams[key] = val

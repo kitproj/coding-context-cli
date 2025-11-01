@@ -59,11 +59,11 @@ func (includes *selectorMap) explainIncludes(frontmatter map[string]string) (boo
 	if len(*includes) == 0 {
 		return true, "no include selectors specified"
 	}
-	
+
 	var matched []string
 	var missing []string
 	var mismatched []string
-	
+
 	for key, value := range *includes {
 		fmValue, exists := frontmatter[key]
 		if !exists {
@@ -97,11 +97,11 @@ func (excludes *selectorMap) explainExcludes(frontmatter map[string]string) (boo
 	if len(*excludes) == 0 {
 		return true, "no exclude selectors specified"
 	}
-	
+
 	var excluded []string
 	var notMatched []string
 	var missing []string
-	
+
 	for key, value := range *excludes {
 		fmValue, exists := frontmatter[key]
 		if !exists {
