@@ -172,8 +172,16 @@ func run(ctx context.Context, args []string) error {
 		}
 	}
 
-	for _, memory := range memories {
+	// First pass: collect all memory files and build deduplication map
+	type memoryFile struct {
+		path        string
+		content     string
+		frontmatter map[string]string
+	}
+	var memoryFiles []memoryFile
+	replacedFiles := make(map[string]bool) // Maps base filenames to replacement status
 
+	for _, memory := range memories {
 		// Skip if the path doesn't exist
 		if _, err := os.Stat(memory); os.IsNotExist(err) {
 			continue
@@ -192,7 +200,7 @@ func run(ctx context.Context, args []string) error {
 				return nil
 			}
 
-			// Parse frontmatter to check selectors
+			// Parse frontmatter
 			var frontmatter map[string]string
 			content, err := parseMarkdownFile(path, &frontmatter)
 			if err != nil {
@@ -201,45 +209,73 @@ func run(ctx context.Context, args []string) error {
 
 			// Check if file matches include and exclude selectors
 			if !includes.matchesIncludes(frontmatter) {
-				fmt.Fprintf(os.Stdout, "Excluding memory file (does not match include selectors): %s\n", path)
 				return nil
 			}
 			if !excludes.matchesExcludes(frontmatter) {
-				fmt.Fprintf(os.Stdout, "Excluding memory file (matches exclude selectors): %s\n", path)
 				return nil
 			}
 
-			// Estimate tokens for this file
-			tokens := estimateTokens(content)
-			totalTokens += tokens
-			fmt.Fprintf(os.Stdout, "Including memory file: %s (~%d tokens)\n", path, tokens)
+			// Add to collection
+			memoryFiles = append(memoryFiles, memoryFile{
+				path:        path,
+				content:     content,
+				frontmatter: frontmatter,
+			})
 
-			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
-			// For example, setup.md -> setup-bootstrap
-			baseNameWithoutExt := strings.TrimSuffix(path, ".md")
-			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
-
-			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
-				hash := sha256.Sum256(bootstrapContent)
-				// Use original filename as prefix with first 4 bytes of hash as 8-char hex suffix
-				// e.g., jira-bootstrap-9e2e8bc8
-				baseBootstrapName := filepath.Base(bootstrapFilePath)
-				bootstrapFileName := fmt.Sprintf("%s-%08x", baseBootstrapName, hash[:4])
-				bootstrapPath := filepath.Join(bootstrapDir, bootstrapFileName)
-				if err := os.WriteFile(bootstrapPath, bootstrapContent, 0700); err != nil {
-					return fmt.Errorf("failed to write bootstrap file: %w", err)
+			// Track files that this memory replaces
+			if replaces, ok := frontmatter["replaces"]; ok && replaces != "" {
+				// Support comma-separated list of files to replace
+				replacements := strings.Split(replaces, ",")
+				for _, r := range replacements {
+					r = strings.TrimSpace(r)
+					if r != "" {
+						replacedFiles[r] = true
+					}
 				}
 			}
 
-			if _, err := output.WriteString(content + "\n\n"); err != nil {
-				return fmt.Errorf("failed to write to output file: %w", err)
-			}
-
 			return nil
-
 		})
 		if err != nil {
 			return fmt.Errorf("failed to walk memory dir: %w", err)
+		}
+	}
+
+	// Second pass: output non-replaced memory files
+	for _, mf := range memoryFiles {
+		// Get the base filename (without directory path)
+		baseFilename := filepath.Base(mf.path)
+		
+		// Check if this file is replaced by another
+		if replacedFiles[baseFilename] {
+			fmt.Fprintf(os.Stdout, "Excluding memory file (replaced by another memory): %s\n", mf.path)
+			continue
+		}
+
+		// Estimate tokens for this file
+		tokens := estimateTokens(mf.content)
+		totalTokens += tokens
+		fmt.Fprintf(os.Stdout, "Including memory file: %s (~%d tokens)\n", mf.path, tokens)
+
+		// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
+		// For example, setup.md -> setup-bootstrap
+		baseNameWithoutExt := strings.TrimSuffix(mf.path, ".md")
+		bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
+
+		if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
+			hash := sha256.Sum256(bootstrapContent)
+			// Use original filename as prefix with first 4 bytes of hash as 8-char hex suffix
+			// e.g., jira-bootstrap-9e2e8bc8
+			baseBootstrapName := filepath.Base(bootstrapFilePath)
+			bootstrapFileName := fmt.Sprintf("%s-%08x", baseBootstrapName, hash[:4])
+			bootstrapPath := filepath.Join(bootstrapDir, bootstrapFileName)
+			if err := os.WriteFile(bootstrapPath, bootstrapContent, 0700); err != nil {
+				return fmt.Errorf("failed to write bootstrap file: %w", err)
+			}
+		}
+
+		if _, err := output.WriteString(mf.content + "\n\n"); err != nil {
+			return fmt.Errorf("failed to write to output file: %w", err)
 		}
 	}
 

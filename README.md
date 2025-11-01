@@ -316,6 +316,73 @@ coding-context -m .instructions.md my-task
 
 **Note:** All memory files should be in Markdown format (`.md` extension) or contain Markdown-compatible content. The tool will automatically process frontmatter in YAML format if present.
 
+### Memory Deduplication and Hierarchy
+
+Memory files can use the `replaces` field in frontmatter to establish a hierarchy and deduplicate content. This is useful when you have general base memories and more specific specialized memories that override them.
+
+When a memory file specifies `replaces`, the files it replaces will be excluded from the output, observing the hierarchy of memories.
+
+**Example scenario:** You have general coding standards and language-specific standards that override them.
+
+**Base memory** (`.prompts/memories/coding-standards.md`):
+```markdown
+---
+---
+# Coding Standards
+
+- Use meaningful variable names
+- Write clear comments
+- Follow DRY principle
+```
+
+**Specialized memory** (`.prompts/memories/go-coding-standards.md`):
+```markdown
+---
+replaces: coding-standards.md
+---
+# Go Coding Standards
+
+- Use meaningful variable names
+- Write clear comments
+- Follow DRY principle
+- Use gofmt for formatting
+- Follow Effective Go guidelines
+- Prefer short variable names in small scopes
+```
+
+When you run `coding-context my-task`, only `go-coding-standards.md` will be included in the output. The base `coding-standards.md` will be excluded with a message like:
+```
+Excluding memory file (replaced by another memory): .prompts/memories/coding-standards.md
+```
+
+**Multiple replacements:** You can replace multiple files by providing a comma-separated list:
+```markdown
+---
+replaces: base1.md, base2.md, base3.md
+---
+# Specialized Memory
+
+This replaces multiple base memories.
+```
+
+**Use cases for memory deduplication:**
+- **Language-specific overrides**: `python-standards.md` replaces `coding-standards.md` when working on Python projects
+- **Environment-specific configs**: `prod-config.md` replaces `base-config.md` for production deployments
+- **Team-specific conventions**: `team-a-conventions.md` replaces `general-conventions.md` for Team A
+- **Technology stack specialization**: `react-setup.md` replaces `frontend-setup.md` for React projects
+
+**Combining with selectors:** Deduplication works seamlessly with selector filtering:
+```bash
+# Only include production memories, with proper hierarchy
+coding-context -s env=production deploy
+```
+
+If you have:
+- `base-config.md` with `env: production`
+- `prod-config.md` with `env: production` and `replaces: base-config.md`
+
+Only `prod-config.md` will be included in the output.
+
 
 ## Filtering Memories with Selectors
 

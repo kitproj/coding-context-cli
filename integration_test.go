@@ -1363,3 +1363,349 @@ Complete this task with high quality.`
 	}
 }
 
+func TestMemoryDeduplication(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create base memory file (coding-standards.md)
+	baseMemory := filepath.Join(memoriesDir, "coding-standards.md")
+	baseContent := `---
+---
+# General Coding Standards
+
+Use clean code principles.
+`
+	if err := os.WriteFile(baseMemory, []byte(baseContent), 0644); err != nil {
+		t.Fatalf("failed to write base memory file: %v", err)
+	}
+
+	// Create specialized memory file that replaces the base (go-coding-standards.md)
+	specializedMemory := filepath.Join(memoriesDir, "go-coding-standards.md")
+	specializedContent := `---
+replaces: coding-standards.md
+---
+# Go Coding Standards
+
+Use clean code principles in Go.
+Follow effective Go guidelines.
+`
+	if err := os.WriteFile(specializedMemory, []byte(specializedContent), 0644); err != nil {
+		t.Fatalf("failed to write specialized memory file: %v", err)
+	}
+
+	// Create another unrelated memory file
+	otherMemory := filepath.Join(memoriesDir, "project-info.md")
+	otherContent := `---
+---
+# Project Info
+
+This is a Go project.
+`
+	if err := os.WriteFile(otherMemory, []byte(otherContent), 0644); err != nil {
+		t.Fatalf("failed to write other memory file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+---
+# Test Task
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check the output
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify the specialized memory is included
+	if !strings.Contains(contentStr, "Go Coding Standards") {
+		t.Errorf("Expected specialized memory (go-coding-standards.md) to be included")
+	}
+
+	// Verify the base memory is NOT included (replaced)
+	if strings.Contains(contentStr, "General Coding Standards") {
+		t.Errorf("Did not expect base memory (coding-standards.md) to be included - it should be replaced")
+	}
+
+	// Verify the unrelated memory is included
+	if !strings.Contains(contentStr, "Project Info") {
+		t.Errorf("Expected unrelated memory (project-info.md) to be included")
+	}
+
+	// Verify the output message indicates replacement
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "Excluding memory file (replaced by another memory)") {
+		t.Errorf("Expected message about excluded file due to replacement")
+	}
+}
+
+func TestMemoryDeduplicationMultipleReplacements(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create first base memory file
+	base1 := filepath.Join(memoriesDir, "base1.md")
+	if err := os.WriteFile(base1, []byte("---\n---\n# Base 1\n"), 0644); err != nil {
+		t.Fatalf("failed to write base1 memory file: %v", err)
+	}
+
+	// Create second base memory file
+	base2 := filepath.Join(memoriesDir, "base2.md")
+	if err := os.WriteFile(base2, []byte("---\n---\n# Base 2\n"), 0644); err != nil {
+		t.Fatalf("failed to write base2 memory file: %v", err)
+	}
+
+	// Create specialized memory that replaces both
+	specialized := filepath.Join(memoriesDir, "specialized.md")
+	specializedContent := `---
+replaces: base1.md, base2.md
+---
+# Specialized Memory
+
+Replaces both base1 and base2.
+`
+	if err := os.WriteFile(specialized, []byte(specializedContent), 0644); err != nil {
+		t.Fatalf("failed to write specialized memory file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	if err := os.WriteFile(taskFile, []byte("---\n---\n# Test\n"), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check the output
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify the specialized memory is included
+	if !strings.Contains(contentStr, "Specialized Memory") {
+		t.Errorf("Expected specialized memory to be included")
+	}
+
+	// Verify both base memories are NOT included
+	if strings.Contains(contentStr, "# Base 1") {
+		t.Errorf("Did not expect base1.md to be included - it should be replaced")
+	}
+	if strings.Contains(contentStr, "# Base 2") {
+		t.Errorf("Did not expect base2.md to be included - it should be replaced")
+	}
+}
+
+func TestMemoryDeduplicationWithSelectors(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create base memory for production
+	baseProd := filepath.Join(memoriesDir, "base-prod.md")
+	baseProdContent := `---
+env: production
+---
+# Base Production Config
+`
+	if err := os.WriteFile(baseProd, []byte(baseProdContent), 0644); err != nil {
+		t.Fatalf("failed to write base prod memory: %v", err)
+	}
+
+	// Create specialized memory that replaces base, also for production
+	specProd := filepath.Join(memoriesDir, "spec-prod.md")
+	specProdContent := `---
+env: production
+replaces: base-prod.md
+---
+# Specialized Production Config
+`
+	if err := os.WriteFile(specProd, []byte(specProdContent), 0644); err != nil {
+		t.Fatalf("failed to write specialized prod memory: %v", err)
+	}
+
+	// Create development memory (should be filtered out)
+	dev := filepath.Join(memoriesDir, "dev.md")
+	devContent := `---
+env: development
+---
+# Development Config
+`
+	if err := os.WriteFile(dev, []byte(devContent), 0644); err != nil {
+		t.Fatalf("failed to write dev memory: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	if err := os.WriteFile(taskFile, []byte("---\n---\n# Test\n"), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run with production selector
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-s", "env=production", "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check the output
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify only specialized production config is included
+	if !strings.Contains(contentStr, "Specialized Production Config") {
+		t.Errorf("Expected specialized production memory to be included")
+	}
+	if strings.Contains(contentStr, "Base Production Config") {
+		t.Errorf("Did not expect base production memory - should be replaced")
+	}
+	if strings.Contains(contentStr, "Development Config") {
+		t.Errorf("Did not expect development memory - should be filtered by selector")
+	}
+}
+
+func TestMemoryDeduplicationNoReplacement(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create memory files without any replacement
+	mem1 := filepath.Join(memoriesDir, "mem1.md")
+	if err := os.WriteFile(mem1, []byte("---\n---\n# Memory 1\nContent 1\n"), 0644); err != nil {
+		t.Fatalf("failed to write mem1: %v", err)
+	}
+
+	mem2 := filepath.Join(memoriesDir, "mem2.md")
+	if err := os.WriteFile(mem2, []byte("---\n---\n# Memory 2\nContent 2\n"), 0644); err != nil {
+		t.Fatalf("failed to write mem2: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	if err := os.WriteFile(taskFile, []byte("---\n---\n# Test\n"), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check the output
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify both memories are included (no replacement)
+	if !strings.Contains(contentStr, "Memory 1") {
+		t.Errorf("Expected Memory 1 to be included")
+	}
+	if !strings.Contains(contentStr, "Memory 2") {
+		t.Errorf("Expected Memory 2 to be included")
+	}
+}
+
