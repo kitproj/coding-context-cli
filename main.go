@@ -100,7 +100,7 @@ func run(ctx context.Context, args []string) error {
 	if err := os.Chdir(workDir); err != nil {
 		return fmt.Errorf("failed to chdir to %s: %w", workDir, err)
 	}
-  
+
 	// Add task name to includes so memories can be filtered by task
 	taskName := args[0]
 	includes["task_name"] = taskName
@@ -172,6 +172,8 @@ func run(ctx context.Context, args []string) error {
 		}
 	}
 
+	memoryBasenames := make(map[string]bool)
+
 	for _, memory := range memories {
 
 		// Skip if the path doesn't exist
@@ -208,6 +210,14 @@ func run(ctx context.Context, args []string) error {
 				fmt.Fprintf(os.Stdout, "Excluding memory file (matches exclude selectors): %s\n", path)
 				return nil
 			}
+
+			// Check for duplicate basenames
+			basename := filepath.Base(path)
+			if memoryBasenames[basename] {
+				fmt.Fprintf(os.Stdout, "Excluding memory file (other memory with same basename found): %s\n", path)
+				return nil
+			}
+			memoryBasenames[basename] = true
 
 			// Estimate tokens for this file
 			tokens := estimateTokens(content)
