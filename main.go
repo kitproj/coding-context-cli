@@ -19,6 +19,7 @@ var bootstrap string
 
 var (
 	memories     stringSlice
+	personas     stringSlice
 	tasks        stringSlice
 	outputDir    = "."
 	params       = make(paramMap)
@@ -50,6 +51,12 @@ func main() {
 		"/var/local/prompts/memories",
 	}
 
+	personas = []string{
+		".prompts/personas",
+		filepath.Join(userConfigDir, "prompts", "personas"),
+		"/var/local/prompts/personas",
+	}
+
 	tasks = []string{
 		".prompts/tasks",
 		filepath.Join(userConfigDir, "prompts", "tasks"),
@@ -57,6 +64,7 @@ func main() {
 	}
 
 	flag.Var(&memories, "m", "Directory containing memories, or a single memory file. Can be specified multiple times.")
+	flag.Var(&personas, "r", "Directory containing personas, or a single persona file. Can be specified multiple times.")
 	flag.Var(&tasks, "t", "Directory containing tasks, or a single task file. Can be specified multiple times.")
 	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
@@ -68,7 +76,7 @@ func main() {
 		w := flag.CommandLine.Output()
 		fmt.Fprintf(w, "Usage:")
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  coding-context <task-name> ")
+		fmt.Fprintln(w, "  coding-context [options] <task-name> [persona-name]")
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "Options:")
 		flag.PrintDefaults()
@@ -87,6 +95,16 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("invalid usage")
 	}
 
+	// Add task name to includes so memories can be filtered by task
+	taskName := args[0]
+	includes["task_name"] = taskName
+
+	// Optional persona argument after task name
+	var personaName string
+	if len(args) > 1 {
+		personaName = args[1]
+	}
+
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
@@ -101,6 +119,46 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to create prompt file: %w", err)
 	}
 	defer output.Close()
+
+	// Process persona first if provided (should be first in output)
+	if personaName != "" {
+		personaFound := false
+		for _, path := range personas {
+			stat, err := os.Stat(path)
+			if os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to stat persona path %s: %w", path, err)
+			}
+			if stat.IsDir() {
+				path = filepath.Join(path, personaName+".md")
+				if _, err := os.Stat(path); os.IsNotExist(err) {
+					continue
+				} else if err != nil {
+					return fmt.Errorf("failed to stat persona file %s: %w", path, err)
+				}
+			}
+
+			fmt.Fprintf(os.Stdout, "Using persona file: %s\n", path)
+
+			content, err := parseMarkdownFile(path, &struct{}{})
+			if err != nil {
+				return fmt.Errorf("failed to parse persona file: %w", err)
+			}
+
+			// Personas don't need variable expansion or filters
+			if _, err := output.WriteString(content + "\n\n"); err != nil {
+				return fmt.Errorf("failed to write persona: %w", err)
+			}
+
+			personaFound = true
+			break
+		}
+
+		if !personaFound {
+			return fmt.Errorf("persona file not found for persona: %s", personaName)
+		}
+	}
 
 	for _, memory := range memories {
 
@@ -174,8 +232,6 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to write bootstrap file: %w", err)
 	}
 
-	taskName := args[0]
-
 	for _, path := range tasks {
 		stat, err := os.Stat(path)
 		if os.IsNotExist(err) {
@@ -187,6 +243,8 @@ func run(ctx context.Context, args []string) error {
 			path = filepath.Join(path, taskName+".md")
 			if _, err := os.Stat(path); os.IsNotExist(err) {
 				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to stat task file %s: %w", path, err)
 			}
 		}
 
@@ -201,7 +259,8 @@ func run(ctx context.Context, args []string) error {
 			if val, ok := params[key]; ok {
 				return val
 			}
-			return ""
+			// this might not exist, in that case, return the original text
+			return fmt.Sprintf("${%s}", key)
 		})
 
 		if _, err := output.WriteString(expanded); err != nil {

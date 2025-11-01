@@ -35,9 +35,9 @@ of the markdown file.
 			content: `This is a simple markdown file
 without any frontmatter.
 `,
-			wantContent: "This is a simple markdown file\nwithout any frontmatter.\n",
+			wantContent:     "This is a simple markdown file\nwithout any frontmatter.\n",
 			wantFrontmatter: map[string]string{},
-			wantErr: false,
+			wantErr:         false,
 		},
 		{
 			name: "markdown with title as first line",
@@ -45,16 +45,16 @@ without any frontmatter.
 
 This is the content.
 `,
-			wantContent: "# My Title\n\nThis is the content.\n",
+			wantContent:     "# My Title\n\nThis is the content.\n",
 			wantFrontmatter: map[string]string{},
-			wantErr: false,
+			wantErr:         false,
 		},
 		{
-			name: "empty file",
-			content: "",
-			wantContent: "",
+			name:            "empty file",
+			content:         "",
+			wantContent:     "",
 			wantFrontmatter: map[string]string{},
-			wantErr: false,
+			wantErr:         false,
 		},
 	}
 
