@@ -77,7 +77,7 @@ func TestParamMap_String(t *testing.T) {
 
 func TestParamMap_SetMultiple(t *testing.T) {
 	p := paramMap{}
-	
+
 	if err := p.Set("key1=value1"); err != nil {
 		t.Fatalf("paramMap.Set() failed: %v", err)
 	}

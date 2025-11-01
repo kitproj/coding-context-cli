@@ -35,7 +35,7 @@ func TestStringSlice_String(t *testing.T) {
 
 func TestStringSlice_SetEmpty(t *testing.T) {
 	s := stringSlice{}
-	
+
 	if err := s.Set(""); err != nil {
 		t.Errorf("stringSlice.Set(\"\") error = %v", err)
 	}
