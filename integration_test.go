@@ -868,6 +868,8 @@ t.Error("expected command to be interrupted, but it completed successfully")
 }
 }
 
+// TestTaskNameBuiltinFilter verifies that the task_name built-in filter
+// automatically includes/excludes memory files based on the task being run
 func TestTaskNameBuiltinFilter(t *testing.T) {
 // Build the binary
 binaryPath := filepath.Join(t.TempDir(), "coding-context")
