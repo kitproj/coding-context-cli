@@ -987,13 +987,14 @@ func TestPersonaBasic(t *testing.T) {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a persona file (without template variables since personas don't expand them)
+	// Create a persona file WITH template variables to ensure they are NOT expanded
 	personaFile := filepath.Join(personasDir, "expert.md")
 	personaContent := `---
 ---
 # Expert Persona
 
-You are an expert in Go.
+You are an expert in ${language}.
+Your specialty is $feature development.
 `
 	if err := os.WriteFile(personaFile, []byte(personaContent), 0644); err != nil {
 		t.Fatalf("failed to write persona file: %v", err)
@@ -1024,7 +1025,8 @@ Please help with ${feature}.
 	}
 
 	// Run with persona (persona is now a positional argument after task name)
-	cmd = exec.Command(binaryPath, "-r", personasDir, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-p", "feature=auth", "test-task", "expert")
+	// Pass language and feature parameters to ensure they don't get expanded in persona
+	cmd = exec.Command(binaryPath, "-r", personasDir, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-p", "feature=auth", "-p", "language=Go", "test-task", "expert")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -1062,9 +1064,12 @@ Please help with ${feature}.
 		t.Errorf("Context should appear before task. Context at %d, Task at %d", contextIdx, taskIdx)
 	}
 
-	// Verify persona content is not expanded (no template substitution)
-	if !strings.Contains(contentStr, "You are an expert in Go") {
-		t.Errorf("Expected persona content to remain as-is without template expansion")
+	// Verify persona variables are NOT expanded (should remain as ${language} and $feature)
+	if !strings.Contains(contentStr, "You are an expert in ${language}") {
+		t.Errorf("Expected persona content to keep ${language} unexpanded, got:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "Your specialty is $feature development") {
+		t.Errorf("Expected persona content to keep $feature unexpanded, got:\n%s", contentStr)
 	}
 	// Verify task template substitution still works
 	if !strings.Contains(contentStr, "Please help with auth") {
@@ -1190,5 +1195,86 @@ Please help.
 	// Check error message
 	if !strings.Contains(string(output), "persona file not found") {
 		t.Errorf("Expected 'persona file not found' error message, got: %s", string(output))
+	}
+}
+
+func TestMemoryNoVariableExpansion(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a memory file WITH template variables to ensure they are NOT expanded
+	memoryFile := filepath.Join(memoriesDir, "context.md")
+	memoryContent := `---
+---
+# Context
+
+This project uses ${language} for ${feature}.
+The config is in $configFile.
+`
+	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+
+	// Create a task file with the same variables for comparison
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+---
+# Task
+
+Please implement ${feature} in ${language}.
+Config: $configFile
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run with parameters
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-p", "language=Go", "-p", "feature=authentication", "-p", "configFile=app.yaml", "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check the output
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify memory variables are NOT expanded (should remain as ${language}, ${feature}, $configFile)
+	if !strings.Contains(contentStr, "This project uses ${language} for ${feature}") {
+		t.Errorf("Expected memory content to keep ${language} and ${feature} unexpanded, got:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "The config is in $configFile") {
+		t.Errorf("Expected memory content to keep $configFile unexpanded, got:\n%s", contentStr)
+	}
+
+	// Verify task variables ARE expanded
+	if !strings.Contains(contentStr, "Please implement authentication in Go") {
+		t.Errorf("Expected task content to have variables expanded, got:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "Config: app.yaml") {
+		t.Errorf("Expected task content to have configFile expanded to app.yaml, got:\n%s", contentStr)
 	}
 }
