@@ -48,7 +48,6 @@ func main() {
 		"AGENTS.md",
 	}
 
-	flag.Var(&dirs, "d", "Directory to include in the context. Can be specified multiple times.")
 	flag.Var(&dirs, "d", "Directory that may contain a memories/ or tasks/ subdirectory. Can be specified multiple times.")
 	flag.Var(&memories, "m", "Directory containing memories, or a single memory file. Can be specified multiple times.")
 	flag.Var(&tasks, "t", "Directory containing tasks, or a single task file. Can be specified multiple times.")
@@ -184,7 +183,7 @@ func run(ctx context.Context, args []string) error {
 			continue
 		}
 		if stat.IsDir() {
-			path = filepath.Join(path, stat.Name())
+			path = filepath.Join(path, taskName+".md")
 			if _, err := os.Stat(path); os.IsNotExist(err) {
 				continue
 			}
