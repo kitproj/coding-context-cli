@@ -18,6 +18,7 @@ import (
 var bootstrap string
 
 var (
+	workDir      string
 	memories     stringSlice
 	tasks        stringSlice
 	outputDir    = "."
@@ -56,6 +57,7 @@ func main() {
 		"/var/local/prompts/tasks",
 	}
 
+	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.Var(&memories, "m", "Directory containing memories, or a single memory file. Can be specified multiple times.")
 	flag.Var(&tasks, "t", "Directory containing tasks, or a single task file. Can be specified multiple times.")
 	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
@@ -85,6 +87,10 @@ func main() {
 func run(ctx context.Context, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("invalid usage")
+	}
+
+	if err := os.Chdir(workDir); err != nil {
+		return fmt.Errorf("failed to chdir to %s", workDir)
 	}
 
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
