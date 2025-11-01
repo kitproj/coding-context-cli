@@ -1186,6 +1186,47 @@ $variableName      # Simple variable substitution (works with alphanumeric names
 
 Variables that are not provided via `-p` flag are replaced with empty strings.
 
+### Determining Common Parameters
+
+You can automate the detection of common parameters like `language` using external tools. Here's an example using the GitHub CLI (`gh`) to determine the primary programming language via GitHub Linguist:
+
+**Example: Automatically detect language using GitHub Linguist**
+
+```bash
+# Get the primary language from the current repository
+LANGUAGE=$(gh repo view --json primaryLanguage --jq .primaryLanguage.name)
+
+# Use the detected language with coding-context
+coding-context -p language="$LANGUAGE" my-task
+```
+
+This works because GitHub uses Linguist to analyze repository languages, and `gh repo view` provides direct access to the primary language detected for the current repository.
+
+**Example with error handling:**
+
+```bash
+# Get primary language with error handling
+LANGUAGE=$(gh repo view --json primaryLanguage --jq .primaryLanguage.name 2>/dev/null)
+
+# Check if we successfully detected a language
+if [ -z "$LANGUAGE" ] || [ "$LANGUAGE" = "null" ]; then
+    echo "Warning: Could not detect language, using default"
+    LANGUAGE="Go"  # or your preferred default
+fi
+
+coding-context -p language="$LANGUAGE" my-task
+```
+
+**One-liner version:**
+
+```bash
+coding-context -p language="$(gh repo view --json primaryLanguage --jq .primaryLanguage.name)" my-task
+```
+
+**Prerequisites:**
+- Install GitHub CLI: `brew install gh` (macOS) or `sudo apt install gh` (Ubuntu)
+- Authenticate: `gh auth login`
+
 ### Directory Priority
 
 When the same task exists in multiple directories, the first match wins:
