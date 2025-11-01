@@ -960,3 +960,234 @@ if !strings.Contains(contentStr, "General content") {
 t.Errorf("Expected general content in output (no task_name key should be allowed)")
 }
 }
+
+func TestPersonaBasic(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	personasDir := filepath.Join(contextDir, "personas")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(personasDir, 0755); err != nil {
+		t.Fatalf("failed to create personas dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a persona file
+	personaFile := filepath.Join(personasDir, "expert.md")
+	personaContent := `---
+---
+# Expert Persona
+
+You are an expert in ${language}.
+`
+	if err := os.WriteFile(personaFile, []byte(personaContent), 0644); err != nil {
+		t.Fatalf("failed to write persona file: %v", err)
+	}
+
+	// Create a memory file
+	memoryFile := filepath.Join(memoriesDir, "context.md")
+	memoryContent := `---
+---
+# Context
+
+This is context.
+`
+	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+---
+# Task
+
+Please help with ${feature}.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run with persona
+	cmd = exec.Command(binaryPath, "-P", personasDir, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-persona", "expert", "-p", "language=Go", "-p", "feature=auth", "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check the output
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify persona appears first
+	expertIdx := strings.Index(contentStr, "Expert Persona")
+	contextIdx := strings.Index(contentStr, "# Context")
+	taskIdx := strings.Index(contentStr, "# Task")
+
+	if expertIdx == -1 {
+		t.Errorf("Expected to find 'Expert Persona' in output")
+	}
+	if contextIdx == -1 {
+		t.Errorf("Expected to find '# Context' in output")
+	}
+	if taskIdx == -1 {
+		t.Errorf("Expected to find '# Task' in output")
+	}
+
+	// Verify order: persona -> context -> task
+	if expertIdx > contextIdx {
+		t.Errorf("Persona should appear before context. Persona at %d, Context at %d", expertIdx, contextIdx)
+	}
+	if contextIdx > taskIdx {
+		t.Errorf("Context should appear before task. Context at %d, Task at %d", contextIdx, taskIdx)
+	}
+
+	// Verify template substitution
+	if !strings.Contains(contentStr, "You are an expert in Go") {
+		t.Errorf("Expected persona template to be expanded with language=Go")
+	}
+	if !strings.Contains(contentStr, "Please help with auth") {
+		t.Errorf("Expected task template to be expanded with feature=auth")
+	}
+}
+
+func TestPersonaOptional(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a memory file
+	memoryFile := filepath.Join(memoriesDir, "context.md")
+	memoryContent := `---
+---
+# Context
+
+This is context.
+`
+	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+---
+# Task
+
+Please help.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run WITHOUT persona (should still work)
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary without persona: %v\n%s", err, output)
+	}
+
+	// Check the output
+	promptOutput := filepath.Join(outputDir, "prompt.md")
+	content, err := os.ReadFile(promptOutput)
+	if err != nil {
+		t.Fatalf("failed to read prompt output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify context and task are present
+	if !strings.Contains(contentStr, "# Context") {
+		t.Errorf("Expected to find '# Context' in output")
+	}
+	if !strings.Contains(contentStr, "# Task") {
+		t.Errorf("Expected to find '# Task' in output")
+	}
+}
+
+func TestPersonaNotFound(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	personasDir := filepath.Join(contextDir, "personas")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(personasDir, 0755); err != nil {
+		t.Fatalf("failed to create personas dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a task file (but no persona file)
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+---
+# Task
+
+Please help.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run with non-existent persona (should fail)
+	cmd = exec.Command(binaryPath, "-P", personasDir, "-t", tasksDir, "-o", outputDir, "-persona", "nonexistent", "test-task")
+	cmd.Dir = tmpDir
+	output, err := cmd.CombinedOutput()
+	
+	// Should error
+	if err == nil {
+		t.Errorf("Expected error when persona file not found, but command succeeded")
+	}
+
+	// Check error message
+	if !strings.Contains(string(output), "persona file not found") {
+		t.Errorf("Expected 'persona file not found' error message, got: %s", string(output))
+	}
+}

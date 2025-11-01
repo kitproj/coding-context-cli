@@ -19,12 +19,14 @@ var bootstrap string
 
 var (
 	memories     stringSlice
+	personas     stringSlice
 	tasks        stringSlice
 	outputDir    = "."
 	params       = make(paramMap)
 	includes     = make(selectorMap)
 	excludes     = make(selectorMap)
 	runBootstrap bool
+	personaName  string
 )
 
 func main() {
@@ -50,6 +52,12 @@ func main() {
 		"/var/local/prompts/memories",
 	}
 
+	personas = []string{
+		".prompts/personas",
+		filepath.Join(userConfigDir, "prompts", "personas"),
+		"/var/local/prompts/personas",
+	}
+
 	tasks = []string{
 		".prompts/tasks",
 		filepath.Join(userConfigDir, "prompts", "tasks"),
@@ -57,12 +65,14 @@ func main() {
 	}
 
 	flag.Var(&memories, "m", "Directory containing memories, or a single memory file. Can be specified multiple times.")
+	flag.Var(&personas, "P", "Directory containing personas, or a single persona file. Can be specified multiple times.")
 	flag.Var(&tasks, "t", "Directory containing tasks, or a single task file. Can be specified multiple times.")
 	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include memories with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Var(&excludes, "S", "Exclude memories with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.BoolVar(&runBootstrap, "b", false, "Automatically run the bootstrap script after generating it.")
+	flag.StringVar(&personaName, "persona", "", "Optional persona name to include first in the output.")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
@@ -105,6 +115,50 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to create prompt file: %w", err)
 	}
 	defer output.Close()
+
+	// Process persona first if provided (should be first in output)
+	if personaName != "" {
+		personaFound := false
+		for _, path := range personas {
+			stat, err := os.Stat(path)
+			if os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to stat persona path %s: %w", path, err)
+			}
+			if stat.IsDir() {
+				path = filepath.Join(path, personaName+".md")
+				if _, err := os.Stat(path); os.IsNotExist(err) {
+					continue
+				}
+			}
+
+			fmt.Fprintf(os.Stdout, "Using persona file: %s\n", path)
+
+			content, err := parseMarkdownFile(path, &struct{}{})
+			if err != nil {
+				return fmt.Errorf("failed to parse persona file: %w", err)
+			}
+
+			expanded := os.Expand(content, func(key string) string {
+				if val, ok := params[key]; ok {
+					return val
+				}
+				return ""
+			})
+
+			if _, err := output.WriteString(expanded + "\n\n"); err != nil {
+				return fmt.Errorf("failed to write expanded persona: %w", err)
+			}
+
+			personaFound = true
+			break
+		}
+
+		if !personaFound {
+			return fmt.Errorf("persona file not found for persona: %s", personaName)
+		}
+	}
 
 	for _, memory := range memories {
 
