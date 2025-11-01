@@ -180,6 +180,8 @@ func run(ctx context.Context, args []string) error {
 		stat, err := os.Stat(path)
 		if os.IsNotExist(err) {
 			continue
+		} else if err != nil {
+			return fmt.Errorf("failed to stat task path %s: %w", path, err)
 		}
 		if stat.IsDir() {
 			path = filepath.Join(path, taskName+".md")
