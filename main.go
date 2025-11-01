@@ -18,6 +18,7 @@ import (
 var bootstrap string
 
 var (
+	workDir      string
 	memories     stringSlice
 	personas     stringSlice
 	tasks        stringSlice
@@ -63,6 +64,7 @@ func main() {
 		"/var/local/prompts/tasks",
 	}
 
+	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.Var(&memories, "m", "Directory containing memories, or a single memory file. Can be specified multiple times.")
 	flag.Var(&personas, "r", "Directory containing personas, or a single persona file. Can be specified multiple times.")
 	flag.Var(&tasks, "t", "Directory containing tasks, or a single task file. Can be specified multiple times.")
@@ -95,6 +97,10 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("invalid usage")
 	}
 
+	if err := os.Chdir(workDir); err != nil {
+		return fmt.Errorf("failed to chdir to %s: %w", workDir, err)
+	}
+  
 	// Add task name to includes so memories can be filtered by task
 	taskName := args[0]
 	includes["task_name"] = taskName
