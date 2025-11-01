@@ -185,6 +185,8 @@ func run(ctx context.Context, args []string) error {
 		// Skip if the path doesn't exist
 		if _, err := os.Stat(memory); os.IsNotExist(err) {
 			continue
+		} else if err != nil {
+			return fmt.Errorf("failed to stat memory path %s: %w", memory, err)
 		}
 
 		err := filepath.Walk(memory, func(path string, info os.FileInfo, err error) error {
@@ -208,6 +210,8 @@ func run(ctx context.Context, args []string) error {
 			}
 
 			// Check if file matches include and exclude selectors
+			// Note: Files that don't match selectors are excluded from deduplication
+			// processing entirely - they won't replace other files nor be replaced
 			if !includes.matchesIncludes(frontmatter) {
 				return nil
 			}
