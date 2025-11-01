@@ -17,7 +17,7 @@ When working with AI coding agents (like GitHub Copilot, ChatGPT, Claude, etc.),
 2. **Creating task-specific prompts** - Define templated prompts for common tasks (e.g., "add feature", "fix bug", "refactor")
 3. **Automating environment setup** - Package bootstrap scripts that prepare the environment before an agent starts work
 4. **Filtering context dynamically** - Use selectors to include only relevant context (e.g., production vs. development, Python vs. Go)
-5. **Composing everything together** - Generate a single `prompt.md` file combining all relevant context and the task prompt
+5. **Composing everything together** - Generate three separate markdown files: `persona.md`, `memories.md`, and `task.md`
 
 ## When to Use
 
@@ -36,10 +36,12 @@ The basic workflow is:
 1. **Organize your context** - Create persona files (optional), memory files (shared context), and task files (task-specific instructions)
 2. **Run the CLI** - Execute `coding-context [options] <task-name> [persona-name]`
 3. **Get assembled output** - The tool generates:
-   - `prompt.md` - Combined persona (if specified) + memories + task with template variables filled in
+   - `persona.md` - Persona content (if persona is specified)
+   - `memories.md` - All included memory files combined
+   - `task.md` - Task prompt with template variables filled in
    - `bootstrap` - Executable script to set up the environment
    - `bootstrap.d/` - Individual bootstrap scripts from your memory files
-4. **Use with AI agents** - Share `prompt.md` with your AI coding agent, or run `./bootstrap` to prepare the environment first
+4. **Use with AI agents** - Share the generated markdown files with your AI coding agent, or run `./bootstrap` to prepare the environment first
 
 **Visual flow:**
 ```
@@ -48,16 +50,12 @@ The basic workflow is:
 | (optional)           |       |                     |       | (task-name.md)           |
 +----------+-----------+       +----------+----------+       +------------+-------------+
            |                              |                               |
-           | Apply template params        | Filter by selectors           | Apply template params
+           | No expansion                 | Filter by selectors           | Apply template params
            v                              v                               v
 +----------------------+       +---------------------+       +--------------------------+
-| Rendered Persona     +------>+ Filtered Memories   +------>+ Rendered Task            |
-+----------------------+       +---------------------+       +------------+-------------+
-                                                                          |
-                                                                          v
-                                                             +----------------------------+
-                                                             | prompt.md (combined output)|
-                                                             +----------------------------+
+| persona.md           |       | memories.md         |       | task.md                  |
++----------------------+       +---------------------+       +--------------------------+
+```
 ```
 
 ## Installation
@@ -177,22 +175,27 @@ coding-context -p taskName="Fix Bug" -p language=Go my-task
 coding-context -p taskName="Fix Bug" -p language=Go my-task expert
 ```
 
-**Result:** This generates `./prompt.md` combining your persona (if specified), memories, and the task prompt with template variables filled in. You can now share this complete context with your AI coding agent!
+**Result:** This generates three files: `./persona.md` (if persona is specified), `./memories.md`, and `./task.md` with template variables filled in. You can now share these files with your AI coding agent!
 
-**What you'll see in `prompt.md` (with persona):**
+**What you'll see in the generated files (with persona):**
+
+`persona.md`:
 ```markdown
 # Expert Developer
 
 You are an expert developer with deep knowledge of best practices.
+```
 
-
+`memories.md`:
+```markdown
 # Project Context
 
 - Framework: Go CLI
 - Purpose: Manage AI agent context
+```
 
-
-
+`task.md`:
+```markdown
 # Task: Fix Bug
 
 Please help me with this task. The project uses Go.
@@ -222,7 +225,7 @@ Each directory should contain:
 
 ### Persona Files
 
-Optional persona files define the role or character the AI agent should assume. Personas are output **first** in the generated `prompt.md`, before memories and tasks.
+Optional persona files define the role or character the AI agent should assume. Personas are output to `persona.md` when specified.
 
 **Important:** Persona files do NOT support template variable expansion. They are included as-is in the output.
 
@@ -239,7 +242,7 @@ Run with:
 coding-context add-feature expert
 ```
 
-This will look for `expert.md` in the persona directories. The persona is optional - if you don't specify a persona name as the second argument, the output will contain only memories and the task.
+This will look for `expert.md` in the persona directories and output it to `persona.md`. The persona is optional - if you don't specify a persona name as the second argument, only `memories.md` and `task.md` will be generated.
 
 ### Prompt Files
 
@@ -369,7 +372,9 @@ If no selectors are specified, all memory files are included.
 
 ## Output Files
 
-- **`prompt.md`** - Combined output with all memories and the task prompt
+- **`persona.md`** - Persona content (only created when a persona is specified)
+- **`memories.md`** - Combined output with all filtered memory files
+- **`task.md`** - Task prompt with template variables expanded
 - **`bootstrap`** - Executable script that runs all bootstrap scripts from memories
 - **`bootstrap.d/`** - Individual bootstrap scripts (SHA256 named)
 
