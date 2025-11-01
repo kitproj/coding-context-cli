@@ -172,7 +172,7 @@ func run(ctx context.Context, args []string) error {
 		}
 	}
 
-	memoryNames := make(map[string]bool)
+	memoryBasenames := make(map[string]bool)
 
 	for _, memory := range memories {
 
@@ -211,13 +211,13 @@ func run(ctx context.Context, args []string) error {
 				return nil
 			}
 
-			if name, ok := frontmatter["name"]; ok {
-				if memoryNames[name] {
-					fmt.Fprintf(os.Stdout, "Excluding memory file (other memory with same name found): %s\n", path)
-					return nil
-				}
-				memoryNames[name] = true
+			// Check for duplicate basenames
+			basename := filepath.Base(path)
+			if memoryBasenames[basename] {
+				fmt.Fprintf(os.Stdout, "Excluding memory file (other memory with same basename found): %s\n", path)
+				return nil
 			}
+			memoryBasenames[basename] = true
 
 			// Estimate tokens for this file
 			tokens := estimateTokens(content)
