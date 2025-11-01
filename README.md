@@ -1141,28 +1141,23 @@ You can automate the detection of common parameters like `language` using extern
 **Example: Automatically detect language using GitHub Linguist**
 
 ```bash
-# Get the repository owner/name from git remote
-REPO=$(git config --get remote.origin.url | sed -E 's#.*/([^/]+/[^/]+)$#\1#' | sed 's/\.git$//')
-
-# Use gh API to get language data (returns languages with byte counts)
-# The primary language is the one with the most bytes
-LANGUAGE=$(gh api repos/$REPO/languages | jq -r 'to_entries | sort_by(-.value) | .[0].key')
+# Get the primary language from the current repository
+LANGUAGE=$(gh repo view --json primaryLanguage --jq .primaryLanguage.name)
 
 # Use the detected language with coding-context
 coding-context -p language="$LANGUAGE" my-task
 ```
 
-This works because GitHub uses Linguist to analyze repository languages. The API returns a JSON object where keys are language names and values are byte counts. The example extracts the language with the highest byte count as the primary language.
+This works because GitHub uses Linguist to analyze repository languages, and `gh repo view` provides direct access to the primary language detected for the current repository.
 
 **Example with error handling:**
 
 ```bash
-# Get repository info with error handling
-REPO=$(git config --get remote.origin.url | sed -E 's#.*/([^/]+/[^/]+)$#\1#' | sed 's/\.git$//')
-LANGUAGE=$(gh api repos/$REPO/languages 2>/dev/null | jq -r 'to_entries | sort_by(-.value) | .[0].key // "Unknown"')
+# Get primary language with error handling
+LANGUAGE=$(gh repo view --json primaryLanguage --jq .primaryLanguage.name 2>/dev/null)
 
 # Check if we successfully detected a language
-if [ "$LANGUAGE" = "Unknown" ] || [ -z "$LANGUAGE" ]; then
+if [ -z "$LANGUAGE" ] || [ "$LANGUAGE" = "null" ]; then
     echo "Warning: Could not detect language, using default"
     LANGUAGE="Go"  # or your preferred default
 fi
@@ -1173,7 +1168,7 @@ coding-context -p language="$LANGUAGE" my-task
 **One-liner version:**
 
 ```bash
-coding-context -p language="$(gh api repos/$(git config --get remote.origin.url | sed -E 's#.*/([^/]+/[^/]+)$#\1#' | sed 's/\.git$//')/languages | jq -r 'to_entries | sort_by(-.value) | .[0].key')" my-task
+coding-context -p language="$(gh repo view --json primaryLanguage --jq .primaryLanguage.name)" my-task
 ```
 
 **Prerequisites:**
@@ -1191,7 +1186,7 @@ coding-context -p language="$(gh api repos/$(git config --get remote.origin.url 
 These can all be passed as parameters:
 ```bash
 coding-context \
-  -p language="$(gh api repos/$(git config --get remote.origin.url | sed -E 's#.*/([^/]+/[^/]+)$#\1#' | sed 's/\.git$//')/languages | jq -r 'to_entries | sort_by(-.value) | .[0].key')" \
+  -p language="$(gh repo view --json primaryLanguage --jq .primaryLanguage.name)" \
   -p repo="$(basename $(git rev-parse --show-toplevel))" \
   -p branch="$(git branch --show-current)" \
   -p commit="$(git rev-parse --short HEAD)" \
@@ -1199,8 +1194,7 @@ coding-context \
 ```
 
 **Notes:**
-- The language detection works with both HTTPS (`https://github.com/owner/repo`) and SSH (`git@github.com:owner/repo.git`) remote URL formats
-- If the repository has no detected languages, `jq` will return `null`. You can add `// "Unknown"` to provide a default value in the jq query
+- If the repository has no detected language, the command will return `null`. Check for this in your scripts (see the error handling example above)
 - For private repositories, ensure you're authenticated with `gh auth login`
 - If the API call fails, the command will fail. Add error handling if needed for automation scripts (see the error handling example above)
 
