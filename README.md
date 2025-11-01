@@ -82,11 +82,12 @@ coding-context [options] <task-name>
 
 Options:
   -b                Automatically run the bootstrap script after generating it
-  -d <directory>    Directory that may contain a memories/ or tasks/ subdirectory (can be used multiple times)
-                    Default: .prompts, ~/.config/prompts, /var/local/prompts
   -m <path>         Directory containing memories, or a single memory file (can be used multiple times)
-                    Default: AGENTS.md
+                    Defaults: AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, .cursorrules, 
+                              .cursor/rules/, .instructions.md, .continuerules, .prompts/memories, 
+                              ~/.config/prompts/memories, /var/local/prompts/memories
   -t <path>         Directory containing tasks, or a single task file (can be used multiple times)
+                    Defaults: .prompts/tasks, ~/.config/prompts/tasks, /var/local/prompts/tasks
   -o <directory>    Output directory for generated files (default: .)
   -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
   -s <key=value>    Include memories with matching frontmatter (can be used multiple times)
@@ -98,15 +99,6 @@ Options:
 **Example:**
 ```bash
 coding-context -p feature="Authentication" -p language=Go add-feature
-```
-
-**Example with directories:**
-```bash
-# Add a custom directory that contains memories/ and tasks/ subdirectories
-coding-context -d /path/to/custom/prompts my-task
-
-# The -d flag prepends directories to search paths, so custom directories take priority
-# Search order becomes: /path/to/custom/prompts/memories, .prompts/memories, ~/.config/prompts/memories, ...
 ```
 
 **Example with custom memory and task paths:**
