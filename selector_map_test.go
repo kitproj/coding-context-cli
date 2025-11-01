@@ -80,99 +80,73 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		name        string
 		selectors   []string
 		frontmatter map[string]string
-		params      paramMap
 		wantMatch   bool
 	}{
 		{
 			name:        "single include - match",
 			selectors:   []string{"env=production"},
 			frontmatter: map[string]string{"env": "production"},
-			params:      paramMap{},
 			wantMatch:   true,
 		},
 		{
 			name:        "single include - no match",
 			selectors:   []string{"env=production"},
 			frontmatter: map[string]string{"env": "development"},
-			params:      paramMap{},
 			wantMatch:   false,
 		},
 		{
 			name:        "single include - key missing (allowed)",
 			selectors:   []string{"env=production"},
 			frontmatter: map[string]string{"language": "go"},
-			params:      paramMap{},
 			wantMatch:   true,
 		},
 		{
 			name:        "multiple includes - all match",
 			selectors:   []string{"env=production", "language=go"},
 			frontmatter: map[string]string{"env": "production", "language": "go"},
-			params:      paramMap{},
 			wantMatch:   true,
 		},
 		{
 			name:        "multiple includes - one doesn't match",
 			selectors:   []string{"env=production", "language=go"},
 			frontmatter: map[string]string{"env": "production", "language": "python"},
-			params:      paramMap{},
 			wantMatch:   false,
 		},
 		{
 			name:        "multiple includes - one key missing (allowed)",
 			selectors:   []string{"env=production", "language=go"},
 			frontmatter: map[string]string{"env": "production"},
-			params:      paramMap{},
 			wantMatch:   true,
 		},
 		{
 			name:        "empty includes - always match",
 			selectors:   []string{},
 			frontmatter: map[string]string{"env": "production"},
-			params:      paramMap{},
 			wantMatch:   true,
 		},
 		{
 			name:        "empty frontmatter - key missing (allowed)",
 			selectors:   []string{"env=production"},
 			frontmatter: map[string]string{},
-			params:      paramMap{},
 			wantMatch:   true,
 		},
 		{
-			name:        "builtin task_name - match",
-			selectors:   []string{},
+			name:        "task_name include - match",
+			selectors:   []string{"task_name=deploy"},
 			frontmatter: map[string]string{"task_name": "deploy"},
-			params:      paramMap{"task_name": "deploy"},
 			wantMatch:   true,
 		},
 		{
-			name:        "builtin task_name - no match",
-			selectors:   []string{},
+			name:        "task_name include - no match",
+			selectors:   []string{"task_name=deploy"},
 			frontmatter: map[string]string{"task_name": "test"},
-			params:      paramMap{"task_name": "deploy"},
 			wantMatch:   false,
 		},
 		{
-			name:        "builtin task_name - key missing (allowed)",
-			selectors:   []string{},
+			name:        "task_name include - key missing (allowed)",
+			selectors:   []string{"task_name=deploy"},
 			frontmatter: map[string]string{"env": "production"},
-			params:      paramMap{"task_name": "deploy"},
 			wantMatch:   true,
-		},
-		{
-			name:        "builtin task_name with selector - both match",
-			selectors:   []string{"env=production"},
-			frontmatter: map[string]string{"env": "production", "task_name": "deploy"},
-			params:      paramMap{"task_name": "deploy"},
-			wantMatch:   true,
-		},
-		{
-			name:        "builtin task_name with selector - selector matches, task doesn't",
-			selectors:   []string{"env=production"},
-			frontmatter: map[string]string{"env": "production", "task_name": "test"},
-			params:      paramMap{"task_name": "deploy"},
-			wantMatch:   false,
 		},
 	}
 
@@ -185,7 +159,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 				}
 			}
 
-			if got := s.matchesIncludes(tt.frontmatter, tt.params); got != tt.wantMatch {
+			if got := s.matchesIncludes(tt.frontmatter); got != tt.wantMatch {
 				t.Errorf("matchesIncludes() = %v, want %v", got, tt.wantMatch)
 			}
 		})
@@ -197,91 +171,54 @@ func TestSelectorMap_MatchesExcludes(t *testing.T) {
 		name        string
 		selectors   []string
 		frontmatter map[string]string
-		params      paramMap
 		wantMatch   bool
 	}{
 		{
 			name:        "single exclude - doesn't match (allowed)",
 			selectors:   []string{"env=production"},
 			frontmatter: map[string]string{"env": "development"},
-			params:      paramMap{},
 			wantMatch:   true,
 		},
 		{
 			name:        "single exclude - matches (excluded)",
 			selectors:   []string{"env=production"},
 			frontmatter: map[string]string{"env": "production"},
-			params:      paramMap{},
 			wantMatch:   false,
 		},
 		{
 			name:        "single exclude - key missing (allowed)",
 			selectors:   []string{"env=production"},
 			frontmatter: map[string]string{"language": "go"},
-			params:      paramMap{},
 			wantMatch:   true,
 		},
 		{
 			name:        "multiple excludes - none match (allowed)",
 			selectors:   []string{"env=production", "language=go"},
 			frontmatter: map[string]string{"env": "development", "language": "python"},
-			params:      paramMap{},
 			wantMatch:   true,
 		},
 		{
 			name:        "multiple excludes - one matches (excluded)",
 			selectors:   []string{"env=production", "language=go"},
 			frontmatter: map[string]string{"env": "production", "language": "python"},
-			params:      paramMap{},
 			wantMatch:   false,
 		},
 		{
 			name:        "multiple excludes - one key missing (allowed)",
 			selectors:   []string{"env=production", "language=go"},
 			frontmatter: map[string]string{"env": "development"},
-			params:      paramMap{},
 			wantMatch:   true,
 		},
 		{
 			name:        "empty excludes - always match",
 			selectors:   []string{},
 			frontmatter: map[string]string{"env": "production"},
-			params:      paramMap{},
 			wantMatch:   true,
 		},
 		{
 			name:        "empty frontmatter - key missing (allowed)",
 			selectors:   []string{"env=production"},
 			frontmatter: map[string]string{},
-			params:      paramMap{},
-			wantMatch:   true,
-		},
-		{
-			name:        "builtin task_name - doesn't affect excludes (allowed)",
-			selectors:   []string{},
-			frontmatter: map[string]string{"task_name": "deploy"},
-			params:      paramMap{"task_name": "deploy"},
-			wantMatch:   true,
-		},
-		{
-			name:        "builtin task_name with different value - doesn't affect excludes (allowed)",
-			selectors:   []string{},
-			frontmatter: map[string]string{"task_name": "test"},
-			params:      paramMap{"task_name": "deploy"},
-			wantMatch:   true,
-		},
-		{
-			name:        "builtin and explicit exclude - only explicit exclude matters",
-			selectors:   []string{"env=production"},
-			frontmatter: map[string]string{"env": "production", "task_name": "deploy"},
-			params:      paramMap{"task_name": "deploy"},
-			wantMatch:   false,
-		},
-		{
-			name:        "builtin without explicit exclude - allowed",
-			selectors:   []string{"env=production"},
-			frontmatter: map[string]string{"env": "development", "task_name": "deploy"},
-			params:      paramMap{"task_name": "deploy"},
 			wantMatch:   true,
 		},
 	}
@@ -295,7 +232,7 @@ func TestSelectorMap_MatchesExcludes(t *testing.T) {
 				}
 			}
 
-			if got := s.matchesExcludes(tt.frontmatter, tt.params); got != tt.wantMatch {
+			if got := s.matchesExcludes(tt.frontmatter); got != tt.wantMatch {
 				t.Errorf("matchesExcludes() = %v, want %v", got, tt.wantMatch)
 			}
 		})

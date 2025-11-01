@@ -87,9 +87,9 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("invalid usage")
 	}
 
-	// Add task name to params so it can be used as a filter
+	// Add task name to includes so memories can be filtered by task
 	taskName := args[0]
-	params["task_name"] = taskName
+	includes["task_name"] = taskName
 
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
@@ -134,11 +134,11 @@ func run(ctx context.Context, args []string) error {
 			}
 
 			// Check if file matches include and exclude selectors
-			if !includes.matchesIncludes(frontmatter, params) {
+			if !includes.matchesIncludes(frontmatter) {
 				fmt.Fprintf(os.Stdout, "Excluding memory file (does not match include selectors): %s\n", path)
 				return nil
 			}
-			if !excludes.matchesExcludes(frontmatter, params) {
+			if !excludes.matchesExcludes(frontmatter) {
 				fmt.Fprintf(os.Stdout, "Excluding memory file (matches exclude selectors): %s\n", path)
 				return nil
 			}
