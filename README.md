@@ -76,6 +76,7 @@ coding-context [options] <task-name> [persona-name]
 
 Options:
   -b                Automatically run the bootstrap script after generating it
+  -C <directory>    Change to directory before doing anything (default: .)
   -m <path>         Directory containing memories, or a single memory file (can be used multiple times)
                     Defaults: AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, .cursorrules,
                               .cursor/rules/, .instructions.md, .continuerules, .prompts/memories,
@@ -1083,7 +1084,7 @@ ${variableName}    # Braced variable substitution
 $variableName      # Simple variable substitution (works with alphanumeric names)
 ```
 
-Variables that are not provided via `-p` flag are replaced with empty strings.
+Variables that are not provided via `-p` flag are left as-is (e.g., `${missingVar}` remains `${missingVar}`).
 
 ### Determining Common Parameters
 
@@ -1143,9 +1144,9 @@ When the same task exists in multiple directories, the first match wins:
 mkdir -p .prompts/memories
 ```
 
-**Template parameter shows `<no value>`**
+**Template parameter not replaced (shows as `${variableName}`)**
 ```bash
-coding-context -p myvar="value" my-task
+coding-context -p variableName="value" my-task
 ```
 
 **Bootstrap script not executing**
