@@ -366,6 +366,30 @@ INFO Including memory file path=.prompts/memories/nofrontmatter.md
 
 If no selectors are specified, all memory files are included.
 
+### Deduplicating Memories
+
+When you have multiple memory files with overlapping content, you can use the `name` attribute in the frontmatter to deduplicate them. The name should be in `PascalCase` format, like `CodingStandards`, `TestPractices`, `CodeComments`, `Logging`, or `ErrorHandling`. If two memory files have the same `name`, only the first one found will be included in the context.
+
+**Example:**
+
+`memory1.md`:
+```markdown
+---
+name: MyMemory
+---
+This is a memory.
+```
+
+`memory2.md`:
+```markdown
+---
+name: MyMemory
+---
+This is another memory with the same name.
+```
+
+When the tool processes these two files, it will include `memory1.md` and exclude `memory2.md` because it has the same name. This is useful for overriding default memories with project-specific ones.
+
 
 ## Output Files
 
