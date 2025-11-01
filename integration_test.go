@@ -1256,3 +1256,110 @@ func TestWorkDirOption(t *testing.T) {
 		t.Errorf("prompt.md does not contain expected memory content")
 	}
 }
+
+func TestTokenCounting(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	personasDir := filepath.Join(contextDir, "personas")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+	if err := os.MkdirAll(personasDir, 0755); err != nil {
+		t.Fatalf("failed to create personas dir: %v", err)
+	}
+
+	// Create a persona file
+	personaFile := filepath.Join(personasDir, "expert.md")
+	personaContent := `# Expert Developer
+
+You are an expert developer.`
+	if err := os.WriteFile(personaFile, []byte(personaContent), 0644); err != nil {
+		t.Fatalf("failed to write persona file: %v", err)
+	}
+
+	// Create memory files
+	memoryFile1 := filepath.Join(memoriesDir, "setup.md")
+	memoryContent1 := `# Development Setup
+
+This is a setup guide with detailed instructions.`
+	if err := os.WriteFile(memoryFile1, []byte(memoryContent1), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+
+	memoryFile2 := filepath.Join(memoriesDir, "conventions.md")
+	memoryContent2 := `# Coding Conventions
+
+Follow best practices and write clean code.`
+	if err := os.WriteFile(memoryFile2, []byte(memoryContent2), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `# Test Task
+
+Complete this task with high quality.`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary with persona
+	cmd = exec.Command(binaryPath, "-o", outputDir, "test-task", "expert")
+	cmd.Dir = tmpDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Verify token counts are printed for each file
+	if !strings.Contains(outputStr, "Using persona file:") {
+		t.Errorf("Expected persona file message in output")
+	}
+	if !strings.Contains(outputStr, "tokens)") {
+		t.Errorf("Expected token count in output")
+	}
+	if !strings.Contains(outputStr, "Including memory file:") {
+		t.Errorf("Expected memory file message in output")
+	}
+	if !strings.Contains(outputStr, "Using prompt file:") {
+		t.Errorf("Expected prompt file message in output")
+	}
+	if !strings.Contains(outputStr, "Total estimated tokens:") {
+		t.Errorf("Expected total token count in output")
+	}
+
+	// Verify the total is printed at the end (after all file processing)
+	lines := strings.Split(outputStr, "\n")
+	var totalLine string
+	for _, line := range lines {
+		if strings.Contains(line, "Total estimated tokens:") {
+			totalLine = line
+		}
+	}
+	if totalLine == "" {
+		t.Fatalf("Total token count line not found in output: %s", outputStr)
+	}
+
+	// The total should be greater than 0
+	if !strings.Contains(totalLine, "Total estimated tokens:") {
+		t.Errorf("Expected 'Total estimated tokens:' in output, got: %s", totalLine)
+	}
+}
+
