@@ -1154,6 +1154,22 @@ coding-context -p language="$LANGUAGE" my-task
 
 This works because GitHub uses Linguist to analyze repository languages. The API returns a JSON object where keys are language names and values are byte counts. The example extracts the language with the highest byte count as the primary language.
 
+**Example with error handling:**
+
+```bash
+# Get repository info with error handling
+REPO=$(git config --get remote.origin.url | sed -E 's#.*/([^/]+/[^/]+)$#\1#' | sed 's/\.git$//')
+LANGUAGE=$(gh api repos/$REPO/languages 2>/dev/null | jq -r 'to_entries | sort_by(-.value) | .[0].key // "Unknown"')
+
+# Check if we successfully detected a language
+if [ "$LANGUAGE" = "Unknown" ] || [ -z "$LANGUAGE" ]; then
+    echo "Warning: Could not detect language, using default"
+    LANGUAGE="Go"  # or your preferred default
+fi
+
+coding-context -p language="$LANGUAGE" my-task
+```
+
 **One-liner version:**
 
 ```bash
@@ -1175,12 +1191,18 @@ coding-context -p language="$(gh api repos/$(git config --get remote.origin.url 
 These can all be passed as parameters:
 ```bash
 coding-context \
-  -p language="$(gh api repos/owner/repo/languages | jq -r 'to_entries | sort_by(-.value) | .[0].key')" \
+  -p language="$(gh api repos/$(git config --get remote.origin.url | sed -E 's#.*/([^/]+/[^/]+)$#\1#' | sed 's/\.git$//')/languages | jq -r 'to_entries | sort_by(-.value) | .[0].key')" \
   -p repo="$(basename $(git rev-parse --show-toplevel))" \
   -p branch="$(git branch --show-current)" \
   -p commit="$(git rev-parse --short HEAD)" \
   my-task
 ```
+
+**Notes:**
+- The language detection works with both HTTPS (`https://github.com/owner/repo`) and SSH (`git@github.com:owner/repo.git`) remote URL formats
+- If the repository has no detected languages, `jq` will return `null`. You can add `// "Unknown"` to provide a default: `jq -r '... | .[0].key // "Unknown"'`
+- For private repositories, ensure you're authenticated with `gh auth login`
+- If the API call fails, the command will fail. Add error handling if needed for automation scripts
 
 ### Directory Priority
 
