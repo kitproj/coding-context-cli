@@ -1200,9 +1200,9 @@ coding-context \
 
 **Notes:**
 - The language detection works with both HTTPS (`https://github.com/owner/repo`) and SSH (`git@github.com:owner/repo.git`) remote URL formats
-- If the repository has no detected languages, `jq` will return `null`. You can add `// "Unknown"` to provide a default: `jq -r '... | .[0].key // "Unknown"'`
+- If the repository has no detected languages, `jq` will return `null`. You can add `// "Unknown"` to provide a default value in the jq query
 - For private repositories, ensure you're authenticated with `gh auth login`
-- If the API call fails, the command will fail. Add error handling if needed for automation scripts
+- If the API call fails, the command will fail. Add error handling if needed for automation scripts (see the error handling example above)
 
 ### Directory Priority
 
