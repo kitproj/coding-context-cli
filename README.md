@@ -1178,23 +1178,10 @@ coding-context -p language="$(gh repo view --json primaryLanguage --jq .primaryL
 
 **Other common parameters you can determine:**
 
-**From git:**
 - **Repository name**: `REPO_NAME=$(basename $(git rev-parse --show-toplevel))`
 - **Current branch**: `BRANCH=$(git branch --show-current)`
 - **Latest commit**: `COMMIT=$(git rev-parse --short HEAD)`
 - **Author**: `AUTHOR=$(git config user.name)`
-
-**From GitHub via `gh repo view`:**
-- **Repository description**: `DESCRIPTION=$(gh repo view --json description --jq .description)`
-- **License**: `LICENSE=$(gh repo view --json licenseInfo --jq .licenseInfo.name)`
-- **Topics/tags**: `TOPICS=$(gh repo view --json repositoryTopics --jq '.repositoryTopics[].topic.name' | tr '\n' ',')`
-- **Default branch**: `DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)`
-- **Owner**: `OWNER=$(gh repo view --json owner --jq .owner.login)`
-- **Full repo name**: `FULL_NAME=$(gh repo view --json nameWithOwner --jq .nameWithOwner)`
-- **Latest release**: `LATEST_RELEASE=$(gh repo view --json latestRelease --jq .latestRelease.tagName)`
-- **Homepage URL**: `HOMEPAGE=$(gh repo view --json homepageUrl --jq .homepageUrl)`
-- **Is private**: `IS_PRIVATE=$(gh repo view --json isPrivate --jq .isPrivate)`
-- **Is fork**: `IS_FORK=$(gh repo view --json isFork --jq .isFork)`
 
 These can all be passed as parameters:
 ```bash
@@ -1203,8 +1190,6 @@ coding-context \
   -p repo="$(basename $(git rev-parse --show-toplevel))" \
   -p branch="$(git branch --show-current)" \
   -p commit="$(git rev-parse --short HEAD)" \
-  -p license="$(gh repo view --json licenseInfo --jq .licenseInfo.name)" \
-  -p owner="$(gh repo view --json owner --jq .owner.login)" \
   my-task
 ```
 
