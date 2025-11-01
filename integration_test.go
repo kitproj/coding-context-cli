@@ -1181,7 +1181,7 @@ Please help.
 	cmd = exec.Command(binaryPath, "-r", personasDir, "-t", tasksDir, "-o", outputDir, "test-task", "nonexistent")
 	cmd.Dir = tmpDir
 	output, err := cmd.CombinedOutput()
-	
+
 	// Should error
 	if err == nil {
 		t.Errorf("Expected error when persona file not found, but command succeeded")
@@ -1708,4 +1708,3 @@ func TestMemoryDeduplicationNoReplacement(t *testing.T) {
 		t.Errorf("Expected Memory 2 to be included")
 	}
 }
-

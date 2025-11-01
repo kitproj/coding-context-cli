@@ -100,7 +100,7 @@ func run(ctx context.Context, args []string) error {
 	if err := os.Chdir(workDir); err != nil {
 		return fmt.Errorf("failed to chdir to %s: %w", workDir, err)
 	}
-  
+
 	// Add task name to includes so memories can be filtered by task
 	taskName := args[0]
 	includes["task_name"] = taskName
@@ -245,7 +245,7 @@ func run(ctx context.Context, args []string) error {
 	for _, mf := range memoryFiles {
 		// Get the base filename (without directory path)
 		baseFilename := filepath.Base(mf.path)
-		
+
 		// Check if this file is replaced by another
 		if replacedFiles[baseFilename] {
 			fmt.Fprintf(os.Stdout, "Excluding memory file (replaced by another memory): %s\n", mf.path)
