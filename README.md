@@ -1174,29 +1174,6 @@ coding-context -p language="$(gh repo view --json primaryLanguage --jq .primaryL
 **Prerequisites:**
 - Install GitHub CLI: `brew install gh` (macOS) or `sudo apt install gh` (Ubuntu)
 - Authenticate: `gh auth login`
-- Install jq for JSON parsing: `brew install jq` or `sudo apt install jq`
-
-**Other common parameters you can determine:**
-
-- **Repository name**: `REPO_NAME=$(basename $(git rev-parse --show-toplevel))`
-- **Current branch**: `BRANCH=$(git branch --show-current)`
-- **Latest commit**: `COMMIT=$(git rev-parse --short HEAD)`
-- **Author**: `AUTHOR=$(git config user.name)`
-
-These can all be passed as parameters:
-```bash
-coding-context \
-  -p language="$(gh repo view --json primaryLanguage --jq .primaryLanguage.name)" \
-  -p repo="$(basename $(git rev-parse --show-toplevel))" \
-  -p branch="$(git branch --show-current)" \
-  -p commit="$(git rev-parse --short HEAD)" \
-  my-task
-```
-
-**Notes:**
-- If the repository has no detected language, the command will return `null`. Check for this in your scripts (see the error handling example above)
-- For private repositories, ensure you're authenticated with `gh auth login`
-- If the API call fails, the command will fail. Add error handling if needed for automation scripts (see the error handling example above)
 
 ### Directory Priority
 
