@@ -1338,8 +1338,8 @@ Complete this task with high quality.`
 	if !strings.Contains(outputStr, "Including memory file:") {
 		t.Errorf("Expected memory file message in output")
 	}
-	if !strings.Contains(outputStr, "Using prompt file:") {
-		t.Errorf("Expected prompt file message in output")
+	if !strings.Contains(outputStr, "Using task file:") {
+		t.Errorf("Expected task file message in output")
 	}
 	if !strings.Contains(outputStr, "Total estimated tokens:") {
 		t.Errorf("Expected total token count in output")

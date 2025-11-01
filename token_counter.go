@@ -10,10 +10,5 @@ import (
 func estimateTokens(text string) int {
 	charCount := utf8.RuneCountInString(text)
 	// Approximate: 1 token ≈ 4 characters
-	tokens := charCount / 4
-	if tokens == 0 && charCount > 0 {
-		// Ensure we count at least 1 token for non-empty text
-		tokens = 1
-	}
-	return tokens
+	return charCount / 4
 }

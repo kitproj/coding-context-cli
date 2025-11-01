@@ -16,7 +16,7 @@ func TestEstimateTokens(t *testing.T) {
 		{
 			name: "short text",
 			text: "Hi",
-			want: 1, // 2 chars / 4 = 0, but we ensure at least 1 for non-empty
+			want: 0, // 2 chars / 4 = 0
 		},
 		{
 			name: "simple sentence",

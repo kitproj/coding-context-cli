@@ -279,7 +279,7 @@ func run(ctx context.Context, args []string) error {
 		// Estimate tokens for this file
 		tokens := estimateTokens(expanded)
 		totalTokens += tokens
-		fmt.Fprintf(os.Stdout, "Using prompt file: %s (~%d tokens)\n", path, tokens)
+		fmt.Fprintf(os.Stdout, "Using task file: %s (~%d tokens)\n", path, tokens)
 
 		if _, err := output.WriteString(expanded); err != nil {
 			return fmt.Errorf("failed to write expanded prompt: %w", err)
