@@ -36,8 +36,8 @@ func reorderArgs(args []string) []string {
 	// Build a set of boolean flags by inspecting the flag package
 	boolFlags := make(map[string]bool)
 	flag.VisitAll(func(f *flag.Flag) {
-		// Check if the flag's value is a boolean type
-		if _, ok := f.Value.(interface{ IsBoolFlag() bool }); ok {
+		// Check if the flag's value implements IsBoolFlag and returns true
+		if bf, ok := f.Value.(interface{ IsBoolFlag() bool }); ok && bf.IsBoolFlag() {
 			boolFlags["-"+f.Name] = true
 		}
 	})
