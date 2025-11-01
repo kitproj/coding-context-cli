@@ -172,7 +172,7 @@ func run(ctx context.Context, args []string) error {
 		}
 	}
 
-	var memoryNames = make(map[string]bool)
+	memoryNames := make(map[string]bool)
 
 	for _, memory := range memories {
 
