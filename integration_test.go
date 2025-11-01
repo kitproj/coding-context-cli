@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -638,52 +639,50 @@ Missing var: ${missingVar}
 }
 
 func TestBootstrapFlag(t *testing.T) {
-// Build the binary
-binaryPath := filepath.Join(t.TempDir(), "coding-context")
-cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-if output, err := cmd.CombinedOutput(); err != nil {
-t.Fatalf("failed to build binary: %v\n%s", err, output)
-}
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
 
-// Create a temporary directory structure
-tmpDir := t.TempDir()
-contextDir := filepath.Join(tmpDir, ".prompts")
-memoriesDir := filepath.Join(contextDir, "memories")
-tasksDir := filepath.Join(contextDir, "tasks")
-outputDir := filepath.Join(tmpDir, "output")
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	memoriesDir := filepath.Join(contextDir, "memories")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
 
-if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-t.Fatalf("failed to create memories dir: %v", err)
-}
-if err := os.MkdirAll(tasksDir, 0755); err != nil {
-t.Fatalf("failed to create tasks dir: %v", err)
-}
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
 
-// Create a memory file
-memoryFile := filepath.Join(memoriesDir, "setup.md")
-memoryContent := `---
+	// Create a memory file
+	memoryFile := filepath.Join(memoriesDir, "setup.md")
+	memoryContent := `---
 ---
 # Setup
 
 This is a setup guide.
 `
-if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
-t.Fatalf("failed to write memory file: %v", err)
-}
+	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
 
-// Create a bootstrap file that creates a marker file
-bootstrapFile := filepath.Join(memoriesDir, "setup-bootstrap")
-markerFile := filepath.Join(outputDir, "bootstrap-ran.txt")
-bootstrapContent := `#!/bin/bash
-echo "Bootstrap executed" > ` + markerFile + `
-`
-if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0755); err != nil {
-t.Fatalf("failed to write bootstrap file: %v", err)
-}
+	// Create a bootstrap file that creates a marker file
+	bootstrapFile := filepath.Join(memoriesDir, "setup-bootstrap")
+	markerFile := filepath.Join(outputDir, "bootstrap-ran.txt")
+	bootstrapContent := fmt.Sprintf("#!/bin/bash\nprintf 'Bootstrap executed\\n' > %q\n", markerFile)
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0755); err != nil {
+		t.Fatalf("failed to write bootstrap file: %v", err)
+	}
 
-// Create a prompt file
-promptFile := filepath.Join(tasksDir, "test-task.md")
-promptContent := `---
+	// Create a prompt file
+	promptFile := filepath.Join(tasksDir, "test-task.md")
+	promptContent := `---
 ---
 # Test Task
 
@@ -750,19 +749,17 @@ if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
 t.Fatalf("failed to write memory file: %v", err)
 }
 
-// Create a bootstrap file that creates a marker file
-bootstrapFile := filepath.Join(memoriesDir, "setup-bootstrap")
-markerFile := filepath.Join(outputDir, "bootstrap-ran.txt")
-bootstrapContent := `#!/bin/bash
-echo "Bootstrap executed" > ` + markerFile + `
-`
-if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0755); err != nil {
-t.Fatalf("failed to write bootstrap file: %v", err)
-}
+	// Create a bootstrap file that creates a marker file
+	bootstrapFile := filepath.Join(memoriesDir, "setup-bootstrap")
+	markerFile := filepath.Join(outputDir, "bootstrap-ran.txt")
+	bootstrapContent := fmt.Sprintf("#!/bin/bash\nprintf 'Bootstrap executed\\n' > %q\n", markerFile)
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0755); err != nil {
+		t.Fatalf("failed to write bootstrap file: %v", err)
+	}
 
-// Create a prompt file
-promptFile := filepath.Join(tasksDir, "test-task.md")
-promptContent := `---
+	// Create a prompt file
+	promptFile := filepath.Join(tasksDir, "test-task.md")
+	promptContent := `---
 ---
 # Test Task
 
@@ -903,11 +900,10 @@ This is a setup guide.
 	}
 
 	// Create a marker file path and bootstrap that creates it
-	// Write the file from Go to avoid shell escaping issues
 	bootstrapFile := filepath.Join(memoriesDir, "setup-bootstrap")
 	markerFile := filepath.Join(outputDir, "bootstrap-ran.txt")
-	// Create the bootstrap script that writes to the marker file safely
-	bootstrapContent := "#!/bin/bash\necho \"Bootstrap executed\" > \"" + markerFile + "\"\n"
+	// Use printf to avoid shell escaping issues - %q provides proper shell quoting
+	bootstrapContent := fmt.Sprintf("#!/bin/bash\nprintf 'Bootstrap executed\\n' > %q\n", markerFile)
 	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0755); err != nil {
 		t.Fatalf("failed to write bootstrap file: %v", err)
 	}
