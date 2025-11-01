@@ -1134,6 +1134,54 @@ $variableName      # Simple variable substitution (works with alphanumeric names
 
 Variables that are not provided via `-p` flag are replaced with empty strings.
 
+### Determining Common Parameters
+
+You can automate the detection of common parameters like `language` using external tools. Here's an example using the GitHub CLI (`gh`) to determine the primary programming language via GitHub Linguist:
+
+**Example: Automatically detect language using GitHub Linguist**
+
+```bash
+# Get the repository owner/name from git remote
+REPO=$(git config --get remote.origin.url | sed -E 's#.*/([^/]+/[^/]+)$#\1#' | sed 's/\.git$//')
+
+# Use gh API to get language data (returns languages with byte counts)
+# The primary language is the one with the most bytes
+LANGUAGE=$(gh api repos/$REPO/languages | jq -r 'to_entries | sort_by(-.value) | .[0].key')
+
+# Use the detected language with coding-context
+coding-context -p language="$LANGUAGE" my-task
+```
+
+This works because GitHub uses Linguist to analyze repository languages. The API returns a JSON object where keys are language names and values are byte counts. The example extracts the language with the highest byte count as the primary language.
+
+**One-liner version:**
+
+```bash
+coding-context -p language="$(gh api repos/$(git config --get remote.origin.url | sed -E 's#.*/([^/]+/[^/]+)$#\1#' | sed 's/\.git$//')/languages | jq -r 'to_entries | sort_by(-.value) | .[0].key')" my-task
+```
+
+**Prerequisites:**
+- Install GitHub CLI: `brew install gh` (macOS) or `sudo apt install gh` (Ubuntu)
+- Authenticate: `gh auth login`
+- Install jq for JSON parsing: `brew install jq` or `sudo apt install jq`
+
+**Other common parameters you can determine:**
+
+- **Repository name**: `REPO_NAME=$(basename $(git rev-parse --show-toplevel))`
+- **Current branch**: `BRANCH=$(git branch --show-current)`
+- **Latest commit**: `COMMIT=$(git rev-parse --short HEAD)`
+- **Author**: `AUTHOR=$(git config user.name)`
+
+These can all be passed as parameters:
+```bash
+coding-context \
+  -p language="$(gh api repos/owner/repo/languages | jq -r 'to_entries | sort_by(-.value) | .[0].key')" \
+  -p repo="$(basename $(git rev-parse --show-toplevel))" \
+  -p branch="$(git branch --show-current)" \
+  -p commit="$(git rev-parse --short HEAD)" \
+  my-task
+```
+
 ### Directory Priority
 
 When the same task exists in multiple directories, the first match wins:
