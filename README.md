@@ -77,8 +77,8 @@ coding-context [options] <task-name> [persona-name]
 Options:
   -b                Automatically run the bootstrap script after generating it
   -m <path>         Directory containing memories, or a single memory file (can be used multiple times)
-                    Defaults: AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, .cursorrules, 
-                              .cursor/rules/, .instructions.md, .continuerules, .prompts/memories, 
+                    Defaults: AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, .cursorrules,
+                              .cursor/rules/, .instructions.md, .continuerules, .prompts/memories,
                               ~/.config/prompts/memories, /var/local/prompts/memories
   -r <path>         Directory containing personas, or a single persona file (can be used multiple times)
                     Defaults: .prompts/personas, ~/.config/prompts/personas, /var/local/prompts/personas
@@ -227,8 +227,6 @@ Optional persona files define the role or character the AI agent should assume. 
 
 **Example** (`.prompts/personas/expert.md`):
 ```markdown
----
----
 # Expert Software Engineer
 
 You are an expert software engineer with deep knowledge of best practices.
@@ -459,9 +457,6 @@ The `kitproj/jira-cli` tool allows agents to interact with Jira issues programma
 **Step 1: Create a memory file with Jira context** (`.prompts/memories/jira.md`)
 
 ```markdown
----
-tools: jira
----
 # Jira Integration
 
 This project uses Jira for issue tracking. The `jira` CLI tool is available for interacting with issues.
@@ -487,24 +482,11 @@ The Jira CLI is configured with:
 #!/bin/bash
 set -euo pipefail
 
-# Install jira-cli if not already installed
-if ! command -v jira &> /dev/null; then
-    echo "Installing jira-cli..."
-    
-    # Download and install the latest version
-    VERSION="v0.1.0"  # Update to the latest version
-    BINARY_URL="https://github.com/kitproj/jira-cli/releases/download/${VERSION}/jira-cli_${VERSION}_linux_amd64"
-    
-    sudo curl -fsSL -o /usr/local/bin/jira "$BINARY_URL"
-    sudo chmod +x /usr/local/bin/jira
-    
-    echo "jira-cli installed successfully"
-else
-    echo "jira-cli is already installed"
-fi
+VERSION="v0.1.0"  # Update to the latest version
+BINARY_URL="https://github.com/kitproj/jira-cli/releases/download/${VERSION}/jira-cli_${VERSION}_linux_amd64"
 
-# Verify installation
-jira --version
+sudo curl -fsSL -o /usr/local/bin/jira "$BINARY_URL"
+sudo chmod +x /usr/local/bin/jira
 ```
 
 **Step 3: Make the bootstrap script executable**
@@ -517,10 +499,7 @@ chmod +x .prompts/memories/jira-bootstrap
 
 ```bash
 # The bootstrap will automatically run when you generate context
-coding-context -p storyId="PROJ-123" implement-jira-story
-
-# This creates ./bootstrap which installs jira-cli when executed
-./bootstrap
+coding-context -b -p storyId="PROJ-123" implement-jira-story
 ```
 
 Now when an agent starts work, the bootstrap script will ensure `jira-cli` is installed and ready to use!
@@ -532,9 +511,6 @@ The `kitproj/slack-cli` tool allows agents to send notifications and interact wi
 **Step 1: Create a memory file with Slack context** (`.prompts/memories/slack.md`)
 
 ```markdown
----
-tools: slack
----
 # Slack Integration
 
 This project uses Slack for team communication. The `slack` CLI tool is available for sending messages and notifications.
@@ -567,24 +543,11 @@ The Slack CLI requires:
 #!/bin/bash
 set -euo pipefail
 
-# Install slack-cli if not already installed
-if ! command -v slack &> /dev/null; then
-    echo "Installing slack-cli..."
-    
-    # Download and install the latest version
-    VERSION="v0.1.0"  # Update to the latest version
-    BINARY_URL="https://github.com/kitproj/slack-cli/releases/download/${VERSION}/slack-cli_${VERSION}_linux_amd64"
-    
-    sudo curl -fsSL -o /usr/local/bin/slack "$BINARY_URL"
-    sudo chmod +x /usr/local/bin/slack
-    
-    echo "slack-cli installed successfully"
-else
-    echo "slack-cli is already installed"
-fi
+VERSION="v0.1.0"  # Update to the latest version
+BINARY_URL="https://github.com/kitproj/slack-cli/releases/download/${VERSION}/slack-cli_${VERSION}_linux_amd64"
 
-# Verify installation
-slack --version
+sudo curl -fsSL -o /usr/local/bin/slack "$BINARY_URL"
+sudo chmod +x /usr/local/bin/slack
 ```
 
 **Step 3: Make the bootstrap script executable**
@@ -680,8 +643,6 @@ Here are some practical task templates for common development workflows:
 
 ```bash
 cat > .prompts/tasks/implement-jira-story.md << 'EOF'
----
----
 # Implement Jira Story: ${storyId}
 
 ## Story Details
@@ -738,8 +699,6 @@ coding-context -p storyId="PROJ-123" implement-jira-story
 
 ```bash
 cat > .prompts/tasks/triage-jira-bug.md << 'EOF'
----
----
 # Triage Jira Bug: ${bugId}
 
 ## Get Bug Details
@@ -794,8 +753,6 @@ coding-context -p bugId="PROJ-456" triage-jira-bug
 
 ```bash
 cat > .prompts/tasks/respond-to-jira-comment.md << 'EOF'
----
----
 # Respond to Jira Comment: ${issueId}
 
 ## Get Issue and Comments
@@ -845,8 +802,6 @@ coding-context -p issueId="PROJ-789" respond-to-jira-comment
 
 ```bash
 cat > .prompts/tasks/notify-build-status.md << 'EOF'
----
----
 # Notify Build Status: ${buildStatus}
 
 ## Task
@@ -909,8 +864,6 @@ coding-context -p buildStatus="SUCCESS" -p branch="main" -p commit="abc123" -p b
 
 ```bash
 cat > .prompts/tasks/notify-deployment.md << 'EOF'
----
----
 # Notify Deployment: ${environment}
 
 ## Task
@@ -974,8 +927,6 @@ coding-context -p environment="production" -p version="v2.1.0" -p deployer="depl
 
 ```bash
 cat > .prompts/tasks/review-pull-request.md << 'EOF'
----
----
 # Review Pull Request: ${prNumber}
 
 ## PR Details
@@ -1028,8 +979,6 @@ coding-context -p prNumber="42" -p author="Jane" -p title="Add feature X" review
 
 ```bash
 cat > .prompts/tasks/respond-to-pull-request-comment.md << 'EOF'
----
----
 # Respond to Pull Request Comment
 
 ## PR Details
@@ -1074,8 +1023,6 @@ coding-context -p prNumber="42" -p reviewer="Bob" -p file="main.go" -p comment="
 
 ```bash
 cat > .prompts/tasks/fix-failing-check.md << 'EOF'
----
----
 # Fix Failing Check: ${checkName}
 
 ## Check Details
@@ -1205,4 +1152,3 @@ coding-context -p myvar="value" my-task
 ```bash
 chmod +x bootstrap
 ```
-
