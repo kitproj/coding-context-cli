@@ -130,6 +130,24 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			frontmatter: map[string]string{},
 			wantMatch:   true,
 		},
+		{
+			name:        "task_name include - match",
+			selectors:   []string{"task_name=deploy"},
+			frontmatter: map[string]string{"task_name": "deploy"},
+			wantMatch:   true,
+		},
+		{
+			name:        "task_name include - no match",
+			selectors:   []string{"task_name=deploy"},
+			frontmatter: map[string]string{"task_name": "test"},
+			wantMatch:   false,
+		},
+		{
+			name:        "task_name include - key missing (allowed)",
+			selectors:   []string{"task_name=deploy"},
+			frontmatter: map[string]string{"env": "production"},
+			wantMatch:   true,
+		},
 	}
 
 	for _, tt := range tests {

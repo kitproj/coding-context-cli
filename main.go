@@ -87,6 +87,10 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("invalid usage")
 	}
 
+	// Add task name to includes so memories can be filtered by task
+	taskName := args[0]
+	includes["task_name"] = taskName
+
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
@@ -173,8 +177,6 @@ func run(ctx context.Context, args []string) error {
 	if err := os.WriteFile(filepath.Join(outputDir, "bootstrap"), []byte(bootstrap), 0755); err != nil {
 		return fmt.Errorf("failed to write bootstrap file: %w", err)
 	}
-
-	taskName := args[0]
 
 	for _, path := range tasks {
 		stat, err := os.Stat(path)
