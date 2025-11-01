@@ -130,6 +130,8 @@ func run(ctx context.Context, args []string) error {
 				path = filepath.Join(path, personaName+".md")
 				if _, err := os.Stat(path); os.IsNotExist(err) {
 					continue
+				} else if err != nil {
+					return fmt.Errorf("failed to stat persona file %s: %w", path, err)
 				}
 			}
 
@@ -243,6 +245,8 @@ func run(ctx context.Context, args []string) error {
 			path = filepath.Join(path, taskName+".md")
 			if _, err := os.Stat(path); os.IsNotExist(err) {
 				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to stat task file %s: %w", path, err)
 			}
 		}
 
