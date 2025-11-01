@@ -66,7 +66,7 @@ Please help with this task.
 	}
 
 	// Run the binary
-	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "test-task")
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -158,7 +158,7 @@ echo "Setting up Jira"
 	}
 
 	// Run the binary
-	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "test-task")
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -243,7 +243,7 @@ Please help with this task.
 	}
 
 	// Run the binary
-	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "test-task")
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -310,7 +310,7 @@ func TestMultipleBootstrapFiles(t *testing.T) {
 	}
 
 	// Run the binary
-	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "test-task")
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -370,7 +370,7 @@ func TestSelectorFiltering(t *testing.T) {
 	}
 
 	// Test 1: Include by env=production
-	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-s", "env=production", "test-task")
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-s", "env=production", "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -400,7 +400,7 @@ func TestSelectorFiltering(t *testing.T) {
 	os.RemoveAll(outputDir)
 
 	// Test 2: Include by language=go (should include prod and test, and nofm)
-	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-s", "language=go", "test-task")
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-s", "language=go", "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -428,7 +428,7 @@ func TestSelectorFiltering(t *testing.T) {
 	os.RemoveAll(outputDir)
 
 	// Test 3: Exclude by env=production (should include dev and test, and nofm)
-	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-S", "env=production", "test-task")
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-S", "env=production", "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -456,7 +456,7 @@ func TestSelectorFiltering(t *testing.T) {
 	os.RemoveAll(outputDir)
 
 	// Test 4: Multiple includes env=production language=go (should include only prod and nofm)
-	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-s", "env=production", "-s", "language=go", "test-task")
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-s", "env=production", "-s", "language=go", "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -484,7 +484,7 @@ func TestSelectorFiltering(t *testing.T) {
 	os.RemoveAll(outputDir)
 
 	// Test 5: Mix of include and exclude -s env=production -S language=python (should include only prod with go)
-	cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-s", "env=production", "-S", "language=python", "test-task")
+	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-s", "env=production", "-S", "language=python", "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -543,7 +543,7 @@ The project is for $company.
 
 	// Run the binary with parameters
 	cmd = exec.Command(binaryPath, 
-		"-d", contextDir, 
+		"-t", tasksDir, 
 		"-o", outputDir,
 		"-p", "taskName=AddAuth",
 		"-p", "feature=Authentication",
@@ -608,7 +608,7 @@ Missing var: ${missingVar}
 
 	// Run the binary with only one parameter
 	cmd = exec.Command(binaryPath, 
-		"-d", contextDir, 
+		"-t", tasksDir, 
 		"-o", outputDir,
 		"-p", "providedVar=ProvidedValue",
 		"test-missing")
@@ -694,7 +694,7 @@ t.Fatalf("failed to write prompt file: %v", err)
 }
 
 // Run the binary WITH the -b flag
-cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-b", "test-task")
+cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-b", "test-task")
 cmd.Dir = tmpDir
 if output, err := cmd.CombinedOutput(); err != nil {
 t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -773,7 +773,7 @@ t.Fatalf("failed to write prompt file: %v", err)
 }
 
 // Run the binary WITHOUT the -b flag
-cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "test-task")
+cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
 cmd.Dir = tmpDir
 if output, err := cmd.CombinedOutput(); err != nil {
 t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -842,7 +842,7 @@ t.Fatalf("failed to write prompt file: %v", err)
 }
 
 // Run the binary WITH the -b flag and send interrupt signal
-cmd = exec.Command(binaryPath, "-d", contextDir, "-o", outputDir, "-b", "test-task")
+cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-b", "test-task")
 cmd.Dir = tmpDir
 
 // Start the command

@@ -18,12 +18,13 @@ import (
 var bootstrap string
 
 var (
-	dirs           stringSlice
-	outputDir      = "."
-	params         = make(paramMap)
-	includes       = make(selectorMap)
-	excludes       = make(selectorMap)
-	runBootstrap   bool
+	memories     stringSlice
+	tasks        stringSlice
+	outputDir    = "."
+	params       = make(paramMap)
+	includes     = make(selectorMap)
+	excludes     = make(selectorMap)
+	runBootstrap bool
 )
 
 func main() {
@@ -36,13 +37,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	dirs = []string{
-		".prompts",
-		filepath.Join(userConfigDir, "prompts"),
-		"/var/local/prompts",
+	memories = []string{
+		"AGENTS.md",
+		".github/copilot-instructions.md",
+		"CLAUDE.md",
+		".cursorrules",
+		".cursor/rules/",
+		".instructions.md",
+		".continuerules",
+		".prompts/memories",
+		filepath.Join(userConfigDir, "prompts", "memories"),
+		"/var/local/prompts/memories",
 	}
 
-	flag.Var(&dirs, "d", "Directory to include in the context. Can be specified multiple times.")
+	tasks = []string{
+		".prompts/tasks",
+		filepath.Join(userConfigDir, "prompts", "tasks"),
+		"/var/local/prompts/tasks",
+	}
+
+	flag.Var(&memories, "m", "Directory containing memories, or a single memory file. Can be specified multiple times.")
+	flag.Var(&tasks, "t", "Directory containing tasks, or a single task file. Can be specified multiple times.")
 	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include memories with matching frontmatter. Can be specified multiple times as key=value.")
@@ -87,15 +102,14 @@ func run(ctx context.Context, args []string) error {
 	}
 	defer output.Close()
 
-	for _, dir := range dirs {
-		memoryDir := filepath.Join(dir, "memories")
+	for _, memory := range memories {
 
-		// Skip if the directory doesn't exist
-		if _, err := os.Stat(memoryDir); os.IsNotExist(err) {
+		// Skip if the path doesn't exist
+		if _, err := os.Stat(memory); os.IsNotExist(err) {
 			continue
 		}
 
-		err := filepath.Walk(memoryDir, func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(memory, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -161,53 +175,62 @@ func run(ctx context.Context, args []string) error {
 	}
 
 	taskName := args[0]
-	for _, dir := range dirs {
-		promptFile := filepath.Join(dir, "tasks", taskName+".md")
 
-		if _, err := os.Stat(promptFile); err == nil {
-			fmt.Fprintf(os.Stdout, "Using prompt file: %s\n", promptFile)
-
-			content, err := parseMarkdownFile(promptFile, &struct{}{})
-			if err != nil {
-				return fmt.Errorf("failed to parse prompt file: %w", err)
-			}
-
-			expanded := os.Expand(content, func(key string) string {
-				if val, ok := params[key]; ok {
-					return val
-				}
-				return ""
-			})
-
-			if _, err := output.WriteString(expanded); err != nil {
-				return fmt.Errorf("failed to write expanded prompt: %w", err)
-			}
-
-			// Run bootstrap if requested
-			if runBootstrap {
-				bootstrapPath := filepath.Join(outputDir, "bootstrap")
-
-				// Convert to absolute path
-				absBootstrapPath, err := filepath.Abs(bootstrapPath)
-				if err != nil {
-					return fmt.Errorf("failed to get absolute path for bootstrap script: %w", err)
-				}
-
-				fmt.Fprintf(os.Stdout, "Running bootstrap script: %s\n", absBootstrapPath)
-
-				cmd := exec.CommandContext(ctx, absBootstrapPath)
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				cmd.Dir = outputDir
-
-				if err := cmd.Run(); err != nil {
-					return fmt.Errorf("failed to run bootstrap script: %w", err)
-				}
-			}
-
-			return nil
-
+	for _, path := range tasks {
+		stat, err := os.Stat(path)
+		if os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return fmt.Errorf("failed to stat task path %s: %w", path, err)
 		}
+		if stat.IsDir() {
+			path = filepath.Join(path, taskName+".md")
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				continue
+			}
+		}
+
+		fmt.Fprintf(os.Stdout, "Using prompt file: %s\n", path)
+
+		content, err := parseMarkdownFile(path, &struct{}{})
+		if err != nil {
+			return fmt.Errorf("failed to parse prompt file: %w", err)
+		}
+
+		expanded := os.Expand(content, func(key string) string {
+			if val, ok := params[key]; ok {
+				return val
+			}
+			return ""
+		})
+
+		if _, err := output.WriteString(expanded); err != nil {
+			return fmt.Errorf("failed to write expanded prompt: %w", err)
+		}
+
+		// Run bootstrap if requested
+		if runBootstrap {
+			bootstrapPath := filepath.Join(outputDir, "bootstrap")
+
+			// Convert to absolute path
+			absBootstrapPath, err := filepath.Abs(bootstrapPath)
+			if err != nil {
+				return fmt.Errorf("failed to get absolute path for bootstrap script: %w", err)
+			}
+
+			fmt.Fprintf(os.Stdout, "Running bootstrap script: %s\n", absBootstrapPath)
+
+			cmd := exec.CommandContext(ctx, absBootstrapPath)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Dir = outputDir
+
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("failed to run bootstrap script: %w", err)
+			}
+		}
+
+		return nil
 	}
 
 	return fmt.Errorf("prompt file not found for task: %s", taskName)

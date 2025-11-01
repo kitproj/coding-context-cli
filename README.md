@@ -82,17 +82,32 @@ coding-context [options] <task-name>
 
 Options:
   -b                Automatically run the bootstrap script after generating it
-  -d <directory>    Add a directory to include in the context (can be used multiple times)
-                    Default: .prompts, ~/.config/prompts, /var/local/prompts
+  -m <path>         Directory containing memories, or a single memory file (can be used multiple times)
+                    Defaults: AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, .cursorrules, 
+                              .cursor/rules/, .instructions.md, .continuerules, .prompts/memories, 
+                              ~/.config/prompts/memories, /var/local/prompts/memories
+  -t <path>         Directory containing tasks, or a single task file (can be used multiple times)
+                    Defaults: .prompts/tasks, ~/.config/prompts/tasks, /var/local/prompts/tasks
   -o <directory>    Output directory for generated files (default: .)
   -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
   -s <key=value>    Include memories with matching frontmatter (can be used multiple times)
   -S <key=value>    Exclude memories with matching frontmatter (can be used multiple times)
 ```
 
+**Important:** The task file name **MUST** match the task name you provide on the command line. For example, if you run `coding-context my-task`, the tool will look for `my-task.md` in the task directories.
+
 **Example:**
 ```bash
 coding-context -p feature="Authentication" -p language=Go add-feature
+```
+
+**Example with custom memory and task paths:**
+```bash
+# Specify explicit memory files or directories
+coding-context -m .github/copilot-instructions.md -m CLAUDE.md my-task
+
+# Specify custom task directory
+coding-context -t ./custom-tasks my-task
 ```
 
 **Example with selectors:**
@@ -130,6 +145,8 @@ Memory files are included in every generated context. They contain reusable info
 **Step 3: Create a prompt file** (`.prompts/tasks/my-task.md`)
 
 Prompt files define specific tasks. They can use template variables (like `${taskName}` or `$taskName`) that you provide via command-line parameters.
+
+**IMPORTANT:** The file name **MUST** match the task name you'll use on the command line. For example, a file named `my-task.md` is invoked with `coding-context my-task`.
 
 ```markdown
 # Task: ${taskName}
@@ -183,6 +200,10 @@ Each directory should contain:
 
 Markdown files with YAML frontmatter and Go template support.
 
+**CRITICAL:** The prompt file name (without the `.md` extension) **MUST** exactly match the task name you provide on the command line. For example:
+- To run `coding-context add-feature`, you need a file named `add-feature.md`
+- To run `coding-context my-custom-task`, you need a file named `my-custom-task.md`
+
 **Example** (`.prompts/tasks/add-feature.md`):
 ```markdown
 # Task: ${feature}
@@ -194,6 +215,8 @@ Run with:
 ```bash
 coding-context -p feature="User Login" -p language=Go add-feature
 ```
+
+This will look for `add-feature.md` in the task directories.
 
 ### Memory Files
 
@@ -217,6 +240,36 @@ npm install
 ```
 
 For each memory file `<name>.md`, you can optionally create a corresponding `<name>-bootstrap` file that will be executed during setup.
+
+### Supported Memory File Formats
+
+This tool can work with various memory file formats used by popular AI coding assistants. By default, it looks for `AGENTS.md` in the current directory. You can also specify additional memory files or directories using the `-m` flag.
+
+#### Common Memory File Names
+
+The following memory file formats are commonly used by AI coding assistants and can be used with this tool:
+
+- **`AGENTS.md`** - Default memory file (automatically included)
+- **`.github/copilot-instructions.md`** - GitHub Copilot instructions file
+- **`CLAUDE.md`** - Claude-specific instructions
+- **`.cursorrules`** - Cursor editor rules (if in Markdown format)
+- **`.cursor/rules/`** - Directory containing Cursor-specific rule files
+- **`.instructions.md`** - General instructions file
+- **`.continuerules`** - Continue.dev rules (if in Markdown format)
+
+**Example:** Using multiple memory sources
+```bash
+# Include GitHub Copilot instructions and CLAUDE.md
+coding-context -m .github/copilot-instructions.md -m CLAUDE.md my-task
+
+# Include all rules from Cursor directory
+coding-context -m .cursor/rules/ my-task
+
+# Combine default AGENTS.md with additional memories
+coding-context -m .instructions.md my-task
+```
+
+**Note:** All memory files should be in Markdown format (`.md` extension) or contain Markdown-compatible content. The tool will automatically process frontmatter in YAML format if present.
 
 
 ## Filtering Memories with Selectors
