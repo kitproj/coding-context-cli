@@ -87,13 +87,9 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("invalid usage")
 	}
 
-	// Extract task name early so it can be used as a built-in filter
+	// Add task name to params so it can be used as a filter
 	taskName := args[0]
-	
-	// Build the built-in filters map
-	builtins := map[string]string{
-		"task_name": taskName,
-	}
+	params["task_name"] = taskName
 
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
@@ -137,12 +133,12 @@ func run(ctx context.Context, args []string) error {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
 			}
 
-			// Check if file matches include and exclude selectors (with built-in filters)
-			if !includes.matchesIncludes(frontmatter, builtins) {
+			// Check if file matches include and exclude selectors
+			if !includes.matchesIncludes(frontmatter, params) {
 				fmt.Fprintf(os.Stdout, "Excluding memory file (does not match include selectors): %s\n", path)
 				return nil
 			}
-			if !excludes.matchesExcludes(frontmatter, builtins) {
+			if !excludes.matchesExcludes(frontmatter, params) {
 				fmt.Fprintf(os.Stdout, "Excluding memory file (matches exclude selectors): %s\n", path)
 				return nil
 			}

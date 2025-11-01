@@ -28,8 +28,8 @@ func (s *selectorMap) Set(value string) error {
 
 // matchesIncludes returns true if the frontmatter matches all include selectors
 // If a key doesn't exist in frontmatter, it's allowed
-// builtins is a map of built-in filter values (e.g., task_name)
-func (includes *selectorMap) matchesIncludes(frontmatter map[string]string, builtins map[string]string) bool {
+// params contains both user-provided parameters and built-in values like task_name
+func (includes *selectorMap) matchesIncludes(frontmatter map[string]string, params paramMap) bool {
 	for key, value := range *includes {
 		fmValue, exists := frontmatter[key]
 		// If key exists, it must match the value
@@ -39,12 +39,12 @@ func (includes *selectorMap) matchesIncludes(frontmatter map[string]string, buil
 		// If key doesn't exist, allow it
 	}
 	
-	// Check built-in filters (e.g., task_name)
-	// Built-in filters are automatically applied based on the context
-	for key, builtinValue := range builtins {
+	// Check params for automatic filtering (e.g., task_name)
+	// If frontmatter has a key that exists in params, it must match
+	for key, paramValue := range params {
 		fmValue, exists := frontmatter[key]
-		// If the built-in key exists in frontmatter, it must match the built-in value
-		if exists && fmValue != builtinValue {
+		// If the key exists in frontmatter, it must match the param value
+		if exists && fmValue != paramValue {
 			return false
 		}
 		// If key doesn't exist in frontmatter, allow it
@@ -55,8 +55,8 @@ func (includes *selectorMap) matchesIncludes(frontmatter map[string]string, buil
 
 // matchesExcludes returns true if the frontmatter doesn't match any exclude selectors
 // If a key doesn't exist in frontmatter, it's allowed
-// builtins is a map of built-in filter values (e.g., task_name) - not used for excludes
-func (excludes *selectorMap) matchesExcludes(frontmatter map[string]string, builtins map[string]string) bool {
+// params is not used for excludes - only explicit exclude selectors matter
+func (excludes *selectorMap) matchesExcludes(frontmatter map[string]string, params paramMap) bool {
 	for key, value := range *excludes {
 		fmValue, exists := frontmatter[key]
 		// If key exists and matches the value, exclude it
@@ -66,8 +66,8 @@ func (excludes *selectorMap) matchesExcludes(frontmatter map[string]string, buil
 		// If key doesn't exist, allow it
 	}
 	
-	// Built-in filters do not affect excludes - they only affect includes
-	// This allows built-in filters to act as automatic include filters only
+	// params are not used for excludes - they only affect includes
+	// This allows task_name and other params to act as automatic include filters only
 	
 	return true
 }
