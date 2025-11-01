@@ -26,7 +26,6 @@ var (
 	includes     = make(selectorMap)
 	excludes     = make(selectorMap)
 	runBootstrap bool
-	personaName  string
 )
 
 func main() {
@@ -65,20 +64,19 @@ func main() {
 	}
 
 	flag.Var(&memories, "m", "Directory containing memories, or a single memory file. Can be specified multiple times.")
-	flag.Var(&personas, "P", "Directory containing personas, or a single persona file. Can be specified multiple times.")
+	flag.Var(&personas, "r", "Directory containing personas, or a single persona file. Can be specified multiple times.")
 	flag.Var(&tasks, "t", "Directory containing tasks, or a single task file. Can be specified multiple times.")
 	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include memories with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Var(&excludes, "S", "Exclude memories with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.BoolVar(&runBootstrap, "b", false, "Automatically run the bootstrap script after generating it.")
-	flag.StringVar(&personaName, "persona", "", "Optional persona name to include first in the output.")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
 		fmt.Fprintf(w, "Usage:")
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  coding-context <task-name> ")
+		fmt.Fprintln(w, "  coding-context [options] <task-name> [persona-name]")
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "Options:")
 		flag.PrintDefaults()
@@ -100,6 +98,12 @@ func run(ctx context.Context, args []string) error {
 	// Add task name to includes so memories can be filtered by task
 	taskName := args[0]
 	includes["task_name"] = taskName
+
+	// Optional persona argument after task name
+	var personaName string
+	if len(args) > 1 {
+		personaName = args[1]
+	}
 
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
@@ -142,15 +146,9 @@ func run(ctx context.Context, args []string) error {
 				return fmt.Errorf("failed to parse persona file: %w", err)
 			}
 
-			expanded := os.Expand(content, func(key string) string {
-				if val, ok := params[key]; ok {
-					return val
-				}
-				return ""
-			})
-
-			if _, err := output.WriteString(expanded + "\n\n"); err != nil {
-				return fmt.Errorf("failed to write expanded persona: %w", err)
+			// Personas don't need variable expansion or filters
+			if _, err := output.WriteString(content + "\n\n"); err != nil {
+				return fmt.Errorf("failed to write persona: %w", err)
 			}
 
 			personaFound = true

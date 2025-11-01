@@ -987,13 +987,13 @@ func TestPersonaBasic(t *testing.T) {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a persona file
+	// Create a persona file (without template variables since personas don't expand them)
 	personaFile := filepath.Join(personasDir, "expert.md")
 	personaContent := `---
 ---
 # Expert Persona
 
-You are an expert in ${language}.
+You are an expert in Go.
 `
 	if err := os.WriteFile(personaFile, []byte(personaContent), 0644); err != nil {
 		t.Fatalf("failed to write persona file: %v", err)
@@ -1023,8 +1023,8 @@ Please help with ${feature}.
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
-	// Run with persona
-	cmd = exec.Command(binaryPath, "-P", personasDir, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-persona", "expert", "-p", "language=Go", "-p", "feature=auth", "test-task")
+	// Run with persona (persona is now a positional argument after task name)
+	cmd = exec.Command(binaryPath, "-r", personasDir, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-p", "feature=auth", "test-task", "expert")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -1062,10 +1062,11 @@ Please help with ${feature}.
 		t.Errorf("Context should appear before task. Context at %d, Task at %d", contextIdx, taskIdx)
 	}
 
-	// Verify template substitution
+	// Verify persona content is not expanded (no template substitution)
 	if !strings.Contains(contentStr, "You are an expert in Go") {
-		t.Errorf("Expected persona template to be expanded with language=Go")
+		t.Errorf("Expected persona content to remain as-is without template expansion")
 	}
+	// Verify task template substitution still works
 	if !strings.Contains(contentStr, "Please help with auth") {
 		t.Errorf("Expected task template to be expanded with feature=auth")
 	}
@@ -1176,8 +1177,8 @@ Please help.
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
-	// Run with non-existent persona (should fail)
-	cmd = exec.Command(binaryPath, "-P", personasDir, "-t", tasksDir, "-o", outputDir, "-persona", "nonexistent", "test-task")
+	// Run with non-existent persona (should fail) - persona is now a positional argument
+	cmd = exec.Command(binaryPath, "-r", personasDir, "-t", tasksDir, "-o", outputDir, "test-task", "nonexistent")
 	cmd.Dir = tmpDir
 	output, err := cmd.CombinedOutput()
 	
