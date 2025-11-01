@@ -867,3 +867,83 @@ if err == nil {
 t.Error("expected command to be interrupted, but it completed successfully")
 }
 }
+
+func TestBootstrapFlagAfterTaskName(t *testing.T) {
+// Build the binary
+binaryPath := filepath.Join(t.TempDir(), "coding-context")
+cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+if output, err := cmd.CombinedOutput(); err != nil {
+t.Fatalf("failed to build binary: %v\n%s", err, output)
+}
+
+// Create a temporary directory structure
+tmpDir := t.TempDir()
+contextDir := filepath.Join(tmpDir, ".prompts")
+memoriesDir := filepath.Join(contextDir, "memories")
+tasksDir := filepath.Join(contextDir, "tasks")
+outputDir := filepath.Join(tmpDir, "output")
+
+if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+t.Fatalf("failed to create memories dir: %v", err)
+}
+if err := os.MkdirAll(tasksDir, 0755); err != nil {
+t.Fatalf("failed to create tasks dir: %v", err)
+}
+
+// Create a memory file
+memoryFile := filepath.Join(memoriesDir, "setup.md")
+memoryContent := `---
+---
+# Setup
+
+This is a setup guide.
+`
+if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
+t.Fatalf("failed to write memory file: %v", err)
+}
+
+// Create a bootstrap file that creates a marker file
+bootstrapFile := filepath.Join(memoriesDir, "setup-bootstrap")
+markerFile := filepath.Join(outputDir, "bootstrap-ran.txt")
+bootstrapContent := `#!/bin/bash
+echo "Bootstrap executed" > ` + markerFile + `
+`
+if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0755); err != nil {
+t.Fatalf("failed to write bootstrap file: %v", err)
+}
+
+// Create a prompt file
+promptFile := filepath.Join(tasksDir, "test-task.md")
+promptContent := `---
+---
+# Test Task
+
+Please help with this task.
+`
+if err := os.WriteFile(promptFile, []byte(promptContent), 0644); err != nil {
+t.Fatalf("failed to write prompt file: %v", err)
+}
+
+// Run the binary with -b flag AFTER the task name (test-task -b)
+cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task", "-b")
+cmd.Dir = tmpDir
+if output, err := cmd.CombinedOutput(); err != nil {
+t.Fatalf("failed to run binary: %v\n%s", err, output)
+}
+
+// Check that the marker file was created (proving the bootstrap ran)
+if _, err := os.Stat(markerFile); os.IsNotExist(err) {
+t.Errorf("marker file was not created, bootstrap script did not run when -b flag was after task name")
+}
+
+// Verify the marker file content
+content, err := os.ReadFile(markerFile)
+if err != nil {
+t.Fatalf("failed to read marker file: %v", err)
+}
+expectedContent := "Bootstrap executed\n"
+if string(content) != expectedContent {
+t.Errorf("marker file content mismatch:\ngot: %q\nwant: %q", string(content), expectedContent)
+}
+}
+

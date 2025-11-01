@@ -27,6 +27,32 @@ var (
 	runBootstrap bool
 )
 
+// reorderArgs reorders command-line arguments to put flags before positional arguments.
+// This allows the flag package to parse flags that appear after the task name.
+func reorderArgs(args []string) []string {
+	var flags []string
+	var positional []string
+	
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if strings.HasPrefix(arg, "-") {
+			flags = append(flags, arg)
+			// Check if this flag takes a value (not a boolean flag)
+			// For flags like -m, -t, -o, -p, -s, -S, they take values
+			// For -b, it's a boolean flag
+			if arg != "-b" && i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				i++ // Move to the next argument (the value)
+				flags = append(flags, args[i])
+			}
+		} else {
+			positional = append(positional, arg)
+		}
+	}
+	
+	// Return flags first, then positional arguments
+	return append(flags, positional...)
+}
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -73,7 +99,12 @@ func main() {
 		fmt.Fprintln(w, "Options:")
 		flag.PrintDefaults()
 	}
-	flag.Parse()
+	
+	// Reorder os.Args to put flags before positional arguments
+	// This allows users to write "coding-context task-name -b" 
+	// instead of requiring "coding-context -b task-name"
+	reorderedArgs := reorderArgs(os.Args[1:])
+	flag.CommandLine.Parse(reorderedArgs)
 
 	if err := run(ctx, flag.Args()); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
