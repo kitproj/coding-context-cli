@@ -22,13 +22,13 @@ func parseMarkdownFile(path string, frontmatter any) (string, error) {
 
 	var content bytes.Buffer
 	var frontMatterBytes bytes.Buffer
-	
+
 	// State machine: 0 = unknown, 1 = scanning frontmatter, 2 = scanning content
 	state := 0
-	
+
 	for s.Scan() {
 		line := s.Text()
-		
+
 		switch state {
 		case 0: // State unknown - first line
 			if line == "---" {
@@ -53,17 +53,17 @@ func parseMarkdownFile(path string, frontmatter any) (string, error) {
 			}
 		}
 	}
-	
+
 	if err := s.Err(); err != nil {
 		return "", fmt.Errorf("failed to scan file: %w", err)
 	}
-	
+
 	// Parse frontmatter if we collected any
 	if frontMatterBytes.Len() > 0 {
 		if err := yaml.Unmarshal(frontMatterBytes.Bytes(), frontmatter); err != nil {
 			return "", fmt.Errorf("failed to unmarshal frontmatter: %w", err)
 		}
 	}
-	
+
 	return content.String(), nil
 }

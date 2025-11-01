@@ -261,7 +261,8 @@ func run(ctx context.Context, args []string) error {
 			if val, ok := params[key]; ok {
 				return val
 			}
-			return ""
+			// this might not exist, in that case, return the original text
+			return fmt.Sprintf("${%s}", key)
 		})
 
 		if _, err := output.WriteString(expanded); err != nil {
