@@ -18,7 +18,6 @@ import (
 var bootstrap string
 
 var (
-	dirs         stringSlice
 	memories     stringSlice
 	tasks        stringSlice
 	outputDir    = "."
@@ -38,17 +37,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	dirs = []string{
-		".prompts",
-		filepath.Join(userConfigDir, "prompts"),
-		"/var/local/prompts",
-	}
-
 	memories = []string{
 		"AGENTS.md",
+		".github/copilot-instructions.md",
+		"CLAUDE.md",
+		".cursorrules",
+		".cursor/rules/",
+		".instructions.md",
+		".continuerules",
+		".prompts/memories",
+		filepath.Join(userConfigDir, "prompts", "memories"),
+		"/var/local/prompts/memories",
 	}
 
-	flag.Var(&dirs, "d", "Directory that may contain a memories/ or tasks/ subdirectory. Can be specified multiple times.")
+	tasks = []string{
+		".prompts/tasks",
+		filepath.Join(userConfigDir, "prompts", "tasks"),
+		"/var/local/prompts/tasks",
+	}
+
 	flag.Var(&memories, "m", "Directory containing memories, or a single memory file. Can be specified multiple times.")
 	flag.Var(&tasks, "t", "Directory containing tasks, or a single task file. Can be specified multiple times.")
 	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
@@ -94,14 +101,6 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to create prompt file: %w", err)
 	}
 	defer output.Close()
-
-	for _, dir := range dirs {
-		// insert the dirs into the start of the list
-		memory := filepath.Join(dir, "memories")
-		memories = append([]string{memory}, memories...)
-		task := filepath.Join(dir, "tasks")
-		tasks = append([]string{task}, tasks...)
-	}
 
 	for _, memory := range memories {
 
