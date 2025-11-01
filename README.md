@@ -33,31 +33,31 @@ This tool is ideal for:
 
 The basic workflow is:
 
-1. **Organize your context** - Create memory files (shared context) and prompt files (task-specific instructions)
-2. **Run the CLI** - Execute `coding-context <task-name>` with optional parameters
+1. **Organize your context** - Create persona files (optional), memory files (shared context), and task files (task-specific instructions)
+2. **Run the CLI** - Execute `coding-context <task-name>` with optional `-persona` and parameters
 3. **Get assembled output** - The tool generates:
-   - `prompt.md` - Combined context + task prompt with template variables filled in
+   - `prompt.md` - Combined persona (if specified) + memories + task with template variables filled in
    - `bootstrap` - Executable script to set up the environment
    - `bootstrap.d/` - Individual bootstrap scripts from your memory files
 4. **Use with AI agents** - Share `prompt.md` with your AI coding agent, or run `./bootstrap` to prepare the environment first
 
 **Visual flow:**
 ```
-+---------------------+       +--------------------------+
-| Memory Files (*.md) |       | Prompt Template          |
-|                     |       | (task-name.md)           |
-+----------+----------+       +------------+-------------+
-           |                               |
-           | Filter by selectors           | Apply template params
-           v                               v
-+---------------------+       +--------------------------+
-| Filtered Memories   +-------+ Rendered Prompt          |
-+---------------------+       +------------+-------------+
-                                           |
-                                           v
-                              +----------------------------+
-                              | prompt.md (combined output)|
-                              +----------------------------+
++----------------------+       +---------------------+       +--------------------------+
+| Persona File (*.md)  |       | Memory Files (*.md) |       | Task Template            |
+| (optional)           |       |                     |       | (task-name.md)           |
++----------+-----------+       +----------+----------+       +------------+-------------+
+           |                              |                               |
+           | Apply template params        | Filter by selectors           | Apply template params
+           v                              v                               v
++----------------------+       +---------------------+       +--------------------------+
+| Rendered Persona     +------>+ Filtered Memories   +------>+ Rendered Task            |
++----------------------+       +---------------------+       +------------+-------------+
+                                                                          |
+                                                                          v
+                                                             +----------------------------+
+                                                             | prompt.md (combined output)|
+                                                             +----------------------------+
 ```
 
 ## Installation
@@ -78,7 +78,7 @@ go install github.com/kitproj/coding-agent-context-cli@latest
 ## Usage
 
 ```
-coding-context [options] <task-name>
+coding-context [options] <task-name> [persona-name]
 
 Options:
   -b                Automatically run the bootstrap script after generating it
@@ -86,6 +86,8 @@ Options:
                     Defaults: AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, .cursorrules, 
                               .cursor/rules/, .instructions.md, .continuerules, .prompts/memories, 
                               ~/.config/prompts/memories, /var/local/prompts/memories
+  -r <path>         Directory containing personas, or a single persona file (can be used multiple times)
+                    Defaults: .prompts/personas, ~/.config/prompts/personas, /var/local/prompts/personas
   -t <path>         Directory containing tasks, or a single task file (can be used multiple times)
                     Defaults: .prompts/tasks, ~/.config/prompts/tasks, /var/local/prompts/tasks
   -o <directory>    Output directory for generated files (default: .)
@@ -99,6 +101,12 @@ Options:
 **Example:**
 ```bash
 coding-context -p feature="Authentication" -p language=Go add-feature
+```
+
+**Example with persona:**
+```bash
+# Use a persona to set the context for the AI agent (persona is an optional positional argument)
+coding-context add-feature expert
 ```
 
 **Example with custom memory and task paths:**
@@ -124,11 +132,11 @@ coding-context -s env=production -S language=python deploy
 
 ## Quick Start
 
-This 4-step guide shows how to set up and generate your first context:
+This guide shows how to set up and generate your first context:
 
 **Step 1: Create a context directory structure**
 ```bash
-mkdir -p .prompts/{tasks,memories}
+mkdir -p .prompts/{tasks,memories,personas}
 ```
 
 **Step 2: Create a memory file** (`.prompts/memories/project-info.md`)
@@ -142,7 +150,17 @@ Memory files are included in every generated context. They contain reusable info
 - Purpose: Manage AI agent context
 ```
 
-**Step 3: Create a prompt file** (`.prompts/tasks/my-task.md`)
+**Step 3: (Optional) Create a persona file** (`.prompts/personas/expert.md`)
+
+Persona files define the role or character the AI agent should assume. They appear first in the output and do NOT support template variable expansion.
+
+```markdown
+# Expert Developer
+
+You are an expert developer with deep knowledge of best practices.
+```
+
+**Step 4: Create a prompt file** (`.prompts/tasks/my-task.md`)
 
 Prompt files define specific tasks. They can use template variables (like `${taskName}` or `$taskName`) that you provide via command-line parameters.
 
@@ -154,16 +172,25 @@ Prompt files define specific tasks. They can use template variables (like `${tas
 Please help me with this task. The project uses ${language}.
 ```
 
-**Step 4: Generate your context file**
+**Step 5: Generate your context file**
 
 ```bash
+# Without persona
 coding-context -p taskName="Fix Bug" -p language=Go my-task
+
+# With persona (as optional positional argument after task name)
+coding-context -p taskName="Fix Bug" -p language=Go my-task expert
 ```
 
-**Result:** This generates `./prompt.md` combining your memories and the task prompt with template variables filled in. You can now share this complete context with your AI coding agent!
+**Result:** This generates `./prompt.md` combining your persona (if specified), memories, and the task prompt with template variables filled in. You can now share this complete context with your AI coding agent!
 
-**What you'll see in `prompt.md`:**
+**What you'll see in `prompt.md` (with persona):**
 ```markdown
+# Expert Developer
+
+You are an expert developer with deep knowledge of best practices.
+
+
 # Project Context
 
 - Framework: Go CLI
@@ -187,14 +214,39 @@ The tool searches these directories for context files (in priority order):
 Each directory should contain:
 ```
 .prompts/
+├── personas/       # Optional persona files (output first when specified)
+│   └── <persona-name>.md
 ├── tasks/          # Task-specific prompt templates
 │   └── <task-name>.md
-└── memories/         # Reusable context files (included in all outputs)
+└── memories/       # Reusable context files (included in all outputs)
     └── *.md
 ```
 
 
 ## File Formats
+
+### Persona Files
+
+Optional persona files define the role or character the AI agent should assume. Personas are output **first** in the generated `prompt.md`, before memories and tasks.
+
+**Important:** Persona files do NOT support template variable expansion. They are included as-is in the output.
+
+**Example** (`.prompts/personas/expert.md`):
+```markdown
+---
+---
+# Expert Software Engineer
+
+You are an expert software engineer with deep knowledge of best practices.
+You are known for writing clean, maintainable code and following industry standards.
+```
+
+Run with:
+```bash
+coding-context add-feature expert
+```
+
+This will look for `expert.md` in the persona directories. The persona is optional - if you don't specify a persona name as the second argument, the output will contain only memories and the task.
 
 ### Prompt Files
 
