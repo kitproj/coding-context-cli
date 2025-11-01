@@ -514,6 +514,79 @@ Alternatively, use the `-b` flag to automatically run the bootstrap script:
 coding-context -o ./output -b my-task
 ```
 
+### Memory Deduplication Example
+
+Memory deduplication is useful when you have hierarchical standards - general base memories and specialized overrides.
+
+```bash
+# Create base coding standards
+cat > .prompts/memories/coding-standards.md << 'EOF'
+---
+---
+# General Coding Standards
+
+- Use meaningful variable names
+- Write clear comments
+- Follow DRY principle
+- Keep functions small
+- Write tests
+EOF
+
+# Create Go-specific standards that replace the base
+cat > .prompts/memories/go-coding-standards.md << 'EOF'
+---
+replaces: coding-standards.md
+language: go
+---
+# Go Coding Standards
+
+Extends general standards with Go-specific guidelines:
+
+- Use meaningful variable names (prefer short names in small scopes)
+- Write clear godoc comments
+- Follow DRY principle
+- Keep functions small
+- Write tests using testing package
+- **Go-specific:**
+  - Use gofmt for formatting
+  - Follow Effective Go
+  - Handle errors explicitly
+EOF
+
+# Create a task
+cat > .prompts/tasks/implement.md << 'EOF'
+# Implement Feature
+
+Follow coding standards for this project.
+EOF
+
+# Run - only go-coding-standards.md will be included
+coding-context implement
+# Output: "Excluding memory file (replaced by another memory): .prompts/memories/coding-standards.md"
+```
+
+**Result:** Only `go-coding-standards.md` is included. The base `coding-standards.md` is automatically excluded because it's replaced by the specialized version.
+
+**Multiple replacements:**
+```bash
+# One file can replace multiple base files
+cat > .prompts/memories/fullstack-standards.md << 'EOF'
+---
+replaces: frontend-standards.md, backend-standards.md
+---
+# Full Stack Standards
+
+Unified standards for full-stack development that replace separate frontend and backend standards.
+EOF
+```
+
+**With selectors:**
+```bash
+# Combine deduplication with environment filtering
+coding-context -s env=production deploy
+# Only includes production memories, with proper deduplication hierarchy
+```
+
 ### Integrating External CLI Tools
 
 The bootstrap script mechanism is especially useful for integrating external CLI tools like `kitproj/jira-cli` and `kitproj/slack-cli`. These tools can be installed automatically when an agent starts working on a task.
