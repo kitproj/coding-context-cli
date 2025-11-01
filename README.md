@@ -36,7 +36,7 @@ The basic workflow is:
 1. **Organize your context** - Create persona files (optional), memory files (shared context), and task files (task-specific instructions)
 2. **Run the CLI** - Execute `coding-context [options] <task-name> [persona-name]`
 3. **Get assembled output** - The tool generates:
-   - `persona.md` - Persona content (if persona is specified)
+   - `persona.md` - Persona content (always created, can be empty if no persona is specified)
    - `memories.md` - All included memory files combined
    - `task.md` - Task prompt with template variables filled in
    - `bootstrap` - Executable script to set up the environment
@@ -372,7 +372,7 @@ If no selectors are specified, all memory files are included.
 
 ## Output Files
 
-- **`persona.md`** - Persona content (only created when a persona is specified)
+- **`persona.md`** - Persona content (always created, can be empty if no persona is specified)
 - **`memories.md`** - Combined output with all filtered memory files
 - **`task.md`** - Task prompt with template variables expanded
 - **`bootstrap`** - Executable script that runs all bootstrap scripts from memories
