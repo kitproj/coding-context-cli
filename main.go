@@ -172,14 +172,14 @@ func run(ctx context.Context, args []string) error {
 		}
 	}
 
-	// First pass: collect all memory files and build deduplication map
+	// First pass: collect all memory files
 	type memoryFile struct {
 		path        string
 		content     string
 		frontmatter map[string]string
 	}
 	var memoryFiles []memoryFile
-	replacedNames := make(map[string]bool) // Maps symbolic names to replacement status
+	nameToFile := make(map[string]int) // Maps symbolic names to the index of the last file with that name
 
 	for _, memory := range memories {
 		// Skip if the path doesn't exist
@@ -211,7 +211,7 @@ func run(ctx context.Context, args []string) error {
 
 			// Check if file matches include and exclude selectors
 			// Note: Files that don't match selectors are excluded from deduplication
-			// processing entirely - they won't replace other files nor be replaced
+			// processing entirely
 			if !includes.matchesIncludes(frontmatter) {
 				return nil
 			}
@@ -220,22 +220,16 @@ func run(ctx context.Context, args []string) error {
 			}
 
 			// Add to collection
+			idx := len(memoryFiles)
 			memoryFiles = append(memoryFiles, memoryFile{
 				path:        path,
 				content:     content,
 				frontmatter: frontmatter,
 			})
 
-			// Track symbolic names that this memory replaces
-			if replaces, ok := frontmatter["replaces"]; ok && replaces != "" {
-				// Support comma-separated list of symbolic names to replace
-				replacements := strings.Split(replaces, ",")
-				for _, r := range replacements {
-					r = strings.TrimSpace(r)
-					if r != "" {
-						replacedNames[r] = true
-					}
-				}
+			// Track symbolic names - if multiple files have the same name, keep the last one
+			if name, hasName := frontmatter["name"]; hasName && name != "" {
+				nameToFile[name] = idx
 			}
 
 			return nil
@@ -245,12 +239,13 @@ func run(ctx context.Context, args []string) error {
 		}
 	}
 
-	// Second pass: output non-replaced memory files
-	for _, mf := range memoryFiles {
-		// Check if this memory has a symbolic name and if it's been replaced
+	// Second pass: output memory files, deduplicating by name
+	for idx, mf := range memoryFiles {
+		// Check if this memory has a symbolic name
 		if name, hasName := mf.frontmatter["name"]; hasName && name != "" {
-			if replacedNames[name] {
-				fmt.Fprintf(os.Stdout, "Excluding memory file (replaced by another memory): %s (name: %s)\n", mf.path, name)
+			// If this is not the last file with this name, skip it
+			if nameToFile[name] != idx {
+				fmt.Fprintf(os.Stdout, "Excluding memory file (superseded by another with same name): %s (name: %s)\n", mf.path, name)
 				continue
 			}
 		}

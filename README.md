@@ -318,9 +318,7 @@ coding-context -m .instructions.md my-task
 
 ### Memory Deduplication and Hierarchy
 
-Memory files can use symbolic names and the `replaces` field in frontmatter to establish a hierarchy and deduplicate content. This is useful when you have general base memories and more specific specialized memories that override them.
-
-Each memory file can optionally declare a `name`, and use `replaces` to reference the names of memories it supersedes.
+Memory files can use symbolic names in frontmatter to establish a hierarchy and deduplicate content. When multiple memory files declare the same `name`, only the last one processed is included in the output. This is useful for creating base memories that can be overridden by more specific versions.
 
 **Example scenario:** You have general coding standards and language-specific standards that override them.
 
@@ -339,8 +337,7 @@ name: CodingStandards
 **Specialized memory** (`.prompts/memories/go-coding-standards.md`):
 ```markdown
 ---
-name: GoCodingStandards
-replaces: CodingStandards
+name: CodingStandards
 ---
 # Go Coding Standards
 
@@ -352,27 +349,22 @@ replaces: CodingStandards
 - Prefer short variable names in small scopes
 ```
 
-When you run `coding-context my-task`, only `go-coding-standards.md` will be included in the output. The base `coding-standards.md` will be excluded with a message like:
+When both files are processed, only `go-coding-standards.md` will be included in the output (since it's processed last). The base `coding-standards.md` will be excluded with a message like:
 ```
-Excluding memory file (replaced by another memory): .prompts/memories/coding-standards.md (name: CodingStandards)
+Excluding memory file (superseded by another with same name): .prompts/memories/coding-standards.md (name: CodingStandards)
 ```
 
-**Multiple replacements:** You can replace multiple memories by providing a comma-separated list of names:
-```markdown
----
-name: FullStackStandards
-replaces: FrontendStandards, BackendStandards, DatabaseStandards
----
-# Full Stack Standards
-
-This replaces multiple base memories.
-```
+**How it works:**
+- Each memory file can optionally declare a `name` in its frontmatter
+- If multiple files have the same `name`, only the last one processed is kept
+- Files are processed in the order they're discovered when walking the memory directories
+- Memory files without a `name` field are always included (they never participate in deduplication)
 
 **Use cases for memory deduplication:**
-- **Language-specific overrides**: A memory named `PythonStandards` replaces `CodingStandards` when working on Python projects
-- **Environment-specific configs**: `ProductionConfig` replaces `BaseConfig` for production deployments
-- **Team-specific conventions**: `TeamAConventions` replaces `GeneralConventions` for Team A
-- **Technology stack specialization**: `ReactSetup` replaces `FrontendSetup` for React projects
+- **Language-specific overrides**: Place `go-coding-standards.md` after `coding-standards.md` to override for Go projects
+- **Environment-specific configs**: Override `base-config.md` with environment-specific versions that share the same name
+- **Team-specific conventions**: Override general conventions with team-specific ones
+- **Technology stack specialization**: Override generic setup with technology-specific versions
 
 **Combining with selectors:** Deduplication works seamlessly with selector filtering:
 ```bash
@@ -381,10 +373,10 @@ coding-context -s env=production deploy
 ```
 
 If you have:
-- `base-config.md` with `name: BaseConfig` and `env: production`
-- `prod-config.md` with `name: ProductionConfig`, `env: production`, and `replaces: BaseConfig`
+- `base-config.md` with `name: Config` and `env: production`
+- `prod-config.md` with `name: Config` and `env: production`
 
-Only `prod-config.md` will be included in the output.
+Only `prod-config.md` will be included in the output (assuming it's processed after `base-config.md`).
 
 
 ## Filtering Memories with Selectors
@@ -536,11 +528,11 @@ name: CodingStandards
 - Write tests
 EOF
 
-# Create Go-specific standards that replace the base
+# Create Go-specific standards that override the base
+# Note: Uses the same name "CodingStandards" to supersede the base file
 cat > .prompts/memories/go-coding-standards.md << 'EOF'
 ---
-name: GoCodingStandards
-replaces: CodingStandards
+name: CodingStandards
 language: go
 ---
 # Go Coding Standards
@@ -567,24 +559,10 @@ EOF
 
 # Run - only go-coding-standards.md will be included
 coding-context implement
-# Output: "Excluding memory file (replaced by another memory): .prompts/memories/coding-standards.md (name: CodingStandards)"
+# Output: "Excluding memory file (superseded by another with same name): .prompts/memories/coding-standards.md (name: CodingStandards)"
 ```
 
-**Result:** Only `go-coding-standards.md` is included. The base `coding-standards.md` is automatically excluded because it's replaced by the specialized version.
-
-**Multiple replacements:**
-```bash
-# One file can replace multiple base files
-cat > .prompts/memories/fullstack-standards.md << 'EOF'
----
-name: FullStackStandards
-replaces: FrontendStandards, BackendStandards
----
-# Full Stack Standards
-
-Unified standards for full-stack development that replace separate frontend and backend standards.
-EOF
-```
+**Result:** Only `go-coding-standards.md` is included. The base `coding-standards.md` is automatically excluded because both files have the same name and `go-coding-standards.md` is processed last.
 
 **With selectors:**
 ```bash

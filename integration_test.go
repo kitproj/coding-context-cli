@@ -1399,10 +1399,10 @@ Use clean code principles.
 	}
 
 	// Create specialized memory file that replaces the base (go-coding-standards.md)
+	// Note: Uses the same name "CodingStandards" to supersede the base file
 	specializedMemory := filepath.Join(memoriesDir, "go-coding-standards.md")
 	specializedContent := `---
-name: GoCodingStandards
-replaces: CodingStandards
+name: CodingStandards
 ---
 # Go Coding Standards
 
@@ -1469,12 +1469,12 @@ This is a Go project.
 
 	// Verify the output message indicates replacement
 	outputStr := string(output)
-	if !strings.Contains(outputStr, "Excluding memory file (replaced by another memory)") {
+	if !strings.Contains(outputStr, "Excluding memory file (superseded by another with same name)") {
 		t.Errorf("Expected message about excluded file due to replacement")
 	}
 }
 
-func TestMemoryDeduplicationMultipleReplacements(t *testing.T) {
+func TestMemoryDeduplicationMultipleFiles(t *testing.T) {
 	// Build the binary
 	binaryPath := filepath.Join(t.TempDir(), "coding-context")
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
@@ -1496,30 +1496,29 @@ func TestMemoryDeduplicationMultipleReplacements(t *testing.T) {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create first base memory file
-	base1 := filepath.Join(memoriesDir, "base1.md")
-	if err := os.WriteFile(base1, []byte("---\nname: Base1\n---\n# Base 1\n"), 0644); err != nil {
-		t.Fatalf("failed to write base1 memory file: %v", err)
+	// Create first file with name "Config"
+	file1 := filepath.Join(memoriesDir, "base-config.md")
+	if err := os.WriteFile(file1, []byte("---\nname: Config\n---\n# Base Config\nBase settings.\n"), 0644); err != nil {
+		t.Fatalf("failed to write file1 memory file: %v", err)
 	}
 
-	// Create second base memory file
-	base2 := filepath.Join(memoriesDir, "base2.md")
-	if err := os.WriteFile(base2, []byte("---\nname: Base2\n---\n# Base 2\n"), 0644); err != nil {
-		t.Fatalf("failed to write base2 memory file: %v", err)
+	// Create second file with name "Config" (should supersede the first)
+	file2 := filepath.Join(memoriesDir, "dev-config.md")
+	if err := os.WriteFile(file2, []byte("---\nname: Config\n---\n# Dev Config\nDevelopment settings.\n"), 0644); err != nil {
+		t.Fatalf("failed to write file2 memory file: %v", err)
 	}
 
-	// Create specialized memory that replaces both
-	specialized := filepath.Join(memoriesDir, "specialized.md")
+	// Create third file with name "Config" (should supersede both previous)
+	file3 := filepath.Join(memoriesDir, "prod-config.md")
 	specializedContent := `---
-name: SpecializedMemory
-replaces: Base1, Base2
+name: Config
 ---
-# Specialized Memory
+# Production Config
 
-Replaces both base1 and base2.
+Production settings.
 `
-	if err := os.WriteFile(specialized, []byte(specializedContent), 0644); err != nil {
-		t.Fatalf("failed to write specialized memory file: %v", err)
+	if err := os.WriteFile(file3, []byte(specializedContent), 0644); err != nil {
+		t.Fatalf("failed to write file3 memory file: %v", err)
 	}
 
 	// Create a task file
@@ -1544,17 +1543,17 @@ Replaces both base1 and base2.
 
 	contentStr := string(content)
 
-	// Verify the specialized memory is included
-	if !strings.Contains(contentStr, "Specialized Memory") {
-		t.Errorf("Expected specialized memory to be included")
+	// Verify only the last file with name "Config" is included
+	if !strings.Contains(contentStr, "Production Config") {
+		t.Errorf("Expected production config (last file with name 'Config') to be included")
 	}
 
-	// Verify both base memories are NOT included
-	if strings.Contains(contentStr, "# Base 1") {
-		t.Errorf("Did not expect base1.md to be included - it should be replaced")
+	// Verify the earlier files with the same name are NOT included
+	if strings.Contains(contentStr, "Base Config") {
+		t.Errorf("Did not expect base config to be included - it should be superseded")
 	}
-	if strings.Contains(contentStr, "# Base 2") {
-		t.Errorf("Did not expect base2.md to be included - it should be replaced")
+	if strings.Contains(contentStr, "Dev Config") {
+		t.Errorf("Did not expect dev config to be included - it should be superseded")
 	}
 }
 
@@ -1583,7 +1582,7 @@ func TestMemoryDeduplicationWithSelectors(t *testing.T) {
 	// Create base memory for production
 	baseProd := filepath.Join(memoriesDir, "base-prod.md")
 	baseProdContent := `---
-name: BaseProdConfig
+name: ProductionConfig
 env: production
 ---
 # Base Production Config
@@ -1592,12 +1591,12 @@ env: production
 		t.Fatalf("failed to write base prod memory: %v", err)
 	}
 
-	// Create specialized memory that replaces base, also for production
+	// Create specialized memory that supersedes base, also for production
+	// Uses the same name to trigger deduplication
 	specProd := filepath.Join(memoriesDir, "spec-prod.md")
 	specProdContent := `---
-name: SpecializedProdConfig
+name: ProductionConfig
 env: production
-replaces: BaseProdConfig
 ---
 # Specialized Production Config
 `
