@@ -867,3 +867,67 @@ if err == nil {
 t.Error("expected command to be interrupted, but it completed successfully")
 }
 }
+
+func TestWorkDirOption(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	workDir := filepath.Join(tmpDir, "work")
+	memoriesDir := filepath.Join(workDir, ".prompts", "memories")
+	tasksDir := filepath.Join(workDir, ".prompts", "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+		t.Fatalf("failed to create memories dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a memory file in the work directory
+	memoryFile := filepath.Join(memoriesDir, "test.md")
+	memoryContent := `---
+---
+# Test Memory
+`
+	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
+		t.Fatalf("failed to write memory file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "task.md")
+	taskContent := `---
+---
+# Test Task
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary with -C option to change to work directory
+	cmd = exec.Command(binaryPath, "-C", workDir, "-m", ".prompts/memories", "-t", ".prompts/tasks", "-o", outputDir, "task")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary with -C option: %v\n%s", err, output)
+	}
+
+	// Verify that prompt.md was created in the output directory
+	promptFile := filepath.Join(outputDir, "prompt.md")
+	if _, err := os.Stat(promptFile); os.IsNotExist(err) {
+		t.Errorf("prompt.md was not created in output directory")
+	}
+
+	// Verify the content includes the memory
+	content, err := os.ReadFile(promptFile)
+	if err != nil {
+		t.Fatalf("failed to read prompt.md: %v", err)
+	}
+	if !strings.Contains(string(content), "Test Memory") {
+		t.Errorf("prompt.md does not contain expected memory content")
+	}
+}
