@@ -867,3 +867,94 @@ if err == nil {
 t.Error("expected command to be interrupted, but it completed successfully")
 }
 }
+
+func TestTaskNameBuiltinFilter(t *testing.T) {
+// Build the binary
+binaryPath := filepath.Join(t.TempDir(), "coding-context")
+cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+if output, err := cmd.CombinedOutput(); err != nil {
+t.Fatalf("failed to build binary: %v\n%s", err, output)
+}
+
+// Create a temporary directory structure
+tmpDir := t.TempDir()
+contextDir := filepath.Join(tmpDir, ".prompts")
+memoriesDir := filepath.Join(contextDir, "memories")
+tasksDir := filepath.Join(contextDir, "tasks")
+outputDir := filepath.Join(tmpDir, "output")
+
+if err := os.MkdirAll(memoriesDir, 0755); err != nil {
+t.Fatalf("failed to create memories dir: %v", err)
+}
+if err := os.MkdirAll(tasksDir, 0755); err != nil {
+t.Fatalf("failed to create tasks dir: %v", err)
+}
+
+// Create memory files with task_name frontmatter
+if err := os.WriteFile(filepath.Join(memoriesDir, "deploy-specific.md"), []byte("---\ntask_name: deploy\n---\n# Deploy Memory\nDeploy-specific content\n"), 0644); err != nil {
+t.Fatalf("failed to write memory file: %v", err)
+}
+if err := os.WriteFile(filepath.Join(memoriesDir, "test-specific.md"), []byte("---\ntask_name: test\n---\n# Test Memory\nTest-specific content\n"), 0644); err != nil {
+t.Fatalf("failed to write memory file: %v", err)
+}
+// Create a file without task_name (should be included for all tasks)
+if err := os.WriteFile(filepath.Join(memoriesDir, "general.md"), []byte("---\n---\n# General Memory\nGeneral content\n"), 0644); err != nil {
+t.Fatalf("failed to write memory file: %v", err)
+}
+
+// Create prompt files for both tasks
+if err := os.WriteFile(filepath.Join(tasksDir, "deploy.md"), []byte("---\n---\n# Deploy Task\n"), 0644); err != nil {
+t.Fatalf("failed to write prompt file: %v", err)
+}
+if err := os.WriteFile(filepath.Join(tasksDir, "test.md"), []byte("---\n---\n# Test Task\n"), 0644); err != nil {
+t.Fatalf("failed to write prompt file: %v", err)
+}
+
+// Test 1: Run with "deploy" task - should include deploy-specific and general, but not test-specific
+cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "deploy")
+cmd.Dir = tmpDir
+if output, err := cmd.CombinedOutput(); err != nil {
+t.Fatalf("failed to run binary: %v\n%s", err, output)
+}
+
+promptOutput := filepath.Join(outputDir, "prompt.md")
+content, err := os.ReadFile(promptOutput)
+if err != nil {
+t.Fatalf("failed to read prompt output: %v", err)
+}
+contentStr := string(content)
+if !strings.Contains(contentStr, "Deploy-specific content") {
+t.Errorf("Expected deploy-specific content in output for deploy task")
+}
+if strings.Contains(contentStr, "Test-specific content") {
+t.Errorf("Did not expect test-specific content in output for deploy task")
+}
+if !strings.Contains(contentStr, "General content") {
+t.Errorf("Expected general content in output (no task_name key should be allowed)")
+}
+
+// Clean output for next test
+os.RemoveAll(outputDir)
+
+// Test 2: Run with "test" task - should include test-specific and general, but not deploy-specific
+cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test")
+cmd.Dir = tmpDir
+if output, err := cmd.CombinedOutput(); err != nil {
+t.Fatalf("failed to run binary: %v\n%s", err, output)
+}
+
+content, err = os.ReadFile(promptOutput)
+if err != nil {
+t.Fatalf("failed to read prompt output: %v", err)
+}
+contentStr = string(content)
+if strings.Contains(contentStr, "Deploy-specific content") {
+t.Errorf("Did not expect deploy-specific content in output for test task")
+}
+if !strings.Contains(contentStr, "Test-specific content") {
+t.Errorf("Expected test-specific content in output for test task")
+}
+if !strings.Contains(contentStr, "General content") {
+t.Errorf("Expected general content in output (no task_name key should be allowed)")
+}
+}
