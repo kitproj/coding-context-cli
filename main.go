@@ -33,16 +33,44 @@ func reorderArgs(args []string) []string {
 	var flags []string
 	var positional []string
 	
+	// Build a set of boolean flags by inspecting the flag package
+	boolFlags := make(map[string]bool)
+	flag.VisitAll(func(f *flag.Flag) {
+		// Check if the flag's value is a boolean type
+		if _, ok := f.Value.(interface{ IsBoolFlag() bool }); ok {
+			boolFlags["-"+f.Name] = true
+		}
+	})
+	
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
+		
+		// Handle end-of-options marker
+		if arg == "--" {
+			// Everything after -- is positional
+			positional = append(positional, args[i:]...)
+			break
+		}
+		
 		if strings.HasPrefix(arg, "-") {
 			flags = append(flags, arg)
-			// Check if this flag takes a value (not a boolean flag)
-			// For flags like -m, -t, -o, -p, -s, -S, they take values
-			// For -b, it's a boolean flag
-			if arg != "-b" && i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-				i++ // Move to the next argument (the value)
-				flags = append(flags, args[i])
+			
+			// Extract flag name (handle both -flag and -flag=value formats)
+			flagName := arg
+			if idx := strings.Index(arg, "="); idx != -1 {
+				flagName = arg[:idx]
+				// For -flag=value format, the value is already part of the arg
+				// so we don't need to consume the next argument
+				continue
+			}
+			
+			// Check if this is a boolean flag
+			if !boolFlags[flagName] {
+				// Non-boolean flag expects a value
+				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+					i++ // Move to the next argument (the value)
+					flags = append(flags, args[i])
+				}
 			}
 		} else {
 			positional = append(positional, arg)
