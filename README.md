@@ -388,7 +388,7 @@ name: MyMemory
 This is another memory with the same name.
 ```
 
-When the tool processes these two files, it will include `memory1.md` and exclude `memory2.md` because it has the same name. This is useful for overriding default memories with project-specific ones.
+When the tool processes these two files, it will include only one of them (either `memory1.md` or `memory2.md`) and exclude the other, since they have the same name. **Which file is included depends on the order in which files are encountered during filesystem traversal, which is not guaranteed to be alphabetical or consistent.** You should not rely on which specific file is included when duplicates exist. This mechanism is useful for overriding default memories with project-specific ones, but for deterministic behavior, ensure memory names are unique.
 
 
 ## Output Files
