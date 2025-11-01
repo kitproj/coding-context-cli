@@ -33,31 +33,31 @@ This tool is ideal for:
 
 The basic workflow is:
 
-1. **Organize your context** - Create memory files (shared context) and prompt files (task-specific instructions)
-2. **Run the CLI** - Execute `coding-context <task-name>` with optional parameters
+1. **Organize your context** - Create persona files (optional), memory files (shared context), and task files (task-specific instructions)
+2. **Run the CLI** - Execute `coding-context <task-name>` with optional `-persona` and parameters
 3. **Get assembled output** - The tool generates:
-   - `prompt.md` - Combined context + task prompt with template variables filled in
+   - `prompt.md` - Combined persona (if specified) + memories + task with template variables filled in
    - `bootstrap` - Executable script to set up the environment
    - `bootstrap.d/` - Individual bootstrap scripts from your memory files
 4. **Use with AI agents** - Share `prompt.md` with your AI coding agent, or run `./bootstrap` to prepare the environment first
 
 **Visual flow:**
 ```
-+---------------------+       +--------------------------+
-| Memory Files (*.md) |       | Prompt Template          |
-|                     |       | (task-name.md)           |
-+----------+----------+       +------------+-------------+
-           |                               |
-           | Filter by selectors           | Apply template params
-           v                               v
-+---------------------+       +--------------------------+
-| Filtered Memories   +-------+ Rendered Prompt          |
-+---------------------+       +------------+-------------+
-                                           |
-                                           v
-                              +----------------------------+
-                              | prompt.md (combined output)|
-                              +----------------------------+
++----------------------+       +---------------------+       +--------------------------+
+| Persona File (*.md)  |       | Memory Files (*.md) |       | Task Template            |
+| (optional)           |       |                     |       | (task-name.md)           |
++----------+-----------+       +----------+----------+       +------------+-------------+
+           |                              |                               |
+           | Apply template params        | Filter by selectors           | Apply template params
+           v                              v                               v
++----------------------+       +---------------------+       +--------------------------+
+| Rendered Persona     +------>+ Filtered Memories   +------>+ Rendered Task            |
++----------------------+       +---------------------+       +------------+-------------+
+                                                                          |
+                                                                          v
+                                                             +----------------------------+
+                                                             | prompt.md (combined output)|
+                                                             +----------------------------+
 ```
 
 ## Installation
@@ -69,23 +69,19 @@ sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/codin
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
-### Using Go Install
-
-```bash
-go install github.com/kitproj/coding-agent-context-cli@latest
-```
-
 ## Usage
 
 ```
-coding-context [options] <task-name>
+coding-context [options] <task-name> [persona-name]
 
 Options:
   -b                Automatically run the bootstrap script after generating it
   -m <path>         Directory containing memories, or a single memory file (can be used multiple times)
-                    Defaults: AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, .cursorrules, 
-                              .cursor/rules/, .instructions.md, .continuerules, .prompts/memories, 
+                    Defaults: AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, .cursorrules,
+                              .cursor/rules/, .instructions.md, .continuerules, .prompts/memories,
                               ~/.config/prompts/memories, /var/local/prompts/memories
+  -r <path>         Directory containing personas, or a single persona file (can be used multiple times)
+                    Defaults: .prompts/personas, ~/.config/prompts/personas, /var/local/prompts/personas
   -t <path>         Directory containing tasks, or a single task file (can be used multiple times)
                     Defaults: .prompts/tasks, ~/.config/prompts/tasks, /var/local/prompts/tasks
   -o <directory>    Output directory for generated files (default: .)
@@ -99,6 +95,12 @@ Options:
 **Example:**
 ```bash
 coding-context -p feature="Authentication" -p language=Go add-feature
+```
+
+**Example with persona:**
+```bash
+# Use a persona to set the context for the AI agent (persona is an optional positional argument)
+coding-context add-feature expert
 ```
 
 **Example with custom memory and task paths:**
@@ -124,11 +126,11 @@ coding-context -s env=production -S language=python deploy
 
 ## Quick Start
 
-This 4-step guide shows how to set up and generate your first context:
+This guide shows how to set up and generate your first context:
 
 **Step 1: Create a context directory structure**
 ```bash
-mkdir -p .prompts/{tasks,memories}
+mkdir -p .prompts/{tasks,memories,personas}
 ```
 
 **Step 2: Create a memory file** (`.prompts/memories/project-info.md`)
@@ -142,7 +144,17 @@ Memory files are included in every generated context. They contain reusable info
 - Purpose: Manage AI agent context
 ```
 
-**Step 3: Create a prompt file** (`.prompts/tasks/my-task.md`)
+**Step 3: (Optional) Create a persona file** (`.prompts/personas/expert.md`)
+
+Persona files define the role or character the AI agent should assume. They appear first in the output and do NOT support template variable expansion.
+
+```markdown
+# Expert Developer
+
+You are an expert developer with deep knowledge of best practices.
+```
+
+**Step 4: Create a prompt file** (`.prompts/tasks/my-task.md`)
 
 Prompt files define specific tasks. They can use template variables (like `${taskName}` or `$taskName`) that you provide via command-line parameters.
 
@@ -154,16 +166,25 @@ Prompt files define specific tasks. They can use template variables (like `${tas
 Please help me with this task. The project uses ${language}.
 ```
 
-**Step 4: Generate your context file**
+**Step 5: Generate your context file**
 
 ```bash
+# Without persona
 coding-context -p taskName="Fix Bug" -p language=Go my-task
+
+# With persona (as optional positional argument after task name)
+coding-context -p taskName="Fix Bug" -p language=Go my-task expert
 ```
 
-**Result:** This generates `./prompt.md` combining your memories and the task prompt with template variables filled in. You can now share this complete context with your AI coding agent!
+**Result:** This generates `./prompt.md` combining your persona (if specified), memories, and the task prompt with template variables filled in. You can now share this complete context with your AI coding agent!
 
-**What you'll see in `prompt.md`:**
+**What you'll see in `prompt.md` (with persona):**
 ```markdown
+# Expert Developer
+
+You are an expert developer with deep knowledge of best practices.
+
+
 # Project Context
 
 - Framework: Go CLI
@@ -187,14 +208,37 @@ The tool searches these directories for context files (in priority order):
 Each directory should contain:
 ```
 .prompts/
+├── personas/       # Optional persona files (output first when specified)
+│   └── <persona-name>.md
 ├── tasks/          # Task-specific prompt templates
 │   └── <task-name>.md
-└── memories/         # Reusable context files (included in all outputs)
+└── memories/       # Reusable context files (included in all outputs)
     └── *.md
 ```
 
 
 ## File Formats
+
+### Persona Files
+
+Optional persona files define the role or character the AI agent should assume. Personas are output **first** in the generated `prompt.md`, before memories and tasks.
+
+**Important:** Persona files do NOT support template variable expansion. They are included as-is in the output.
+
+**Example** (`.prompts/personas/expert.md`):
+```markdown
+# Expert Software Engineer
+
+You are an expert software engineer with deep knowledge of best practices.
+You are known for writing clean, maintainable code and following industry standards.
+```
+
+Run with:
+```bash
+coding-context add-feature expert
+```
+
+This will look for `expert.md` in the persona directories. The persona is optional - if you don't specify a persona name as the second argument, the output will contain only memories and the task.
 
 ### Prompt Files
 
@@ -413,9 +457,6 @@ The `kitproj/jira-cli` tool allows agents to interact with Jira issues programma
 **Step 1: Create a memory file with Jira context** (`.prompts/memories/jira.md`)
 
 ```markdown
----
-tools: jira
----
 # Jira Integration
 
 This project uses Jira for issue tracking. The `jira` CLI tool is available for interacting with issues.
@@ -441,34 +482,11 @@ The Jira CLI is configured with:
 #!/bin/bash
 set -euo pipefail
 
-# Install jira-cli if not already installed
-if ! command -v jira &> /dev/null; then
-    echo "Installing jira-cli..."
-    
-    # Detect OS and architecture
-    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-    ARCH=$(uname -m)
-    
-    # Map architecture names
-    case "$ARCH" in
-        x86_64) ARCH="amd64" ;;
-        aarch64|arm64) ARCH="arm64" ;;
-    esac
-    
-    # Download and install the latest version
-    VERSION="v0.1.0"  # Update to the latest version
-    BINARY_URL="https://github.com/kitproj/jira-cli/releases/download/${VERSION}/jira-cli_${VERSION}_${OS}_${ARCH}"
-    
-    sudo curl -fsSL -o /usr/local/bin/jira "$BINARY_URL"
-    sudo chmod +x /usr/local/bin/jira
-    
-    echo "jira-cli installed successfully"
-else
-    echo "jira-cli is already installed"
-fi
+VERSION="v0.1.0"  # Update to the latest version
+BINARY_URL="https://github.com/kitproj/jira-cli/releases/download/${VERSION}/jira-cli_${VERSION}_linux_amd64"
 
-# Verify installation
-jira --version
+sudo curl -fsSL -o /usr/local/bin/jira "$BINARY_URL"
+sudo chmod +x /usr/local/bin/jira
 ```
 
 **Step 3: Make the bootstrap script executable**
@@ -481,10 +499,7 @@ chmod +x .prompts/memories/jira-bootstrap
 
 ```bash
 # The bootstrap will automatically run when you generate context
-coding-context -p storyId="PROJ-123" implement-jira-story
-
-# This creates ./bootstrap which installs jira-cli when executed
-./bootstrap
+coding-context -b -p storyId="PROJ-123" implement-jira-story
 ```
 
 Now when an agent starts work, the bootstrap script will ensure `jira-cli` is installed and ready to use!
@@ -496,9 +511,6 @@ The `kitproj/slack-cli` tool allows agents to send notifications and interact wi
 **Step 1: Create a memory file with Slack context** (`.prompts/memories/slack.md`)
 
 ```markdown
----
-tools: slack
----
 # Slack Integration
 
 This project uses Slack for team communication. The `slack` CLI tool is available for sending messages and notifications.
@@ -531,34 +543,11 @@ The Slack CLI requires:
 #!/bin/bash
 set -euo pipefail
 
-# Install slack-cli if not already installed
-if ! command -v slack &> /dev/null; then
-    echo "Installing slack-cli..."
-    
-    # Detect OS and architecture
-    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-    ARCH=$(uname -m)
-    
-    # Map architecture names
-    case "$ARCH" in
-        x86_64) ARCH="amd64" ;;
-        aarch64|arm64) ARCH="arm64" ;;
-    esac
-    
-    # Download and install the latest version
-    VERSION="v0.1.0"  # Update to the latest version
-    BINARY_URL="https://github.com/kitproj/slack-cli/releases/download/${VERSION}/slack-cli_${VERSION}_${OS}_${ARCH}"
-    
-    sudo curl -fsSL -o /usr/local/bin/slack "$BINARY_URL"
-    sudo chmod +x /usr/local/bin/slack
-    
-    echo "slack-cli installed successfully"
-else
-    echo "slack-cli is already installed"
-fi
+VERSION="v0.1.0"  # Update to the latest version
+BINARY_URL="https://github.com/kitproj/slack-cli/releases/download/${VERSION}/slack-cli_${VERSION}_linux_amd64"
 
-# Verify installation
-slack --version
+sudo curl -fsSL -o /usr/local/bin/slack "$BINARY_URL"
+sudo chmod +x /usr/local/bin/slack
 ```
 
 **Step 3: Make the bootstrap script executable**
@@ -622,33 +611,23 @@ When writing bootstrap scripts for external CLI tools:
    fi
    ```
 
-2. **Handle multiple platforms** - Detect OS and architecture
-   ```bash
-   OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-   ARCH=$(uname -m)
-   case "$ARCH" in
-       x86_64) ARCH="amd64" ;;
-       aarch64|arm64) ARCH="arm64" ;;
-   esac
-   ```
-
-3. **Use specific versions** - Pin to a specific version for reproducibility
+2. **Use specific versions** - Pin to a specific version for reproducibility
    ```bash
    VERSION="v0.1.0"
    ```
 
-4. **Set error handling** - Use `set -euo pipefail` to catch errors early
+3. **Set error handling** - Use `set -euo pipefail` to catch errors early
    ```bash
    #!/bin/bash
    set -euo pipefail
    ```
 
-5. **Verify installation** - Check that the tool works after installation
+4. **Verify installation** - Check that the tool works after installation
    ```bash
    toolname --version
    ```
 
-6. **Provide clear output** - Echo messages to show progress
+5. **Provide clear output** - Echo messages to show progress
    ```bash
    echo "Installing toolname..."
    echo "Installation complete"
@@ -664,16 +643,13 @@ Here are some practical task templates for common development workflows:
 
 ```bash
 cat > .prompts/tasks/implement-jira-story.md << 'EOF'
----
----
 # Implement Jira Story: ${storyId}
 
 ## Story Details
 
 First, get the full story details from Jira:
-```bash
-jira get-issue ${storyId}
-```
+
+    jira get-issue ${storyId}
 
 ## Requirements
 
@@ -723,17 +699,14 @@ coding-context -p storyId="PROJ-123" implement-jira-story
 
 ```bash
 cat > .prompts/tasks/triage-jira-bug.md << 'EOF'
----
----
 # Triage Jira Bug: ${bugId}
 
 ## Get Bug Details
 
 First, retrieve the full bug report from Jira:
-```bash
-jira get-issue ${bugId}
-jira get-comments ${bugId}
-```
+
+    jira get-issue ${bugId}
+    jira get-comments ${bugId}
 
 ## Triage Steps
 
@@ -780,17 +753,14 @@ coding-context -p bugId="PROJ-456" triage-jira-bug
 
 ```bash
 cat > .prompts/tasks/respond-to-jira-comment.md << 'EOF'
----
----
 # Respond to Jira Comment: ${issueId}
 
 ## Get Issue and Comments
 
 First, retrieve the issue details and all comments:
-```bash
-jira get-issue ${issueId}
-jira get-comments ${issueId}
-```
+
+    jira get-issue ${issueId}
+    jira get-comments ${issueId}
 
 Review the latest comment and the full context of the issue.
 
@@ -813,14 +783,13 @@ Please analyze the comment and provide a professional response:
 ## Post Your Response
 
 Once you've formulated your response, add it to the Jira issue:
-```bash
-jira add-comment ${issueId} "Your detailed response here"
-```
+
+    jira add-comment ${issueId} "Your detailed response here"
 
 If the comment requires action on your part, update the issue status accordingly:
-```bash
-jira update-issue-status ${issueId} "In Progress"
-```
+
+    jira update-issue-status ${issueId} "In Progress"
+
 EOF
 
 # Usage
@@ -833,8 +802,6 @@ coding-context -p issueId="PROJ-789" respond-to-jira-comment
 
 ```bash
 cat > .prompts/tasks/notify-build-status.md << 'EOF'
----
----
 # Notify Build Status: ${buildStatus}
 
 ## Task
@@ -857,32 +824,28 @@ Send a build status notification to the team via Slack.
 2. **Send notification to #builds channel**
 
    For successful builds:
-   ```bash
-   slack send-message "#builds" "✅ Build succeeded on ${branch}
-Commit: ${commit}
-Time: ${buildTime}
-Status: ${buildStatus}"
-   ```
+
+       slack send-message "#builds" "✅ Build succeeded on ${branch}
+    Commit: ${commit}
+    Time: ${buildTime}
+    Status: ${buildStatus}"
 
    For failed builds:
-   ```bash
-   slack send-message "#builds" "❌ Build failed on ${branch}
-Commit: ${commit}
-Time: ${buildTime}
-Status: ${buildStatus}
-Please check the build logs for details."
-   ```
+
+       slack send-message "#builds" "❌ Build failed on ${branch}
+    Commit: ${commit}
+    Time: ${buildTime}
+    Status: ${buildStatus}
+    Please check the build logs for details."
 
 3. **Alert in #alerts channel for failures** (if build failed)
-   ```bash
-   slack send-message "#alerts" "🚨 Build failure detected on ${branch}. Immediate attention needed."
-   ```
+
+       slack send-message "#alerts" "🚨 Build failure detected on ${branch}. Immediate attention needed."
 
 4. **Update thread if this is a rebuild**
    If responding to a previous build notification:
-   ```bash
-   slack send-thread-reply "#builds" "<thread-timestamp>" "Rebuild completed: ${buildStatus}"
-   ```
+
+       slack send-thread-reply "#builds" "<thread-timestamp>" "Rebuild completed: ${buildStatus}"
 
 ## Success Criteria
 - Appropriate channels are notified
@@ -901,8 +864,6 @@ coding-context -p buildStatus="SUCCESS" -p branch="main" -p commit="abc123" -p b
 
 ```bash
 cat > .prompts/tasks/notify-deployment.md << 'EOF'
----
----
 # Notify Deployment: ${environment}
 
 ## Task
@@ -917,12 +878,11 @@ Communicate deployment status to stakeholders via Slack.
 ## Instructions
 
 1. **Announce deployment start**
-   ```bash
-   slack send-message "#deployments" "🚀 Deployment to ${environment} started
-Version: ${version}
-Deployer: ${deployer}
-Started at: $(date)"
-   ```
+
+       slack send-message "#deployments" "🚀 Deployment to ${environment} started
+    Version: ${version}
+    Deployer: ${deployer}
+    Started at: $(date)"
 
 2. **Monitor deployment progress**
    - Track deployment steps
@@ -931,25 +891,22 @@ Started at: $(date)"
 3. **Send completion notification**
 
    For successful deployments:
-   ```bash
-   slack send-message "#deployments" "✅ Deployment to ${environment} completed successfully
-Version: ${version}
-Completed at: $(date)
-All services are healthy and running."
-   ```
+
+       slack send-message "#deployments" "✅ Deployment to ${environment} completed successfully
+    Version: ${version}
+    Completed at: $(date)
+    All services are healthy and running."
 
    For failed deployments:
-   ```bash
-   slack send-message "#deployments" "❌ Deployment to ${environment} failed
-Version: ${version}
-Failed at: $(date)
-Rolling back to previous version..."
-   ```
+
+       slack send-message "#deployments" "❌ Deployment to ${environment} failed
+    Version: ${version}
+    Failed at: $(date)
+    Rolling back to previous version..."
 
 4. **Alert stakeholders for production deployments**
-   ```bash
-   slack send-message "#general" "📢 Production deployment completed: version ${version} is now live!"
-   ```
+
+       slack send-message "#general" "📢 Production deployment completed: version ${version} is now live!"
 
 5. **Update status thread**
    - Reply to the initial announcement with final status
@@ -970,8 +927,6 @@ coding-context -p environment="production" -p version="v2.1.0" -p deployer="depl
 
 ```bash
 cat > .prompts/tasks/review-pull-request.md << 'EOF'
----
----
 # Review Pull Request: ${prNumber}
 
 ## PR Details
@@ -1024,8 +979,6 @@ coding-context -p prNumber="42" -p author="Jane" -p title="Add feature X" review
 
 ```bash
 cat > .prompts/tasks/respond-to-pull-request-comment.md << 'EOF'
----
----
 # Respond to Pull Request Comment
 
 ## PR Details
@@ -1070,8 +1023,6 @@ coding-context -p prNumber="42" -p reviewer="Bob" -p file="main.go" -p comment="
 
 ```bash
 cat > .prompts/tasks/fix-failing-check.md << 'EOF'
----
----
 # Fix Failing Check: ${checkName}
 
 ## Check Details
@@ -1134,6 +1085,47 @@ $variableName      # Simple variable substitution (works with alphanumeric names
 
 Variables that are not provided via `-p` flag are replaced with empty strings.
 
+### Determining Common Parameters
+
+You can automate the detection of common parameters like `language` using external tools. Here's an example using the GitHub CLI (`gh`) to determine the primary programming language via GitHub Linguist:
+
+**Example: Automatically detect language using GitHub Linguist**
+
+```bash
+# Get the primary language from the current repository
+LANGUAGE=$(gh repo view --json primaryLanguage --jq .primaryLanguage.name)
+
+# Use the detected language with coding-context
+coding-context -p language="$LANGUAGE" my-task
+```
+
+This works because GitHub uses Linguist to analyze repository languages, and `gh repo view` provides direct access to the primary language detected for the current repository.
+
+**Example with error handling:**
+
+```bash
+# Get primary language with error handling
+LANGUAGE=$(gh repo view --json primaryLanguage --jq .primaryLanguage.name 2>/dev/null)
+
+# Check if we successfully detected a language
+if [ -z "$LANGUAGE" ] || [ "$LANGUAGE" = "null" ]; then
+    echo "Warning: Could not detect language, using default"
+    LANGUAGE="Go"  # or your preferred default
+fi
+
+coding-context -p language="$LANGUAGE" my-task
+```
+
+**One-liner version:**
+
+```bash
+coding-context -p language="$(gh repo view --json primaryLanguage --jq .primaryLanguage.name)" my-task
+```
+
+**Prerequisites:**
+- Install GitHub CLI: `brew install gh` (macOS) or `sudo apt install gh` (Ubuntu)
+- Authenticate: `gh auth login`
+
 ### Directory Priority
 
 When the same task exists in multiple directories, the first match wins:
@@ -1160,4 +1152,3 @@ coding-context -p myvar="value" my-task
 ```bash
 chmod +x bootstrap
 ```
-
