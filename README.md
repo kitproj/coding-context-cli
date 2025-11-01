@@ -69,12 +69,6 @@ sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/codin
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
-### Using Go Install
-
-```bash
-go install github.com/kitproj/coding-agent-context-cli@latest
-```
-
 ## Usage
 
 ```
@@ -497,19 +491,9 @@ set -euo pipefail
 if ! command -v jira &> /dev/null; then
     echo "Installing jira-cli..."
     
-    # Detect OS and architecture
-    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-    ARCH=$(uname -m)
-    
-    # Map architecture names
-    case "$ARCH" in
-        x86_64) ARCH="amd64" ;;
-        aarch64|arm64) ARCH="arm64" ;;
-    esac
-    
     # Download and install the latest version
     VERSION="v0.1.0"  # Update to the latest version
-    BINARY_URL="https://github.com/kitproj/jira-cli/releases/download/${VERSION}/jira-cli_${VERSION}_${OS}_${ARCH}"
+    BINARY_URL="https://github.com/kitproj/jira-cli/releases/download/${VERSION}/jira-cli_${VERSION}_linux_amd64"
     
     sudo curl -fsSL -o /usr/local/bin/jira "$BINARY_URL"
     sudo chmod +x /usr/local/bin/jira
@@ -587,19 +571,9 @@ set -euo pipefail
 if ! command -v slack &> /dev/null; then
     echo "Installing slack-cli..."
     
-    # Detect OS and architecture
-    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-    ARCH=$(uname -m)
-    
-    # Map architecture names
-    case "$ARCH" in
-        x86_64) ARCH="amd64" ;;
-        aarch64|arm64) ARCH="arm64" ;;
-    esac
-    
     # Download and install the latest version
     VERSION="v0.1.0"  # Update to the latest version
-    BINARY_URL="https://github.com/kitproj/slack-cli/releases/download/${VERSION}/slack-cli_${VERSION}_${OS}_${ARCH}"
+    BINARY_URL="https://github.com/kitproj/slack-cli/releases/download/${VERSION}/slack-cli_${VERSION}_linux_amd64"
     
     sudo curl -fsSL -o /usr/local/bin/slack "$BINARY_URL"
     sudo chmod +x /usr/local/bin/slack
@@ -674,33 +648,23 @@ When writing bootstrap scripts for external CLI tools:
    fi
    ```
 
-2. **Handle multiple platforms** - Detect OS and architecture
-   ```bash
-   OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-   ARCH=$(uname -m)
-   case "$ARCH" in
-       x86_64) ARCH="amd64" ;;
-       aarch64|arm64) ARCH="arm64" ;;
-   esac
-   ```
-
-3. **Use specific versions** - Pin to a specific version for reproducibility
+2. **Use specific versions** - Pin to a specific version for reproducibility
    ```bash
    VERSION="v0.1.0"
    ```
 
-4. **Set error handling** - Use `set -euo pipefail` to catch errors early
+3. **Set error handling** - Use `set -euo pipefail` to catch errors early
    ```bash
    #!/bin/bash
    set -euo pipefail
    ```
 
-5. **Verify installation** - Check that the tool works after installation
+4. **Verify installation** - Check that the tool works after installation
    ```bash
    toolname --version
    ```
 
-6. **Provide clear output** - Echo messages to show progress
+5. **Provide clear output** - Echo messages to show progress
    ```bash
    echo "Installing toolname..."
    echo "Installation complete"
@@ -723,9 +687,8 @@ cat > .prompts/tasks/implement-jira-story.md << 'EOF'
 ## Story Details
 
 First, get the full story details from Jira:
-```bash
-jira get-issue ${storyId}
-```
+
+    jira get-issue ${storyId}
 
 ## Requirements
 
@@ -782,10 +745,9 @@ cat > .prompts/tasks/triage-jira-bug.md << 'EOF'
 ## Get Bug Details
 
 First, retrieve the full bug report from Jira:
-```bash
-jira get-issue ${bugId}
-jira get-comments ${bugId}
-```
+
+    jira get-issue ${bugId}
+    jira get-comments ${bugId}
 
 ## Triage Steps
 
@@ -839,10 +801,9 @@ cat > .prompts/tasks/respond-to-jira-comment.md << 'EOF'
 ## Get Issue and Comments
 
 First, retrieve the issue details and all comments:
-```bash
-jira get-issue ${issueId}
-jira get-comments ${issueId}
-```
+
+    jira get-issue ${issueId}
+    jira get-comments ${issueId}
 
 Review the latest comment and the full context of the issue.
 
@@ -865,14 +826,13 @@ Please analyze the comment and provide a professional response:
 ## Post Your Response
 
 Once you've formulated your response, add it to the Jira issue:
-```bash
-jira add-comment ${issueId} "Your detailed response here"
-```
+
+    jira add-comment ${issueId} "Your detailed response here"
 
 If the comment requires action on your part, update the issue status accordingly:
-```bash
-jira update-issue-status ${issueId} "In Progress"
-```
+
+    jira update-issue-status ${issueId} "In Progress"
+
 EOF
 
 # Usage
@@ -909,32 +869,28 @@ Send a build status notification to the team via Slack.
 2. **Send notification to #builds channel**
 
    For successful builds:
-   ```bash
-   slack send-message "#builds" "✅ Build succeeded on ${branch}
-Commit: ${commit}
-Time: ${buildTime}
-Status: ${buildStatus}"
-   ```
+
+       slack send-message "#builds" "✅ Build succeeded on ${branch}
+    Commit: ${commit}
+    Time: ${buildTime}
+    Status: ${buildStatus}"
 
    For failed builds:
-   ```bash
-   slack send-message "#builds" "❌ Build failed on ${branch}
-Commit: ${commit}
-Time: ${buildTime}
-Status: ${buildStatus}
-Please check the build logs for details."
-   ```
+
+       slack send-message "#builds" "❌ Build failed on ${branch}
+    Commit: ${commit}
+    Time: ${buildTime}
+    Status: ${buildStatus}
+    Please check the build logs for details."
 
 3. **Alert in #alerts channel for failures** (if build failed)
-   ```bash
-   slack send-message "#alerts" "🚨 Build failure detected on ${branch}. Immediate attention needed."
-   ```
+
+       slack send-message "#alerts" "🚨 Build failure detected on ${branch}. Immediate attention needed."
 
 4. **Update thread if this is a rebuild**
    If responding to a previous build notification:
-   ```bash
-   slack send-thread-reply "#builds" "<thread-timestamp>" "Rebuild completed: ${buildStatus}"
-   ```
+
+       slack send-thread-reply "#builds" "<thread-timestamp>" "Rebuild completed: ${buildStatus}"
 
 ## Success Criteria
 - Appropriate channels are notified
@@ -969,12 +925,11 @@ Communicate deployment status to stakeholders via Slack.
 ## Instructions
 
 1. **Announce deployment start**
-   ```bash
-   slack send-message "#deployments" "🚀 Deployment to ${environment} started
-Version: ${version}
-Deployer: ${deployer}
-Started at: $(date)"
-   ```
+
+       slack send-message "#deployments" "🚀 Deployment to ${environment} started
+    Version: ${version}
+    Deployer: ${deployer}
+    Started at: $(date)"
 
 2. **Monitor deployment progress**
    - Track deployment steps
@@ -983,25 +938,22 @@ Started at: $(date)"
 3. **Send completion notification**
 
    For successful deployments:
-   ```bash
-   slack send-message "#deployments" "✅ Deployment to ${environment} completed successfully
-Version: ${version}
-Completed at: $(date)
-All services are healthy and running."
-   ```
+
+       slack send-message "#deployments" "✅ Deployment to ${environment} completed successfully
+    Version: ${version}
+    Completed at: $(date)
+    All services are healthy and running."
 
    For failed deployments:
-   ```bash
-   slack send-message "#deployments" "❌ Deployment to ${environment} failed
-Version: ${version}
-Failed at: $(date)
-Rolling back to previous version..."
-   ```
+
+       slack send-message "#deployments" "❌ Deployment to ${environment} failed
+    Version: ${version}
+    Failed at: $(date)
+    Rolling back to previous version..."
 
 4. **Alert stakeholders for production deployments**
-   ```bash
-   slack send-message "#general" "📢 Production deployment completed: version ${version} is now live!"
-   ```
+
+       slack send-message "#general" "📢 Production deployment completed: version ${version} is now live!"
 
 5. **Update status thread**
    - Reply to the initial announcement with final status
