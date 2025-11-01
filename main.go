@@ -126,6 +126,9 @@ func run(ctx context.Context, args []string) error {
 	}
 	defer output.Close()
 
+	// Track total tokens
+	var totalTokens int
+
 	// Process persona first if provided (should be first in output)
 	if personaName != "" {
 		personaFound := false
@@ -145,12 +148,15 @@ func run(ctx context.Context, args []string) error {
 				}
 			}
 
-			fmt.Fprintf(os.Stdout, "Using persona file: %s\n", path)
-
 			content, err := parseMarkdownFile(path, &struct{}{})
 			if err != nil {
 				return fmt.Errorf("failed to parse persona file: %w", err)
 			}
+
+			// Estimate tokens for this file
+			tokens := estimateTokens(content)
+			totalTokens += tokens
+			fmt.Fprintf(os.Stdout, "Using persona file: %s (~%d tokens)\n", path, tokens)
 
 			// Personas don't need variable expansion or filters
 			if _, err := output.WriteString(content + "\n\n"); err != nil {
@@ -203,7 +209,10 @@ func run(ctx context.Context, args []string) error {
 				return nil
 			}
 
-			fmt.Fprintf(os.Stdout, "Including memory file: %s\n", path)
+			// Estimate tokens for this file
+			tokens := estimateTokens(content)
+			totalTokens += tokens
+			fmt.Fprintf(os.Stdout, "Including memory file: %s (~%d tokens)\n", path, tokens)
 
 			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
 			// For example, setup.md -> setup-bootstrap
@@ -254,8 +263,6 @@ func run(ctx context.Context, args []string) error {
 			}
 		}
 
-		fmt.Fprintf(os.Stdout, "Using prompt file: %s\n", path)
-
 		content, err := parseMarkdownFile(path, &struct{}{})
 		if err != nil {
 			return fmt.Errorf("failed to parse prompt file: %w", err)
@@ -269,9 +276,17 @@ func run(ctx context.Context, args []string) error {
 			return fmt.Sprintf("${%s}", key)
 		})
 
+		// Estimate tokens for this file
+		tokens := estimateTokens(expanded)
+		totalTokens += tokens
+		fmt.Fprintf(os.Stdout, "Using task file: %s (~%d tokens)\n", path, tokens)
+
 		if _, err := output.WriteString(expanded); err != nil {
 			return fmt.Errorf("failed to write expanded prompt: %w", err)
 		}
+
+		// Print total token count
+		fmt.Fprintf(os.Stdout, "Total estimated tokens: %d\n", totalTokens)
 
 		// Run bootstrap if requested
 		if runBootstrap {
