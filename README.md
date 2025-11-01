@@ -368,27 +368,27 @@ If no selectors are specified, all memory files are included.
 
 ### Deduplicating Memories
 
-When you have multiple memory files with overlapping content, you can use the `name` attribute in the frontmatter to deduplicate them. The name should be in `PascalCase` format, like `CodingStandards`, `TestPractices`, `CodeComments`, `Logging`, or `ErrorHandling`. If two memory files have the same `name`, only the first one found will be included in the context.
+When you have multiple memory files with the same filename (basename), only the first one encountered will be included. This allows you to override default memories with project-specific ones by using the same filename.
 
 **Example:**
 
-`memory1.md`:
+If you have two directories with memory files:
+
+`~/.coding-context/memories/general/setup.md`:
 ```markdown
 ---
-name: MyMemory
 ---
-This is a memory.
+This is the default setup memory.
 ```
 
-`memory2.md`:
+`./memories/setup.md`:
 ```markdown
 ---
-name: MyMemory
 ---
-This is another memory with the same name.
+This is a project-specific setup memory.
 ```
 
-When the tool processes these two files, it will include only one of them (either `memory1.md` or `memory2.md`) and exclude the other, since they have the same name. **Which file is included depends on the order in which files are encountered during filesystem traversal, which is not guaranteed to be alphabetical or consistent.** You should not rely on which specific file is included when duplicates exist. This mechanism is useful for overriding default memories with project-specific ones, but for deterministic behavior, ensure memory names are unique.
+When the tool processes these two files, it will include only one of them based on which is encountered first during filesystem traversal. **The order depends on the order of memory paths specified and filesystem traversal order, which is not guaranteed to be alphabetical or consistent.** This mechanism is useful for overriding default memories with project-specific ones when you use the same filename.
 
 
 ## Output Files
