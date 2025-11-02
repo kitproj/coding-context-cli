@@ -18,99 +18,91 @@ import (
 var bootstrap string
 
 var (
-	workDir      string
-	rules        stringSlice
-	personas     stringSlice
-	tasks        stringSlice
-	outputDir    = "."
-	params       = make(paramMap)
-	includes     = make(selectorMap)
-	excludes     = make(selectorMap)
-	runBootstrap bool
+	workDir   string
+	outputDir = "."
 )
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	userConfigDir, err := os.UserConfigDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	rules = []string{
-		"AGENTS.md",
-		".github/copilot-instructions.md",
-		"CLAUDE.md",
-		".cursorrules",
-		".cursor/rules/",
-		".cursor/.mdc",
-		".instructions.md",
-		".continuerules",
-		".prompts/rules",
-		filepath.Join(userConfigDir, "prompts", "rules"),
-		"/var/local/prompts/rules",
-	}
-
-	personas = []string{
-		".prompts/personas",
-		filepath.Join(userConfigDir, "prompts", "personas"),
-		"/var/local/prompts/personas",
-	}
-
-	tasks = []string{
-		".prompts/tasks",
-		filepath.Join(userConfigDir, "prompts", "tasks"),
-		"/var/local/prompts/tasks",
-	}
-
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
-	flag.Var(&rules, "m", "Directory containing rules, or a single rule file. Can be specified multiple times.")
-	flag.Var(&personas, "r", "Directory containing personas, or a single persona file. Can be specified multiple times.")
-	flag.Var(&tasks, "t", "Directory containing tasks, or a single task file. Can be specified multiple times.")
 	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
-	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
-	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.Var(&excludes, "S", "Exclude rules with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.BoolVar(&runBootstrap, "b", false, "Automatically run the bootstrap script after generating it.")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
-		fmt.Fprintf(w, "Usage:")
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  coding-context [options] <task-name> [persona-name]")
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "Options:")
+		fmt.Fprintf(w, "Usage:\n")
+		fmt.Fprintf(w, "  coding-context <command> [options] [arguments]\n\n")
+		fmt.Fprintln(w, "Commands:")
+		fmt.Fprintln(w, "  import <agent>  Import rules for the specified agent")
+		fmt.Fprintln(w, "  export <agent>  Export rules for the specified agent (TODO)")
+		fmt.Fprintln(w, "  bootstrap       Run bootstrap scripts")
+		fmt.Fprintf(w, "  prompt          Find and print prompts (TODO)\n\n")
+		fmt.Fprintln(w, "Global Options:")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 
-	if err := run(ctx, flag.Args()); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	args := flag.Args()
+	if len(args) < 1 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	// Change to work directory
+	if err := os.Chdir(workDir); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to chdir to %s: %v\n", workDir, err)
+		os.Exit(1)
+	}
+
+	// Initialize agent rules
+	if err := initAgentRules(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to initialize agent rules: %v\n", err)
+		os.Exit(1)
+	}
+
+	command := args[0]
+	commandArgs := args[1:]
+
+	switch command {
+	case "import":
+		if err := runImport(ctx, commandArgs); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	case "export":
+		fmt.Fprintln(os.Stderr, "Error: export command not yet implemented")
+		os.Exit(1)
+	case "bootstrap":
+		if err := runBootstrapCommand(ctx, commandArgs); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	case "prompt":
+		fmt.Fprintln(os.Stderr, "Error: prompt command not yet implemented")
+		os.Exit(1)
+	default:
+		fmt.Fprintf(os.Stderr, "Error: unknown command: %s\n", command)
 		flag.Usage()
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, args []string) error {
+func runImport(ctx context.Context, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("invalid usage")
+		return fmt.Errorf("usage: coding-context import <agent>")
 	}
 
-	if err := os.Chdir(workDir); err != nil {
-		return fmt.Errorf("failed to chdir to %s: %w", workDir, err)
+	agentName := Agent(args[0])
+
+	// Check if agent is valid
+	rulePaths, ok := agentRules[agentName]
+	if !ok {
+		return fmt.Errorf("unknown agent: %s", agentName)
 	}
 
-	// Add task name to includes so rules can be filtered by task
-	taskName := args[0]
-	includes["task_name"] = taskName
-
-	// Optional persona argument after task name
-	var personaName string
-	if len(args) > 1 {
-		personaName = args[1]
-	}
+	// Expand ancestor paths
+	rulePaths = expandAncestorPaths(rulePaths)
 
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
@@ -124,56 +116,6 @@ func run(ctx context.Context, args []string) error {
 	// Track total tokens
 	var totalTokens int
 
-	// Create persona.md file
-	personaOutput, err := os.Create(filepath.Join(outputDir, "persona.md"))
-	if err != nil {
-		return fmt.Errorf("failed to create persona file: %w", err)
-	}
-	defer personaOutput.Close()
-
-	// Process persona first if provided
-	if personaName != "" {
-		personaFound := false
-		for _, path := range personas {
-			stat, err := os.Stat(path)
-			if os.IsNotExist(err) {
-				continue
-			} else if err != nil {
-				return fmt.Errorf("failed to stat persona path %s: %w", path, err)
-			}
-			if stat.IsDir() {
-				path = filepath.Join(path, personaName+".md")
-				if _, err := os.Stat(path); os.IsNotExist(err) {
-					continue
-				} else if err != nil {
-					return fmt.Errorf("failed to stat persona file %s: %w", path, err)
-				}
-			}
-
-			content, err := parseMarkdownFile(path, &struct{}{})
-			if err != nil {
-				return fmt.Errorf("failed to parse persona file: %w", err)
-			}
-
-			// Estimate tokens for this file
-			tokens := estimateTokens(content)
-			totalTokens += tokens
-			fmt.Fprintf(os.Stdout, "Using persona file: %s (~%d tokens)\n", path, tokens)
-
-			// Personas don't need variable expansion or filters
-			if _, err := personaOutput.WriteString(content); err != nil {
-				return fmt.Errorf("failed to write persona: %w", err)
-			}
-
-			personaFound = true
-			break
-		}
-
-		if !personaFound {
-			return fmt.Errorf("persona file not found for persona: %s", personaName)
-		}
-	}
-
 	// Create rules.md file
 	rulesOutput, err := os.Create(filepath.Join(outputDir, "rules.md"))
 	if err != nil {
@@ -181,14 +123,14 @@ func run(ctx context.Context, args []string) error {
 	}
 	defer rulesOutput.Close()
 
-	for _, rule := range rules {
-
+	// Process each rule path
+	for _, rp := range rulePaths {
 		// Skip if the path doesn't exist
-		if _, err := os.Stat(rule); os.IsNotExist(err) {
+		if _, err := os.Stat(rp.Path); os.IsNotExist(err) {
 			continue
 		}
 
-		err := filepath.Walk(rule, func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(rp.Path, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -202,38 +144,24 @@ func run(ctx context.Context, args []string) error {
 				return nil
 			}
 
-			// Parse frontmatter to check selectors
+			// Parse frontmatter
 			var frontmatter map[string]string
 			content, err := parseMarkdownFile(path, &frontmatter)
 			if err != nil {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
 			}
 
-			// Check if file matches include and exclude selectors.
-			// Note: Files with duplicate basenames will both be included.
-			if !includes.matchesIncludes(frontmatter) {
-				fmt.Fprintf(os.Stdout, "Excluding rule file (does not match include selectors): %s\n", path)
-				return nil
-			}
-			if !excludes.matchesExcludes(frontmatter) {
-				fmt.Fprintf(os.Stdout, "Excluding rule file (matches exclude selectors): %s\n", path)
-				return nil
-			}
-
 			// Estimate tokens for this file
 			tokens := estimateTokens(content)
 			totalTokens += tokens
-			fmt.Fprintf(os.Stdout, "Including rule file: %s (~%d tokens)\n", path, tokens)
+			fmt.Fprintf(os.Stdout, "Including rule file: %s (level %d, ~%d tokens)\n", path, rp.Level, tokens)
 
 			// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
-			// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
 			baseNameWithoutExt := strings.TrimSuffix(path, ext)
 			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
 
 			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
 				hash := sha256.Sum256(bootstrapContent)
-				// Use original filename as prefix with first 4 bytes of hash as 8-char hex suffix
-				// e.g., jira-bootstrap-9e2e8bc8
 				baseBootstrapName := filepath.Base(bootstrapFilePath)
 				bootstrapFileName := fmt.Sprintf("%s-%08x", baseBootstrapName, hash[:4])
 				bootstrapPath := filepath.Join(bootstrapDir, bootstrapFileName)
@@ -247,10 +175,9 @@ func run(ctx context.Context, args []string) error {
 			}
 
 			return nil
-
 		})
 		if err != nil {
-			return fmt.Errorf("failed to walk rule dir: %w", err)
+			return fmt.Errorf("failed to walk rule path: %w", err)
 		}
 	}
 
@@ -258,78 +185,31 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to write bootstrap file: %w", err)
 	}
 
-	// Create task.md file
-	taskOutput, err := os.Create(filepath.Join(outputDir, "task.md"))
+	// Print total token count
+	fmt.Fprintf(os.Stdout, "Total estimated tokens: %d\n", totalTokens)
+
+	return nil
+}
+
+func runBootstrapCommand(ctx context.Context, args []string) error {
+	bootstrapPath := filepath.Join(outputDir, "bootstrap")
+
+	// Convert to absolute path
+	absBootstrapPath, err := filepath.Abs(bootstrapPath)
 	if err != nil {
-		return fmt.Errorf("failed to create task file: %w", err)
-	}
-	defer taskOutput.Close()
-
-	for _, path := range tasks {
-		stat, err := os.Stat(path)
-		if os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("failed to stat task path %s: %w", path, err)
-		}
-		if stat.IsDir() {
-			path = filepath.Join(path, taskName+".md")
-			if _, err := os.Stat(path); os.IsNotExist(err) {
-				continue
-			} else if err != nil {
-				return fmt.Errorf("failed to stat task file %s: %w", path, err)
-			}
-		}
-
-		content, err := parseMarkdownFile(path, &struct{}{})
-		if err != nil {
-			return fmt.Errorf("failed to parse prompt file: %w", err)
-		}
-
-		expanded := os.Expand(content, func(key string) string {
-			if val, ok := params[key]; ok {
-				return val
-			}
-			// this might not exist, in that case, return the original text
-			return fmt.Sprintf("${%s}", key)
-		})
-
-		// Estimate tokens for this file
-		tokens := estimateTokens(expanded)
-		totalTokens += tokens
-		fmt.Fprintf(os.Stdout, "Using task file: %s (~%d tokens)\n", path, tokens)
-
-		if _, err := taskOutput.WriteString(expanded); err != nil {
-			return fmt.Errorf("failed to write expanded task: %w", err)
-		}
-
-		// Print total token count
-		fmt.Fprintf(os.Stdout, "Total estimated tokens: %d\n", totalTokens)
-
-		// Run bootstrap if requested
-		if runBootstrap {
-			bootstrapPath := filepath.Join(outputDir, "bootstrap")
-
-			// Convert to absolute path
-			absBootstrapPath, err := filepath.Abs(bootstrapPath)
-			if err != nil {
-				return fmt.Errorf("failed to get absolute path for bootstrap script: %w", err)
-			}
-
-			fmt.Fprintf(os.Stdout, "Running bootstrap script: %s\n", absBootstrapPath)
-
-			cmd := exec.CommandContext(ctx, absBootstrapPath)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Dir = outputDir
-
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("failed to run bootstrap script: %w", err)
-			}
-		}
-
-		return nil
+		return fmt.Errorf("failed to get absolute path for bootstrap script: %w", err)
 	}
 
-	return fmt.Errorf("prompt file not found for task: %s", taskName)
+	fmt.Fprintf(os.Stdout, "Running bootstrap script: %s\n", absBootstrapPath)
+
+	cmd := exec.CommandContext(ctx, absBootstrapPath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Dir = outputDir
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to run bootstrap script: %w", err)
+	}
+
+	return nil
 }
