@@ -136,14 +136,20 @@ func initAgentRules() error {
 func expandAncestorPaths(paths []RulePath) []RulePath {
 	expanded := make([]RulePath, 0, len(paths))
 	
+	cwd, err := os.Getwd()
+	if err != nil {
+		// If we can't get cwd, just return non-ancestor paths as-is
+		for _, rp := range paths {
+			if rp.Level != AncestorLevel {
+				expanded = append(expanded, rp)
+			}
+		}
+		return expanded
+	}
+	
 	for _, rp := range paths {
 		if rp.Level == AncestorLevel {
 			// Search up the directory tree
-			cwd, err := os.Getwd()
-			if err != nil {
-				continue
-			}
-			
 			// Get the filename from the path
 			filename := filepath.Base(rp.Path)
 			

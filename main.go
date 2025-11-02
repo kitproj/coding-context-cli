@@ -194,6 +194,11 @@ func runImport(ctx context.Context, args []string) error {
 func runBootstrapCommand(ctx context.Context, args []string) error {
 	bootstrapPath := filepath.Join(outputDir, "bootstrap")
 
+	// Check if bootstrap file exists
+	if _, err := os.Stat(bootstrapPath); os.IsNotExist(err) {
+		return fmt.Errorf("bootstrap file not found at %s. Run 'import' command first", bootstrapPath)
+	}
+
 	// Convert to absolute path
 	absBootstrapPath, err := filepath.Abs(bootstrapPath)
 	if err != nil {
