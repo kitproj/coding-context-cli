@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	_ "embed"
 	"flag"
 	"fmt"
@@ -18,7 +17,6 @@ import (
 var bootstrap string
 
 var (
-	workDir   string
 	outputDir = "."
 )
 
@@ -26,7 +24,6 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
 
 	flag.Usage = func() {
@@ -46,12 +43,6 @@ func main() {
 	args := flag.Args()
 	if len(args) < 1 {
 		flag.Usage()
-		os.Exit(1)
-	}
-
-	// Change to work directory
-	if err := os.Chdir(workDir); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to chdir to %s: %v\n", workDir, err)
 		os.Exit(1)
 	}
 
@@ -96,21 +87,13 @@ func runImport(ctx context.Context, args []string) error {
 	agentName := Agent(args[0])
 
 	// Check if agent is valid
-	rulePaths, ok := agentRules[agentName]
+	levels, ok := agentRules[agentName]
 	if !ok {
 		return fmt.Errorf("unknown agent: %s", agentName)
 	}
 
-	// Expand ancestor paths
-	rulePaths = expandAncestorPaths(rulePaths)
-
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
-	}
-
-	bootstrapDir := filepath.Join(outputDir, "bootstrap.d")
-	if err := os.MkdirAll(bootstrapDir, 0755); err != nil {
-		return fmt.Errorf("failed to create bootstrap dir: %w", err)
 	}
 
 	// Track total tokens
@@ -123,66 +106,55 @@ func runImport(ctx context.Context, args []string) error {
 	}
 	defer rulesOutput.Close()
 
-	// Process each rule path
-	for _, rp := range rulePaths {
-		// Skip if the path doesn't exist
-		if _, err := os.Stat(rp.Path); os.IsNotExist(err) {
+	// Process rules in level order (0, 1, 2, 3)
+	for level := ProjectLevel; level <= SystemLevel; level++ {
+		paths, ok := levels[level]
+		if !ok {
 			continue
 		}
 
-		err := filepath.Walk(rp.Path, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
+		for _, path := range paths {
+			// Skip if the path doesn't exist
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				continue
 			}
 
-			// Only process .md and .mdc files as rule files
-			ext := filepath.Ext(path)
-			if ext != ".md" && ext != ".mdc" {
-				return nil
-			}
-
-			// Parse frontmatter
-			var frontmatter map[string]string
-			content, err := parseMarkdownFile(path, &frontmatter)
-			if err != nil {
-				return fmt.Errorf("failed to parse markdown file: %w", err)
-			}
-
-			// Estimate tokens for this file
-			tokens := estimateTokens(content)
-			totalTokens += tokens
-			fmt.Fprintf(os.Stdout, "Including rule file: %s (level %d, ~%d tokens)\n", path, rp.Level, tokens)
-
-			// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
-			baseNameWithoutExt := strings.TrimSuffix(path, ext)
-			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
-
-			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
-				hash := sha256.Sum256(bootstrapContent)
-				baseBootstrapName := filepath.Base(bootstrapFilePath)
-				bootstrapFileName := fmt.Sprintf("%s-%08x", baseBootstrapName, hash[:4])
-				bootstrapPath := filepath.Join(bootstrapDir, bootstrapFileName)
-				if err := os.WriteFile(bootstrapPath, bootstrapContent, 0700); err != nil {
-					return fmt.Errorf("failed to write bootstrap file: %w", err)
+			err := filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
 				}
-			}
+				if info.IsDir() {
+					return nil
+				}
 
-			if _, err := rulesOutput.WriteString(content + "\n\n"); err != nil {
-				return fmt.Errorf("failed to write to rules file: %w", err)
-			}
+				// Only process .md and .mdc files as rule files
+				ext := filepath.Ext(filePath)
+				if ext != ".md" && ext != ".mdc" {
+					return nil
+				}
 
-			return nil
-		})
-		if err != nil {
-			return fmt.Errorf("failed to walk rule path: %w", err)
+				// Parse frontmatter
+				var frontmatter map[string]string
+				content, err := parseMarkdownFile(filePath, &frontmatter)
+				if err != nil {
+					return fmt.Errorf("failed to parse markdown file: %w", err)
+				}
+
+				// Estimate tokens for this file
+				tokens := estimateTokens(content)
+				totalTokens += tokens
+				fmt.Fprintf(os.Stdout, "Including rule file: %s (level %d, ~%d tokens)\n", filePath, level, tokens)
+
+				if _, err := rulesOutput.WriteString(content + "\n\n"); err != nil {
+					return fmt.Errorf("failed to write to rules file: %w", err)
+				}
+
+				return nil
+			})
+			if err != nil {
+				return fmt.Errorf("failed to walk rule path: %w", err)
+			}
 		}
-	}
-
-	if err := os.WriteFile(filepath.Join(outputDir, "bootstrap"), []byte(bootstrap), 0755); err != nil {
-		return fmt.Errorf("failed to write bootstrap file: %w", err)
 	}
 
 	// Print total token count
@@ -192,28 +164,77 @@ func runImport(ctx context.Context, args []string) error {
 }
 
 func runBootstrapCommand(ctx context.Context, args []string) error {
-	bootstrapPath := filepath.Join(outputDir, "bootstrap")
-
-	// Check if bootstrap file exists
-	if _, err := os.Stat(bootstrapPath); os.IsNotExist(err) {
-		return fmt.Errorf("bootstrap file not found at %s. Run 'import' command first", bootstrapPath)
+	// Get the Default agent's rules
+	levels, ok := agentRules[Default]
+	if !ok {
+		return fmt.Errorf("default agent not configured")
 	}
 
-	// Convert to absolute path
-	absBootstrapPath, err := filepath.Abs(bootstrapPath)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path for bootstrap script: %w", err)
-	}
+	// Walk through all rule paths and find bootstrap scripts
+	for level := ProjectLevel; level <= SystemLevel; level++ {
+		paths, ok := levels[level]
+		if !ok {
+			continue
+		}
 
-	fmt.Fprintf(os.Stdout, "Running bootstrap script: %s\n", absBootstrapPath)
+		for _, path := range paths {
+			// Skip if the path doesn't exist
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				continue
+			}
 
-	cmd := exec.CommandContext(ctx, absBootstrapPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Dir = outputDir
+			err := filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if info.IsDir() {
+					return nil
+				}
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to run bootstrap script: %w", err)
+				// Only process .md and .mdc files
+				ext := filepath.Ext(filePath)
+				if ext != ".md" && ext != ".mdc" {
+					return nil
+				}
+
+				// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
+				baseNameWithoutExt := strings.TrimSuffix(filePath, ext)
+				bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
+
+				// Check if bootstrap file exists
+				if _, err := os.Stat(bootstrapFilePath); os.IsNotExist(err) {
+					return nil
+				}
+
+				// Get absolute path
+				absBootstrapPath, err := filepath.Abs(bootstrapFilePath)
+				if err != nil {
+					return fmt.Errorf("failed to get absolute path for bootstrap script: %w", err)
+				}
+
+				// Make it executable
+				if err := os.Chmod(absBootstrapPath, 0755); err != nil {
+					return fmt.Errorf("failed to make bootstrap script executable: %w", err)
+				}
+
+				// Run the bootstrap script
+				fmt.Fprintf(os.Stdout, "Running bootstrap script: %s\n", absBootstrapPath)
+
+				cmd := exec.CommandContext(ctx, absBootstrapPath)
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				cmd.Dir = filepath.Dir(absBootstrapPath)
+
+				if err := cmd.Run(); err != nil {
+					return fmt.Errorf("failed to run bootstrap script %s: %w", absBootstrapPath, err)
+				}
+
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
