@@ -369,6 +369,30 @@ INFO Including memory file path=.prompts/memories/nofrontmatter.md
 
 If no selectors are specified, all memory files are included.
 
+### Deduplicating Memories
+
+When you have multiple memory files with the same filename (basename), only the first one encountered will be included. This allows you to override default memories with project-specific ones by using the same filename.
+
+**Example:**
+
+If you have two directories with memory files:
+
+`~/.coding-context/memories/general/setup.md`:
+```markdown
+---
+---
+This is the default setup memory.
+```
+
+`./memories/setup.md`:
+```markdown
+---
+---
+This is a project-specific setup memory.
+```
+
+When the tool processes these two files, it will include only one of them based on which is encountered first during filesystem traversal. **The order depends on the order of memory paths specified and filesystem traversal order, which is not guaranteed to be alphabetical or consistent.** This mechanism is useful for overriding default memories with project-specific ones when you use the same filename.
+
 
 ## Output Files
 
