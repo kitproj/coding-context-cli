@@ -434,3 +434,103 @@ if sub1Pos > rootPos {
 t.Errorf("Expected sub1 content before root content (closer to cwd should be first)")
 }
 }
+
+func TestMultipleAgents(t *testing.T) {
+// Build the binary
+binaryPath := filepath.Join(t.TempDir(), "coding-context")
+cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+if output, err := cmd.CombinedOutput(); err != nil {
+t.Fatalf("failed to build binary: %v\n%s", err, output)
+}
+
+tmpDir := t.TempDir()
+
+tests := []struct {
+name          string
+agent         string
+setupFiles    map[string]string
+expectedFiles []string
+}{
+{
+name:  "Claude",
+agent: "Claude",
+setupFiles: map[string]string{
+"CLAUDE.local.md": "# Claude Local\n",
+"CLAUDE.md":       "# Claude Global\n",
+},
+expectedFiles: []string{"CLAUDE.local.md", "CLAUDE.md"},
+},
+{
+name:  "Gemini",
+agent: "Gemini",
+setupFiles: map[string]string{
+".gemini/styleguide.md": "# Gemini Styleguide\n",
+"GEMINI.md":             "# Gemini Rules\n",
+},
+expectedFiles: []string{".gemini/styleguide.md", "GEMINI.md"},
+},
+{
+name:  "Cursor",
+agent: "Cursor",
+setupFiles: map[string]string{
+".cursor/rules/rule1.md":  "# Cursor Rule 1\n",
+".cursor/rules/rule2.mdc": "# Cursor Rule 2\n",
+},
+expectedFiles: []string{".cursor/rules/rule1.md", ".cursor/rules/rule2.mdc"},
+},
+{
+name:  "Copilot",
+agent: "Copilot",
+setupFiles: map[string]string{
+".github/copilot-instructions.md": "# Copilot Instructions\n",
+"AGENTS.md":                        "# Agents\n",
+},
+expectedFiles: []string{".github/copilot-instructions.md", "AGENTS.md"},
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+// Create a subdirectory for this test
+agentDir := filepath.Join(tmpDir, tt.name)
+outputDir := filepath.Join(agentDir, "output")
+
+// Setup files
+for path, content := range tt.setupFiles {
+fullPath := filepath.Join(agentDir, path)
+dir := filepath.Dir(fullPath)
+if err := os.MkdirAll(dir, 0755); err != nil {
+t.Fatalf("failed to create directory %s: %v", dir, err)
+}
+if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+t.Fatalf("failed to write file %s: %v", path, err)
+}
+}
+
+// Run import
+cmd := exec.Command(binaryPath, "-C", agentDir, "-o", outputDir, "import", tt.agent)
+output, err := cmd.CombinedOutput()
+if err != nil {
+t.Fatalf("failed to run import for %s: %v\n%s", tt.agent, err, output)
+}
+
+// Check that rules.md was created and is not empty
+rulesOutput := filepath.Join(outputDir, "rules.md")
+content, err := os.ReadFile(rulesOutput)
+if err != nil {
+t.Fatalf("failed to read rules.md: %v", err)
+}
+if len(content) == 0 {
+t.Errorf("rules.md is empty for agent %s", tt.agent)
+}
+
+// Check that expected files are mentioned in output
+outputStr := string(output)
+for _, expectedFile := range tt.expectedFiles {
+if !strings.Contains(outputStr, expectedFile) {
+t.Errorf("Expected %s to be mentioned in output for agent %s, got: %s", expectedFile, tt.agent, outputStr)
+}
+}
+})
+}
+}
