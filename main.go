@@ -31,7 +31,8 @@ func main() {
 		fmt.Fprintln(w, "  import         Import rules from all known agents to default agent")
 		fmt.Fprintln(w, "  export <agent> Export rules from default agent to specified agent")
 		fmt.Fprintln(w, "  bootstrap      Run bootstrap scripts")
-		fmt.Fprintf(w, "  prompt <name>  Find and print a task prompt\n\n")
+		fmt.Fprintln(w, "  prompt <name>  Find and print a task prompt")
+		fmt.Fprintf(w, "  rules          Print all default agent rules to stdout\n\n")
 		fmt.Fprintln(w, "Global Options:")
 		flag.PrintDefaults()
 	}
@@ -77,6 +78,11 @@ func main() {
 		}
 	case "prompt":
 		if err := runPrompt(ctx, commandArgs); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	case "rules":
+		if err := runRules(ctx, agentRules, commandArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}

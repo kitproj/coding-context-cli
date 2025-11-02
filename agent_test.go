@@ -129,3 +129,51 @@ if !strings.Contains(outputStr, "Please help with Go") {
 t.Errorf("Expected 'Please help with Go' in output, got: %s", outputStr)
 }
 }
+
+func TestRulesCommand(t *testing.T) {
+// Build the binary
+binaryPath := filepath.Join(t.TempDir(), "coding-context")
+cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+if output, err := cmd.CombinedOutput(); err != nil {
+t.Fatalf("failed to build binary: %v\n%s", err, output)
+}
+
+tmpDir := t.TempDir()
+rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+if err := os.MkdirAll(rulesDir, 0755); err != nil {
+t.Fatalf("failed to create rules dir: %v", err)
+}
+
+// Create rule files
+ruleFile1 := filepath.Join(rulesDir, "rule1.md")
+if err := os.WriteFile(ruleFile1, []byte("# Rule One\n\nFirst rule content.\n"), 0644); err != nil {
+t.Fatalf("failed to write rule file 1: %v", err)
+}
+
+agentsFile := filepath.Join(tmpDir, "AGENTS.md")
+if err := os.WriteFile(agentsFile, []byte("# Agents\n\nAgent rules.\n"), 0644); err != nil {
+t.Fatalf("failed to write AGENTS.md: %v", err)
+}
+
+// Run rules command
+cmd = exec.Command(binaryPath, "-C", tmpDir, "rules")
+output, err := cmd.CombinedOutput()
+if err != nil {
+t.Fatalf("failed to run rules command: %v\n%s", err, output)
+}
+
+// Check output contains both rule files
+outputStr := string(output)
+if !strings.Contains(outputStr, "# Rule One") {
+t.Errorf("Expected '# Rule One' in output, got: %s", outputStr)
+}
+if !strings.Contains(outputStr, "# Agents") {
+t.Errorf("Expected '# Agents' in output, got: %s", outputStr)
+}
+if !strings.Contains(outputStr, "First rule content") {
+t.Errorf("Expected 'First rule content' in output, got: %s", outputStr)
+}
+if !strings.Contains(outputStr, "Agent rules") {
+t.Errorf("Expected 'Agent rules' in output, got: %s", outputStr)
+}
+}
