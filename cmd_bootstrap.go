@@ -10,13 +10,13 @@ import (
 )
 
 // runBootstrap runs bootstrap scripts for the default agent
-func runBootstrap(ctx context.Context, agentRules map[Agent][]RulePath, args []string) error {
+func runBootstrap(ctx context.Context, exportRules map[Agent][]RulePath, args []string) error {
 	// Get the Default agent's rules
-	rulePaths := agentRules[Default]
+	rulePaths := exportRules[Default]
 
 	// Walk through all rule paths and find bootstrap scripts
 	for _, rp := range rulePaths {
-		path := rp.Source()
+		path := rp.SourcePath()
 
 		// Skip if the path doesn't exist
 		if _, err := os.Stat(path); os.IsNotExist(err) {

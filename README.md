@@ -23,7 +23,6 @@ The tool currently supports importing rules from:
 - **Augment** - .augment/rules/, .augment/guidelines.md, CLAUDE.md, AGENTS.md
 - **Windsurf** - .windsurf/rules/
 - **Goose** - AGENTS.md
-- **Continue.dev** - .continuerules
 
 Each agent has its own set of rule paths and hierarchy levels (Project, Ancestor, User, System).
 
@@ -93,7 +92,7 @@ Rules are organized into four levels (from highest to lowest precedence):
    - Example: `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`
    
 4. **System Level (3)** - System-wide rules
-   - Example: `/usr/local/prompts-rules`
+   - Example: `/etc/agents/rules`
 
 ### Ancestor Path Search
 

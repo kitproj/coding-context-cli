@@ -28,11 +28,12 @@ func main() {
 		fmt.Fprintf(w, "Usage:\n")
 		fmt.Fprintf(w, "  coding-context <command> [options] [arguments]\n\n")
 		fmt.Fprintln(w, "Commands:")
-		fmt.Fprintln(w, "  import         Import rules from all known agents to default agent")
-		fmt.Fprintln(w, "  export <agent> Export rules from default agent to specified agent")
-		fmt.Fprintln(w, "  bootstrap      Run bootstrap scripts")
-		fmt.Fprintln(w, "  prompt <name>  Find and print a task prompt")
-		fmt.Fprintf(w, "  rules          Print all default agent rules to stdout\n\n")
+		fmt.Fprintln(w, "  import              Import rules from all known agents to default agent")
+		fmt.Fprintln(w, "  export <agent> [-s key=value] [-S key=value]")
+		fmt.Fprintln(w, "                      Export rules from default agent to specified agent")
+		fmt.Fprintln(w, "  bootstrap           Run bootstrap scripts")
+		fmt.Fprintf(w, "  prompt <name> [-p key=value] [-s key=value] [-S key=value]\n")
+		fmt.Fprintf(w, "                      Find and print a task prompt\n\n")
 		fmt.Fprintln(w, "Global Options:")
 		flag.PrintDefaults()
 	}
@@ -50,39 +51,45 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize agent rules
-	agentRules, err := initAgentRules()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to initialize agent rules: %v\n", err)
-		os.Exit(1)
-	}
-
 	command := args[0]
 	commandArgs := args[1:]
 
 	switch command {
 	case "import":
-		if err := runImport(ctx, agentRules, commandArgs); err != nil {
+		// Initialize import rules
+		importRules, err := initImportRules()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to initialize import rules: %v\n", err)
+			os.Exit(1)
+		}
+		if err := runImport(ctx, importRules, commandArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	case "export":
-		if err := runExport(ctx, agentRules, commandArgs); err != nil {
+		// Initialize export rules
+		exportRules, err := initExportRules()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to initialize export rules: %v\n", err)
+			os.Exit(1)
+		}
+		if err := runExport(ctx, exportRules, commandArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	case "bootstrap":
-		if err := runBootstrap(ctx, agentRules, commandArgs); err != nil {
+		// Initialize export rules for bootstrap (reads from Default agent)
+		exportRules, err := initExportRules()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to initialize export rules: %v\n", err)
+			os.Exit(1)
+		}
+		if err := runBootstrap(ctx, exportRules, commandArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	case "prompt":
 		if err := runPrompt(ctx, commandArgs); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-	case "rules":
-		if err := runRules(ctx, agentRules, commandArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
