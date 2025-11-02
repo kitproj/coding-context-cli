@@ -19,7 +19,7 @@ var bootstrap string
 
 var (
 	workDir      string
-	memories     stringSlice
+	rules        stringSlice
 	personas     stringSlice
 	tasks        stringSlice
 	outputDir    = "."
@@ -39,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	memories = []string{
+	rules = []string{
 		"AGENTS.md",
 		".github/copilot-instructions.md",
 		"CLAUDE.md",
@@ -47,9 +47,9 @@ func main() {
 		".cursor/rules/",
 		".instructions.md",
 		".continuerules",
-		".prompts/memories",
-		filepath.Join(userConfigDir, "prompts", "memories"),
-		"/var/local/prompts/memories",
+		".prompts/rules",
+		filepath.Join(userConfigDir, "prompts", "rules"),
+		"/var/local/prompts/rules",
 	}
 
 	personas = []string{
@@ -65,13 +65,13 @@ func main() {
 	}
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
-	flag.Var(&memories, "m", "Directory containing memories, or a single memory file. Can be specified multiple times.")
+	flag.Var(&rules, "m", "Directory containing rules, or a single rule file. Can be specified multiple times.")
 	flag.Var(&personas, "r", "Directory containing personas, or a single persona file. Can be specified multiple times.")
 	flag.Var(&tasks, "t", "Directory containing tasks, or a single task file. Can be specified multiple times.")
 	flag.StringVar(&outputDir, "o", ".", "Directory to write the context files to.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
-	flag.Var(&includes, "s", "Include memories with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.Var(&excludes, "S", "Exclude memories with matching frontmatter. Can be specified multiple times as key=value.")
+	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
+	flag.Var(&excludes, "S", "Exclude rules with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.BoolVar(&runBootstrap, "b", false, "Automatically run the bootstrap script after generating it.")
 
 	flag.Usage = func() {
@@ -101,7 +101,7 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to chdir to %s: %w", workDir, err)
 	}
 
-	// Add task name to includes so memories can be filtered by task
+	// Add task name to includes so rules can be filtered by task
 	taskName := args[0]
 	includes["task_name"] = taskName
 
@@ -173,23 +173,21 @@ func run(ctx context.Context, args []string) error {
 		}
 	}
 
-	// Create memories.md file
-	memoriesOutput, err := os.Create(filepath.Join(outputDir, "memories.md"))
+	// Create rules.md file
+	rulesOutput, err := os.Create(filepath.Join(outputDir, "rules.md"))
 	if err != nil {
-		return fmt.Errorf("failed to create memories file: %w", err)
+		return fmt.Errorf("failed to create rules file: %w", err)
 	}
-	defer memoriesOutput.Close()
+	defer rulesOutput.Close()
 
-	memoryBasenames := make(map[string]bool)
-
-	for _, memory := range memories {
+	for _, rule := range rules {
 
 		// Skip if the path doesn't exist
-		if _, err := os.Stat(memory); os.IsNotExist(err) {
+		if _, err := os.Stat(rule); os.IsNotExist(err) {
 			continue
 		}
 
-		err := filepath.Walk(memory, func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(rule, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -197,7 +195,7 @@ func run(ctx context.Context, args []string) error {
 				return nil
 			}
 
-			// Only process .md files as memory files
+			// Only process .md files as rule files
 			if filepath.Ext(path) != ".md" {
 				return nil
 			}
@@ -209,28 +207,21 @@ func run(ctx context.Context, args []string) error {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
 			}
 
-			// Check if file matches include and exclude selectors
+			// Check if file matches include and exclude selectors.
+			// Note: Files with duplicate basenames will both be included.
 			if !includes.matchesIncludes(frontmatter) {
-				fmt.Fprintf(os.Stdout, "Excluding memory file (does not match include selectors): %s\n", path)
+				fmt.Fprintf(os.Stdout, "Excluding rule file (does not match include selectors): %s\n", path)
 				return nil
 			}
 			if !excludes.matchesExcludes(frontmatter) {
-				fmt.Fprintf(os.Stdout, "Excluding memory file (matches exclude selectors): %s\n", path)
+				fmt.Fprintf(os.Stdout, "Excluding rule file (matches exclude selectors): %s\n", path)
 				return nil
 			}
-
-			// Check for duplicate basenames
-			basename := filepath.Base(path)
-			if memoryBasenames[basename] {
-				fmt.Fprintf(os.Stdout, "Excluding memory file (other memory with same basename found): %s\n", path)
-				return nil
-			}
-			memoryBasenames[basename] = true
 
 			// Estimate tokens for this file
 			tokens := estimateTokens(content)
 			totalTokens += tokens
-			fmt.Fprintf(os.Stdout, "Including memory file: %s (~%d tokens)\n", path, tokens)
+			fmt.Fprintf(os.Stdout, "Including rule file: %s (~%d tokens)\n", path, tokens)
 
 			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
 			// For example, setup.md -> setup-bootstrap
@@ -249,15 +240,15 @@ func run(ctx context.Context, args []string) error {
 				}
 			}
 
-			if _, err := memoriesOutput.WriteString(content + "\n\n"); err != nil {
-				return fmt.Errorf("failed to write to memories file: %w", err)
+			if _, err := rulesOutput.WriteString(content + "\n\n"); err != nil {
+				return fmt.Errorf("failed to write to rules file: %w", err)
 			}
 
 			return nil
 
 		})
 		if err != nil {
-			return fmt.Errorf("failed to walk memory dir: %w", err)
+			return fmt.Errorf("failed to walk rule dir: %w", err)
 		}
 	}
 

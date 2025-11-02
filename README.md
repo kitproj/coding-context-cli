@@ -1,6 +1,6 @@
 # Coding Context CLI
 
-A CLI tool for managing context files for coding agents. It helps you organize prompts, memories (reusable context), and bootstrap scripts that can be assembled into a single context file for AI coding agents.
+A CLI tool for managing context files for coding agents. It helps you organize prompts, rules (reusable context), and bootstrap scripts that can be assembled into a single context file for AI coding agents.
 
 ## Why Use This?
 
@@ -13,11 +13,11 @@ When working with AI coding agents (like GitHub Copilot, ChatGPT, Claude, etc.),
 
 **This tool solves these problems by:**
 
-1. **Centralizing reusable context** - Store project conventions, coding standards, and setup instructions once in "memory" files
+1. **Centralizing reusable context** - Store project conventions, coding standards, and setup instructions once in "rule" files
 2. **Creating task-specific prompts** - Define templated prompts for common tasks (e.g., "add feature", "fix bug", "refactor")
 3. **Automating environment setup** - Package bootstrap scripts that prepare the environment before an agent starts work
 4. **Filtering context dynamically** - Use selectors to include only relevant context (e.g., production vs. development, Python vs. Go)
-5. **Composing everything together** - Generate three separate markdown files: `persona.md`, `memories.md`, and `task.md`
+5. **Composing everything together** - Generate three separate markdown files: `persona.md`, `rules.md`, and `task.md`
 
 ## When to Use
 
@@ -33,27 +33,27 @@ This tool is ideal for:
 
 The basic workflow is:
 
-1. **Organize your context** - Create persona files (optional), memory files (shared context), and task files (task-specific instructions)
+1. **Organize your context** - Create persona files (optional), rule files (shared context), and task files (task-specific instructions)
 2. **Run the CLI** - Execute `coding-context [options] <task-name> [persona-name]`
 3. **Get assembled output** - The tool generates:
    - `persona.md` - Persona content (always created, can be empty if no persona is specified)
-   - `memories.md` - All included memory files combined
+   - `rules.md` - All included rule files combined
    - `task.md` - Task prompt with template variables filled in
    - `bootstrap` - Executable script to set up the environment
-   - `bootstrap.d/` - Individual bootstrap scripts from your memory files
+   - `bootstrap.d/` - Individual bootstrap scripts from your rule files
 4. **Use with AI agents** - Share the generated markdown files with your AI coding agent, or run `./bootstrap` to prepare the environment first
 
 **Visual flow:**
 ```
 +----------------------+       +---------------------+       +--------------------------+
-| Persona File (*.md)  |       | Memory Files (*.md) |       | Task Template            |
+| Persona File (*.md)  |       | Rule Files (*.md) |       | Task Template            |
 | (optional)           |       |                     |       | (task-name.md)           |
 +----------+-----------+       +----------+----------+       +------------+-------------+
            |                              |                               |
            | No expansion                 | Filter by selectors           | Apply template params
            v                              v                               v
 +----------------------+       +---------------------+       +--------------------------+
-| persona.md           |       | memories.md         |       | task.md                  |
+| persona.md           |       | rules.md         |       | task.md                  |
 +----------------------+       +---------------------+       +--------------------------+
 ```
 
@@ -74,18 +74,18 @@ coding-context [options] <task-name> [persona-name]
 Options:
   -b                Automatically run the bootstrap script after generating it
   -C <directory>    Change to directory before doing anything (default: .)
-  -m <path>         Directory containing memories, or a single memory file (can be used multiple times)
+  -m <path>         Directory containing rules, or a single rule file (can be used multiple times)
                     Defaults: AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, .cursorrules,
-                              .cursor/rules/, .instructions.md, .continuerules, .prompts/memories,
-                              ~/.config/prompts/memories, /var/local/prompts/memories
+                              .cursor/rules/, .instructions.md, .continuerules, .prompts/rules,
+                              ~/.config/prompts/rules, /var/local/prompts/rules
   -r <path>         Directory containing personas, or a single persona file (can be used multiple times)
                     Defaults: .prompts/personas, ~/.config/prompts/personas, /var/local/prompts/personas
   -t <path>         Directory containing tasks, or a single task file (can be used multiple times)
                     Defaults: .prompts/tasks, ~/.config/prompts/tasks, /var/local/prompts/tasks
   -o <directory>    Output directory for generated files (default: .)
   -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
-  -s <key=value>    Include memories with matching frontmatter (can be used multiple times)
-  -S <key=value>    Exclude memories with matching frontmatter (can be used multiple times)
+  -s <key=value>    Include rules with matching frontmatter (can be used multiple times)
+  -S <key=value>    Exclude rules with matching frontmatter (can be used multiple times)
 ```
 
 **Important:** The task file name **MUST** match the task name you provide on the command line. For example, if you run `coding-context my-task`, the tool will look for `my-task.md` in the task directories.
@@ -101,9 +101,9 @@ coding-context -p feature="Authentication" -p language=Go add-feature
 coding-context add-feature expert
 ```
 
-**Example with custom memory and task paths:**
+**Example with custom rule and task paths:**
 ```bash
-# Specify explicit memory files or directories
+# Specify explicit rule files or directories
 coding-context -m .github/copilot-instructions.md -m CLAUDE.md my-task
 
 # Specify custom task directory
@@ -112,10 +112,10 @@ coding-context -t ./custom-tasks my-task
 
 **Example with selectors:**
 ```bash
-# Include only production memories
+# Include only production rules
 coding-context -s env=production deploy
 
-# Exclude test memories
+# Exclude test rules
 coding-context -S env=test deploy
 
 # Combine include and exclude selectors
@@ -128,12 +128,12 @@ This guide shows how to set up and generate your first context:
 
 **Step 1: Create a context directory structure**
 ```bash
-mkdir -p .prompts/{tasks,memories,personas}
+mkdir -p .prompts/{tasks,rules,personas}
 ```
 
-**Step 2: Create a memory file** (`.prompts/memories/project-info.md`)
+**Step 2: Create a rule file** (`.prompts/rules/project-info.md`)
 
-Memory files are included in every generated context. They contain reusable information like project conventions, architecture notes, or coding standards.
+Rule files are included in every generated context. They contain reusable information like project conventions, architecture notes, or coding standards.
 
 ```markdown
 # Project Context
@@ -174,7 +174,7 @@ coding-context -p taskName="Fix Bug" -p language=Go my-task
 coding-context -p taskName="Fix Bug" -p language=Go my-task expert
 ```
 
-**Result:** This generates three files: `./persona.md` (if persona is specified), `./memories.md`, and `./task.md` with template variables filled in. You can now share these files with your AI coding agent!
+**Result:** This generates three files: `./persona.md` (if persona is specified), `./rules.md`, and `./task.md` with template variables filled in. You can now share these files with your AI coding agent!
 
 **What you'll see in the generated files (with persona):**
 
@@ -185,7 +185,7 @@ coding-context -p taskName="Fix Bug" -p language=Go my-task expert
 You are an expert developer with deep knowledge of best practices.
 ```
 
-`memories.md`:
+`rules.md`:
 ```markdown
 # Project Context
 
@@ -215,7 +215,7 @@ Each directory should contain:
 │   └── <persona-name>.md
 ├── tasks/          # Task-specific prompt templates
 │   └── <task-name>.md
-└── memories/       # Reusable context files (included in all outputs)
+└── rules/       # Reusable context files (included in all outputs)
     └── *.md
 ```
 
@@ -241,7 +241,7 @@ Run with:
 coding-context add-feature expert
 ```
 
-This will look for `expert.md` in the persona directories and output it to `persona.md`. The persona is optional – if you don't specify a persona name as the second argument, `persona.md` will still be generated but will be empty, alongside `memories.md` and `task.md`.
+This will look for `expert.md` in the persona directories and output it to `persona.md`. The persona is optional – if you don't specify a persona name as the second argument, `persona.md` will still be generated but will be empty, alongside `rules.md` and `task.md`.
 
 ### Prompt Files
 
@@ -265,11 +265,11 @@ coding-context -p feature="User Login" -p language=Go add-feature
 
 This will look for `add-feature.md` in the task directories.
 
-### Memory Files
+### Rule Files
 
 Markdown files included in every generated context. Bootstrap scripts can be provided in separate files.
 
-**Example** (`.prompts/memories/setup.md`):
+**Example** (`.prompts/rules/setup.md`):
 ```markdown
 ---
 env: development
@@ -280,23 +280,23 @@ language: go
 This project requires Node.js dependencies.
 ```
 
-**Bootstrap file** (`.prompts/memories/setup-bootstrap`):
+**Bootstrap file** (`.prompts/rules/setup-bootstrap`):
 ```bash
 #!/bin/bash
 npm install
 ```
 
-For each memory file `<name>.md`, you can optionally create a corresponding `<name>-bootstrap` file that will be executed during setup.
+For each rule file `<name>.md`, you can optionally create a corresponding `<name>-bootstrap` file that will be executed during setup.
 
-### Supported Memory File Formats
+### Supported Rule File Formats
 
-This tool can work with various memory file formats used by popular AI coding assistants. By default, it looks for `AGENTS.md` in the current directory. You can also specify additional memory files or directories using the `-m` flag.
+This tool can work with various rule file formats used by popular AI coding assistants. By default, it looks for `AGENTS.md` in the current directory. You can also specify additional rule files or directories using the `-m` flag.
 
-#### Common Memory File Names
+#### Common Rule File Names
 
-The following memory file formats are commonly used by AI coding assistants and can be used with this tool:
+The following rule file formats are commonly used by AI coding assistants and can be used with this tool:
 
-- **`AGENTS.md`** - Default memory file (automatically included)
+- **`AGENTS.md`** - Default rule file (automatically included)
 - **`.github/copilot-instructions.md`** - GitHub Copilot instructions file
 - **`CLAUDE.md`** - Claude-specific instructions
 - **`.cursorrules`** - Cursor editor rules (if in Markdown format)
@@ -304,7 +304,7 @@ The following memory file formats are commonly used by AI coding assistants and 
 - **`.instructions.md`** - General instructions file
 - **`.continuerules`** - Continue.dev rules (if in Markdown format)
 
-**Example:** Using multiple memory sources
+**Example:** Using multiple rule sources
 ```bash
 # Include GitHub Copilot instructions and CLAUDE.md
 coding-context -m .github/copilot-instructions.md -m CLAUDE.md my-task
@@ -312,27 +312,27 @@ coding-context -m .github/copilot-instructions.md -m CLAUDE.md my-task
 # Include all rules from Cursor directory
 coding-context -m .cursor/rules/ my-task
 
-# Combine default AGENTS.md with additional memories
+# Combine default AGENTS.md with additional rules
 coding-context -m .instructions.md my-task
 ```
 
-**Note:** All memory files should be in Markdown format (`.md` extension) or contain Markdown-compatible content. The tool will automatically process frontmatter in YAML format if present.
+**Note:** All rule files should be in Markdown format (`.md` extension) or contain Markdown-compatible content. The tool will automatically process frontmatter in YAML format if present.
 
 
-## Filtering Memories with Selectors
+## Filtering Rules with Selectors
 
-Use the `-s` and `-S` flags to filter which memory files are included based on their frontmatter metadata.
+Use the `-s` and `-S` flags to filter which rule files are included based on their frontmatter metadata.
 
 ### Selector Syntax
 
-- **`-s key=value`** - Include memories where the frontmatter key matches the value
-- **`-S key=value`** - Exclude memories where the frontmatter key matches the value
-- If a key doesn't exist in a memory's frontmatter, the memory is allowed (not filtered out)
+- **`-s key=value`** - Include rules where the frontmatter key matches the value
+- **`-S key=value`** - Exclude rules where the frontmatter key matches the value
+- If a key doesn't exist in a rule's frontmatter, the rule is allowed (not filtered out)
 - Multiple selectors of the same type use AND logic (all must match)
 
 ### Examples
 
-**Include only production memories:**
+**Include only production rules:**
 ```bash
 coding-context -s env=production deploy
 ```
@@ -350,7 +350,7 @@ coding-context -s env=production -S language=python deploy
 
 **Multiple includes:**
 ```bash
-# Only production Go backend memories
+# Only production Go backend rules
 coding-context -s env=production -s language=go -s tier=backend deploy
 ```
 
@@ -359,46 +359,22 @@ coding-context -s env=production -s language=go -s tier=backend deploy
 When you run with selectors, the tool logs which files are included or excluded:
 
 ```
-INFO Including memory file path=.prompts/memories/production.md
-INFO Excluding memory file (does not match include selectors) path=.prompts/memories/development.md
-INFO Including memory file path=.prompts/memories/nofrontmatter.md
+INFO Including rule file path=.prompts/rules/production.md
+INFO Excluding rule file (does not match include selectors) path=.prompts/rules/development.md
+INFO Including rule file path=.prompts/rules/nofrontmatter.md
 ```
 
-**Important:** Files without the specified frontmatter keys are still included. This allows you to have generic memories that apply to all scenarios.
+**Important:** Files without the specified frontmatter keys are still included. This allows you to have generic rules that apply to all scenarios.
 
-If no selectors are specified, all memory files are included.
-
-### Deduplicating Memories
-
-When you have multiple memory files with the same filename (basename), only the first one encountered will be included. This allows you to override default memories with project-specific ones by using the same filename.
-
-**Example:**
-
-If you have two directories with memory files:
-
-`~/.coding-context/memories/general/setup.md`:
-```markdown
----
----
-This is the default setup memory.
-```
-
-`./memories/setup.md`:
-```markdown
----
----
-This is a project-specific setup memory.
-```
-
-When the tool processes these two files, it will include only one of them based on which is encountered first during filesystem traversal. **The order depends on the order of memory paths specified and filesystem traversal order, which is not guaranteed to be alphabetical or consistent.** This mechanism is useful for overriding default memories with project-specific ones when you use the same filename.
+If no selectors are specified, all rule files are included.
 
 
 ## Output Files
 
 - **`persona.md`** - Persona content (always created, can be empty if no persona is specified)
-- **`memories.md`** - Combined output with all filtered memory files
+- **`rules.md`** - Combined output with all filtered rule files
 - **`task.md`** - Task prompt with template variables expanded
-- **`bootstrap`** - Executable script that runs all bootstrap scripts from memories
+- **`bootstrap`** - Executable script that runs all bootstrap scripts from rules
 - **`bootstrap.d/`** - Individual bootstrap scripts (SHA256 named)
 
 Run the bootstrap script to set up your environment:
@@ -418,10 +394,10 @@ coding-context -b my-task
 
 ```bash
 # Create structure
-mkdir -p .prompts/{tasks,memories}
+mkdir -p .prompts/{tasks,rules}
 
-# Add a memory
-cat > .prompts/memories/conventions.md << 'EOF'
+# Add a rule
+cat > .prompts/rules/conventions.md << 'EOF'
 # Coding Conventions
 
 - Use tabs for indentation
@@ -454,17 +430,17 @@ coding-context -p featureName="Authentication" -p language=Go add-feature
 ### With Bootstrap Scripts
 
 ```bash
-cat > .prompts/memories/setup.md << 'EOF'
+cat > .prompts/rules/setup.md << 'EOF'
 # Project Setup
 
 This Go project uses modules.
 EOF
 
-cat > .prompts/memories/setup-bootstrap << 'EOF'
+cat > .prompts/rules/setup-bootstrap << 'EOF'
 #!/bin/bash
 go mod download
 EOF
-chmod +x .prompts/memories/setup-bootstrap
+chmod +x .prompts/rules/setup-bootstrap
 
 coding-context -o ./output my-task
 cd output && ./bootstrap
@@ -483,7 +459,7 @@ The bootstrap script mechanism is especially useful for integrating external CLI
 
 The `kitproj/jira-cli` tool allows agents to interact with Jira issues programmatically. Here's how to set it up:
 
-**Step 1: Create a memory file with Jira context** (`.prompts/memories/jira.md`)
+**Step 1: Create a rule file with Jira context** (`.prompts/rules/jira.md`)
 
 ```markdown
 # Jira Integration
@@ -505,7 +481,7 @@ The Jira CLI is configured with:
 - Authentication: Token-based (set via JIRA_API_TOKEN environment variable)
 ```
 
-**Step 2: Create a bootstrap script** (`.prompts/memories/jira-bootstrap`)
+**Step 2: Create a bootstrap script** (`.prompts/rules/jira-bootstrap`)
 
 ```bash
 #!/bin/bash
@@ -521,7 +497,7 @@ sudo chmod +x /usr/local/bin/jira
 **Step 3: Make the bootstrap script executable**
 
 ```bash
-chmod +x .prompts/memories/jira-bootstrap
+chmod +x .prompts/rules/jira-bootstrap
 ```
 
 **Step 4: Use with a task that needs Jira**
@@ -537,7 +513,7 @@ Now when an agent starts work, the bootstrap script will ensure `jira-cli` is in
 
 The `kitproj/slack-cli` tool allows agents to send notifications and interact with Slack channels. Here's the setup:
 
-**Step 1: Create a memory file with Slack context** (`.prompts/memories/slack.md`)
+**Step 1: Create a rule file with Slack context** (`.prompts/rules/slack.md`)
 
 ```markdown
 # Slack Integration
@@ -566,7 +542,7 @@ The Slack CLI requires:
 - Alert on failures: `slack send-message "#alerts" "Test suite failed on main branch"`
 ```
 
-**Step 2: Create a bootstrap script** (`.prompts/memories/slack-bootstrap`)
+**Step 2: Create a bootstrap script** (`.prompts/rules/slack-bootstrap`)
 
 ```bash
 #!/bin/bash
@@ -582,7 +558,7 @@ sudo chmod +x /usr/local/bin/slack
 **Step 3: Make the bootstrap script executable**
 
 ```bash
-chmod +x .prompts/memories/slack-bootstrap
+chmod +x .prompts/rules/slack-bootstrap
 ```
 
 **Step 4: Create a task that uses Slack** (`.prompts/tasks/slack-deploy-alert.md`)
@@ -1167,9 +1143,9 @@ When the same task exists in multiple directories, the first match wins:
 **"prompt file not found for task"**
 - Ensure `<task-name>.md` exists in a `tasks/` subdirectory
 
-**"failed to walk memory dir"**
+**"failed to walk rule dir"**
 ```bash
-mkdir -p .prompts/memories
+mkdir -p .prompts/rules
 ```
 
 **Template parameter not replaced (shows as `${variableName}`)**

@@ -20,31 +20,31 @@ func TestBootstrapFromFile(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a memory file
-	memoryFile := filepath.Join(memoriesDir, "setup.md")
-	memoryContent := `---
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "setup.md")
+	ruleContent := `---
 ---
 # Development Setup
 
 This is a setup guide.
 `
-	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
-	// Create a bootstrap file for the memory (setup.md -> setup-bootstrap)
-	bootstrapFile := filepath.Join(memoriesDir, "setup-bootstrap")
+	// Create a bootstrap file for the rule (setup.md -> setup-bootstrap)
+	bootstrapFile := filepath.Join(rulesDir, "setup-bootstrap")
 	bootstrapContent := `#!/bin/bash
 echo "Running bootstrap"
 npm install
@@ -66,7 +66,7 @@ Please help with this task.
 	}
 
 	// Run the binary
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -101,14 +101,14 @@ Please help with this task.
 
 	// Check that the three output files were created
 	personaOutput := filepath.Join(outputDir, "persona.md")
-	memoriesOutput := filepath.Join(outputDir, "memories.md")
+	rulesOutput := filepath.Join(outputDir, "rules.md")
 	taskOutput := filepath.Join(outputDir, "task.md")
 	
 	if _, err := os.Stat(personaOutput); os.IsNotExist(err) {
 		t.Errorf("persona.md file was not created")
 	}
-	if _, err := os.Stat(memoriesOutput); os.IsNotExist(err) {
-		t.Errorf("memories.md file was not created")
+	if _, err := os.Stat(rulesOutput); os.IsNotExist(err) {
+		t.Errorf("rules.md file was not created")
 	}
 	if _, err := os.Stat(taskOutput); os.IsNotExist(err) {
 		t.Errorf("task.md file was not created")
@@ -126,29 +126,29 @@ func TestBootstrapFileNaming(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a memory file
-	memoryFile := filepath.Join(memoriesDir, "jira.md")
-	memoryContent := `---
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "jira.md")
+	ruleContent := `---
 ---
 # Jira Integration
 `
-	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
-	// Create a bootstrap file for the memory (jira.md -> jira-bootstrap)
-	bootstrapFile := filepath.Join(memoriesDir, "jira-bootstrap")
+	// Create a bootstrap file for the rule (jira.md -> jira-bootstrap)
+	bootstrapFile := filepath.Join(rulesDir, "jira-bootstrap")
 	bootstrapContent := `#!/bin/bash
 echo "Setting up Jira"
 `
@@ -167,7 +167,7 @@ echo "Setting up Jira"
 	}
 
 	// Run the binary
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -216,27 +216,27 @@ func TestBootstrapFileNotRequired(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a memory file WITHOUT a bootstrap
-	memoryFile := filepath.Join(memoriesDir, "info.md")
-	memoryContent := `---
+	// Create a rule file WITHOUT a bootstrap
+	ruleFile := filepath.Join(rulesDir, "info.md")
+	ruleContent := `---
 ---
 # Project Info
 
 Just some information.
 `
-	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a prompt file
@@ -252,7 +252,7 @@ Please help with this task.
 	}
 
 	// Run the binary
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -269,11 +269,11 @@ Please help with this task.
 	}
 
 	// Check that the three output files were still created
-	memoriesOutput := filepath.Join(outputDir, "memories.md")
+	rulesOutput := filepath.Join(outputDir, "rules.md")
 	taskOutput := filepath.Join(outputDir, "task.md")
 	
-	if _, err := os.Stat(memoriesOutput); os.IsNotExist(err) {
-		t.Errorf("memories.md file was not created")
+	if _, err := os.Stat(rulesOutput); os.IsNotExist(err) {
+		t.Errorf("rules.md file was not created")
 	}
 	if _, err := os.Stat(taskOutput); os.IsNotExist(err) {
 		t.Errorf("task.md file was not created")
@@ -291,30 +291,30 @@ func TestMultipleBootstrapFiles(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create first memory file with bootstrap
-	if err := os.WriteFile(filepath.Join(memoriesDir, "setup.md"), []byte("---\n---\n# Setup\n"), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	// Create first rule file with bootstrap
+	if err := os.WriteFile(filepath.Join(rulesDir, "setup.md"), []byte("---\n---\n# Setup\n"), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(memoriesDir, "setup-bootstrap"), []byte("#!/bin/bash\necho setup\n"), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(rulesDir, "setup-bootstrap"), []byte("#!/bin/bash\necho setup\n"), 0755); err != nil {
 		t.Fatalf("failed to write bootstrap file: %v", err)
 	}
 
-	// Create second memory file with bootstrap
-	if err := os.WriteFile(filepath.Join(memoriesDir, "deps.md"), []byte("---\n---\n# Dependencies\n"), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	// Create second rule file with bootstrap
+	if err := os.WriteFile(filepath.Join(rulesDir, "deps.md"), []byte("---\n---\n# Dependencies\n"), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(memoriesDir, "deps-bootstrap"), []byte("#!/bin/bash\necho deps\n"), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(rulesDir, "deps-bootstrap"), []byte("#!/bin/bash\necho deps\n"), 0755); err != nil {
 		t.Fatalf("failed to write bootstrap file: %v", err)
 	}
 
@@ -324,7 +324,7 @@ func TestMultipleBootstrapFiles(t *testing.T) {
 	}
 
 	// Run the binary
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -352,30 +352,30 @@ func TestSelectorFiltering(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create memory files with different frontmatter
-	if err := os.WriteFile(filepath.Join(memoriesDir, "prod.md"), []byte("---\nenv: production\nlanguage: go\n---\n# Production\nProd content\n"), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	// Create rule files with different frontmatter
+	if err := os.WriteFile(filepath.Join(rulesDir, "prod.md"), []byte("---\nenv: production\nlanguage: go\n---\n# Production\nProd content\n"), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(memoriesDir, "dev.md"), []byte("---\nenv: development\nlanguage: python\n---\n# Development\nDev content\n"), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(filepath.Join(rulesDir, "dev.md"), []byte("---\nenv: development\nlanguage: python\n---\n# Development\nDev content\n"), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(memoriesDir, "test.md"), []byte("---\nenv: test\nlanguage: go\n---\n# Test\nTest content\n"), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(filepath.Join(rulesDir, "test.md"), []byte("---\nenv: test\nlanguage: go\n---\n# Test\nTest content\n"), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 	// Create a file without frontmatter (should be included by default)
-	if err := os.WriteFile(filepath.Join(memoriesDir, "nofm.md"), []byte("---\n---\n# No Frontmatter\nNo FM content\n"), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(filepath.Join(rulesDir, "nofm.md"), []byte("---\n---\n# No Frontmatter\nNo FM content\n"), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a prompt file
@@ -384,16 +384,16 @@ func TestSelectorFiltering(t *testing.T) {
 	}
 
 	// Test 1: Include by env=production
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-s", "env=production", "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "-s", "env=production", "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	memoriesOutput := filepath.Join(outputDir, "memories.md")
-	content, err := os.ReadFile(memoriesOutput)
+	rulesOutput := filepath.Join(outputDir, "rules.md")
+	content, err := os.ReadFile(rulesOutput)
 	if err != nil {
-		t.Fatalf("failed to read memories output: %v", err)
+		t.Fatalf("failed to read rules output: %v", err)
 	}
 	contentStr := string(content)
 	if !strings.Contains(contentStr, "Prod content") {
@@ -414,15 +414,15 @@ func TestSelectorFiltering(t *testing.T) {
 	os.RemoveAll(outputDir)
 
 	// Test 2: Include by language=go (should include prod and test, and nofm)
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-s", "language=go", "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "-s", "language=go", "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	content, err = os.ReadFile(memoriesOutput)
+	content, err = os.ReadFile(rulesOutput)
 	if err != nil {
-		t.Fatalf("failed to read memories output: %v", err)
+		t.Fatalf("failed to read rules output: %v", err)
 	}
 	contentStr = string(content)
 	if !strings.Contains(contentStr, "Prod content") {
@@ -442,15 +442,15 @@ func TestSelectorFiltering(t *testing.T) {
 	os.RemoveAll(outputDir)
 
 	// Test 3: Exclude by env=production (should include dev and test, and nofm)
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-S", "env=production", "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "-S", "env=production", "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	content, err = os.ReadFile(memoriesOutput)
+	content, err = os.ReadFile(rulesOutput)
 	if err != nil {
-		t.Fatalf("failed to read memories output: %v", err)
+		t.Fatalf("failed to read rules output: %v", err)
 	}
 	contentStr = string(content)
 	if strings.Contains(contentStr, "Prod content") {
@@ -470,15 +470,15 @@ func TestSelectorFiltering(t *testing.T) {
 	os.RemoveAll(outputDir)
 
 	// Test 4: Multiple includes env=production language=go (should include only prod and nofm)
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-s", "env=production", "-s", "language=go", "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "-s", "env=production", "-s", "language=go", "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	content, err = os.ReadFile(memoriesOutput)
+	content, err = os.ReadFile(rulesOutput)
 	if err != nil {
-		t.Fatalf("failed to read memories output: %v", err)
+		t.Fatalf("failed to read rules output: %v", err)
 	}
 	contentStr = string(content)
 	if !strings.Contains(contentStr, "Prod content") {
@@ -498,15 +498,15 @@ func TestSelectorFiltering(t *testing.T) {
 	os.RemoveAll(outputDir)
 
 	// Test 5: Mix of include and exclude -s env=production -S language=python (should include only prod with go)
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-s", "env=production", "-S", "language=python", "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "-s", "env=production", "-S", "language=python", "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	content, err = os.ReadFile(memoriesOutput)
+	content, err = os.ReadFile(rulesOutput)
 	if err != nil {
-		t.Fatalf("failed to read memories output: %v", err)
+		t.Fatalf("failed to read rules output: %v", err)
 	}
 	contentStr = string(content)
 	if !strings.Contains(contentStr, "Prod content") {
@@ -662,31 +662,31 @@ func TestBootstrapFlag(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a memory file
-	memoryFile := filepath.Join(memoriesDir, "setup.md")
-	memoryContent := `---
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "setup.md")
+	ruleContent := `---
 ---
 # Setup
 
 This is a setup guide.
 `
-	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a bootstrap file that creates a marker file
-	bootstrapFile := filepath.Join(memoriesDir, "setup-bootstrap")
+	bootstrapFile := filepath.Join(rulesDir, "setup-bootstrap")
 	markerFile := filepath.Join(outputDir, "bootstrap-ran.txt")
 	bootstrapContent := `#!/bin/bash
 echo "Bootstrap executed" > ` + markerFile + `
@@ -708,7 +708,7 @@ Please help with this task.
 	}
 
 	// Run the binary WITH the -b flag
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-b", "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "-b", "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -741,31 +741,31 @@ func TestBootstrapFlagNotSet(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a memory file
-	memoryFile := filepath.Join(memoriesDir, "setup.md")
-	memoryContent := `---
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "setup.md")
+	ruleContent := `---
 ---
 # Setup
 
 This is a setup guide.
 `
-	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a bootstrap file that creates a marker file
-	bootstrapFile := filepath.Join(memoriesDir, "setup-bootstrap")
+	bootstrapFile := filepath.Join(rulesDir, "setup-bootstrap")
 	markerFile := filepath.Join(outputDir, "bootstrap-ran.txt")
 	bootstrapContent := `#!/bin/bash
 echo "Bootstrap executed" > ` + markerFile + `
@@ -787,7 +787,7 @@ Please help with this task.
 	}
 
 	// Run the binary WITHOUT the -b flag
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -810,31 +810,31 @@ func TestBootstrapCancellation(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a memory file
-	memoryFile := filepath.Join(memoriesDir, "setup.md")
-	memoryContent := `---
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "setup.md")
+	ruleContent := `---
 ---
 # Setup
 
 Long running setup.
 `
-	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a bootstrap file that runs for a while
-	bootstrapFile := filepath.Join(memoriesDir, "setup-bootstrap")
+	bootstrapFile := filepath.Join(rulesDir, "setup-bootstrap")
 	bootstrapContent := `#!/bin/bash
 for i in {1..30}; do
   echo "Running $i"
@@ -856,7 +856,7 @@ done
 	}
 
 	// Run the binary WITH the -b flag and send interrupt signal
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-b", "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "-b", "test-task")
 	cmd.Dir = tmpDir
 
 	// Start the command
@@ -883,7 +883,7 @@ done
 }
 
 // TestTaskNameBuiltinFilter verifies that the task_name built-in filter
-// automatically includes/excludes memory files based on the task being run
+// automatically includes/excludes rule files based on the task being run
 func TestTaskNameBuiltinFilter(t *testing.T) {
 	// Build the binary
 	binaryPath := filepath.Join(t.TempDir(), "coding-context")
@@ -895,27 +895,27 @@ func TestTaskNameBuiltinFilter(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create memory files with task_name frontmatter
-	if err := os.WriteFile(filepath.Join(memoriesDir, "deploy-specific.md"), []byte("---\ntask_name: deploy\n---\n# Deploy Memory\nDeploy-specific content\n"), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	// Create rule files with task_name frontmatter
+	if err := os.WriteFile(filepath.Join(rulesDir, "deploy-specific.md"), []byte("---\ntask_name: deploy\n---\n# Deploy Rule\nDeploy-specific content\n"), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(memoriesDir, "test-specific.md"), []byte("---\ntask_name: test\n---\n# Test Memory\nTest-specific content\n"), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(filepath.Join(rulesDir, "test-specific.md"), []byte("---\ntask_name: test\n---\n# Test Rule\nTest-specific content\n"), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 	// Create a file without task_name (should be included for all tasks)
-	if err := os.WriteFile(filepath.Join(memoriesDir, "general.md"), []byte("---\n---\n# General Memory\nGeneral content\n"), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(filepath.Join(rulesDir, "general.md"), []byte("---\n---\n# General Rule\nGeneral content\n"), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create prompt files for both tasks
@@ -927,16 +927,16 @@ func TestTaskNameBuiltinFilter(t *testing.T) {
 	}
 
 	// Test 1: Run with "deploy" task - should include deploy-specific and general, but not test-specific
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "deploy")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "deploy")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	memoriesOutput := filepath.Join(outputDir, "memories.md")
-	content, err := os.ReadFile(memoriesOutput)
+	rulesOutput := filepath.Join(outputDir, "rules.md")
+	content, err := os.ReadFile(rulesOutput)
 	if err != nil {
-		t.Fatalf("failed to read memories output: %v", err)
+		t.Fatalf("failed to read rules output: %v", err)
 	}
 	contentStr := string(content)
 	if !strings.Contains(contentStr, "Deploy-specific content") {
@@ -953,15 +953,15 @@ func TestTaskNameBuiltinFilter(t *testing.T) {
 	os.RemoveAll(outputDir)
 
 	// Test 2: Run with "test" task - should include test-specific and general, but not deploy-specific
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
 	}
 
-	content, err = os.ReadFile(memoriesOutput)
+	content, err = os.ReadFile(rulesOutput)
 	if err != nil {
-		t.Fatalf("failed to read memories output: %v", err)
+		t.Fatalf("failed to read rules output: %v", err)
 	}
 	contentStr = string(content)
 	if strings.Contains(contentStr, "Deploy-specific content") {
@@ -986,13 +986,13 @@ func TestPersonaBasic(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	personasDir := filepath.Join(contextDir, "personas")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(personasDir, 0755); err != nil {
 		t.Fatalf("failed to create personas dir: %v", err)
@@ -1013,16 +1013,16 @@ You are an expert in Go.
 		t.Fatalf("failed to write persona file: %v", err)
 	}
 
-	// Create a memory file
-	memoryFile := filepath.Join(memoriesDir, "context.md")
-	memoryContent := `---
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "context.md")
+	ruleContent := `---
 ---
 # Context
 
 This is context.
 `
-	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a task file
@@ -1038,7 +1038,7 @@ Please help with ${feature}.
 	}
 
 	// Run with persona (persona is now a positional argument after task name)
-	cmd = exec.Command(binaryPath, "-r", personasDir, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "-p", "feature=auth", "test-task", "expert")
+	cmd = exec.Command(binaryPath, "-r", personasDir, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "-p", "feature=auth", "test-task", "expert")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -1051,10 +1051,10 @@ Please help with ${feature}.
 		t.Fatalf("failed to read persona output: %v", err)
 	}
 	
-	memoriesOutput := filepath.Join(outputDir, "memories.md")
-	memoriesBytes, err2 := os.ReadFile(memoriesOutput)
+	rulesOutput := filepath.Join(outputDir, "rules.md")
+	rulesBytes, err2 := os.ReadFile(rulesOutput)
 	if err2 != nil {
-		t.Fatalf("failed to read memories output: %v", err2)
+		t.Fatalf("failed to read rules output: %v", err2)
 	}
 	
 	taskOutput := filepath.Join(outputDir, "task.md")
@@ -1072,10 +1072,10 @@ Please help with ${feature}.
 		t.Errorf("Expected persona content to remain as-is without template expansion")
 	}
 
-	// Verify memories content
-	memoriesStr := string(memoriesBytes)
-	if !strings.Contains(memoriesStr, "# Context") {
-		t.Errorf("Expected to find '# Context' in memories.md")
+	// Verify rules content
+	rulesStr := string(rulesBytes)
+	if !strings.Contains(rulesStr, "# Context") {
+		t.Errorf("Expected to find '# Context' in rules.md")
 	}
 
 	// Verify task content
@@ -1099,27 +1099,27 @@ func TestPersonaOptional(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a memory file
-	memoryFile := filepath.Join(memoriesDir, "context.md")
-	memoryContent := `---
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "context.md")
+	ruleContent := `---
 ---
 # Context
 
 This is context.
 `
-	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a task file
@@ -1135,17 +1135,17 @@ Please help.
 	}
 
 	// Run WITHOUT persona (should still work)
-	cmd = exec.Command(binaryPath, "-m", memoriesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
 	cmd.Dir = tmpDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary without persona: %v\n%s", err, output)
 	}
 
-	// Check the memories and task outputs
-	memoriesOutput := filepath.Join(outputDir, "memories.md")
-	memoriesBytes, err := os.ReadFile(memoriesOutput)
+	// Check the rules and task outputs
+	rulesOutput := filepath.Join(outputDir, "rules.md")
+	rulesBytes, err := os.ReadFile(rulesOutput)
 	if err != nil {
-		t.Fatalf("failed to read memories output: %v", err)
+		t.Fatalf("failed to read rules output: %v", err)
 	}
 
 	taskOutput := filepath.Join(outputDir, "task.md")
@@ -1155,8 +1155,8 @@ Please help.
 	}
 
 	// Verify context and task are present
-	if !strings.Contains(string(memoriesBytes), "# Context") {
-		t.Errorf("Expected to find '# Context' in memories.md")
+	if !strings.Contains(string(rulesBytes), "# Context") {
+		t.Errorf("Expected to find '# Context' in rules.md")
 	}
 	if !strings.Contains(string(taskBytes), "# Task") {
 		t.Errorf("Expected to find '# Task' in task.md")
@@ -1224,25 +1224,25 @@ func TestWorkDirOption(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	workDir := filepath.Join(tmpDir, "work")
-	memoriesDir := filepath.Join(workDir, ".prompts", "memories")
+	rulesDir := filepath.Join(workDir, ".prompts", "rules")
 	tasksDir := filepath.Join(workDir, ".prompts", "tasks")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a memory file in the work directory
-	memoryFile := filepath.Join(memoriesDir, "test.md")
-	memoryContent := `---
+	// Create a rule file in the work directory
+	ruleFile := filepath.Join(rulesDir, "test.md")
+	ruleContent := `---
 ---
-# Test Memory
+# Test Rule
 `
-	if err := os.WriteFile(memoryFile, []byte(memoryContent), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a task file
@@ -1256,19 +1256,19 @@ func TestWorkDirOption(t *testing.T) {
 	}
 
 	// Run the binary with -C option to change to work directory
-	cmd = exec.Command(binaryPath, "-C", workDir, "-m", ".prompts/memories", "-t", ".prompts/tasks", "-o", outputDir, "task")
+	cmd = exec.Command(binaryPath, "-C", workDir, "-m", ".prompts/rules", "-t", ".prompts/tasks", "-o", outputDir, "task")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to run binary with -C option: %v\n%s", err, output)
 	}
 
 	// Verify that the three output files were created in the output directory
-	memoriesOutFile := filepath.Join(outputDir, "memories.md")
+	rulesOutFile := filepath.Join(outputDir, "rules.md")
 	taskOutFile := filepath.Join(outputDir, "task.md")
 	personaOutFile := filepath.Join(outputDir, "persona.md")
 	
 	var statErr error
-	if _, statErr = os.Stat(memoriesOutFile); os.IsNotExist(statErr) {
-		t.Errorf("memories.md was not created in output directory")
+	if _, statErr = os.Stat(rulesOutFile); os.IsNotExist(statErr) {
+		t.Errorf("rules.md was not created in output directory")
 	}
 	if _, statErr = os.Stat(taskOutFile); os.IsNotExist(statErr) {
 		t.Errorf("task.md was not created in output directory")
@@ -1277,13 +1277,13 @@ func TestWorkDirOption(t *testing.T) {
 		t.Errorf("persona.md was not created in output directory")
 	}
 
-	// Verify the content includes the memory
-	content, err := os.ReadFile(memoriesOutFile)
+	// Verify the content includes the rule
+	content, err := os.ReadFile(rulesOutFile)
 	if err != nil {
-		t.Fatalf("failed to read memories.md: %v", err)
+		t.Fatalf("failed to read rules.md: %v", err)
 	}
-	if !strings.Contains(string(content), "Test Memory") {
-		t.Errorf("memories.md does not contain expected memory content")
+	if !strings.Contains(string(content), "Test Rule") {
+		t.Errorf("rules.md does not contain expected rule content")
 	}
 }
 
@@ -1298,13 +1298,13 @@ func TestTokenCounting(t *testing.T) {
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	contextDir := filepath.Join(tmpDir, ".prompts")
-	memoriesDir := filepath.Join(contextDir, "memories")
+	rulesDir := filepath.Join(contextDir, "rules")
 	tasksDir := filepath.Join(contextDir, "tasks")
 	personasDir := filepath.Join(contextDir, "personas")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.MkdirAll(memoriesDir, 0755); err != nil {
-		t.Fatalf("failed to create memories dir: %v", err)
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
@@ -1322,21 +1322,21 @@ You are an expert developer.`
 		t.Fatalf("failed to write persona file: %v", err)
 	}
 
-	// Create memory files
-	memoryFile1 := filepath.Join(memoriesDir, "setup.md")
-	memoryContent1 := `# Development Setup
+	// Create rule files
+	ruleFile1 := filepath.Join(rulesDir, "setup.md")
+	ruleContent1 := `# Development Setup
 
 This is a setup guide with detailed instructions.`
-	if err := os.WriteFile(memoryFile1, []byte(memoryContent1), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(ruleFile1, []byte(ruleContent1), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
-	memoryFile2 := filepath.Join(memoriesDir, "conventions.md")
-	memoryContent2 := `# Coding Conventions
+	ruleFile2 := filepath.Join(rulesDir, "conventions.md")
+	ruleContent2 := `# Coding Conventions
 
 Follow best practices and write clean code.`
-	if err := os.WriteFile(memoryFile2, []byte(memoryContent2), 0644); err != nil {
-		t.Fatalf("failed to write memory file: %v", err)
+	if err := os.WriteFile(ruleFile2, []byte(ruleContent2), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a task file
@@ -1365,8 +1365,8 @@ Complete this task with high quality.`
 	if !strings.Contains(outputStr, "tokens)") {
 		t.Errorf("Expected token count in output")
 	}
-	if !strings.Contains(outputStr, "Including memory file:") {
-		t.Errorf("Expected memory file message in output")
+	if !strings.Contains(outputStr, "Including rule file:") {
+		t.Errorf("Expected rule file message in output")
 	}
 	if !strings.Contains(outputStr, "Using task file:") {
 		t.Errorf("Expected task file message in output")
