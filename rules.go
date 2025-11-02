@@ -63,9 +63,10 @@ func FindUserRules() ([]GetRuleContent, error) {
 }
 
 // GetNormalizedRulePaths returns the normalized 3-level hierarchy of rule paths
-// L0: System-rules (/etc/prompts/rules)
-// L1: User-rules (~/.prompts/rules) 
+// Returned in priority order (first match wins):
 // L2: Project-rules (.prompts/rules)
+// L1: User-rules (~/.prompts/rules) 
+// L0: System-rules (/etc/prompts/rules)
 func GetNormalizedRulePaths() ([]string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -80,6 +81,10 @@ func GetNormalizedRulePaths() ([]string, error) {
 }
 
 // GetNormalizedPersonaPaths returns the normalized 3-level hierarchy of persona paths
+// Returned in priority order (first match wins):
+// L2: Project-personas (.prompts/personas)
+// L1: User-personas (~/.prompts/personas) 
+// L0: System-personas (/etc/prompts/personas)
 func GetNormalizedPersonaPaths() ([]string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -87,13 +92,17 @@ func GetNormalizedPersonaPaths() ([]string, error) {
 	}
 
 	return []string{
-		".prompts/personas",
-		filepath.Join(homeDir, ".prompts", "personas"),
-		"/etc/prompts/personas",
+		".prompts/personas",                               // L2: Project-personas
+		filepath.Join(homeDir, ".prompts", "personas"),    // L1: User-personas
+		"/etc/prompts/personas",                           // L0: System-personas
 	}, nil
 }
 
 // GetNormalizedTaskPaths returns the normalized 3-level hierarchy of task paths
+// Returned in priority order (first match wins):
+// L2: Project-tasks (.prompts/tasks)
+// L1: User-tasks (~/.prompts/tasks) 
+// L0: System-tasks (/etc/prompts/tasks)
 func GetNormalizedTaskPaths() ([]string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -101,8 +110,8 @@ func GetNormalizedTaskPaths() ([]string, error) {
 	}
 
 	return []string{
-		".prompts/tasks",
-		filepath.Join(homeDir, ".prompts", "tasks"),
-		"/etc/prompts/tasks",
+		".prompts/tasks",                               // L2: Project-tasks
+		filepath.Join(homeDir, ".prompts", "tasks"),    // L1: User-tasks
+		"/etc/prompts/tasks",                           // L0: System-tasks
 	}, nil
 }
