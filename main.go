@@ -129,6 +129,11 @@ func run(ctx context.Context, args []string) error {
 				return err
 			}
 
+			// Ensure target directory exists
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				return fmt.Errorf("failed to create target directory: %w", err)
+			}
+
 			if err := os.WriteFile(target, []byte(content), 0600); err != nil {
 				return fmt.Errorf("failed to write to rules file: %w", err)
 			}
@@ -279,6 +284,11 @@ func run(ctx context.Context, args []string) error {
 
 			if targetIsDir {
 				target = filepath.Join(target, path)
+			}
+
+			// Ensure target directory exists
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				return fmt.Errorf("failed to create target directory: %w", err)
 			}
 
 			f, err := os.OpenFile(target, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
