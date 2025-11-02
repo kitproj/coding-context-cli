@@ -77,11 +77,11 @@ Options:
   -m <path>         Directory containing rules, or a single rule file (can be used multiple times)
                     Defaults: AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, .cursorrules,
                               .cursor/rules/, .instructions.md, .continuerules, .prompts/rules,
-                              ~/.config/prompts/rules, /var/local/prompts/rules
+                              ~/.prompts/rules, /etc/prompts/rules
   -r <path>         Directory containing personas, or a single persona file (can be used multiple times)
-                    Defaults: .prompts/personas, ~/.config/prompts/personas, /var/local/prompts/personas
+                    Defaults: .prompts/personas, ~/.prompts/personas, /etc/prompts/personas
   -t <path>         Directory containing tasks, or a single task file (can be used multiple times)
-                    Defaults: .prompts/tasks, ~/.config/prompts/tasks, /var/local/prompts/tasks
+                    Defaults: .prompts/tasks, ~/.prompts/tasks, /etc/prompts/tasks
   -o <directory>    Output directory for generated files (default: .)
   -p <key=value>    Template parameter for prompt substitution (can be used multiple times)
   -s <key=value>    Include rules with matching frontmatter (can be used multiple times)
@@ -204,9 +204,9 @@ Please help me with this task. The project uses Go.
 ## Directory Structure
 
 The tool searches these directories for context files (in priority order):
-1. `.prompts/` (project-local)
-2. `~/.config/prompts/` (user-specific)
-3. `/var/local/prompts/` (system-wide)
+1. `.prompts/` (project-local, L2)
+2. `~/.prompts/` (user-specific, L1)
+3. `/etc/prompts/` (system-wide, L0)
 
 Each directory should contain:
 ```
@@ -1134,9 +1134,9 @@ coding-context -p language="$(gh repo view --json primaryLanguage --jq .primaryL
 ### Directory Priority
 
 When the same task exists in multiple directories, the first match wins:
-1. `.prompts/` (highest priority)
-2. `~/.config/prompts/`
-3. `/var/local/prompts/` (lowest priority)
+1. `.prompts/` (highest priority, L2: project-local)
+2. `~/.prompts/` (L1: user-specific)
+3. `/etc/prompts/` (lowest priority, L0: system-wide)
 
 ## Troubleshooting
 
