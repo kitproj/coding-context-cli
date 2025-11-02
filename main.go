@@ -26,13 +26,18 @@ func main() {
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
 		fmt.Fprintf(w, "Usage:\n")
+		fmt.Fprintf(w, "  coding-context <agent_name> <task_name> [-p key=value] [-s key=value] [-S key=value]\n")
 		fmt.Fprintf(w, "  coding-context <command> [options] [arguments]\n\n")
-		fmt.Fprintln(w, "Commands:")
+		fmt.Fprintln(w, "Unified Command (imports, exports, bootstraps, and generates prompt):")
+		fmt.Fprintln(w, "  <agent_name> <task_name>")
+		fmt.Fprintln(w, "                      Run full workflow for specified agent and task")
+		fmt.Fprintln(w, "                      Flags: -p key=value, -s key=value, -S key=value")
+		fmt.Fprintln(w, "Individual Commands:")
 		fmt.Fprintln(w, "  import              Import rules from all known agents to default agent")
 		fmt.Fprintln(w, "  export <agent> [-s key=value] [-S key=value]")
 		fmt.Fprintln(w, "                      Export rules from default agent to specified agent")
 		fmt.Fprintln(w, "  bootstrap           Run bootstrap scripts")
-		fmt.Fprintf(w, "  prompt <name> [-p key=value] [-s key=value] [-S key=value]\n")
+		fmt.Fprintf(w, "  prompt <name> [-p key=value]\n")
 		fmt.Fprintf(w, "                      Find and print a task prompt\n\n")
 		fmt.Fprintln(w, "Global Options:")
 		flag.PrintDefaults()
@@ -94,8 +99,11 @@ func main() {
 			os.Exit(1)
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "Error: unknown command: %s\n", command)
-		flag.Usage()
-		os.Exit(1)
+		// Try to interpret as unified command: agent_name task_name ...
+		// If first arg looks like an agent name, treat as unified command
+		if err := runUnified(ctx, args); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }

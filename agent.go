@@ -190,19 +190,19 @@ func initExportRules() (map[Agent][]RulePath, error) {
 // expandAncestorPaths expands ancestor-level paths to search up the directory hierarchy
 func expandAncestorPaths(filename string) []string {
 	expanded := make([]string, 0)
-	
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		// If we can't get cwd, return filename as-is
 		return []string{filename}
 	}
-	
+
 	// Search from cwd up to root
 	dir := cwd
 	for {
 		ancestorPath := filepath.Join(dir, filename)
 		expanded = append(expanded, ancestorPath)
-		
+
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			// Reached root
@@ -210,6 +210,6 @@ func expandAncestorPaths(filename string) []string {
 		}
 		dir = parent
 	}
-	
+
 	return expanded
 }

@@ -129,4 +129,3 @@ Please help with ${language}.
 		t.Errorf("Expected 'Please help with Go' in output, got: %s", outputStr)
 	}
 }
-

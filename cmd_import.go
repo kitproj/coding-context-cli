@@ -75,7 +75,9 @@ func runImport(ctx context.Context, importRules map[Agent][]RulePath, args []str
 					return fmt.Errorf("failed to write content: %w", err)
 				}
 
-				fmt.Fprintf(os.Stderr, "  Imported %s to %s\n", filePath, actualTarget)
+				// Estimate and log token count
+				tokens := estimateTokens(content)
+				fmt.Fprintf(os.Stderr, "  Imported %s to %s (~%d tokens)\n", filePath, actualTarget, tokens)
 
 				return nil
 			})
