@@ -63,7 +63,7 @@ func FindUserRules() ([]GetRuleContent, error) {
 }
 
 // GetNormalizedRulePaths returns the normalized 3-level hierarchy of rule paths
-// Returned in priority order (first match wins):
+// Returns paths in priority order (highest to lowest priority):
 // L2: Project-rules (.prompts/rules)
 // L1: User-rules (~/.prompts/rules) 
 // L0: System-rules (/etc/prompts/rules)
@@ -81,7 +81,7 @@ func GetNormalizedRulePaths() ([]string, error) {
 }
 
 // GetNormalizedPersonaPaths returns the normalized 3-level hierarchy of persona paths
-// Returned in priority order (first match wins):
+// Returns paths in priority order (highest to lowest priority):
 // L2: Project-personas (.prompts/personas)
 // L1: User-personas (~/.prompts/personas) 
 // L0: System-personas (/etc/prompts/personas)
@@ -99,7 +99,7 @@ func GetNormalizedPersonaPaths() ([]string, error) {
 }
 
 // GetNormalizedTaskPaths returns the normalized 3-level hierarchy of task paths
-// Returned in priority order (first match wins):
+// Returns paths in priority order (highest to lowest priority):
 // L2: Project-tasks (.prompts/tasks)
 // L1: User-tasks (~/.prompts/tasks) 
 // L0: System-tasks (/etc/prompts/tasks)
