@@ -1393,3 +1393,209 @@ Complete this task with high quality.`
 	}
 }
 
+
+func TestRuleDeduplication(t *testing.T) {
+// Build the binary
+binaryPath := filepath.Join(t.TempDir(), "coding-context")
+cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+if output, err := cmd.CombinedOutput(); err != nil {
+t.Fatalf("failed to build binary: %v\n%s", err, output)
+}
+
+// Create a temporary directory structure
+tmpDir := t.TempDir()
+contextDir := filepath.Join(tmpDir, ".prompts")
+rulesDir := filepath.Join(contextDir, "rules")
+tasksDir := filepath.Join(contextDir, "tasks")
+outputDir := filepath.Join(tmpDir, "output")
+
+if err := os.MkdirAll(rulesDir, 0755); err != nil {
+t.Fatalf("failed to create rules dir: %v", err)
+}
+if err := os.MkdirAll(tasksDir, 0755); err != nil {
+t.Fatalf("failed to create tasks dir: %v", err)
+}
+
+// Create first rule file
+if err := os.WriteFile(filepath.Join(rulesDir, "rule1.md"), []byte(`---
+---
+# Coding Standards
+
+- Use tabs for indentation
+- Write tests for all functions
+`), 0644); err != nil {
+t.Fatalf("failed to write rule1 file: %v", err)
+}
+
+// Create exact duplicate rule file
+if err := os.WriteFile(filepath.Join(rulesDir, "rule2.md"), []byte(`---
+---
+# Coding Standards
+
+- Use tabs for indentation
+- Write tests for all functions
+`), 0644); err != nil {
+t.Fatalf("failed to write rule2 file: %v", err)
+}
+
+// Create similar rule file (should be deduplicated due to similarity)
+if err := os.WriteFile(filepath.Join(rulesDir, "rule3.md"), []byte(`---
+---
+# Coding Standards
+
+- Use tabs for indentations
+- Write tests for all function
+`), 0644); err != nil {
+t.Fatalf("failed to write rule3 file: %v", err)
+}
+
+// Create different rule file (should NOT be deduplicated)
+if err := os.WriteFile(filepath.Join(rulesDir, "rule4.md"), []byte(`---
+---
+# Documentation Standards
+
+- Add comments for public APIs
+- Include usage examples
+`), 0644); err != nil {
+t.Fatalf("failed to write rule4 file: %v", err)
+}
+
+// Create task file
+if err := os.WriteFile(filepath.Join(tasksDir, "test-task.md"), []byte("---\n---\n# Test\n"), 0644); err != nil {
+t.Fatalf("failed to write task file: %v", err)
+}
+
+// Run the binary
+cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+cmd.Dir = tmpDir
+output, err := cmd.CombinedOutput()
+if err != nil {
+t.Fatalf("failed to run binary: %v\n%s", err, output)
+}
+
+outputStr := string(output)
+
+// Verify that duplicates were detected
+if !strings.Contains(outputStr, "duplicate or similar content") {
+t.Errorf("Expected to see message about duplicate or similar content in output")
+}
+
+// Read the generated rules.md
+rulesContent, err := os.ReadFile(filepath.Join(outputDir, "rules.md"))
+if err != nil {
+t.Fatalf("failed to read rules.md: %v", err)
+}
+
+rulesStr := string(rulesContent)
+
+// Should contain "Coding Standards" section (from first file)
+if !strings.Contains(rulesStr, "# Coding Standards") {
+t.Errorf("Expected rules.md to contain 'Coding Standards' section")
+}
+
+// Should contain "Documentation Standards" section (different content)
+if !strings.Contains(rulesStr, "# Documentation Standards") {
+t.Errorf("Expected rules.md to contain 'Documentation Standards' section")
+}
+
+// Count occurrences of "Coding Standards" - should appear only once due to deduplication
+codingStandardsCount := strings.Count(rulesStr, "# Coding Standards")
+if codingStandardsCount != 1 {
+t.Errorf("Expected 'Coding Standards' to appear 1 time, got %d", codingStandardsCount)
+}
+}
+
+func TestRuleDeduplicationWithChunks(t *testing.T) {
+// Build the binary
+binaryPath := filepath.Join(t.TempDir(), "coding-context")
+cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+if output, err := cmd.CombinedOutput(); err != nil {
+t.Fatalf("failed to build binary: %v\n%s", err, output)
+}
+
+// Create a temporary directory structure
+tmpDir := t.TempDir()
+contextDir := filepath.Join(tmpDir, ".prompts")
+rulesDir := filepath.Join(contextDir, "rules")
+tasksDir := filepath.Join(contextDir, "tasks")
+outputDir := filepath.Join(tmpDir, "output")
+
+if err := os.MkdirAll(rulesDir, 0755); err != nil {
+t.Fatalf("failed to create rules dir: %v", err)
+}
+if err := os.MkdirAll(tasksDir, 0755); err != nil {
+t.Fatalf("failed to create tasks dir: %v", err)
+}
+
+// Create rule file with multiple sections
+if err := os.WriteFile(filepath.Join(rulesDir, "multi1.md"), []byte(`---
+---
+# Section A
+
+This is the first section with specific content about topic A.
+
+# Section B
+
+This is the second section with completely different content about topic B.
+It has multiple lines and substantial differences.
+`), 0644); err != nil {
+t.Fatalf("failed to write multi1 file: %v", err)
+}
+
+// Create rule file with one duplicate section and one unique section
+if err := os.WriteFile(filepath.Join(rulesDir, "multi2.md"), []byte(`---
+---
+# Section A
+
+This is the first section with specific content about topic A.
+
+# Section C
+
+This is a brand new section covering entirely different subject matter.
+It discusses concepts not mentioned anywhere else in the documentation.
+`), 0644); err != nil {
+t.Fatalf("failed to write multi2 file: %v", err)
+}
+
+// Create task file
+if err := os.WriteFile(filepath.Join(tasksDir, "test-task.md"), []byte("---\n---\n# Test\n"), 0644); err != nil {
+t.Fatalf("failed to write task file: %v", err)
+}
+
+// Run the binary
+cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+cmd.Dir = tmpDir
+output, err := cmd.CombinedOutput()
+if err != nil {
+t.Fatalf("failed to run binary: %v\n%s", err, output)
+}
+
+// Read the generated rules.md
+rulesContent, err := os.ReadFile(filepath.Join(outputDir, "rules.md"))
+if err != nil {
+t.Fatalf("failed to read rules.md: %v", err)
+}
+
+rulesStr := string(rulesContent)
+
+// Should contain Section A (from first file)
+if !strings.Contains(rulesStr, "# Section A") {
+t.Errorf("Expected rules.md to contain 'Section A'")
+}
+
+// Should contain Section B (from first file)
+if !strings.Contains(rulesStr, "# Section B") {
+t.Errorf("Expected rules.md to contain 'Section B'")
+}
+
+// Should contain Section C (from second file, unique)
+if !strings.Contains(rulesStr, "# Section C") {
+t.Errorf("Expected rules.md to contain 'Section C'")
+}
+
+// Count occurrences of "Section A" - should appear only once due to chunk deduplication
+sectionACount := strings.Count(rulesStr, "# Section A")
+if sectionACount != 1 {
+t.Errorf("Expected 'Section A' to appear 1 time, got %d", sectionACount)
+}
+}

@@ -180,6 +180,9 @@ func run(ctx context.Context, args []string) error {
 	}
 	defer rulesOutput.Close()
 
+	// Create deduplicator for rule content
+	deduplicator := NewRuleDeduplicator()
+
 	for _, rule := range rules {
 
 		// Skip if the path doesn't exist
@@ -218,8 +221,17 @@ func run(ctx context.Context, args []string) error {
 				return nil
 			}
 
-			// Estimate tokens for this file
-			tokens := estimateTokens(content)
+			// Apply deduplication
+			deduplicatedContent := deduplicator.AddContent(content)
+			
+			// Skip if content was fully deduplicated
+			if deduplicatedContent == "" {
+				fmt.Fprintf(os.Stdout, "Excluding rule file (duplicate or similar content): %s\n", path)
+				return nil
+			}
+
+			// Estimate tokens for deduplicated content
+			tokens := estimateTokens(deduplicatedContent)
 			totalTokens += tokens
 			fmt.Fprintf(os.Stdout, "Including rule file: %s (~%d tokens)\n", path, tokens)
 
@@ -240,7 +252,7 @@ func run(ctx context.Context, args []string) error {
 				}
 			}
 
-			if _, err := rulesOutput.WriteString(content + "\n\n"); err != nil {
+			if _, err := rulesOutput.WriteString(deduplicatedContent + "\n\n"); err != nil {
 				return fmt.Errorf("failed to write to rules file: %w", err)
 			}
 
