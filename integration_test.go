@@ -1393,3 +1393,277 @@ Complete this task with high quality.`
 	}
 }
 
+func TestMdcFileSupport(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	rulesDir := filepath.Join(contextDir, "rules")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a .mdc rule file (Cursor format)
+	mdcRuleFile := filepath.Join(rulesDir, "cursor-rules.mdc")
+	mdcRuleContent := `---
+env: development
+---
+# Cursor AI Rules
+
+These are Cursor-specific rules in .mdc format.
+`
+	if err := os.WriteFile(mdcRuleFile, []byte(mdcRuleContent), 0644); err != nil {
+		t.Fatalf("failed to write .mdc rule file: %v", err)
+	}
+
+	// Create a .md rule file for comparison
+	mdRuleFile := filepath.Join(rulesDir, "regular-rules.md")
+	mdRuleContent := `---
+env: development
+---
+# Regular Markdown Rules
+
+These are regular .md format rules.
+`
+	if err := os.WriteFile(mdRuleFile, []byte(mdRuleContent), 0644); err != nil {
+		t.Fatalf("failed to write .md rule file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+---
+# Test Task
+
+Test task for .mdc file support.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that rules.md was created and contains content from both .md and .mdc files
+	rulesOutput := filepath.Join(outputDir, "rules.md")
+	content, err := os.ReadFile(rulesOutput)
+	if err != nil {
+		t.Fatalf("failed to read rules output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify .mdc content is included
+	if !strings.Contains(contentStr, "Cursor AI Rules") {
+		t.Errorf("Expected .mdc file content to be included in rules.md")
+	}
+	if !strings.Contains(contentStr, "Cursor-specific rules in .mdc format") {
+		t.Errorf("Expected .mdc file body content to be included in rules.md")
+	}
+
+	// Verify .md content is still included
+	if !strings.Contains(contentStr, "Regular Markdown Rules") {
+		t.Errorf("Expected .md file content to be included in rules.md")
+	}
+	if !strings.Contains(contentStr, "regular .md format rules") {
+		t.Errorf("Expected .md file body content to be included in rules.md")
+	}
+}
+
+func TestMdcFileWithBootstrap(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	rulesDir := filepath.Join(contextDir, "rules")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a .mdc rule file
+	mdcRuleFile := filepath.Join(rulesDir, "cursor-setup.mdc")
+	mdcRuleContent := `---
+---
+# Cursor Setup
+
+Setup instructions for Cursor.
+`
+	if err := os.WriteFile(mdcRuleFile, []byte(mdcRuleContent), 0644); err != nil {
+		t.Fatalf("failed to write .mdc rule file: %v", err)
+	}
+
+	// Create a bootstrap file for the .mdc rule (cursor-setup.mdc -> cursor-setup-bootstrap)
+	bootstrapFile := filepath.Join(rulesDir, "cursor-setup-bootstrap")
+	bootstrapContent := `#!/bin/bash
+echo "Setting up Cursor"
+`
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0755); err != nil {
+		t.Fatalf("failed to write bootstrap file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+---
+# Test Task
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that the bootstrap.d directory was created
+	bootstrapDDir := filepath.Join(outputDir, "bootstrap.d")
+	if _, err := os.Stat(bootstrapDDir); os.IsNotExist(err) {
+		t.Errorf("bootstrap.d directory was not created")
+	}
+
+	// Check that a bootstrap file exists in bootstrap.d
+	files, err := os.ReadDir(bootstrapDDir)
+	if err != nil {
+		t.Fatalf("failed to read bootstrap.d dir: %v", err)
+	}
+	if len(files) != 1 {
+		t.Errorf("expected 1 bootstrap file, got %d", len(files))
+	}
+
+	// Check that the bootstrap file has the correct content
+	if len(files) > 0 {
+		bootstrapPath := filepath.Join(bootstrapDDir, files[0].Name())
+		content, err := os.ReadFile(bootstrapPath)
+		if err != nil {
+			t.Fatalf("failed to read bootstrap file: %v", err)
+		}
+		if string(content) != bootstrapContent {
+			t.Errorf("bootstrap content mismatch:\ngot: %q\nwant: %q", string(content), bootstrapContent)
+		}
+
+		// Verify the naming format: cursor-setup-bootstrap-<8-hex-chars>
+		fileName := files[0].Name()
+		if !strings.HasPrefix(fileName, "cursor-setup-bootstrap-") {
+			t.Errorf("bootstrap file name should start with 'cursor-setup-bootstrap-', got: %s", fileName)
+		}
+	}
+}
+
+func TestMdcFileWithSelectors(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	rulesDir := filepath.Join(contextDir, "rules")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
+
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create .mdc files with different frontmatter
+	prodMdcFile := filepath.Join(rulesDir, "prod-cursor.mdc")
+	prodMdcContent := `---
+env: production
+editor: cursor
+---
+# Production Cursor Rules
+
+Production-specific Cursor rules.
+`
+	if err := os.WriteFile(prodMdcFile, []byte(prodMdcContent), 0644); err != nil {
+		t.Fatalf("failed to write prod .mdc file: %v", err)
+	}
+
+	devMdcFile := filepath.Join(rulesDir, "dev-cursor.mdc")
+	devMdcContent := `---
+env: development
+editor: cursor
+---
+# Development Cursor Rules
+
+Development-specific Cursor rules.
+`
+	if err := os.WriteFile(devMdcFile, []byte(devMdcContent), 0644); err != nil {
+		t.Fatalf("failed to write dev .mdc file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+---
+# Test Task
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run with production selector
+	cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "-s", "env=production", "test-task")
+	cmd.Dir = tmpDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that only production .mdc content is included
+	rulesOutput := filepath.Join(outputDir, "rules.md")
+	content, err := os.ReadFile(rulesOutput)
+	if err != nil {
+		t.Fatalf("failed to read rules output: %v", err)
+	}
+
+	contentStr := string(content)
+
+	if !strings.Contains(contentStr, "Production Cursor Rules") {
+		t.Errorf("Expected production .mdc content to be included")
+	}
+	if !strings.Contains(contentStr, "Production-specific Cursor rules") {
+		t.Errorf("Expected production .mdc body content to be included")
+	}
+	if strings.Contains(contentStr, "Development Cursor Rules") {
+		t.Errorf("Did not expect development .mdc content to be included")
+	}
+}
+
+
