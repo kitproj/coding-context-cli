@@ -1,4 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-
-find bootstrap.d -type f -print -exec {} \;
