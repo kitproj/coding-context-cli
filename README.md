@@ -279,12 +279,11 @@ Rule files are standard Markdown (`.md`) or Cursor MDC format (`.mdc`). They can
 
 ```markdown
 ---
-env: production
-language: go
+language: Go
 ---
-# Production Rules
+# Go Language Rules
 
-Follow these production-specific guidelines...
+Follow these Go-specific guidelines...
 ```
 
 ## Future Commands (TODO)
