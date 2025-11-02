@@ -120,16 +120,17 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to create bootstrap dir: %w", err)
 	}
 
-	output, err := os.Create(filepath.Join(outputDir, "prompt.md"))
-	if err != nil {
-		return fmt.Errorf("failed to create prompt file: %w", err)
-	}
-	defer output.Close()
-
 	// Track total tokens
 	var totalTokens int
 
-	// Process persona first if provided (should be first in output)
+	// Create persona.md file
+	personaOutput, err := os.Create(filepath.Join(outputDir, "persona.md"))
+	if err != nil {
+		return fmt.Errorf("failed to create persona file: %w", err)
+	}
+	defer personaOutput.Close()
+
+	// Process persona first if provided
 	if personaName != "" {
 		personaFound := false
 		for _, path := range personas {
@@ -159,7 +160,7 @@ func run(ctx context.Context, args []string) error {
 			fmt.Fprintf(os.Stdout, "Using persona file: %s (~%d tokens)\n", path, tokens)
 
 			// Personas don't need variable expansion or filters
-			if _, err := output.WriteString(content + "\n\n"); err != nil {
+			if _, err := personaOutput.WriteString(content); err != nil {
 				return fmt.Errorf("failed to write persona: %w", err)
 			}
 
@@ -171,6 +172,13 @@ func run(ctx context.Context, args []string) error {
 			return fmt.Errorf("persona file not found for persona: %s", personaName)
 		}
 	}
+
+	// Create memories.md file
+	memoriesOutput, err := os.Create(filepath.Join(outputDir, "memories.md"))
+	if err != nil {
+		return fmt.Errorf("failed to create memories file: %w", err)
+	}
+	defer memoriesOutput.Close()
 
 	memoryBasenames := make(map[string]bool)
 
@@ -241,8 +249,8 @@ func run(ctx context.Context, args []string) error {
 				}
 			}
 
-			if _, err := output.WriteString(content + "\n\n"); err != nil {
-				return fmt.Errorf("failed to write to output file: %w", err)
+			if _, err := memoriesOutput.WriteString(content + "\n\n"); err != nil {
+				return fmt.Errorf("failed to write to memories file: %w", err)
 			}
 
 			return nil
@@ -256,6 +264,13 @@ func run(ctx context.Context, args []string) error {
 	if err := os.WriteFile(filepath.Join(outputDir, "bootstrap"), []byte(bootstrap), 0755); err != nil {
 		return fmt.Errorf("failed to write bootstrap file: %w", err)
 	}
+
+	// Create task.md file
+	taskOutput, err := os.Create(filepath.Join(outputDir, "task.md"))
+	if err != nil {
+		return fmt.Errorf("failed to create task file: %w", err)
+	}
+	defer taskOutput.Close()
 
 	for _, path := range tasks {
 		stat, err := os.Stat(path)
@@ -291,8 +306,8 @@ func run(ctx context.Context, args []string) error {
 		totalTokens += tokens
 		fmt.Fprintf(os.Stdout, "Using task file: %s (~%d tokens)\n", path, tokens)
 
-		if _, err := output.WriteString(expanded); err != nil {
-			return fmt.Errorf("failed to write expanded prompt: %w", err)
+		if _, err := taskOutput.WriteString(expanded); err != nil {
+			return fmt.Errorf("failed to write expanded task: %w", err)
 		}
 
 		// Print total token count
