@@ -66,16 +66,16 @@ This is the second memory.`
 	}
 
 	// Check the output
-	memoriesBytes, err := os.ReadFile(filepath.Join(tmpDir, "memories.md"))
+	promptBytes, err := os.ReadFile(filepath.Join(tmpDir, "prompt.md"))
 	if err != nil {
-		t.Fatalf("Failed to read memories.md: %v", err)
+		t.Fatalf("Failed to read prompt.md: %v", err)
 	}
-	memoriesContent := string(memoriesBytes)
+	prompt := string(promptBytes)
 
 	// We expect only one of the memories to be included
-	hasFirst := strings.Contains(memoriesContent, "This is the first memory.")
-	hasSecond := strings.Contains(memoriesContent, "This is the second memory.")
+	hasFirst := strings.Contains(prompt, "This is the first memory.")
+	hasSecond := strings.Contains(prompt, "This is the second memory.")
 	if hasFirst == hasSecond {
-		t.Errorf("Expected only one memory to be included, but got: %s", memoriesContent)
+		t.Errorf("Expected only one memory to be included, but got: %s", prompt)
 	}
 }

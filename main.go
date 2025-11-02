@@ -100,7 +100,7 @@ func run(ctx context.Context, args []string) error {
 	if err := os.Chdir(workDir); err != nil {
 		return fmt.Errorf("failed to chdir to %s: %w", workDir, err)
 	}
-  
+
 	// Add task name to includes so memories can be filtered by task
 	taskName := args[0]
 	includes["task_name"] = taskName
