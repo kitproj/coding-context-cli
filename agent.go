@@ -17,16 +17,18 @@ func initAgentRules() error {
 
 	agentRules = make(map[Agent]map[RuleLevel][]string)
 
-	// Default agent - for .prompts/rules directories
+	// Default agent - normalized storage for all rules
 	agentRules[Default] = map[RuleLevel][]string{
 		ProjectLevel: {
-			".prompts/rules",
+			".agents/rules",
 		},
+		AncestorLevel: expandAncestorPaths("AGENTS.md"),
 		UserLevel: {
-			filepath.Join(homeDir, ".config", "prompts", "rules"),
+			filepath.Join(homeDir, ".agents", "rules"),
+			filepath.Join(homeDir, ".agents", "AGENTS.md"),
 		},
 		SystemLevel: {
-			"/var/local/prompts/rules",
+			"/etc/agents/rules",
 		},
 	}
 
@@ -35,9 +37,7 @@ func initAgentRules() error {
 		ProjectLevel: {
 			"CLAUDE.local.md",
 		},
-		AncestorLevel: {
-			"CLAUDE.md",
-		},
+		AncestorLevel: expandAncestorPaths("CLAUDE.md"),
 		UserLevel: {
 			filepath.Join(homeDir, ".claude", "CLAUDE.md"),
 		},
@@ -48,9 +48,7 @@ func initAgentRules() error {
 		ProjectLevel: {
 			".gemini/styleguide.md",
 		},
-		AncestorLevel: {
-			"GEMINI.md",
-		},
+		AncestorLevel: expandAncestorPaths("GEMINI.md"),
 		UserLevel: {
 			filepath.Join(homeDir, ".gemini", "GEMINI.md"),
 		},
@@ -58,9 +56,7 @@ func initAgentRules() error {
 
 	// Codex CLI - Hierarchical Concatenation
 	agentRules[Codex] = map[RuleLevel][]string{
-		AncestorLevel: {
-			"AGENTS.md",
-		},
+		AncestorLevel: expandAncestorPaths("AGENTS.md"),
 		UserLevel: {
 			filepath.Join(homeDir, ".codex", "AGENTS.md"),
 		},
@@ -71,9 +67,7 @@ func initAgentRules() error {
 		ProjectLevel: {
 			".cursor/rules/",
 		},
-		AncestorLevel: {
-			"AGENTS.md",
-		},
+		AncestorLevel: expandAncestorPaths("AGENTS.md"),
 	}
 
 	// GitHub Copilot - Simple System Prompt + Hierarchical Concatenation + Agent Definition
@@ -82,9 +76,7 @@ func initAgentRules() error {
 			".github/agents/",
 			".github/copilot-instructions.md",
 		},
-		AncestorLevel: {
-			"AGENTS.md",
-		},
+		AncestorLevel: expandAncestorPaths("AGENTS.md"),
 	}
 
 	// Augment CLI - Declarative Context Injection + Compatibility
@@ -93,10 +85,7 @@ func initAgentRules() error {
 			".augment/rules/",
 			".augment/guidelines.md",
 		},
-		AncestorLevel: {
-			"CLAUDE.md",
-			"AGENTS.md",
-		},
+		AncestorLevel: append(expandAncestorPaths("CLAUDE.md"), expandAncestorPaths("AGENTS.md")...),
 	}
 
 	// Windsurf (Codeium) - Declarative Context Injection
@@ -108,46 +97,34 @@ func initAgentRules() error {
 
 	// Goose - Compatibility (External Standard)
 	agentRules[Goose] = map[RuleLevel][]string{
-		AncestorLevel: {
-			"AGENTS.md",
-		},
-	}
-
-	// Expand ancestor paths for all agents
-	for agent, levels := range agentRules {
-		if ancestorPaths, ok := levels[AncestorLevel]; ok {
-			expanded := expandAncestorPaths(ancestorPaths)
-			agentRules[agent][AncestorLevel] = expanded
-		}
+		AncestorLevel: expandAncestorPaths("AGENTS.md"),
 	}
 
 	return nil
 }
 
 // expandAncestorPaths expands ancestor-level paths to search up the directory hierarchy
-func expandAncestorPaths(paths []string) []string {
+func expandAncestorPaths(filename string) []string {
 	expanded := make([]string, 0)
 	
 	cwd, err := os.Getwd()
 	if err != nil {
-		// If we can't get cwd, return paths as-is
-		return paths
+		// If we can't get cwd, return filename as-is
+		return []string{filename}
 	}
 	
-	for _, filename := range paths {
-		// Search from cwd up to root
-		dir := cwd
-		for {
-			ancestorPath := filepath.Join(dir, filename)
-			expanded = append(expanded, ancestorPath)
-			
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				// Reached root
-				break
-			}
-			dir = parent
+	// Search from cwd up to root
+	dir := cwd
+	for {
+		ancestorPath := filepath.Join(dir, filename)
+		expanded = append(expanded, ancestorPath)
+		
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached root
+			break
 		}
+		dir = parent
 	}
 	
 	return expanded
