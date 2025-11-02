@@ -48,8 +48,8 @@ This is a test agents file.
 	if !strings.Contains(outputStr, "AGENTS.md") {
 		t.Errorf("Expected 'AGENTS.md' in output, got: %s", outputStr)
 	}
-	if !strings.Contains(outputStr, "level 0") {
-		t.Errorf("Expected 'level 0' (ProjectLevel) in output, got: %s", outputStr)
+	if !strings.Contains(outputStr, "level 1") {
+		t.Errorf("Expected 'level 1' (AncestorLevel) in output, got: %s", outputStr)
 	}
 
 	// Check that rules.md was created
@@ -350,4 +350,87 @@ func TestImportWithoutAgent(t *testing.T) {
 	if !strings.Contains(outputStr, "usage:") {
 		t.Errorf("Expected usage error message, got: %s", outputStr)
 	}
+}
+
+func TestImportWithAncestorPaths(t *testing.T) {
+// Build the binary
+binaryPath := filepath.Join(t.TempDir(), "coding-context")
+cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+if output, err := cmd.CombinedOutput(); err != nil {
+t.Fatalf("failed to build binary: %v\n%s", err, output)
+}
+
+// Create a directory hierarchy with AGENTS.md at different levels
+tmpDir := t.TempDir()
+rootAgents := filepath.Join(tmpDir, "AGENTS.md")
+sub1Dir := filepath.Join(tmpDir, "sub1")
+sub1Agents := filepath.Join(sub1Dir, "AGENTS.md")
+sub2Dir := filepath.Join(sub1Dir, "sub2")
+outputDir := filepath.Join(sub2Dir, "output")
+
+// Create directories
+if err := os.MkdirAll(sub2Dir, 0755); err != nil {
+t.Fatalf("failed to create directory structure: %v", err)
+}
+
+// Create AGENTS.md at root level
+rootContent := `# Root Level Rules
+
+This is from the root.
+`
+if err := os.WriteFile(rootAgents, []byte(rootContent), 0644); err != nil {
+t.Fatalf("failed to write root AGENTS.md: %v", err)
+}
+
+// Create AGENTS.md at sub1 level
+sub1Content := `# Sub1 Level Rules
+
+This is from sub1.
+`
+if err := os.WriteFile(sub1Agents, []byte(sub1Content), 0644); err != nil {
+t.Fatalf("failed to write sub1 AGENTS.md: %v", err)
+}
+
+// Run import from sub2 directory (should find both sub1 and root AGENTS.md)
+cmd = exec.Command(binaryPath, "-C", sub2Dir, "-o", outputDir, "import", "Codex")
+output, err := cmd.CombinedOutput()
+if err != nil {
+t.Fatalf("failed to run import command: %v\n%s", err, output)
+}
+
+// Check output mentions both files
+outputStr := string(output)
+if !strings.Contains(outputStr, "sub1/AGENTS.md") {
+t.Errorf("Expected sub1/AGENTS.md in output, got: %s", outputStr)
+}
+if !strings.Contains(outputStr, tmpDir+"/AGENTS.md") {
+t.Errorf("Expected root AGENTS.md in output, got: %s", outputStr)
+}
+
+// Check that rules.md contains both files' content
+rulesOutput := filepath.Join(outputDir, "rules.md")
+content, err := os.ReadFile(rulesOutput)
+if err != nil {
+t.Fatalf("failed to read rules.md: %v", err)
+}
+contentStr := string(content)
+if !strings.Contains(contentStr, "# Sub1 Level Rules") {
+t.Errorf("Expected sub1 content in rules.md")
+}
+if !strings.Contains(contentStr, "This is from sub1.") {
+t.Errorf("Expected sub1 text in rules.md")
+}
+if !strings.Contains(contentStr, "# Root Level Rules") {
+t.Errorf("Expected root content in rules.md")
+}
+if !strings.Contains(contentStr, "This is from the root.") {
+t.Errorf("Expected root text in rules.md")
+}
+
+// Verify files are in correct order (closer files first, based on level)
+sub1Pos := strings.Index(contentStr, "# Sub1 Level Rules")
+rootPos := strings.Index(contentStr, "# Root Level Rules")
+if sub1Pos > rootPos {
+t.Errorf("Expected sub1 content before root content (closer to cwd should be first)")
+}
 }
