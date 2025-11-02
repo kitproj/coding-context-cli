@@ -207,7 +207,8 @@ func run(ctx context.Context, args []string) error {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
 			}
 
-			// Check if file matches include and exclude selectors
+			// Check if file matches include and exclude selectors.
+			// Note: Files with duplicate basenames will both be included.
 			if !includes.matchesIncludes(frontmatter) {
 				fmt.Fprintf(os.Stdout, "Excluding rule file (does not match include selectors): %s\n", path)
 				return nil
