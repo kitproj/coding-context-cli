@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -306,12 +307,12 @@ Content C here - completely different.
 	}
 
 	// Check that Section A is not in result2
-	if containsString(result2, "Section A") {
+	if strings.Contains(result2, "Section A") {
 		t.Errorf("Section A should be deduplicated from result2")
 	}
 
 	// Check that Section C is in result2
-	if !containsString(result2, "Section C") {
+	if !strings.Contains(result2, "Section C") {
 		t.Errorf("Section C should be in result2, got: %q", result2)
 	}
 }
@@ -340,12 +341,12 @@ This is duplicated content.
 	result2 := dedup.AddContent(content2)
 
 	// Result should only contain "Different Heading" section
-	if !containsString(result2, "Different Heading") {
+	if !strings.Contains(result2, "Different Heading") {
 		t.Errorf("Result should contain 'Different Heading', got: %q", result2)
 	}
 
 	// Result should not contain "Duplicated Section"
-	if containsString(result2, "Duplicated Section") {
+	if strings.Contains(result2, "Duplicated Section") {
 		t.Errorf("Result should not contain 'Duplicated Section', got: %q", result2)
 	}
 }
@@ -372,18 +373,4 @@ Just plain text.
 	if result2 != "" {
 		t.Errorf("Duplicate content should be deduplicated, got: %q", result2)
 	}
-}
-
-// Helper function to check if a string contains a substring
-func containsString(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && len(s) >= len(substr) && stringContains(s, substr)
-}
-
-func stringContains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

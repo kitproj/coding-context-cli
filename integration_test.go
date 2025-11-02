@@ -9,6 +9,17 @@ import (
 	"time"
 )
 
+// buildTestBinary builds the coding-context binary for integration testing
+func buildTestBinary(t *testing.T) string {
+	t.Helper()
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+	return binaryPath
+}
+
 func TestBootstrapFromFile(t *testing.T) {
 	// Build the binary
 	binaryPath := filepath.Join(t.TempDir(), "coding-context")
@@ -1395,23 +1406,19 @@ Complete this task with high quality.`
 
 
 func TestRuleDeduplication(t *testing.T) {
-// Build the binary
-binaryPath := filepath.Join(t.TempDir(), "coding-context")
-cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-if output, err := cmd.CombinedOutput(); err != nil {
-t.Fatalf("failed to build binary: %v\n%s", err, output)
-}
+	// Build the binary
+	binaryPath := buildTestBinary(t)
 
-// Create a temporary directory structure
-tmpDir := t.TempDir()
-contextDir := filepath.Join(tmpDir, ".prompts")
-rulesDir := filepath.Join(contextDir, "rules")
-tasksDir := filepath.Join(contextDir, "tasks")
-outputDir := filepath.Join(tmpDir, "output")
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
+	rulesDir := filepath.Join(contextDir, "rules")
+	tasksDir := filepath.Join(contextDir, "tasks")
+	outputDir := filepath.Join(tmpDir, "output")
 
-if err := os.MkdirAll(rulesDir, 0755); err != nil {
-t.Fatalf("failed to create rules dir: %v", err)
-}
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
 if err := os.MkdirAll(tasksDir, 0755); err != nil {
 t.Fatalf("failed to create tasks dir: %v", err)
 }
@@ -1462,20 +1469,20 @@ t.Fatalf("failed to write rule4 file: %v", err)
 
 // Create task file
 if err := os.WriteFile(filepath.Join(tasksDir, "test-task.md"), []byte("---\n---\n# Test\n"), 0644); err != nil {
-t.Fatalf("failed to write task file: %v", err)
-}
+	t.Fatalf("failed to write task file: %v", err)
+	}
 
-// Run the binary
-cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
-cmd.Dir = tmpDir
-output, err := cmd.CombinedOutput()
-if err != nil {
-t.Fatalf("failed to run binary: %v\n%s", err, output)
-}
+	// Run the binary
+	cmd := exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
 
-outputStr := string(output)
+	outputStr := string(output)
 
-// Verify that duplicates were detected
+	// Verify that duplicates were detected
 if !strings.Contains(outputStr, "duplicate or similar content") {
 t.Errorf("Expected to see message about duplicate or similar content in output")
 }
@@ -1506,16 +1513,12 @@ t.Errorf("Expected 'Coding Standards' to appear 1 time, got %d", codingStandards
 }
 
 func TestRuleDeduplicationWithChunks(t *testing.T) {
-// Build the binary
-binaryPath := filepath.Join(t.TempDir(), "coding-context")
-cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-if output, err := cmd.CombinedOutput(); err != nil {
-t.Fatalf("failed to build binary: %v\n%s", err, output)
-}
+	// Build the binary
+	binaryPath := buildTestBinary(t)
 
-// Create a temporary directory structure
-tmpDir := t.TempDir()
-contextDir := filepath.Join(tmpDir, ".prompts")
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	contextDir := filepath.Join(tmpDir, ".prompts")
 rulesDir := filepath.Join(contextDir, "rules")
 tasksDir := filepath.Join(contextDir, "tasks")
 outputDir := filepath.Join(tmpDir, "output")
@@ -1559,20 +1562,20 @@ t.Fatalf("failed to write multi2 file: %v", err)
 
 // Create task file
 if err := os.WriteFile(filepath.Join(tasksDir, "test-task.md"), []byte("---\n---\n# Test\n"), 0644); err != nil {
-t.Fatalf("failed to write task file: %v", err)
-}
+	t.Fatalf("failed to write task file: %v", err)
+	}
 
-// Run the binary
-cmd = exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
-cmd.Dir = tmpDir
-output, err := cmd.CombinedOutput()
-if err != nil {
-t.Fatalf("failed to run binary: %v\n%s", err, output)
-}
+	// Run the binary
+	cmd := exec.Command(binaryPath, "-m", rulesDir, "-t", tasksDir, "-o", outputDir, "test-task")
+	cmd.Dir = tmpDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
 
-// Read the generated rules.md
-rulesContent, err := os.ReadFile(filepath.Join(outputDir, "rules.md"))
-if err != nil {
+	// Read the generated rules.md
+	rulesContent, err := os.ReadFile(filepath.Join(outputDir, "rules.md"))
+	if err != nil {
 t.Fatalf("failed to read rules.md: %v", err)
 }
 
