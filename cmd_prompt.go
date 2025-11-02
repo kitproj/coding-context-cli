@@ -12,8 +12,12 @@ import (
 func runPrompt(ctx context.Context, args []string) error {
 	// Define flags for prompt command
 	var params paramMap
+	var includes selectorMap
+	var excludes selectorMap
 	promptFlags := flag.NewFlagSet("prompt", flag.ExitOnError)
 	promptFlags.Var(&params, "p", "Template parameter (key=value)")
+	promptFlags.Var(&includes, "s", "Include rules with matching frontmatter (key=value)")
+	promptFlags.Var(&excludes, "S", "Exclude rules with matching frontmatter (key=value)")
 	
 	if err := promptFlags.Parse(args); err != nil {
 		return err
@@ -21,7 +25,7 @@ func runPrompt(ctx context.Context, args []string) error {
 
 	promptArgs := promptFlags.Args()
 	if len(promptArgs) < 1 {
-		return fmt.Errorf("usage: coding-context prompt [-p key=value] <name>")
+		return fmt.Errorf("usage: coding-context prompt [-p key=value] [-s key=value] [-S key=value] <name>")
 	}
 
 	promptName := promptArgs[0]
@@ -64,6 +68,14 @@ func runPrompt(ctx context.Context, args []string) error {
 	content, err := parseMarkdownFile(promptPath, &frontmatter)
 	if err != nil {
 		return fmt.Errorf("failed to parse prompt file: %w", err)
+	}
+
+	// Check if file matches include and exclude selectors
+	if !includes.matchesIncludes(frontmatter) {
+		return fmt.Errorf("prompt file does not match include selectors: %s", promptPath)
+	}
+	if !excludes.matchesExcludes(frontmatter) {
+		return fmt.Errorf("prompt file matches exclude selectors: %s", promptPath)
 	}
 
 	// Template the prompt using os.Expand

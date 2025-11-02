@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,17 @@ import (
 
 // runRules prints all default agent rules to stdout
 func runRules(ctx context.Context, agentRules map[Agent][]RulePath, args []string) error {
+	// Define flags for rules command
+	var includes selectorMap
+	var excludes selectorMap
+	rulesFlags := flag.NewFlagSet("rules", flag.ExitOnError)
+	rulesFlags.Var(&includes, "s", "Include rules with matching frontmatter (key=value)")
+	rulesFlags.Var(&excludes, "S", "Exclude rules with matching frontmatter (key=value)")
+
+	if err := rulesFlags.Parse(args); err != nil {
+		return err
+	}
+
 	// Get the Default agent's rules
 	rulePaths := agentRules[Default]
 
@@ -42,6 +54,16 @@ func runRules(ctx context.Context, agentRules map[Agent][]RulePath, args []strin
 			content, err := parseMarkdownFile(filePath, &frontmatter)
 			if err != nil {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
+			}
+
+			// Check if file matches include and exclude selectors
+			if !includes.matchesIncludes(frontmatter) {
+				fmt.Fprintf(os.Stderr, "Excluding rule file (does not match include selectors): %s\n", filePath)
+				return nil
+			}
+			if !excludes.matchesExcludes(frontmatter) {
+				fmt.Fprintf(os.Stderr, "Excluding rule file (matches exclude selectors): %s\n", filePath)
+				return nil
 			}
 
 			// Estimate tokens
