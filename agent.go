@@ -5,102 +5,101 @@ import (
 	"path/filepath"
 )
 
-// a map from agents to their rule paths by level
-var agentRules map[Agent]map[RuleLevel][]string
-
-// initAgentRules initializes the agent rules based on current working directory
-func initAgentRules() error {
+// initAgentRules initializes and returns the agent rules map
+func initAgentRules() (map[Agent][]RulePath, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	agentRules = make(map[Agent]map[RuleLevel][]string)
+	agentRules := make(map[Agent][]RulePath)
 
 	// Default agent - normalized storage for all rules
-	agentRules[Default] = map[RuleLevel][]string{
-		ProjectLevel: {
-			".agents/rules",
-		},
-		AncestorLevel: expandAncestorPaths("AGENTS.md"),
-		UserLevel: {
-			filepath.Join(homeDir, ".agents", "rules"),
-			filepath.Join(homeDir, ".agents", "AGENTS.md"),
-		},
-		SystemLevel: {
-			"/etc/agents/rules",
-		},
+	agentRules[Default] = []RulePath{
+		NewRulePath(".agents/rules", ".agents/rules"),
+		NewRulePath(filepath.Join(homeDir, ".agents", "rules"), filepath.Join(homeDir, ".agents", "rules")),
+		NewRulePath(filepath.Join(homeDir, ".agents", "AGENTS.md"), filepath.Join(homeDir, ".agents", "AGENTS.md")),
+		NewRulePath("/etc/agents/rules", "/etc/agents/rules"),
+	}
+	// Add ancestor paths for Default
+	for _, ancestorPath := range expandAncestorPaths("AGENTS.md") {
+		agentRules[Default] = append(agentRules[Default], NewRulePath(ancestorPath, ancestorPath))
 	}
 
 	// Claude - Hierarchical Concatenation
-	agentRules[Claude] = map[RuleLevel][]string{
-		ProjectLevel: {
-			"CLAUDE.local.md",
-		},
-		AncestorLevel: expandAncestorPaths("CLAUDE.md"),
-		UserLevel: {
-			filepath.Join(homeDir, ".claude", "CLAUDE.md"),
-		},
+	agentRules[Claude] = []RulePath{
+		NewRulePath("CLAUDE.local.md", ".agents/rules/local.md"),
+		NewRulePath(filepath.Join(homeDir, ".claude", "CLAUDE.md"), filepath.Join(homeDir, ".agents", "rules", "CLAUDE.md")),
+	}
+	// Add ancestor paths for Claude
+	for _, ancestorPath := range expandAncestorPaths("CLAUDE.md") {
+		agentRules[Claude] = append(agentRules[Claude], NewRulePath(ancestorPath, "AGENTS.md"))
 	}
 
 	// Gemini CLI - Hierarchical Concatenation + Simple System Prompt
-	agentRules[Gemini] = map[RuleLevel][]string{
-		ProjectLevel: {
-			".gemini/styleguide.md",
-		},
-		AncestorLevel: expandAncestorPaths("GEMINI.md"),
-		UserLevel: {
-			filepath.Join(homeDir, ".gemini", "GEMINI.md"),
-		},
+	agentRules[Gemini] = []RulePath{
+		NewRulePath(".gemini/styleguide.md", ".agents/rules/gemini-styleguide.md"),
+		NewRulePath(filepath.Join(homeDir, ".gemini", "GEMINI.md"), filepath.Join(homeDir, ".agents", "rules", "GEMINI.md")),
+	}
+	// Add ancestor paths for Gemini
+	for _, ancestorPath := range expandAncestorPaths("GEMINI.md") {
+		agentRules[Gemini] = append(agentRules[Gemini], NewRulePath(ancestorPath, "AGENTS.md"))
 	}
 
 	// Codex CLI - Hierarchical Concatenation
-	agentRules[Codex] = map[RuleLevel][]string{
-		AncestorLevel: expandAncestorPaths("AGENTS.md"),
-		UserLevel: {
-			filepath.Join(homeDir, ".codex", "AGENTS.md"),
-		},
+	agentRules[Codex] = []RulePath{
+		NewRulePath(filepath.Join(homeDir, ".codex", "AGENTS.md"), filepath.Join(homeDir, ".agents", "AGENTS.md")),
+	}
+	// Add ancestor paths for Codex
+	for _, ancestorPath := range expandAncestorPaths("AGENTS.md") {
+		agentRules[Codex] = append(agentRules[Codex], NewRulePath(ancestorPath, "AGENTS.md"))
 	}
 
 	// Cursor - Declarative Context Injection + Simple System Prompt
-	agentRules[Cursor] = map[RuleLevel][]string{
-		ProjectLevel: {
-			".cursor/rules/",
-		},
-		AncestorLevel: expandAncestorPaths("AGENTS.md"),
+	agentRules[Cursor] = []RulePath{
+		NewRulePath(".cursor/rules/", ".agents/rules/cursor"),
+	}
+	// Add ancestor paths for Cursor
+	for _, ancestorPath := range expandAncestorPaths("AGENTS.md") {
+		agentRules[Cursor] = append(agentRules[Cursor], NewRulePath(ancestorPath, "AGENTS.md"))
 	}
 
 	// GitHub Copilot - Simple System Prompt + Hierarchical Concatenation + Agent Definition
-	agentRules[Copilot] = map[RuleLevel][]string{
-		ProjectLevel: {
-			".github/agents/",
-			".github/copilot-instructions.md",
-		},
-		AncestorLevel: expandAncestorPaths("AGENTS.md"),
+	agentRules[Copilot] = []RulePath{
+		NewRulePath(".github/agents/", ".agents/rules/copilot-agents"),
+		NewRulePath(".github/copilot-instructions.md", ".agents/rules/copilot-instructions.md"),
+	}
+	// Add ancestor paths for Copilot
+	for _, ancestorPath := range expandAncestorPaths("AGENTS.md") {
+		agentRules[Copilot] = append(agentRules[Copilot], NewRulePath(ancestorPath, "AGENTS.md"))
 	}
 
 	// Augment CLI - Declarative Context Injection + Compatibility
-	agentRules[Augment] = map[RuleLevel][]string{
-		ProjectLevel: {
-			".augment/rules/",
-			".augment/guidelines.md",
-		},
-		AncestorLevel: append(expandAncestorPaths("CLAUDE.md"), expandAncestorPaths("AGENTS.md")...),
+	agentRules[Augment] = []RulePath{
+		NewRulePath(".augment/rules/", ".agents/rules/augment"),
+		NewRulePath(".augment/guidelines.md", ".agents/rules/augment-guidelines.md"),
+	}
+	// Add ancestor paths for Augment (CLAUDE.md and AGENTS.md)
+	for _, ancestorPath := range expandAncestorPaths("CLAUDE.md") {
+		agentRules[Augment] = append(agentRules[Augment], NewRulePath(ancestorPath, "AGENTS.md"))
+	}
+	for _, ancestorPath := range expandAncestorPaths("AGENTS.md") {
+		agentRules[Augment] = append(agentRules[Augment], NewRulePath(ancestorPath, "AGENTS.md"))
 	}
 
 	// Windsurf (Codeium) - Declarative Context Injection
-	agentRules[Windsurf] = map[RuleLevel][]string{
-		ProjectLevel: {
-			".windsurf/rules/",
-		},
+	agentRules[Windsurf] = []RulePath{
+		NewRulePath(".windsurf/rules/", ".agents/rules/windsurf"),
 	}
 
 	// Goose - Compatibility (External Standard)
-	agentRules[Goose] = map[RuleLevel][]string{
-		AncestorLevel: expandAncestorPaths("AGENTS.md"),
+	agentRules[Goose] = []RulePath{}
+	// Add ancestor paths for Goose
+	for _, ancestorPath := range expandAncestorPaths("AGENTS.md") {
+		agentRules[Goose] = append(agentRules[Goose], NewRulePath(ancestorPath, "AGENTS.md"))
 	}
 
-	return nil
+	return agentRules, nil
 }
 
 // expandAncestorPaths expands ancestor-level paths to search up the directory hierarchy

@@ -50,7 +50,8 @@ func main() {
 	}
 
 	// Initialize agent rules
-	if err := initAgentRules(); err != nil {
+	agentRules, err := initAgentRules()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to initialize agent rules: %v\n", err)
 		os.Exit(1)
 	}
@@ -60,17 +61,17 @@ func main() {
 
 	switch command {
 	case "import":
-		if err := runImport(ctx, commandArgs); err != nil {
+		if err := runImport(ctx, agentRules, commandArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	case "export":
-		if err := runExport(ctx, commandArgs); err != nil {
+		if err := runExport(ctx, agentRules, commandArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 	case "bootstrap":
-		if err := runBootstrap(ctx, commandArgs); err != nil {
+		if err := runBootstrap(ctx, agentRules, commandArgs); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}

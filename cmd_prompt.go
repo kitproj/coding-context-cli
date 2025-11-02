@@ -2,24 +2,29 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 )
 
-// Task prompt paths for the default agent
-var taskPaths = []string{
-	".agents/tasks",
-	// User and system paths will be added dynamically
-}
-
 // runPrompt finds and prints a task prompt
 func runPrompt(ctx context.Context, args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: coding-context prompt <name>")
+	// Define flags for prompt command
+	var params paramMap
+	promptFlags := flag.NewFlagSet("prompt", flag.ExitOnError)
+	promptFlags.Var(&params, "p", "Template parameter (key=value)")
+	
+	if err := promptFlags.Parse(args); err != nil {
+		return err
 	}
 
-	promptName := args[0]
+	promptArgs := promptFlags.Args()
+	if len(promptArgs) < 1 {
+		return fmt.Errorf("usage: coding-context prompt [-p key=value] <name>")
+	}
+
+	promptName := promptArgs[0]
 	
 	// Build full task paths list
 	homeDir, err := os.UserHomeDir()
@@ -33,27 +38,8 @@ func runPrompt(ctx context.Context, args []string) error {
 		"/etc/agents/tasks",
 	}
 
-	// Get parameters from remaining args
-	params := make(map[string]string)
-	for i := 1; i < len(args); i++ {
-		// Parse key=value pairs
-		if kv := args[i]; len(kv) > 0 {
-			// Simple parsing - split on first =
-			for j := 0; j < len(kv); j++ {
-				if kv[j] == '=' {
-					key := kv[:j]
-					value := kv[j+1:]
-					params[key] = value
-					break
-				}
-			}
-		}
-	}
-
 	// Search for prompt file in task paths
-	var promptContent string
 	var promptPath string
-	var totalTokens int
 
 	for _, taskPath := range allTaskPaths {
 		// Check if directory exists
@@ -63,28 +49,25 @@ func runPrompt(ctx context.Context, args []string) error {
 
 		// Check for prompt file
 		candidatePath := filepath.Join(taskPath, promptName+".md")
-		if _, err := os.Stat(candidatePath); os.IsNotExist(err) {
-			continue
+		if _, err := os.Stat(candidatePath); err == nil {
+			promptPath = candidatePath
+			break
 		}
-
-		// Found the prompt file
-		var frontmatter map[string]string
-		content, err := parseMarkdownFile(candidatePath, &frontmatter)
-		if err != nil {
-			return fmt.Errorf("failed to parse prompt file: %w", err)
-		}
-
-		promptContent = content
-		promptPath = candidatePath
-		break
 	}
 
-	if promptContent == "" {
+	if promptPath == "" {
 		return fmt.Errorf("prompt file not found for: %s", promptName)
 	}
 
+	// Read the prompt file
+	var frontmatter map[string]string
+	content, err := parseMarkdownFile(promptPath, &frontmatter)
+	if err != nil {
+		return fmt.Errorf("failed to parse prompt file: %w", err)
+	}
+
 	// Template the prompt using os.Expand
-	templated := os.Expand(promptContent, func(key string) string {
+	templated := os.Expand(content, func(key string) string {
 		if val, ok := params[key]; ok {
 			return val
 		}
@@ -92,11 +75,9 @@ func runPrompt(ctx context.Context, args []string) error {
 		return fmt.Sprintf("${%s}", key)
 	})
 
-	// Estimate tokens
-	totalTokens = estimateTokens(templated)
-
-	// Log to stderr
-	fmt.Fprintf(os.Stderr, "Using prompt file: %s (~%d tokens)\n", promptPath, totalTokens)
+	// Estimate tokens and log to stderr
+	tokens := estimateTokens(templated)
+	fmt.Fprintf(os.Stderr, "Using prompt file: %s (~%d tokens)\n", promptPath, tokens)
 
 	// Print to stdout
 	fmt.Fprint(os.Stdout, templated)

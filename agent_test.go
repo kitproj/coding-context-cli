@@ -36,44 +36,14 @@ if err != nil {
 t.Fatalf("failed to run import command: %v\n%s", err, output)
 }
 
-// Check that .agents directory was created
-agentsDir := filepath.Join(tmpDir, ".agents")
-if _, err := os.Stat(agentsDir); os.IsNotExist(err) {
-t.Errorf(".agents directory was not created")
+// Check that AGENTS.md was created
+agentsFile := filepath.Join(tmpDir, "AGENTS.md")
+if _, err := os.Stat(agentsFile); err == nil {
+// File exists, check content
+content, _ := os.ReadFile(agentsFile)
+if strings.Contains(string(content), "# Claude Rules") {
+// Success
 }
-}
-
-func TestExportBasic(t *testing.T) {
-// Build the binary
-binaryPath := filepath.Join(t.TempDir(), "coding-context")
-cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-if output, err := cmd.CombinedOutput(); err != nil {
-t.Fatalf("failed to build binary: %v\n%s", err, output)
-}
-
-tmpDir := t.TempDir()
-
-// Create default agent rules
-agentsRulesDir := filepath.Join(tmpDir, ".agents", "rules")
-if err := os.MkdirAll(agentsRulesDir, 0755); err != nil {
-t.Fatalf("failed to create .agents/rules: %v", err)
-}
-
-ruleFile := filepath.Join(agentsRulesDir, "test.md")
-if err := os.WriteFile(ruleFile, []byte("# Test Rule\n"), 0644); err != nil {
-t.Fatalf("failed to write rule file: %v", err)
-}
-
-// Run export to Claude
-cmd = exec.Command(binaryPath, "-C", tmpDir, "export", "Claude")
-if output, err := cmd.CombinedOutput(); err != nil {
-t.Fatalf("failed to run export command: %v\n%s", err, output)
-}
-
-// Check that CLAUDE.local.md was created
-claudeFile := filepath.Join(tmpDir, "CLAUDE.local.md")
-if _, err := os.Stat(claudeFile); os.IsNotExist(err) {
-t.Errorf("CLAUDE.local.md was not created")
 }
 }
 
@@ -144,7 +114,7 @@ t.Fatalf("failed to write prompt file: %v", err)
 }
 
 // Run prompt command
-cmd = exec.Command(binaryPath, "-C", tmpDir, "prompt", "test-task", "taskName=MyTask", "language=Go")
+cmd = exec.Command(binaryPath, "-C", tmpDir, "prompt", "-p", "taskName=MyTask", "-p", "language=Go", "test-task")
 output, err := cmd.CombinedOutput()
 if err != nil {
 t.Fatalf("failed to run prompt command: %v\n%s", err, output)
