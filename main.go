@@ -227,7 +227,7 @@ func run(ctx context.Context, args []string) error {
 
 			// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
 			// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
-			baseNameWithoutExt := strings.TrimSuffix(strings.TrimSuffix(path, ".md"), ".mdc")
+			baseNameWithoutExt := strings.TrimSuffix(path, ext)
 			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
 
 			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {
