@@ -56,7 +56,6 @@ The basic workflow is:
 | persona.md           |       | memories.md         |       | task.md                  |
 +----------------------+       +---------------------+       +--------------------------+
 ```
-```
 
 ## Installation
 
@@ -242,7 +241,7 @@ Run with:
 coding-context add-feature expert
 ```
 
-This will look for `expert.md` in the persona directories and output it to `persona.md`. The persona is optional - if you don't specify a persona name as the second argument, only `memories.md` and `task.md` will be generated.
+This will look for `expert.md` in the persona directories and output it to `persona.md`. The persona is optional – if you don't specify a persona name as the second argument, `persona.md` will still be generated but will be empty, alongside `memories.md` and `task.md`.
 
 ### Prompt Files
 
