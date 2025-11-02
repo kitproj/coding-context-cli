@@ -45,6 +45,7 @@ func main() {
 		"CLAUDE.md",
 		".cursorrules",
 		".cursor/rules/",
+		".cursor/.mdc",
 		".instructions.md",
 		".continuerules",
 		".prompts/rules",
@@ -195,8 +196,9 @@ func run(ctx context.Context, args []string) error {
 				return nil
 			}
 
-			// Only process .md files as rule files
-			if filepath.Ext(path) != ".md" {
+			// Only process .md and .mdc files as rule files
+			ext := filepath.Ext(path)
+			if ext != ".md" && ext != ".mdc" {
 				return nil
 			}
 
@@ -223,9 +225,9 @@ func run(ctx context.Context, args []string) error {
 			totalTokens += tokens
 			fmt.Fprintf(os.Stdout, "Including rule file: %s (~%d tokens)\n", path, tokens)
 
-			// Check for a bootstrap file named <markdown-file-without-md-suffix>-bootstrap
-			// For example, setup.md -> setup-bootstrap
-			baseNameWithoutExt := strings.TrimSuffix(path, ".md")
+			// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
+			// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
+			baseNameWithoutExt := strings.TrimSuffix(strings.TrimSuffix(path, ".md"), ".mdc")
 			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
 
 			if bootstrapContent, err := os.ReadFile(bootstrapFilePath); err == nil {

@@ -76,7 +76,7 @@ Options:
   -C <directory>    Change to directory before doing anything (default: .)
   -m <path>         Directory containing rules, or a single rule file (can be used multiple times)
                     Defaults: AGENTS.md, .github/copilot-instructions.md, CLAUDE.md, .cursorrules,
-                              .cursor/rules/, .instructions.md, .continuerules, .prompts/rules,
+                              .cursor/rules/, .cursor/.mdc, .instructions.md, .continuerules, .prompts/rules,
                               ~/.config/prompts/rules, /var/local/prompts/rules
   -r <path>         Directory containing personas, or a single persona file (can be used multiple times)
                     Defaults: .prompts/personas, ~/.config/prompts/personas, /var/local/prompts/personas
@@ -267,7 +267,7 @@ This will look for `add-feature.md` in the task directories.
 
 ### Rule Files
 
-Markdown files included in every generated context. Bootstrap scripts can be provided in separate files.
+Markdown files included in every generated context. Bootstrap scripts can be provided in separate files. Rule files can have either `.md` or `.mdc` extensions.
 
 **Example** (`.prompts/rules/setup.md`):
 ```markdown
@@ -280,13 +280,23 @@ language: go
 This project requires Node.js dependencies.
 ```
 
-**Bootstrap file** (`.prompts/rules/setup-bootstrap`):
+**Example with .mdc format** (`.cursor/rules/cursor-setup.mdc`):
+```markdown
+---
+editor: cursor
+---
+# Cursor-Specific Setup
+
+Special setup instructions for Cursor AI editor.
+```
+
+**Bootstrap file** (`.prompts/rules/setup-bootstrap` or `.cursor/rules/cursor-setup-bootstrap`):
 ```bash
 #!/bin/bash
 npm install
 ```
 
-For each rule file `<name>.md`, you can optionally create a corresponding `<name>-bootstrap` file that will be executed during setup.
+For each rule file `<name>.md` or `<name>.mdc`, you can optionally create a corresponding `<name>-bootstrap` file that will be executed during setup.
 
 ### Supported Rule File Formats
 
@@ -300,7 +310,8 @@ The following rule file formats are commonly used by AI coding assistants and ca
 - **`.github/copilot-instructions.md`** - GitHub Copilot instructions file
 - **`CLAUDE.md`** - Claude-specific instructions
 - **`.cursorrules`** - Cursor editor rules (if in Markdown format)
-- **`.cursor/rules/`** - Directory containing Cursor-specific rule files
+- **`.cursor/rules/`** - Directory containing Cursor-specific rule files (supports both `.md` and `.mdc` formats)
+- **`.cursor/.mdc`** - Cursor MDC format rule file
 - **`.instructions.md`** - General instructions file
 - **`.continuerules`** - Continue.dev rules (if in Markdown format)
 
@@ -309,14 +320,17 @@ The following rule file formats are commonly used by AI coding assistants and ca
 # Include GitHub Copilot instructions and CLAUDE.md
 coding-context -m .github/copilot-instructions.md -m CLAUDE.md my-task
 
-# Include all rules from Cursor directory
+# Include all rules from Cursor directory (includes both .md and .mdc files)
 coding-context -m .cursor/rules/ my-task
+
+# Include a specific .mdc file
+coding-context -m .cursor/.mdc my-task
 
 # Combine default AGENTS.md with additional rules
 coding-context -m .instructions.md my-task
 ```
 
-**Note:** All rule files should be in Markdown format (`.md` extension) or contain Markdown-compatible content. The tool will automatically process frontmatter in YAML format if present.
+**Note:** Rule files can be in Markdown format (`.md` extension) or Cursor's MDC format (`.mdc` extension). Both formats support YAML frontmatter. The tool will automatically process frontmatter in YAML format if present.
 
 
 ## Filtering Rules with Selectors
