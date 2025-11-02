@@ -1468,7 +1468,7 @@ Test task for .mdc file support.
 	}
 
 	contentStr := string(content)
-	
+
 	// Verify .mdc content is included
 	if !strings.Contains(contentStr, "Cursor AI Rules") {
 		t.Errorf("Expected .mdc file content to be included in rules.md")
@@ -1654,7 +1654,7 @@ Development-specific Cursor rules.
 	}
 
 	contentStr := string(content)
-	
+
 	if !strings.Contains(contentStr, "Production Cursor Rules") {
 		t.Errorf("Expected production .mdc content to be included")
 	}
