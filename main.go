@@ -33,12 +33,26 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	userConfigDir, err := os.UserConfigDir()
+	// Get normalized paths for rules, personas, and tasks
+	normalizedRulePaths, err := GetNormalizedRulePaths()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error getting normalized rule paths: %v\n", err)
 		os.Exit(1)
 	}
 
+	normalizedPersonaPaths, err := GetNormalizedPersonaPaths()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error getting normalized persona paths: %v\n", err)
+		os.Exit(1)
+	}
+
+	normalizedTaskPaths, err := GetNormalizedTaskPaths()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error getting normalized task paths: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Initialize rules with legacy formats first, then normalized paths
 	rules = []string{
 		"AGENTS.md",
 		".github/copilot-instructions.md",
@@ -47,22 +61,11 @@ func main() {
 		".cursor/rules/",
 		".instructions.md",
 		".continuerules",
-		".prompts/rules",
-		filepath.Join(userConfigDir, "prompts", "rules"),
-		"/var/local/prompts/rules",
 	}
+	rules = append(rules, normalizedRulePaths...)
 
-	personas = []string{
-		".prompts/personas",
-		filepath.Join(userConfigDir, "prompts", "personas"),
-		"/var/local/prompts/personas",
-	}
-
-	tasks = []string{
-		".prompts/tasks",
-		filepath.Join(userConfigDir, "prompts", "tasks"),
-		"/var/local/prompts/tasks",
-	}
+	personas = normalizedPersonaPaths
+	tasks = normalizedTaskPaths
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.Var(&rules, "m", "Directory containing rules, or a single rule file. Can be specified multiple times.")
