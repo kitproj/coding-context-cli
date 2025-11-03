@@ -181,7 +181,7 @@ func run(ctx context.Context, args []string) error {
 					return fmt.Errorf("failed to run bootstrap script: %w", err)
 				}
 			} else if !os.IsNotExist(err) {
-				return err
+				return fmt.Errorf("failed to stat bootstrap file %s: %w", bootstrapFilePath, err)
 			}
 
 			// Estimate tokens for this file
