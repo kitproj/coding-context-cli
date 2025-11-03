@@ -180,7 +180,7 @@ func run(ctx context.Context, args []string) error {
 			fmt.Fprintf(os.Stderr, "Including rule file: %s (~%d tokens)\n", path, tokens)
 			fmt.Println(content)
 
-			return nil
+			// Do not return here; allow the walk to continue to process other files.
 
 		})
 		if err != nil {
