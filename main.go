@@ -200,7 +200,7 @@ func run(ctx context.Context, args []string) error {
 
 	content, err := parseMarkdownFile(taskPromptPath, &struct{}{})
 	if err != nil {
-		return fmt.Errorf("failed to parse prompt file: %w", err)
+		return fmt.Errorf("failed to parse prompt file %s: %w", taskPromptPath, err)
 	}
 
 	expanded := os.Expand(content, func(key string) string {
