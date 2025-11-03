@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -43,7 +44,7 @@ func main() {
 	flag.Parse()
 
 	// Setup output writer
-	var output *os.File
+	var output io.Writer
 	if outputFile != "" {
 		f, err := os.Create(outputFile)
 		if err != nil {
@@ -63,7 +64,7 @@ func main() {
 	}
 }
 
-func run(ctx context.Context, args []string, output *os.File) error {
+func run(ctx context.Context, args []string, output io.Writer) error {
 	if len(args) != 1 {
 		return fmt.Errorf("invalid usage")
 	}
