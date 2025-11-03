@@ -14,10 +14,11 @@ import (
 )
 
 var (
-	workDir  string
-	params   = make(paramMap)
-	includes = make(selectorMap)
-	excludes = make(selectorMap)
+	workDir    string
+	outputFile string
+	params     = make(paramMap)
+	includes   = make(selectorMap)
+	excludes   = make(selectorMap)
 )
 
 func main() {
@@ -25,6 +26,7 @@ func main() {
 	defer cancel()
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
+	flag.StringVar(&outputFile, "o", "", "Output file. If unspecified, output is written to stdout.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Var(&excludes, "S", "Exclude rules with matching frontmatter. Can be specified multiple times as key=value.")
@@ -40,14 +42,28 @@ func main() {
 	}
 	flag.Parse()
 
-	if err := run(ctx, flag.Args()); err != nil {
+	// Setup output writer
+	var output *os.File
+	if outputFile != "" {
+		f, err := os.Create(outputFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to create output file: %v\n", err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		output = f
+	} else {
+		output = os.Stdout
+	}
+
+	if err := run(ctx, flag.Args(), output); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		flag.Usage()
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, args []string) error {
+func run(ctx context.Context, args []string, output *os.File) error {
 	if len(args) != 1 {
 		return fmt.Errorf("invalid usage")
 	}
@@ -188,7 +204,7 @@ func run(ctx context.Context, args []string) error {
 			tokens := estimateTokens(content)
 			totalTokens += tokens
 			fmt.Fprintf(os.Stderr, "⪢ Including rule file: %s (~%d tokens)\n", path, tokens)
-			fmt.Println(content)
+			fmt.Fprintln(output, content)
 
 			return nil
 
@@ -216,7 +232,7 @@ func run(ctx context.Context, args []string) error {
 	totalTokens += tokens
 	fmt.Fprintf(os.Stderr, "⪢ Including task file: %s (~%d tokens)\n", taskPromptPath, tokens)
 
-	fmt.Println(expanded)
+	fmt.Fprintln(output, expanded)
 
 	// Print total token count
 	fmt.Fprintf(os.Stderr, "⪢ Total estimated tokens: %d\n", totalTokens)

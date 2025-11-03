@@ -535,3 +535,175 @@ Please help with this task.
 		t.Errorf(".mdc file content not found in stdout")
 	}
 }
+
+func TestOutputFileFlag(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "info.md")
+	ruleContent := `---
+---
+# Project Info
+
+General information about the project.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+---
+# Test Task
+
+Please help with this task.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Create output file path
+	outputFile := filepath.Join(tmpDir, "output.txt")
+
+	// Run the binary with -o flag
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-o", outputFile, "test-task")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that stdout is empty (since output went to file)
+	stdoutStr := string(output)
+	if strings.Contains(stdoutStr, "# Project Info") {
+		t.Errorf("rule content should not be in stdout when using -o flag")
+	}
+	if strings.Contains(stdoutStr, "# Test Task") {
+		t.Errorf("task content should not be in stdout when using -o flag")
+	}
+
+	// Check that diagnostic messages are still in stderr (CombinedOutput combines stdout and stderr)
+	if !strings.Contains(stdoutStr, "Including rule file") {
+		t.Errorf("diagnostic messages should still be in stderr")
+	}
+
+	// Read the output file and verify content
+	fileContent, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	fileStr := string(fileContent)
+	if !strings.Contains(fileStr, "# Project Info") {
+		t.Errorf("rule content not found in output file")
+	}
+	if !strings.Contains(fileStr, "# Test Task") {
+		t.Errorf("task content not found in output file")
+	}
+
+	// Verify diagnostic messages are NOT in the output file
+	if strings.Contains(fileStr, "Including rule file") {
+		t.Errorf("diagnostic messages should not be in output file")
+	}
+}
+
+func TestOutputFileWithBootstrap(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a rule file with bootstrap
+	ruleFile := filepath.Join(rulesDir, "setup.md")
+	ruleContent := `---
+---
+# Setup
+
+Setup instructions.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	bootstrapFile := filepath.Join(rulesDir, "setup-bootstrap")
+	bootstrapContent := `#!/bin/bash
+echo "Running setup bootstrap"
+`
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0755); err != nil {
+		t.Fatalf("failed to write bootstrap file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+---
+# Test Task
+
+Please help with this task.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Create output file path
+	outputFile := filepath.Join(tmpDir, "output.txt")
+
+	// Run the binary with -o flag
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-o", outputFile, "test-task")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that bootstrap output is in stderr (part of CombinedOutput)
+	stdoutStr := string(output)
+	if !strings.Contains(stdoutStr, "Running setup bootstrap") {
+		t.Errorf("bootstrap output should still be in stderr")
+	}
+
+	// Read the output file
+	fileContent, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	fileStr := string(fileContent)
+	if !strings.Contains(fileStr, "# Setup") {
+		t.Errorf("rule content not found in output file")
+	}
+	if !strings.Contains(fileStr, "# Test Task") {
+		t.Errorf("task content not found in output file")
+	}
+}
+
