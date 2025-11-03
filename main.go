@@ -33,7 +33,7 @@ func main() {
 		w := flag.CommandLine.Output()
 		fmt.Fprintf(w, "Usage:")
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  coding-context [options] <task-name> [persona-name]")
+		fmt.Fprintln(w, "  coding-context [options] <task-name>")
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "Options:")
 		flag.PrintDefaults()
@@ -48,7 +48,7 @@ func main() {
 }
 
 func run(ctx context.Context, args []string) error {
-	if len(args) < 1 {
+	if len(args) != 1 {
 		return fmt.Errorf("invalid usage")
 	}
 
@@ -65,25 +65,46 @@ func run(ctx context.Context, args []string) error {
 		return err
 	}
 
-	rules := []string{
-		"./CLAUDE.local.md",
+	// find the task prompt
+	var taskPromptPath string
+	taskPromptPaths := []string{
+		filepath.Join(".agents", "tasks", taskName+".md"),
+		filepath.Join(homeDir, ".agents", "tasks", taskName+".md"),
+		filepath.Join("/etc", "agents", "tasks", taskName+".md"),
+	}
+	for _, path := range taskPromptPaths {
+		if _, err := os.Stat(path); err == nil {
+			taskPromptPath = path
+			break
+		}
+	}
 
-		"./.agents/rules",
-		"./.cursor/rules",
-		"./.augment/rules",
-		"./.windsurf/rules",
+	if taskPromptPath == "" {
+		return fmt.Errorf("prompt file not found for task: %s in %v", taskName, taskPromptPaths)
+	}
 
-		"./.github/copilot-instructions.md",
-		"./.gemini/styleguide.md",
-		"./.github/agents",
-		"./.augment/guidelines.md",
+	// Track total tokens
+	var totalTokens int
+
+	for _, rule := range []string{
+		"CLAUDE.local.md",
+
+		".agents/rules",
+		".cursor/rules",
+		".augment/rules",
+		".windsurf/rules",
+
+		".github/copilot-instructions.md",
+		".gemini/styleguide.md",
+		".github/agents",
+		".augment/guidelines.md",
 
 		"AGENTS.md",
 		"CLAUDE.md",
 		"GEMINI.md",
 
-		"./.cursorrules",
-		"./.windsurfrules",
+		".cursorrules",
+		".windsurfrules",
 
 		// ancestors
 		"../AGENTS.md",
@@ -102,18 +123,7 @@ func run(ctx context.Context, args []string) error {
 
 		// system
 		"/etc/agents/rules",
-	}
-
-	tasks := []string{
-		".agents/tasks",
-		filepath.Join(homeDir, "agents", "tasks"),
-		"/etc/agents/tasks",
-	}
-
-	// Track total tokens
-	var totalTokens int
-
-	for _, rule := range rules {
+	} {
 
 		// Skip if the path doesn't exist
 		if _, err := os.Stat(rule); os.IsNotExist(err) {
@@ -146,11 +156,11 @@ func run(ctx context.Context, args []string) error {
 			// Check if file matches include and exclude selectors.
 			// Note: Files with duplicate basenames will both be included.
 			if !includes.matchesIncludes(frontmatter) {
-				fmt.Fprintf(os.Stderr, "Excluding rule file (does not match include selectors): %s\n", path)
+				fmt.Fprintf(os.Stderr, "⪢ Excluding rule file (does not match include selectors): %s\n", path)
 				return nil
 			}
 			if !excludes.matchesExcludes(frontmatter) {
-				fmt.Fprintf(os.Stderr, "Excluding rule file (matches exclude selectors): %s\n", path)
+				fmt.Fprintf(os.Stderr, "⪢ Excluding rule file (matches exclude selectors): %s\n", path)
 				return nil
 			}
 
@@ -161,7 +171,7 @@ func run(ctx context.Context, args []string) error {
 
 			if _, err := os.Stat(bootstrapFilePath); err == nil {
 				// Bootstrap file exists, run it before printing content
-				fmt.Fprintf(os.Stderr, "Running bootstrap script: %s\n", bootstrapFilePath)
+				fmt.Fprintf(os.Stderr, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
 
 				cmd := exec.CommandContext(ctx, bootstrapFilePath)
 				cmd.Stdout = os.Stdout
@@ -177,10 +187,10 @@ func run(ctx context.Context, args []string) error {
 			// Estimate tokens for this file
 			tokens := estimateTokens(content)
 			totalTokens += tokens
-			fmt.Fprintf(os.Stderr, "Including rule file: %s (~%d tokens)\n", path, tokens)
+			fmt.Fprintf(os.Stderr, "⪢ Including rule file: %s (~%d tokens)\n", path, tokens)
 			fmt.Println(content)
 
-			// Do not return here; allow the walk to continue to process other files.
+			return nil
 
 		})
 		if err != nil {
@@ -188,47 +198,28 @@ func run(ctx context.Context, args []string) error {
 		}
 	}
 
-	for _, path := range tasks {
-		stat, err := os.Stat(path)
-		if os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("failed to stat task path %s: %w", path, err)
-		}
-		if stat.IsDir() {
-			path = filepath.Join(path, taskName+".md")
-			if _, err := os.Stat(path); os.IsNotExist(err) {
-				continue
-			} else if err != nil {
-				return fmt.Errorf("failed to stat task file %s: %w", path, err)
-			}
-		}
-
-		content, err := parseMarkdownFile(path, &struct{}{})
-		if err != nil {
-			return fmt.Errorf("failed to parse prompt file: %w", err)
-		}
-
-		expanded := os.Expand(content, func(key string) string {
-			if val, ok := params[key]; ok {
-				return val
-			}
-			// this might not exist, in that case, return the original text
-			return fmt.Sprintf("${%s}", key)
-		})
-
-		// Estimate tokens for this file
-		tokens := estimateTokens(expanded)
-		totalTokens += tokens
-		fmt.Fprintf(os.Stderr, "Using task file: %s (~%d tokens)\n", path, tokens)
-
-		fmt.Println(expanded)
-
-		// Print total token count
-		fmt.Fprintf(os.Stderr, "Total estimated tokens: %d\n", totalTokens)
-
-		return nil
+	content, err := parseMarkdownFile(taskPromptPath, &struct{}{})
+	if err != nil {
+		return fmt.Errorf("failed to parse prompt file: %w", err)
 	}
 
-	return fmt.Errorf("prompt file not found for task: %s", taskName)
+	expanded := os.Expand(content, func(key string) string {
+		if val, ok := params[key]; ok {
+			return val
+		}
+		// this might not exist, in that case, return the original text
+		return fmt.Sprintf("${%s}", key)
+	})
+
+	// Estimate tokens for this file
+	tokens := estimateTokens(expanded)
+	totalTokens += tokens
+	fmt.Fprintf(os.Stderr, "⪢ Including task file: %s (~%d tokens)\n", taskPromptPath, tokens)
+
+	fmt.Println(expanded)
+
+	// Print total token count
+	fmt.Fprintf(os.Stderr, "⪢ Total estimated tokens: %d\n", totalTokens)
+
+	return nil
 }
