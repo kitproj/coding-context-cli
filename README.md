@@ -33,15 +33,19 @@ Usage:
 Options:
   -C string
     	Change to directory before doing anything. (default ".")
+  -S value
+    	Exclude rules with matching frontmatter. Can be specified multiple times as key=value.
+  -o string
+    	Output file. If unspecified, output is written to stdout.
   -p value
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
-  -S value
-    	Exclude rules with matching frontmatter. Can be specified multiple times as key=value.
 ```
 
-### Example
+### Examples
+
+**Example 1: Pipe to another program**
 
 ```bash
 coding-agent-context-cli -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
@@ -55,6 +59,17 @@ This command will:
 5. Substitute `${jira_issue_key}` with `PROJ-1234` in the task prompt.
 6. Print the combined context (rules + task) to `stdout`.
 7. Pipe the output to another program (in this case, `llm`).
+
+**Example 2: Save to a file**
+
+```bash
+coding-agent-context-cli -p jira_issue_key=PROJ-1234 -o context.txt fix-bug
+```
+
+This command will:
+1. Generate the combined context as in Example 1.
+2. Write the output to `context.txt` instead of stdout.
+3. Print diagnostic messages (file inclusions, token counts) to stderr.
 
 ### Example Tasks
 
