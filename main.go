@@ -129,7 +129,7 @@ func run(ctx context.Context, args []string) error {
 		if _, err := os.Stat(rule); os.IsNotExist(err) {
 			continue
 		} else if err != nil {
-			return err
+			return fmt.Errorf("failed to stat rule path %s: %w", rule, err)
 		}
 
 		err := filepath.Walk(rule, func(path string, info os.FileInfo, err error) error {
