@@ -174,7 +174,7 @@ func run(ctx context.Context, args []string) error {
 				fmt.Fprintf(os.Stderr, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
 
 				cmd := exec.CommandContext(ctx, bootstrapFilePath)
-				cmd.Stdout = os.Stdout
+				cmd.Stdout = os.Stderr
 				cmd.Stderr = os.Stderr
 
 				if err := cmd.Run(); err != nil {
