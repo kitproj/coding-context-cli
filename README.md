@@ -97,7 +97,7 @@ The tool searches for a variety of files and directories, including:
 - `.agents/rules`, `.cursor/rules`, `.augment/rules`, `.windsurf/rules`
 - `.github/copilot-instructions.md`, `.gemini/styleguide.md`
 - `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` (and in parent directories)
-- User-specific rules in `~/agents/rules`, `~/.claude/CLAUDE.md`, etc.
+- User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, etc.
 - System-wide rules in `/etc/agents/rules`.
 
 ## File Formats
@@ -120,7 +120,6 @@ Rule files are Markdown (`.md`) or `.mdc` files, optionally with YAML frontmatte
 **Example (`.agents/rules/backend.md`):**
 ```markdown
 ---
-system: backend
 language: Go
 ---
 
@@ -134,17 +133,21 @@ To include this rule only when working on the backend, you would use `-s system=
 
 ### Bootstrap Scripts
 
-A bootstrap script is an executable file that has the same name as a rule file but with a `-bootstrap` suffix.
+A bootstrap script is an executable file that has the same name as a rule file but with a `-bootstrap` suffix. These scripts are used to prepare the environment, for example by installing necessary tools. The output of these scripts is sent to `stderr` and is not part of the AI context.
 
 **Example:**
 - Rule file: `.agents/rules/jira.md`
 - Bootstrap script: `.agents/rules/jira-bootstrap`
 
-If `jira-bootstrap` is an executable script, it will be run, and its standard output will be included as part of the context.
+If `jira-bootstrap` is an executable script, it will be run before its corresponding rule file is processed.
 
 **`.agents/rules/jira-bootstrap`:**
 ```bash
 #!/bin/bash
-echo "## Jira Issue Details"
-jira-cli get-issue ${jira_issue_key}
+# This script installs the jira-cli if it's not already present.
+if ! command -v jira-cli &> /dev/null
+then
+    echo "Installing jira-cli..." >&2
+    # Add installation commands here
+fi
 ```

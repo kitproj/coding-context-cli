@@ -116,7 +116,7 @@ func run(ctx context.Context, args []string) error {
 		"../../GEMINI.md",
 
 		// user
-		filepath.Join(homeDir, "agents", "rules"),
+		filepath.Join(homeDir, ".agents", "rules"),
 		filepath.Join(homeDir, ".claude", "CLAUDE.md"),
 		filepath.Join(homeDir, ".codex", "AGENTS.md"),
 		filepath.Join(homeDir, ".gemini", "GEMINI.md"),
