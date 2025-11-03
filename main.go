@@ -154,31 +154,32 @@ func run(ctx context.Context, args []string) error {
 				return nil
 			}
 
+			// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
+			// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
+			baseNameWithoutExt := strings.TrimSuffix(path, ext)
+			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
+
+			if _, err := os.Stat(bootstrapFilePath); err == nil {
+				// Bootstrap file exists, run it before printing content
+				fmt.Fprintf(os.Stderr, "Running bootstrap script: %s\n", bootstrapFilePath)
+
+				cmd := exec.CommandContext(ctx, bootstrapFilePath)
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+
+				if err := cmd.Run(); err != nil {
+					return fmt.Errorf("failed to run bootstrap script: %w", err)
+				}
+			} else if !os.IsNotExist(err) {
+				return err
+			}
+
 			// Estimate tokens for this file
 			tokens := estimateTokens(content)
 			totalTokens += tokens
 			fmt.Fprintf(os.Stderr, "Including rule file: %s (~%d tokens)\n", path, tokens)
 			fmt.Println(content)
 
-			// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
-			// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
-			baseNameWithoutExt := strings.TrimSuffix(path, ext)
-			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
-
-			if _, err := os.Stat(bootstrapFilePath); os.IsNotExist(err) {
-				return nil
-			} else if err != nil {
-				return err
-			}
-			fmt.Fprintf(os.Stderr, "Running bootstrap script: %s\n", bootstrapFilePath)
-
-			cmd := exec.CommandContext(ctx, bootstrapFilePath)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("failed to run bootstrap script: %w", err)
-			}
 			return nil
 
 		})
