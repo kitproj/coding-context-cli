@@ -43,28 +43,26 @@ func main() {
 	}
 	flag.Parse()
 
-	// Setup output writer
-	var output io.Writer
-	if outputFile != "" {
-		f, err := os.Create(outputFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to create output file: %v\n", err)
-			os.Exit(1)
-		}
-		defer f.Close()
-		output = f
-	} else {
-		output = os.Stdout
-	}
-
-	if err := run(ctx, flag.Args(), output); err != nil {
+	if err := run(ctx, flag.Args()); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		flag.Usage()
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, args []string, output io.Writer) error {
+func run(ctx context.Context, args []string) error {
+	// Setup output writer
+	var output io.Writer
+	if outputFile != "" {
+		f, err := os.Create(outputFile)
+		if err != nil {
+			return fmt.Errorf("failed to create output file: %w", err)
+		}
+		defer f.Close()
+		output = f
+	} else {
+		output = os.Stdout
+	}
 	if len(args) != 1 {
 		return fmt.Errorf("invalid usage")
 	}
