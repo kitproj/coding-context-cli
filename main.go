@@ -62,7 +62,7 @@ func run(ctx context.Context, args []string) error {
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
 	// find the task prompt
