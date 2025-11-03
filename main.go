@@ -170,7 +170,11 @@ func run(ctx context.Context, args []string) error {
 			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
 
 			if _, err := os.Stat(bootstrapFilePath); err == nil {
-				// Bootstrap file exists, run it before printing content
+				// Bootstrap file exists, make it executable and run it before printing content
+				if err := os.Chmod(bootstrapFilePath, 0755); err != nil {
+					return fmt.Errorf("failed to chmod bootstrap file %s: %w", bootstrapFilePath, err)
+				}
+
 				fmt.Fprintf(os.Stderr, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
 
 				cmd := exec.CommandContext(ctx, bootstrapFilePath)
