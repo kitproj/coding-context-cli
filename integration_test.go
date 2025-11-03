@@ -535,3 +535,100 @@ Please help with this task.
 		t.Errorf(".mdc file content not found in stdout")
 	}
 }
+
+func TestBootstrapWithoutExecutePermission(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "setup.md")
+	ruleContent := `---
+---
+# Development Setup
+
+This is a setup guide.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	// Create a bootstrap file WITHOUT execute permission (0644 instead of 0755)
+	// This simulates a bootstrap file that was checked out from git on Windows
+	// or otherwise doesn't have the executable bit set
+	bootstrapFile := filepath.Join(rulesDir, "setup-bootstrap")
+	bootstrapContent := `#!/bin/bash
+echo "Bootstrap executed successfully"
+`
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0644); err != nil {
+		t.Fatalf("failed to write bootstrap file: %v", err)
+	}
+
+	// Verify the file is not executable initially
+	fileInfo, err := os.Stat(bootstrapFile)
+	if err != nil {
+		t.Fatalf("failed to stat bootstrap file: %v", err)
+	}
+	if fileInfo.Mode()&0111 != 0 {
+		t.Fatalf("bootstrap file should not be executable initially, but has mode: %v", fileInfo.Mode())
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+---
+# Test Task
+
+Please help with this task.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary - this should chmod +x the bootstrap file before running it
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "test-task")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that bootstrap output appears (proving it ran successfully)
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "Bootstrap executed successfully") {
+		t.Errorf("bootstrap output not found in stdout, meaning it didn't run successfully")
+	}
+
+	// Check that rule content is present
+	if !strings.Contains(outputStr, "# Development Setup") {
+		t.Errorf("rule content not found in stdout")
+	}
+
+	// Check that task content is present
+	if !strings.Contains(outputStr, "# Test Task") {
+		t.Errorf("task content not found in stdout")
+	}
+
+	// Verify the bootstrap file is now executable
+	fileInfo, err = os.Stat(bootstrapFile)
+	if err != nil {
+		t.Fatalf("failed to stat bootstrap file after run: %v", err)
+	}
+	if fileInfo.Mode()&0111 == 0 {
+		t.Errorf("bootstrap file should be executable after run, but has mode: %v", fileInfo.Mode())
+	}
+}
