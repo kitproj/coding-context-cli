@@ -72,7 +72,7 @@ Please help with this task.
 	outputStr := string(output)
 	bootstrapIdx := strings.Index(outputStr, "Running bootstrap")
 	setupIdx := strings.Index(outputStr, "# Development Setup")
-	
+
 	if bootstrapIdx == -1 {
 		t.Errorf("bootstrap output not found in stdout")
 	}
@@ -706,4 +706,3 @@ Please help with this task.
 		t.Errorf("task content not found in output file")
 	}
 }
-
