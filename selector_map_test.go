@@ -152,7 +152,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		},
 	}
 
-		for _, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := make(selectorMap)
 			for _, sel := range tt.selectors {
