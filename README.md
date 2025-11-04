@@ -1,6 +1,6 @@
 # Coding Agent Context CLI
 
-A command-line interface for dynamically assembling context for AI coding agents.
+A command-line interface and embeddable library for dynamically assembling context for AI coding agents.
 
 This tool collects context from predefined rule files and a task-specific prompt, substitutes parameters, and prints a single, combined context to standard output. This is useful for feeding a large amount of relevant information into an AI model like Claude, Gemini, or OpenAI's GPT series.
 
@@ -13,6 +13,7 @@ This tool collects context from predefined rule files and a task-specific prompt
 - **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically.
 - **Parameter Substitution**: Inject values into your task prompts.
 - **Token Estimation**: Get an estimate of the total token count for the generated context.
+- **Embeddable Library**: Use as a Go library in your own applications (see [context package documentation](./context/README.md)).
 
 ## Supported Coding Agents
 
@@ -32,6 +33,8 @@ The tool automatically discovers and includes rules from these locations in your
 
 ## Installation
 
+### CLI Tool
+
 You can install the CLI by downloading the latest release from the [releases page](https://github.com/kitproj/coding-context-cli/releases) or by building from source.
 
 ```bash
@@ -40,7 +43,19 @@ sudo curl -fsL -o /usr/local/bin/coding-context-cli https://github.com/kitproj/c
 sudo chmod +x /usr/local/bin/coding-context-cli
 ```
 
+### Go Library
+
+To use this as a library in your Go application:
+
+```bash
+go get github.com/kitproj/coding-context-cli/context
+```
+
+See the [context package documentation](./context/README.md) for detailed usage examples.
+
 ## Usage
+
+### Command Line
 
 ```
 Usage:
@@ -83,6 +98,46 @@ The `<task-name>` is the name of the task you want the agent to perform. Here ar
 - `speed-up-build`
 
 Each of these would have a corresponding `.md` file in a `tasks` directory (e.g., `triage-bug.md`).
+
+### Library Usage
+
+You can also use this tool as a library in your Go applications. Here's a simple example:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	ctxlib "github.com/kitproj/coding-context-cli/context"
+)
+
+func main() {
+	// Create parameters for substitution
+	params := make(ctxlib.ParamMap)
+	params["component"] = "auth"
+	params["issue"] = "login bug"
+
+	// Configure the assembler
+	config := ctxlib.Config{
+		WorkDir:  ".",
+		TaskName: "fix-bug",
+		Params:   params,
+	}
+
+	// Assemble the context
+	assembler := ctxlib.NewAssembler(config)
+	ctx := context.Background()
+	if err := assembler.Assemble(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+```
+
+For more detailed library usage examples, see the [context package documentation](./context/README.md).
 
 ## How It Works
 
