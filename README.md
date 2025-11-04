@@ -14,6 +14,21 @@ This tool collects context from predefined rule files and a task-specific prompt
 - **Parameter Substitution**: Inject values into your task prompts.
 - **Token Estimation**: Get an estimate of the total token count for the generated context.
 
+## Supported Coding Agents
+
+This tool is compatible with configuration files from various AI coding agents and IDEs:
+
+- **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`
+- **[Cursor](https://cursor.sh/)**: `.cursor/rules`, `.cursorrules`
+- **[Augment](https://augmentcode.com/)**: `.augment/rules`, `.augment/guidelines.md`
+- **[Windsurf](https://codeium.com/windsurf)**: `.windsurf/rules`, `.windsurfrules`
+- **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent`, `.opencode/command`, `.opencode/rules`
+- **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents`
+- **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md`
+- **Generic AI Agents**: `AGENTS.md`, `.agents/rules`
+
+The tool automatically discovers and includes rules from these locations in your project, parent directories, user home directory (`~`), and system-wide directories (`/etc`).
+
 ## Installation
 
 You can install the CLI by downloading the latest release from the [releases page](https://github.com/kitproj/coding-context-cli/releases) or by building from source.
