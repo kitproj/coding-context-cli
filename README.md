@@ -62,7 +62,7 @@ coding-context-cli -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
 ```
 
 This command will:
-1. Find the `fix-bug.md` task file.
+1. Find a task file with `task_name: fix-bug` in its frontmatter.
 2. Find all rule files in the search paths.
 3. Filter the rules based on selectors.
 4. Execute any associated bootstrap scripts.
@@ -72,7 +72,7 @@ This command will:
 
 ### Example Tasks
 
-The `<task-name>` is the name of the task you want the agent to perform. Here are some common examples:
+The `<task-name>` is the value of the `task_name` field in the frontmatter of task files. Here are some common examples:
 
 - `triage-bug`
 - `review-pull-request`
@@ -82,7 +82,7 @@ The `<task-name>` is the name of the task you want the agent to perform. Here ar
 - `remove-feature-flag`
 - `speed-up-build`
 
-Each of these would have a corresponding `.md` file in a `tasks` directory (e.g., `triage-bug.md`).
+Each of these would have a corresponding `.md` file with `task_name` in the frontmatter (e.g., a file with `task_name: triage-bug`).
 
 ## How It Works
 
@@ -91,7 +91,7 @@ The tool assembles the context in the following order:
 1.  **Rule Files**: It searches a list of predefined locations for rule files (`.md` or `.mdc`). These locations include the current directory, ancestor directories, user's home directory, and system-wide directories.
 2.  **Bootstrap Scripts**: For each rule file found (e.g., `my-rule.md`), it looks for an executable script named `my-rule-bootstrap`. If found, it runs the script before processing the rule file. These scripts are meant for bootstrapping the environment (e.g., installing tools) and their output is sent to `stderr`, not into the main context.
 3.  **Filtering**: If `-s` (include) flag is used, it parses the YAML frontmatter of each rule file to decide whether to include it.
-4.  **Task Prompt**: It finds the task prompt file (e.g., `<task-name>.md`) in one of the search paths.
+4.  **Task Prompt**: It searches for a task file with `task_name: <task-name>` in its frontmatter. The filename doesn't matter. If selectors are provided with `-s`, they are used to filter between multiple task files with the same `task_name`.
 5.  **Parameter Expansion**: It substitutes variables in the task prompt using the `-p` flags.
 6.  **Output**: It prints the content of all included rule files, followed by the expanded task prompt, to standard output.
 7.  **Token Count**: A running total of estimated tokens is printed to standard error.
@@ -101,9 +101,9 @@ The tool assembles the context in the following order:
 The tool looks for task and rule files in the following locations, in order of precedence:
 
 **Tasks:**
-- `./.agents/tasks/<task-name>.md`
-- `~/.agents/tasks/<task-name>.md`
-- `/etc/agents/tasks/<task-name>.md`
+- `./.agents/tasks/*.md` (any `.md` file with matching `task_name` in frontmatter)
+- `~/.agents/tasks/*.md`
+- `/etc/agents/tasks/*.md`
 
 **Rules:**
 The tool searches for a variety of files and directories, including:
@@ -118,13 +118,47 @@ The tool searches for a variety of files and directories, including:
 
 ### Task Files
 
-Task files are Markdown files that can contain variables for substitution.
+Task files are Markdown files with a required `task_name` field in the frontmatter. The filename itself doesn't matter - only the `task_name` value is used for selection. Task files can contain variables for substitution and can use selectors in frontmatter to provide different prompts for the same task.
 
 **Example (`.agents/tasks/fix-bug.md`):**
 ```markdown
+---
+task_name: fix-bug
+---
 # Task: Fix Bug in ${jira_issue_key}
 
 Here is the context for the bug. Please analyze the following files and provide a fix.
+```
+
+**Example with selectors for multiple prompts (`.agents/tasks/deploy-staging.md`):**
+```markdown
+---
+task_name: deploy
+environment: staging
+---
+# Deploy to Staging
+
+Deploy the application to the staging environment with extra validation.
+```
+
+**Example for production (`.agents/tasks/deploy-prod.md`):**
+```markdown
+---
+task_name: deploy
+environment: production
+---
+# Deploy to Production
+
+Deploy the application to production with all safety checks.
+```
+
+You can then select the appropriate task using:
+```bash
+# Deploy to staging
+coding-context-cli -s environment=staging deploy
+
+# Deploy to production
+coding-context-cli -s environment=production deploy
 ```
 
 ### Rule Files
