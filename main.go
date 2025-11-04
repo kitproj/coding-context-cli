@@ -71,6 +71,7 @@ func run(ctx context.Context, args []string) error {
 	}
 
 	var matchingTaskFiles []string
+	var taskFileErrors []error
 	for _, dir := range taskSearchDirs {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
@@ -101,7 +102,9 @@ func run(ctx context.Context, args []string) error {
 			// Check if task_name is present in frontmatter
 			taskNameInFile, hasTaskName := frontmatter["task_name"]
 			if !hasTaskName {
-				return fmt.Errorf("task file %s is missing required 'task_name' field in frontmatter", path)
+				// Collect error but don't stop walking
+				taskFileErrors = append(taskFileErrors, fmt.Errorf("task file %s is missing required 'task_name' field in frontmatter", path))
+				return nil
 			}
 
 			// Check if task_name matches
@@ -109,8 +112,15 @@ func run(ctx context.Context, args []string) error {
 				return nil
 			}
 
-			// Check if file matches include selectors (same as rules)
-			if !includes.matchesIncludes(frontmatter) {
+			// Check if file matches include selectors (excluding task_name which we already checked)
+			// We create a copy of includes without task_name to avoid confusion
+			selectorsWithoutTaskName := make(selectorMap)
+			for k, v := range includes {
+				if k != "task_name" {
+					selectorsWithoutTaskName[k] = v
+				}
+			}
+			if !selectorsWithoutTaskName.matchesIncludes(frontmatter) {
 				return nil
 			}
 
@@ -120,6 +130,19 @@ func run(ctx context.Context, args []string) error {
 		})
 		if err != nil {
 			return err
+		}
+	}
+
+	// Report all task file errors if any
+	if len(taskFileErrors) > 0 {
+		// If we have errors but also found matching files, just report the errors to stderr
+		if len(matchingTaskFiles) > 0 {
+			for _, err := range taskFileErrors {
+				fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+			}
+		} else {
+			// If we have errors and no matching files, return the first error
+			return taskFileErrors[0]
 		}
 	}
 
