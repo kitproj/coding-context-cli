@@ -1,3 +1,9 @@
 # Binary output
 coding-context
 coding-context-cli
+
+# Example binaries
+examples/*/basic
+examples/*/*
+!examples/*/*.go
+!examples/*/*.md
