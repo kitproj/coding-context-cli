@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// SelectorMap reuses ParamMap for parsing key=value pairs
+// SelectorMap represents a specialized map for parsing selector key=value pairs, based on ParamMap
 type SelectorMap ParamMap
 
 func (s *SelectorMap) String() string {
