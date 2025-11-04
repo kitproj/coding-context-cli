@@ -17,7 +17,6 @@ var (
 	workDir  string
 	params   = make(paramMap)
 	includes = make(selectorMap)
-	excludes = make(selectorMap)
 )
 
 func main() {
@@ -27,7 +26,6 @@ func main() {
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.Var(&excludes, "S", "Exclude rules with matching frontmatter. Can be specified multiple times as key=value.")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
@@ -153,14 +151,10 @@ func run(ctx context.Context, args []string) error {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
 			}
 
-			// Check if file matches include and exclude selectors.
+			// Check if file matches include selectors.
 			// Note: Files with duplicate basenames will both be included.
 			if !includes.matchesIncludes(frontmatter) {
 				fmt.Fprintf(os.Stderr, "⪢ Excluding rule file (does not match include selectors): %s\n", path)
-				return nil
-			}
-			if !excludes.matchesExcludes(frontmatter) {
-				fmt.Fprintf(os.Stderr, "⪢ Excluding rule file (matches exclude selectors): %s\n", path)
 				return nil
 			}
 

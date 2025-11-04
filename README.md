@@ -37,8 +37,6 @@ Options:
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
-  -S value
-    	Exclude rules with matching frontmatter. Can be specified multiple times as key=value.
 ```
 
 ### Example
@@ -76,7 +74,7 @@ The tool assembles the context in the following order:
 
 1.  **Rule Files**: It searches a list of predefined locations for rule files (`.md` or `.mdc`). These locations include the current directory, ancestor directories, user's home directory, and system-wide directories.
 2.  **Bootstrap Scripts**: For each rule file found (e.g., `my-rule.md`), it looks for an executable script named `my-rule-bootstrap`. If found, it runs the script before processing the rule file. These scripts are meant for bootstrapping the environment (e.g., installing tools) and their output is sent to `stderr`, not into the main context.
-3.  **Filtering**: If `-s` (include) or `-S` (exclude) flags are used, it parses the YAML frontmatter of each rule file to decide whether to include it.
+3.  **Filtering**: If `-s` (include) flag is used, it parses the YAML frontmatter of each rule file to decide whether to include it.
 4.  **Task Prompt**: It finds the task prompt file (e.g., `<task-name>.md`) in one of the search paths.
 5.  **Parameter Expansion**: It substitutes variables in the task prompt using the `-p` flags.
 6.  **Output**: It prints the content of all included rule files, followed by the expanded task prompt, to standard output.
