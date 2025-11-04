@@ -1,8 +1,10 @@
 # Coding Agent Context CLI
 
-A command-line interface for dynamically assembling context for AI coding agents.
+A command-line interface and Go library for dynamically assembling context for AI coding agents.
 
 This tool collects context from predefined rule files and a task-specific prompt, substitutes parameters, and prints a single, combined context to standard output. This is useful for feeding a large amount of relevant information into an AI model like Claude, Gemini, or OpenAI's GPT series.
+
+The package also provides a library API for processing markdown files with YAML frontmatter using a visitor pattern.
 
 ## Features
 
@@ -32,6 +34,8 @@ The tool automatically discovers and includes rules from these locations in your
 
 ## Installation
 
+### As a CLI Tool
+
 You can install the CLI by downloading the latest release from the [releases page](https://github.com/kitproj/coding-context-cli/releases) or by building from source.
 
 ```bash
@@ -40,7 +44,17 @@ sudo curl -fsL -o /usr/local/bin/coding-context-cli https://github.com/kitproj/c
 sudo chmod +x /usr/local/bin/coding-context-cli
 ```
 
+### As a Go Library
+
+To use this package as a library in your Go project:
+
+```bash
+go get github.com/kitproj/coding-context-cli
+```
+
 ## Usage
+
+### As a CLI Tool
 
 ```
 Usage:
@@ -55,7 +69,7 @@ Options:
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
 ```
 
-### Example
+#### CLI Example
 
 ```bash
 coding-context-cli -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
@@ -69,6 +83,63 @@ This command will:
 5. Substitute `${jira_issue_key}` with `PROJ-1234` in the task prompt.
 6. Print the combined context (rules + task) to `stdout`.
 7. Pipe the output to another program (in this case, `llm`).
+
+### As a Go Library
+
+The package provides a visitor pattern API for processing markdown files with YAML frontmatter.
+
+#### Library API
+
+```go
+// FrontMatter represents the YAML frontmatter of a markdown file
+type FrontMatter map[string]any
+
+// MarkdownVisitor is a function that processes a markdown file's frontmatter and content
+type MarkdownVisitor func(frontMatter FrontMatter, content string) error
+
+// Visit parses markdown files matching the given pattern and calls the visitor for each file.
+// It stops on the first error.
+func Visit(pattern string, visitor MarkdownVisitor) error
+```
+
+#### Library Example
+
+```go
+package main
+
+import (
+    "fmt"
+    context "github.com/kitproj/coding-context-cli"
+)
+
+func main() {
+    // Define a visitor function to process each markdown file
+    visitor := func(frontMatter context.FrontMatter, content string) error {
+        // Access frontmatter fields
+        if title, ok := frontMatter["title"].(string); ok {
+            fmt.Printf("Title: %s\n", title)
+        }
+        
+        // Process content
+        fmt.Printf("Content length: %d bytes\n", len(content))
+        
+        // Return error to stop processing
+        return nil
+    }
+    
+    // Visit all markdown files in current directory
+    if err := context.Visit("*.md", visitor); err != nil {
+        fmt.Printf("Error: %v\n", err)
+        return
+    }
+}
+```
+
+The visitor pattern allows you to:
+- Process markdown files with YAML frontmatter
+- Access both frontmatter metadata and content separately
+- Stop processing on the first error
+- Use glob patterns to select files
 
 ### Example Tasks
 
