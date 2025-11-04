@@ -152,14 +152,14 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 
 			// Parse frontmatter to check selectors
 			var frontmatter map[string]string
-			content, err := parseMarkdownFile(path, &frontmatter)
+			content, err := ParseMarkdownFile(path, &frontmatter)
 			if err != nil {
 				return fmt.Errorf("failed to parse markdown file: %w", err)
 			}
 
 			// Check if file matches include selectors.
 			// Note: Files with duplicate basenames will both be included.
-			if !a.config.Selectors.matchesIncludes(frontmatter) {
+			if !a.config.Selectors.MatchesIncludes(frontmatter) {
 				fmt.Fprintf(a.config.Stderr, "⪢ Excluding rule file (does not match include selectors): %s\n", path)
 				return nil
 			}
@@ -189,7 +189,7 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 			}
 
 			// Estimate tokens for this file
-			tokens := estimateTokens(content)
+			tokens := EstimateTokens(content)
 			totalTokens += tokens
 			fmt.Fprintf(a.config.Stderr, "⪢ Including rule file: %s (~%d tokens)\n", path, tokens)
 			fmt.Fprintln(a.config.Stdout, content)
@@ -202,7 +202,7 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 		}
 	}
 
-	content, err := parseMarkdownFile(taskPromptPath, &struct{}{})
+	content, err := ParseMarkdownFile(taskPromptPath, &struct{}{})
 	if err != nil {
 		return fmt.Errorf("failed to parse prompt file %s: %w", taskPromptPath, err)
 	}
@@ -216,7 +216,7 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 	})
 
 	// Estimate tokens for this file
-	tokens := estimateTokens(expanded)
+	tokens := EstimateTokens(expanded)
 	totalTokens += tokens
 	fmt.Fprintf(a.config.Stderr, "⪢ Including task file: %s (~%d tokens)\n", taskPromptPath, tokens)
 

@@ -67,6 +67,3 @@ func ParseMarkdownFile(path string, frontmatter any) (string, error) {
 
 	return content.String(), nil
 }
-
-// parseMarkdownFile is the internal version for use within the package
-var parseMarkdownFile = ParseMarkdownFile

@@ -12,6 +12,3 @@ func EstimateTokens(text string) int {
 	// Approximate: 1 token ≈ 4 characters
 	return charCount / 4
 }
-
-// estimateTokens is the internal version for use within the package
-var estimateTokens = EstimateTokens

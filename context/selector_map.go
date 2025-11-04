@@ -40,11 +40,6 @@ func (includes *SelectorMap) MatchesIncludes(frontmatter map[string]string) bool
 	return true
 }
 
-// matchesIncludes is the internal version for use within the package
-func (includes *SelectorMap) matchesIncludes(frontmatter map[string]string) bool {
-	return includes.MatchesIncludes(frontmatter)
-}
-
 // MatchesExcludes returns true if the frontmatter doesn't match any exclude selectors
 // If a key doesn't exist in frontmatter, it's allowed
 func (excludes *SelectorMap) MatchesExcludes(frontmatter map[string]string) bool {
@@ -57,9 +52,4 @@ func (excludes *SelectorMap) MatchesExcludes(frontmatter map[string]string) bool
 		// If key doesn't exist, allow it
 	}
 	return true
-}
-
-// matchesExcludes is the internal version for use within the package
-func (excludes *SelectorMap) matchesExcludes(frontmatter map[string]string) bool {
-	return excludes.MatchesExcludes(frontmatter)
 }
