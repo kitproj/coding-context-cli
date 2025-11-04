@@ -2,6 +2,7 @@ package lib
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -160,7 +161,7 @@ func TestVisit_ErrorStopsProcessing(t *testing.T) {
 	
 	// Create multiple files
 	for i := 1; i <= 5; i++ {
-		filename := filepath.Join(tmpDir, "file"+string(rune('0'+i))+".md")
+		filename := filepath.Join(tmpDir, fmt.Sprintf("file%d.md", i))
 		content := "Content\n"
 		if err := os.WriteFile(filename, []byte(content), 0644); err != nil {
 			t.Fatalf("failed to create test file: %v", err)
