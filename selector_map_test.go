@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"github.com/kitproj/coding-context-cli/context"
 )
 
 func TestSelectorMap_Set(t *testing.T) {
@@ -150,7 +152,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+		for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := make(selectorMap)
 			for _, sel := range tt.selectors {
@@ -159,7 +161,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 				}
 			}
 
-			if got := s.matchesIncludes(tt.frontmatter); got != tt.wantMatch {
+			if got := (*context.SelectorMap)(&s).MatchesIncludes(tt.frontmatter); got != tt.wantMatch {
 				t.Errorf("matchesIncludes() = %v, want %v", got, tt.wantMatch)
 			}
 		})
@@ -232,7 +234,7 @@ func TestSelectorMap_MatchesExcludes(t *testing.T) {
 				}
 			}
 
-			if got := s.matchesExcludes(tt.frontmatter); got != tt.wantMatch {
+			if got := (*context.SelectorMap)(&s).MatchesExcludes(tt.frontmatter); got != tt.wantMatch {
 				t.Errorf("matchesExcludes() = %v, want %v", got, tt.wantMatch)
 			}
 		})
