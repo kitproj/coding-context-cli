@@ -1,4 +1,4 @@
-module github.com/kitproj/coding-agent-context-cli
+module github.com/kitproj/coding-context-cli
 
 go 1.24.4
 

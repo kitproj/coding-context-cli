@@ -16,19 +16,19 @@ This tool collects context from predefined rule files and a task-specific prompt
 
 ## Installation
 
-You can install the CLI by downloading the latest release from the [releases page](https://github.com/kitproj/coding-agent-context-cli/releases) or by building from source.
+You can install the CLI by downloading the latest release from the [releases page](https://github.com/kitproj/coding-context-cli/releases) or by building from source.
 
 ```bash
 # Example for Linux
-sudo curl -fsL -o /usr/local/bin/coding-agent-context-cli https://github.com/kitproj/coding-agent-context-cli/releases/download/v0.1.0/coding-agent-context-cli_linux_amd64
-sudo chmod +x /usr/local/bin/coding-agent-context-cli
+sudo curl -fsL -o /usr/local/bin/coding-context-cli https://github.com/kitproj/coding-context-cli/releases/download/v0.1.0/coding-context-cli_linux_amd64
+sudo chmod +x /usr/local/bin/coding-context-cli
 ```
 
 ## Usage
 
 ```
 Usage:
-  coding-agent-context-cli [options] <task-name>
+  coding-context-cli [options] <task-name>
 
 Options:
   -C string
@@ -44,7 +44,7 @@ Options:
 ### Example
 
 ```bash
-coding-agent-context-cli -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
+coding-context-cli -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
 ```
 
 This command will:
