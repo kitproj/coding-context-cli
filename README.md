@@ -92,11 +92,11 @@ The tool looks for task and rule files in the following locations, in order of p
 **Rules:**
 The tool searches for a variety of files and directories, including:
 - `CLAUDE.local.md`
-- `.agents/rules`, `.cursor/rules`, `.augment/rules`, `.windsurf/rules`
+- `.agents/rules`, `.cursor/rules`, `.augment/rules`, `.windsurf/rules`, `.opencode/agent`, `.opencode/command`
 - `.github/copilot-instructions.md`, `.gemini/styleguide.md`
 - `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` (and in parent directories)
-- User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, etc.
-- System-wide rules in `/etc/agents/rules`.
+- User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, `~/.opencode/rules`, etc.
+- System-wide rules in `/etc/agents/rules`, `/etc/opencode/rules`.
 
 ## File Formats
 
