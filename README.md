@@ -19,6 +19,7 @@ This tool collects context from predefined rule files and a task-specific prompt
 This tool is compatible with configuration files from various AI coding agents and IDEs:
 
 - **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`
+- **[Codex](https://codex.ai/)**: `AGENTS.md`, `.codex/AGENTS.md`
 - **[Cursor](https://cursor.sh/)**: `.cursor/rules`, `.cursorrules`
 - **[Augment](https://augmentcode.com/)**: `.augment/rules`, `.augment/guidelines.md`
 - **[Windsurf](https://codeium.com/windsurf)**: `.windsurf/rules`, `.windsurfrules`
