@@ -63,23 +63,75 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	// find the task prompt
-	var taskPromptPath string
-	taskPromptPaths := []string{
-		filepath.Join(".agents", "tasks", taskName+".md"),
-		filepath.Join(homeDir, ".agents", "tasks", taskName+".md"),
-		filepath.Join("/etc", "agents", "tasks", taskName+".md"),
+	// find the task prompt by searching for a file with matching task_name in frontmatter
+	taskSearchDirs := []string{
+		filepath.Join(".agents", "tasks"),
+		filepath.Join(homeDir, ".agents", "tasks"),
+		filepath.Join("/etc", "agents", "tasks"),
 	}
-	for _, path := range taskPromptPaths {
-		if _, err := os.Stat(path); err == nil {
-			taskPromptPath = path
-			break
+
+	var matchingTaskFiles []string
+	for _, dir := range taskSearchDirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return fmt.Errorf("failed to stat task dir %s: %w", dir, err)
+		}
+
+		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+
+			// Only process .md files as task files
+			if filepath.Ext(path) != ".md" {
+				return nil
+			}
+
+			// Parse frontmatter to check task_name
+			var frontmatter map[string]string
+			_, err = parseMarkdownFile(path, &frontmatter)
+			if err != nil {
+				return fmt.Errorf("failed to parse task file %s: %w", path, err)
+			}
+
+			// Check if task_name is present in frontmatter
+			taskNameInFile, hasTaskName := frontmatter["task_name"]
+			if !hasTaskName {
+				return fmt.Errorf("task file %s is missing required 'task_name' field in frontmatter", path)
+			}
+
+			// Check if task_name matches
+			if taskNameInFile != taskName {
+				return nil
+			}
+
+			// Check if file matches include selectors (same as rules)
+			if !includes.matchesIncludes(frontmatter) {
+				return nil
+			}
+
+			matchingTaskFiles = append(matchingTaskFiles, path)
+
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 	}
 
-	if taskPromptPath == "" {
-		return fmt.Errorf("prompt file not found for task: %s in %v", taskName, taskPromptPaths)
+	if len(matchingTaskFiles) == 0 {
+		return fmt.Errorf("no task file found with task_name=%s matching selectors in frontmatter (searched in %v)", taskName, taskSearchDirs)
 	}
+
+	if len(matchingTaskFiles) > 1 {
+		return fmt.Errorf("multiple task files found with task_name=%s: %v", taskName, matchingTaskFiles)
+	}
+
+	taskPromptPath := matchingTaskFiles[0]
 
 	// Track total tokens
 	var totalTokens int
