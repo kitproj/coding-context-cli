@@ -6,7 +6,10 @@
 //
 // Basic usage:
 //
-//	visitor := func(frontMatter lib.FrontMatter, content string) error {
+//	visitor := func(path string, frontMatter lib.FrontMatter, content string) error {
+//	    // Access the file path
+//	    fmt.Printf("Processing: %s\n", path)
+//	    
 //	    // Access frontmatter fields
 //	    if title, ok := frontMatter["title"].(string); ok {
 //	        fmt.Printf("Title: %s\n", title)
@@ -25,4 +28,9 @@
 //
 // The visitor function is called for each markdown file that matches the pattern.
 // Processing stops on the first error returned by the visitor.
+//
+// The package provides three main functions:
+//   - Visit: processes files matching a glob pattern
+//   - VisitPath: processes a single file or directory recursively
+//   - VisitPaths: processes multiple files/directories
 package lib

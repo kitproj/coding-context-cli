@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/kitproj/coding-context-cli/lib"
 )
 
 var (
@@ -84,7 +86,8 @@ func run(ctx context.Context, args []string) error {
 	// Track total tokens
 	var totalTokens int
 
-	for _, rule := range []string{
+	// Define rule paths to visit
+	rulePaths := []string{
 		"CLAUDE.local.md",
 
 		".agents/rules",
@@ -125,81 +128,63 @@ func run(ctx context.Context, args []string) error {
 		// system
 		"/etc/agents/rules",
 		"/etc/opencode/rules",
-	} {
-
-		// Skip if the path doesn't exist
-		if _, err := os.Stat(rule); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("failed to stat rule path %s: %w", rule, err)
-		}
-
-		err := filepath.Walk(rule, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
-			}
-
-			// Only process .md and .mdc files as rule files
-			ext := filepath.Ext(path)
-			if ext != ".md" && ext != ".mdc" {
-				return nil
-			}
-
-			// Parse frontmatter to check selectors
-			var frontmatter map[string]string
-			content, err := parseMarkdownFile(path, &frontmatter)
-			if err != nil {
-				return fmt.Errorf("failed to parse markdown file: %w", err)
-			}
-
-			// Check if file matches include selectors.
-			// Note: Files with duplicate basenames will both be included.
-			if !includes.matchesIncludes(frontmatter) {
-				fmt.Fprintf(os.Stderr, "⪢ Excluding rule file (does not match include selectors): %s\n", path)
-				return nil
-			}
-
-			// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
-			// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
-			baseNameWithoutExt := strings.TrimSuffix(path, ext)
-			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
-
-			if _, err := os.Stat(bootstrapFilePath); err == nil {
-				// Bootstrap file exists, make it executable and run it before printing content
-				if err := os.Chmod(bootstrapFilePath, 0755); err != nil {
-					return fmt.Errorf("failed to chmod bootstrap file %s: %w", bootstrapFilePath, err)
-				}
-
-				fmt.Fprintf(os.Stderr, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
-
-				cmd := exec.CommandContext(ctx, bootstrapFilePath)
-				cmd.Stdout = os.Stderr
-				cmd.Stderr = os.Stderr
-
-				if err := cmd.Run(); err != nil {
-					return fmt.Errorf("failed to run bootstrap script: %w", err)
-				}
-			} else if !os.IsNotExist(err) {
-				return fmt.Errorf("failed to stat bootstrap file %s: %w", bootstrapFilePath, err)
-			}
-
-			// Estimate tokens for this file
-			tokens := estimateTokens(content)
-			totalTokens += tokens
-			fmt.Fprintf(os.Stderr, "⪢ Including rule file: %s (~%d tokens)\n", path, tokens)
-			fmt.Println(content)
-
-			return nil
-
-		})
-		if err != nil {
-			return fmt.Errorf("failed to walk rule dir: %w", err)
-		}
 	}
 
+	// Create visitor function for processing rule files
+	ruleVisitor := func(path string, frontMatter lib.FrontMatter, content string) error {
+		// Convert FrontMatter to map[string]string for selector matching
+		frontmatterStr := make(map[string]string)
+		for k, v := range frontMatter {
+			if str, ok := v.(string); ok {
+				frontmatterStr[k] = str
+			}
+		}
+
+		// Check if file matches include selectors
+		if !includes.matchesIncludes(frontmatterStr) {
+			fmt.Fprintf(os.Stderr, "⪢ Excluding rule file (does not match include selectors): %s\n", path)
+			return nil
+		}
+
+		// Check for a bootstrap file
+		ext := filepath.Ext(path)
+		baseNameWithoutExt := strings.TrimSuffix(path, ext)
+		bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
+
+		if _, err := os.Stat(bootstrapFilePath); err == nil {
+			// Bootstrap file exists, make it executable and run it
+			if err := os.Chmod(bootstrapFilePath, 0755); err != nil {
+				return fmt.Errorf("failed to chmod bootstrap file %s: %w", bootstrapFilePath, err)
+			}
+
+			fmt.Fprintf(os.Stderr, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
+
+			cmd := exec.CommandContext(ctx, bootstrapFilePath)
+			cmd.Stdout = os.Stderr
+			cmd.Stderr = os.Stderr
+
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("failed to run bootstrap script: %w", err)
+			}
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat bootstrap file %s: %w", bootstrapFilePath, err)
+		}
+
+		// Estimate tokens for this file
+		tokens := estimateTokens(content)
+		totalTokens += tokens
+		fmt.Fprintf(os.Stderr, "⪢ Including rule file: %s (~%d tokens)\n", path, tokens)
+		fmt.Println(content)
+
+		return nil
+	}
+
+	// Visit all rule paths
+	if err := lib.VisitPaths(rulePaths, ruleVisitor); err != nil {
+		return fmt.Errorf("failed to process rule files: %w", err)
+	}
+
+	// Process task prompt
 	content, err := parseMarkdownFile(taskPromptPath, &struct{}{})
 	if err != nil {
 		return fmt.Errorf("failed to parse prompt file %s: %w", taskPromptPath, err)

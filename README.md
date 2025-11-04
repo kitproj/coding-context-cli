@@ -95,11 +95,18 @@ The package provides a visitor pattern API for processing markdown files with YA
 type FrontMatter map[string]any
 
 // MarkdownVisitor is a function that processes a markdown file's frontmatter and content
-type MarkdownVisitor func(frontMatter FrontMatter, content string) error
+type MarkdownVisitor func(path string, frontMatter FrontMatter, content string) error
 
 // Visit parses markdown files matching the given pattern and calls the visitor for each file.
 // It stops on the first error.
 func Visit(pattern string, visitor MarkdownVisitor) error
+
+// VisitPath processes markdown files in the given path (file or directory).
+// If the path is a directory, it walks it recursively.
+func VisitPath(path string, visitor MarkdownVisitor) error
+
+// VisitPaths processes markdown files in multiple paths.
+func VisitPaths(paths []string, visitor MarkdownVisitor) error
 ```
 
 #### Library Example
@@ -116,7 +123,10 @@ import (
 
 func main() {
     // Define a visitor function to process each markdown file
-    visitor := func(frontMatter lib.FrontMatter, content string) error {
+    visitor := func(path string, frontMatter lib.FrontMatter, content string) error {
+        // Access the file path
+        fmt.Printf("Processing: %s\n", path)
+        
         // Access frontmatter fields
         if title, ok := frontMatter["title"].(string); ok {
             fmt.Printf("Title: %s\n", title)
@@ -133,14 +143,21 @@ func main() {
     if err := lib.Visit("*.md", visitor); err != nil {
         log.Fatalf("Error: %v", err)
     }
+    
+    // Or visit a specific directory recursively
+    if err := lib.VisitPath("docs/", visitor); err != nil {
+        log.Fatalf("Error: %v", err)
+    }
 }
 ```
 
 The visitor pattern allows you to:
 - Process markdown files with YAML frontmatter
-- Access both frontmatter metadata and content separately
+- Access file path, frontmatter metadata, and content
 - Stop processing on the first error
-- Use glob patterns to select files
+- Use glob patterns to select files (with Visit)
+- Process single files or directories recursively (with VisitPath)
+- Process multiple paths in one call (with VisitPaths)
 
 ### Example Tasks
 

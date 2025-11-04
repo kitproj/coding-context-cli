@@ -24,11 +24,13 @@ This is the content.
 
 	// Track visitor calls
 	var callCount int
+	var capturedPath string
 	var capturedFrontMatter FrontMatter
 	var capturedContent string
 
-	visitor := func(fm FrontMatter, c string) error {
+	visitor := func(path string, fm FrontMatter, c string) error {
 		callCount++
+		capturedPath = path
 		capturedFrontMatter = fm
 		capturedContent = c
 		return nil
@@ -43,6 +45,11 @@ This is the content.
 	// Verify visitor was called once
 	if callCount != 1 {
 		t.Errorf("visitor called %d times, want 1", callCount)
+	}
+
+	// Verify path
+	if capturedPath != testFile {
+		t.Errorf("path = %q, want %q", capturedPath, testFile)
 	}
 
 	// Verify frontmatter
@@ -103,7 +110,7 @@ Content 3
 
 	// Track all visited files
 	visitedIDs := []int{}
-	visitor := func(fm FrontMatter, c string) error {
+	visitor := func(path string, fm FrontMatter, c string) error {
 		if id, ok := fm["id"].(int); ok {
 			visitedIDs = append(visitedIDs, id)
 		}
@@ -134,7 +141,7 @@ func TestVisit_NoFrontMatter(t *testing.T) {
 	var capturedFrontMatter FrontMatter
 	var capturedContent string
 
-	visitor := func(fm FrontMatter, c string) error {
+	visitor := func(path string, fm FrontMatter, c string) error {
 		capturedFrontMatter = fm
 		capturedContent = c
 		return nil
@@ -172,7 +179,7 @@ func TestVisit_ErrorStopsProcessing(t *testing.T) {
 	var visitCount int
 	testErr := errors.New("test error")
 
-	visitor := func(fm FrontMatter, c string) error {
+	visitor := func(path string, fm FrontMatter, c string) error {
 		visitCount++
 		if visitCount == 2 {
 			return testErr
@@ -199,7 +206,7 @@ func TestVisit_ErrorStopsProcessing(t *testing.T) {
 }
 
 func TestVisit_NonExistentPattern(t *testing.T) {
-	visitor := func(fm FrontMatter, c string) error {
+	visitor := func(path string, fm FrontMatter, c string) error {
 		t.Error("visitor should not be called for non-existent pattern")
 		return nil
 	}
@@ -214,7 +221,7 @@ func TestVisit_NonExistentPattern(t *testing.T) {
 }
 
 func TestVisit_InvalidPattern(t *testing.T) {
-	visitor := func(fm FrontMatter, c string) error {
+	visitor := func(path string, fm FrontMatter, c string) error {
 		t.Error("visitor should not be called for invalid pattern")
 		return nil
 	}
@@ -244,7 +251,7 @@ func TestVisit_SkipsDirectories(t *testing.T) {
 	}
 
 	var visitCount int
-	visitor := func(fm FrontMatter, c string) error {
+	visitor := func(path string, fm FrontMatter, c string) error {
 		visitCount++
 		return nil
 	}
@@ -276,7 +283,7 @@ Content
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	visitor := func(fm FrontMatter, c string) error {
+	visitor := func(path string, fm FrontMatter, c string) error {
 		t.Error("visitor should not be called when parsing fails")
 		return nil
 	}
@@ -287,4 +294,105 @@ Content
 	if err == nil {
 		t.Error("Visit() expected parse error, got nil")
 	}
+}
+
+func TestVisitPath_SingleFile(t *testing.T) {
+tmpDir := t.TempDir()
+testFile := filepath.Join(tmpDir, "test.md")
+content := `---
+title: Test
+---
+Content
+`
+if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+t.Fatalf("failed to create test file: %v", err)
+}
+
+var visited bool
+visitor := func(path string, fm FrontMatter, c string) error {
+visited = true
+return nil
+}
+
+if err := VisitPath(testFile, visitor); err != nil {
+t.Fatalf("VisitPath() error = %v", err)
+}
+
+if !visited {
+t.Error("visitor was not called")
+}
+}
+
+func TestVisitPath_Directory(t *testing.T) {
+tmpDir := t.TempDir()
+
+// Create files in directory
+for i := 1; i <= 3; i++ {
+filename := filepath.Join(tmpDir, fmt.Sprintf("file%d.md", i))
+content := fmt.Sprintf("---\nid: %d\n---\nContent %d\n", i, i)
+if err := os.WriteFile(filename, []byte(content), 0644); err != nil {
+t.Fatalf("failed to create test file: %v", err)
+}
+}
+
+visitCount := 0
+visitor := func(path string, fm FrontMatter, c string) error {
+visitCount++
+return nil
+}
+
+if err := VisitPath(tmpDir, visitor); err != nil {
+t.Fatalf("VisitPath() error = %v", err)
+}
+
+if visitCount != 3 {
+t.Errorf("visited %d files, want 3", visitCount)
+}
+}
+
+func TestVisitPath_NonExistent(t *testing.T) {
+visitor := func(path string, fm FrontMatter, c string) error {
+t.Error("visitor should not be called for non-existent path")
+return nil
+}
+
+// Should not error, just skip
+if err := VisitPath("/nonexistent/path.md", visitor); err != nil {
+t.Errorf("VisitPath() error = %v, want nil", err)
+}
+}
+
+func TestVisitPaths_MultiplePaths(t *testing.T) {
+tmpDir := t.TempDir()
+
+// Create file 1
+file1 := filepath.Join(tmpDir, "file1.md")
+if err := os.WriteFile(file1, []byte("---\nid: 1\n---\nContent 1\n"), 0644); err != nil {
+t.Fatalf("failed to create test file: %v", err)
+}
+
+// Create directory with file 2
+subDir := filepath.Join(tmpDir, "subdir")
+if err := os.Mkdir(subDir, 0755); err != nil {
+t.Fatalf("failed to create subdirectory: %v", err)
+}
+file2 := filepath.Join(subDir, "file2.md")
+if err := os.WriteFile(file2, []byte("---\nid: 2\n---\nContent 2\n"), 0644); err != nil {
+t.Fatalf("failed to create test file: %v", err)
+}
+
+visitCount := 0
+visitor := func(path string, fm FrontMatter, c string) error {
+visitCount++
+return nil
+}
+
+paths := []string{file1, subDir}
+if err := VisitPaths(paths, visitor); err != nil {
+t.Fatalf("VisitPaths() error = %v", err)
+}
+
+if visitCount != 2 {
+t.Errorf("visited %d files, want 2", visitCount)
+}
 }

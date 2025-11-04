@@ -10,7 +10,7 @@ import (
 // Example demonstrates how to use the visitor pattern to process markdown files.
 func Example() {
 	// Define a visitor function that processes each markdown file
-	visitor := func(frontMatter lib.FrontMatter, content string) error {
+	visitor := func(path string, frontMatter lib.FrontMatter, content string) error {
 		// Access frontmatter fields
 		if title, ok := frontMatter["title"].(string); ok {
 			fmt.Printf("Title: %s\n", title)
@@ -30,7 +30,7 @@ func Example() {
 
 // Example_stoppingOnError demonstrates how the visitor stops on the first error.
 func Example_stoppingOnError() {
-	visitor := func(frontMatter lib.FrontMatter, content string) error {
+	visitor := func(path string, frontMatter lib.FrontMatter, content string) error {
 		// Check for required fields
 		if _, ok := frontMatter["required_field"]; !ok {
 			return fmt.Errorf("missing required field in frontmatter")
