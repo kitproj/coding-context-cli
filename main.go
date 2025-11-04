@@ -70,8 +70,7 @@ func run(ctx context.Context, args []string) error {
 		filepath.Join("/etc", "agents", "tasks"),
 	}
 
-	var matchingTaskFiles []string
-	var taskFileErrors []error
+	var matchingTaskFile string
 	for _, dir := range taskSearchDirs {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
@@ -100,31 +99,21 @@ func run(ctx context.Context, args []string) error {
 			}
 
 			// Check if task_name is present in frontmatter
-			taskNameInFile, hasTaskName := frontmatter["task_name"]
-			if !hasTaskName {
-				// Collect error but don't stop walking
-				taskFileErrors = append(taskFileErrors, fmt.Errorf("task file %s is missing required 'task_name' field in frontmatter", path))
+			if _, hasTaskName := frontmatter["task_name"]; !hasTaskName {
+				return fmt.Errorf("task file %s is missing required 'task_name' field in frontmatter", path)
+			}
+
+			// Check if file matches include selectors (task_name is already in includes)
+			if !includes.matchesIncludes(frontmatter) {
 				return nil
 			}
 
-			// Check if task_name matches
-			if taskNameInFile != taskName {
-				return nil
+			// If we already found a matching task, error on duplicate
+			if matchingTaskFile != "" {
+				return fmt.Errorf("multiple task files found with task_name=%s: %s and %s", taskName, matchingTaskFile, path)
 			}
 
-			// Check if file matches include selectors (excluding task_name which we already checked)
-			// We create a copy of includes without task_name to avoid confusion
-			selectorsWithoutTaskName := make(selectorMap)
-			for k, v := range includes {
-				if k != "task_name" {
-					selectorsWithoutTaskName[k] = v
-				}
-			}
-			if !selectorsWithoutTaskName.matchesIncludes(frontmatter) {
-				return nil
-			}
-
-			matchingTaskFiles = append(matchingTaskFiles, path)
+			matchingTaskFile = path
 
 			return nil
 		})
@@ -133,28 +122,11 @@ func run(ctx context.Context, args []string) error {
 		}
 	}
 
-	// Report all task file errors if any
-	if len(taskFileErrors) > 0 {
-		// If we have errors but also found matching files, just report the errors to stderr
-		if len(matchingTaskFiles) > 0 {
-			for _, err := range taskFileErrors {
-				fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
-			}
-		} else {
-			// If we have errors and no matching files, return the first error
-			return taskFileErrors[0]
-		}
-	}
-
-	if len(matchingTaskFiles) == 0 {
+	if matchingTaskFile == "" {
 		return fmt.Errorf("no task file found with task_name=%s matching selectors in frontmatter (searched in %v)", taskName, taskSearchDirs)
 	}
 
-	if len(matchingTaskFiles) > 1 {
-		return fmt.Errorf("multiple task files found with task_name=%s: %v", taskName, matchingTaskFiles)
-	}
-
-	taskPromptPath := matchingTaskFiles[0]
+	taskPromptPath := matchingTaskFile
 
 	// Track total tokens
 	var totalTokens int
