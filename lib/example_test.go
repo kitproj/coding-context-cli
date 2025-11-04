@@ -1,13 +1,16 @@
-package main
+package lib_test
 
 import (
 	"fmt"
+	"log"
+
+	"github.com/kitproj/coding-context-cli/lib"
 )
 
-// Example demonstrates how to use the library API to process markdown files
-func Example_usingVisitor() {
+// Example demonstrates how to use the visitor pattern to process markdown files.
+func Example() {
 	// Define a visitor function that processes each markdown file
-	visitor := func(frontMatter FrontMatter, content string) error {
+	visitor := func(frontMatter lib.FrontMatter, content string) error {
 		// Access frontmatter fields
 		if title, ok := frontMatter["title"].(string); ok {
 			fmt.Printf("Title: %s\n", title)
@@ -20,15 +23,14 @@ func Example_usingVisitor() {
 	}
 	
 	// Visit all markdown files in a directory
-	if err := Visit("*.md", visitor); err != nil {
-		fmt.Printf("Error: %v\n", err)
-		return
+	if err := lib.Visit("testdata/*.md", visitor); err != nil {
+		log.Fatalf("Error: %v", err)
 	}
 }
 
-// Example demonstrates stopping on first error
+// Example_stoppingOnError demonstrates how the visitor stops on the first error.
 func Example_stoppingOnError() {
-	visitor := func(frontMatter FrontMatter, content string) error {
+	visitor := func(frontMatter lib.FrontMatter, content string) error {
 		// Check for required fields
 		if _, ok := frontMatter["required_field"]; !ok {
 			return fmt.Errorf("missing required field in frontmatter")
@@ -39,7 +41,7 @@ func Example_stoppingOnError() {
 	}
 	
 	// Visit will stop on the first error
-	if err := Visit("*.md", visitor); err != nil {
+	if err := lib.Visit("*.md", visitor); err != nil {
 		fmt.Printf("Stopped processing: %v\n", err)
 		return
 	}

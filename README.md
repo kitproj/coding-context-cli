@@ -109,12 +109,14 @@ package main
 
 import (
     "fmt"
-    context "github.com/kitproj/coding-context-cli"
+    "log"
+    
+    "github.com/kitproj/coding-context-cli/lib"
 )
 
 func main() {
     // Define a visitor function to process each markdown file
-    visitor := func(frontMatter context.FrontMatter, content string) error {
+    visitor := func(frontMatter lib.FrontMatter, content string) error {
         // Access frontmatter fields
         if title, ok := frontMatter["title"].(string); ok {
             fmt.Printf("Title: %s\n", title)
@@ -128,9 +130,8 @@ func main() {
     }
     
     // Visit all markdown files in current directory
-    if err := context.Visit("*.md", visitor); err != nil {
-        fmt.Printf("Error: %v\n", err)
-        return
+    if err := lib.Visit("*.md", visitor); err != nil {
+        log.Fatalf("Error: %v", err)
     }
 }
 ```
