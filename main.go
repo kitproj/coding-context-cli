@@ -91,6 +91,8 @@ func run(ctx context.Context, args []string) error {
 		".cursor/rules",
 		".augment/rules",
 		".windsurf/rules",
+		".opencode/agent",
+		".opencode/command",
 
 		".github/copilot-instructions.md",
 		".gemini/styleguide.md",
@@ -118,9 +120,11 @@ func run(ctx context.Context, args []string) error {
 		filepath.Join(homeDir, ".claude", "CLAUDE.md"),
 		filepath.Join(homeDir, ".codex", "AGENTS.md"),
 		filepath.Join(homeDir, ".gemini", "GEMINI.md"),
+		filepath.Join(homeDir, ".opencode", "rules"),
 
 		// system
 		"/etc/agents/rules",
+		"/etc/opencode/rules",
 	} {
 
 		// Skip if the path doesn't exist

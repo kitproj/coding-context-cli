@@ -72,7 +72,7 @@ Please help with this task.
 	outputStr := string(output)
 	bootstrapIdx := strings.Index(outputStr, "Running bootstrap")
 	setupIdx := strings.Index(outputStr, "# Development Setup")
-	
+
 	if bootstrapIdx == -1 {
 		t.Errorf("bootstrap output not found in stdout")
 	}
@@ -630,5 +630,84 @@ Please help with this task.
 	}
 	if fileInfo.Mode()&0111 == 0 {
 		t.Errorf("bootstrap file should be executable after run, but has mode: %v", fileInfo.Mode())
+	}
+}
+
+func TestOpenCodeRulesSupport(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	openCodeAgentDir := filepath.Join(tmpDir, ".opencode", "agent")
+	openCodeCommandDir := filepath.Join(tmpDir, ".opencode", "command")
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(openCodeAgentDir, 0755); err != nil {
+		t.Fatalf("failed to create opencode agent dir: %v", err)
+	}
+	if err := os.MkdirAll(openCodeCommandDir, 0755); err != nil {
+		t.Fatalf("failed to create opencode command dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create an agent rule file in .opencode/agent
+	agentFile := filepath.Join(openCodeAgentDir, "docs.md")
+	agentContent := `# Documentation Agent
+
+This agent helps with documentation.
+`
+	if err := os.WriteFile(agentFile, []byte(agentContent), 0644); err != nil {
+		t.Fatalf("failed to write agent file: %v", err)
+	}
+
+	// Create a command rule file in .opencode/command
+	commandFile := filepath.Join(openCodeCommandDir, "commit.md")
+	commandContent := `# Commit Command
+
+This command helps create commits.
+`
+	if err := os.WriteFile(commandFile, []byte(commandContent), 0644); err != nil {
+		t.Fatalf("failed to write command file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-opencode.md")
+	taskContent := `# Test OpenCode Task
+
+This is a test task.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "test-opencode")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Check that agent rule content is present
+	if !strings.Contains(outputStr, "# Documentation Agent") {
+		t.Errorf("OpenCode agent rule content not found in stdout")
+	}
+
+	// Check that command rule content is present
+	if !strings.Contains(outputStr, "# Commit Command") {
+		t.Errorf("OpenCode command rule content not found in stdout")
+	}
+
+	// Check that task content is present
+	if !strings.Contains(outputStr, "# Test OpenCode Task") {
+		t.Errorf("task content not found in stdout")
 	}
 }
