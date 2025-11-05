@@ -52,6 +52,7 @@ echo "Running bootstrap"
 	// Create a task file
 	taskFile := filepath.Join(tasksDir, "test-task.md")
 	taskContent := `---
+task_name: test-task
 ---
 # Test Task
 
@@ -124,6 +125,7 @@ General information about the project.
 	// Create a task file
 	taskFile := filepath.Join(tasksDir, "test-task.md")
 	taskContent := `---
+task_name: test-task
 ---
 # Test Task
 
@@ -215,6 +217,7 @@ echo "Running deploy bootstrap"
 	// Create a task file
 	taskFile := filepath.Join(tasksDir, "test-task.md")
 	taskContent := `---
+task_name: test-task
 ---
 # Test Task
 
@@ -297,6 +300,7 @@ Go specific guidelines.
 	// Create a task file
 	taskFile := filepath.Join(tasksDir, "test-task.md")
 	taskContent := `---
+task_name: test-task
 ---
 # Test Task
 
@@ -342,6 +346,7 @@ func TestTemplateExpansionWithOsExpand(t *testing.T) {
 	// Create a task file with template variables
 	taskFile := filepath.Join(tasksDir, "test-task.md")
 	taskContent := `---
+task_name: test-task
 ---
 # Test Task
 
@@ -384,6 +389,7 @@ func TestWorkDirOption(t *testing.T) {
 	// Create a task file
 	taskFile := filepath.Join(tasksDir, "test-task.md")
 	taskContent := `---
+task_name: test-task
 ---
 # Test Task
 
@@ -443,6 +449,7 @@ This is a .mdc file.
 	// Create a task file
 	taskFile := filepath.Join(tasksDir, "test-task.md")
 	taskContent := `---
+task_name: test-task
 ---
 # Test Task
 
@@ -510,6 +517,7 @@ echo "Running custom bootstrap"
 	// Create a task file
 	taskFile := filepath.Join(tasksDir, "test-task.md")
 	taskContent := `---
+task_name: test-task
 ---
 # Test Task
 
@@ -591,6 +599,7 @@ echo "Bootstrap executed successfully"
 	// Create a task file
 	taskFile := filepath.Join(tasksDir, "test-task.md")
 	taskContent := `---
+task_name: test-task
 ---
 # Test Task
 
@@ -679,7 +688,10 @@ This command helps create commits.
 
 	// Create a task file
 	taskFile := filepath.Join(tasksDir, "test-opencode.md")
-	taskContent := `# Test OpenCode Task
+	taskContent := `---
+task_name: test-opencode
+---
+# Test OpenCode Task
 
 This is a test task.
 `
@@ -709,5 +721,223 @@ This is a test task.
 	// Check that task content is present
 	if !strings.Contains(outputStr, "# Test OpenCode Task") {
 		t.Errorf("task content not found in stdout")
+	}
+}
+
+func TestTaskSelectionByFrontmatter(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a task file with a different filename than task_name
+	// This tests that filename doesn't matter, only task_name matters
+	taskFile := filepath.Join(tasksDir, "arbitrary-filename.md")
+	taskContent := `---
+task_name: my-special-task
+---
+# My Special Task
+
+This task has a different filename than task_name.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary with task name matching the task_name frontmatter, not filename
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "my-special-task")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that task content is present
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "# My Special Task") {
+		t.Errorf("task content not found in stdout")
+	}
+}
+
+func TestTaskMissingTaskNameError(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a task file WITHOUT task_name in frontmatter
+	taskFile := filepath.Join(tasksDir, "bad-task.md")
+	taskContent := `---
+description: A task without task_name
+---
+# Bad Task
+
+This task is missing task_name in frontmatter.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary - should fail with an error
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "bad-task")
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected binary to fail, but it succeeded")
+	}
+
+	// Check that error message mentions missing task_name
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "missing required 'task_name' field in frontmatter") {
+		t.Errorf("expected error about missing task_name, got: %s", outputStr)
+	}
+}
+
+func TestMultipleTasksWithSameNameError(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create two task files with the SAME task_name
+	taskFile1 := filepath.Join(tasksDir, "file1.md")
+	taskContent1 := `---
+task_name: duplicate-task
+---
+# Task File 1
+
+This is the first file.
+`
+	if err := os.WriteFile(taskFile1, []byte(taskContent1), 0644); err != nil {
+		t.Fatalf("failed to write task file 1: %v", err)
+	}
+
+	taskFile2 := filepath.Join(tasksDir, "file2.md")
+	taskContent2 := `---
+task_name: duplicate-task
+---
+# Task File 2
+
+This is the second file.
+`
+	if err := os.WriteFile(taskFile2, []byte(taskContent2), 0644); err != nil {
+		t.Fatalf("failed to write task file 2: %v", err)
+	}
+
+	// Run the binary - should fail with an error about duplicate task names
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "duplicate-task")
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected binary to fail with duplicate task names, but it succeeded")
+	}
+
+	// Check that error message mentions multiple task files
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "multiple task files found") {
+		t.Errorf("expected error about multiple task files, got: %s", outputStr)
+	}
+}
+
+func TestTaskSelectionWithSelectors(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create two task files with the same task_name but different environments
+	taskFile1 := filepath.Join(tasksDir, "deploy-staging.md")
+	taskContent1 := `---
+task_name: deploy
+environment: staging
+---
+# Deploy to Staging
+
+Deploy to the staging environment.
+`
+	if err := os.WriteFile(taskFile1, []byte(taskContent1), 0644); err != nil {
+		t.Fatalf("failed to write staging task file: %v", err)
+	}
+
+	taskFile2 := filepath.Join(tasksDir, "deploy-production.md")
+	taskContent2 := `---
+task_name: deploy
+environment: production
+---
+# Deploy to Production
+
+Deploy to the production environment.
+`
+	if err := os.WriteFile(taskFile2, []byte(taskContent2), 0644); err != nil {
+		t.Fatalf("failed to write production task file: %v", err)
+	}
+
+	// Run the binary with selector for staging
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "environment=staging", "deploy")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary for staging: %v\n%s", err, output)
+	}
+
+	// Check that staging task content is present
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "# Deploy to Staging") {
+		t.Errorf("staging task content not found in stdout")
+	}
+	if strings.Contains(outputStr, "# Deploy to Production") {
+		t.Errorf("production task content should not be in stdout when selecting staging")
+	}
+
+	// Run the binary with selector for production
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "environment=production", "deploy")
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary for production: %v\n%s", err, output)
+	}
+
+	// Check that production task content is present
+	outputStr = string(output)
+	if !strings.Contains(outputStr, "# Deploy to Production") {
+		t.Errorf("production task content not found in stdout")
+	}
+	if strings.Contains(outputStr, "# Deploy to Staging") {
+		t.Errorf("staging task content should not be in stdout when selecting production")
 	}
 }
