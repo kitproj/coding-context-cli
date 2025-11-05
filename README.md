@@ -30,6 +30,17 @@ This tool is compatible with configuration files from various AI coding agents a
 
 The tool automatically discovers and includes rules from these locations in your project, parent directories, user home directory (`~`), and system-wide directories (`/etc`).
 
+## Agentic Workflows
+
+This tool plays a crucial role in the **agentic workflow ecosystem** by providing rich, contextual information to AI agents. It complements systems like **GitHub Next's Agentic Workflows** by:
+
+- **Context Preparation**: Assembles rules, guidelines, and task-specific prompts before agent execution
+- **Workflow Integration**: Can be invoked in GitHub Actions to provide context to autonomous agents
+- **Dynamic Context**: Supports runtime parameters and bootstrap scripts for real-time information
+- **Multi-Stage Support**: Different context assemblies for planning, implementation, and validation stages
+
+For a comprehensive guide on using this tool with agentic workflows, see [AGENTIC_WORKFLOWS.md](./AGENTIC_WORKFLOWS.md).
+
 ## Installation
 
 You can install the CLI by downloading the latest release from the [releases page](https://github.com/kitproj/coding-context-cli/releases) or by building from source.

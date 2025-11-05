@@ -1,0 +1,96 @@
+# Example: Agentic Code Review Workflow
+#
+# This workflow demonstrates how to use coding-context-cli to prepare
+# context for an AI agent that performs automated code reviews.
+
+name: Agentic Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better context
+      
+      - name: Install Coding Context CLI
+        run: |
+          curl -fsL -o /usr/local/bin/coding-context-cli \
+            https://github.com/kitproj/coding-context-cli/releases/latest/download/coding-context-cli_linux_amd64
+          chmod +x /usr/local/bin/coding-context-cli
+      
+      - name: Assemble Review Context
+        id: context
+        run: |
+          # Assemble context with PR-specific parameters
+          coding-context-cli \
+            -s task=code-review \
+            -s language=${{ github.event.repository.language }} \
+            -p pr_number=${{ github.event.pull_request.number }} \
+            -p pr_title="${{ github.event.pull_request.title }}" \
+            -p pr_url="${{ github.event.pull_request.html_url }}" \
+            -p base_branch=${{ github.event.pull_request.base.ref }} \
+            -p head_branch=${{ github.event.pull_request.head.ref }} \
+            code-review > review-context.txt
+          
+          # Output context size for monitoring
+          echo "context_size=$(wc -c < review-context.txt)" >> $GITHUB_OUTPUT
+      
+      - name: Get Changed Files
+        id: changed_files
+        run: |
+          # Get list of changed files for focused review
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} \
+            > changed_files.txt
+      
+      - name: Perform AI Review
+        uses: your-org/ai-agent-action@v1
+        with:
+          context-file: review-context.txt
+          changed-files: changed_files.txt
+          task: code-review
+          model: claude-3-5-sonnet-20241022
+          temperature: 0.2  # Lower temperature for more consistent reviews
+      
+      - name: Post Review Results
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reviewResults = fs.readFileSync('review-results.json', 'utf8');
+            const results = JSON.parse(reviewResults);
+            
+            // Post review comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: results.summary
+            });
+            
+            // Post inline review comments if any
+            if (results.comments && results.comments.length > 0) {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                event: 'COMMENT',
+                comments: results.comments
+              });
+            }
+      
+      - name: Report Metrics
+        if: always()
+        run: |
+          echo "Context size: ${{ steps.context.outputs.context_size }} bytes"
+          echo "PR: ${{ github.event.pull_request.html_url }}"
