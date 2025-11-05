@@ -24,6 +24,8 @@ type Config struct {
 	Stdout io.Writer
 	// Stderr is where progress messages are written (defaults to os.Stderr)
 	Stderr io.Writer
+	// Visitor is called for each selected rule (defaults to DefaultRuleVisitor)
+	Visitor RuleVisitor
 }
 
 // Assembler assembles context from rule and task files
@@ -44,6 +46,12 @@ func NewAssembler(config Config) *Assembler {
 	}
 	if config.Selectors == nil {
 		config.Selectors = make(SelectorMap)
+	}
+	if config.Visitor == nil {
+		config.Visitor = &DefaultRuleVisitor{
+			stdout: config.Stdout,
+			stderr: config.Stderr,
+		}
 	}
 	return &Assembler{config: config}
 }
@@ -188,11 +196,21 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 				return fmt.Errorf("failed to stat bootstrap file %s: %w", bootstrapFilePath, err)
 			}
 
-			// Estimate tokens for this file
+			// Create Rule object and visit it
 			tokens := EstimateTokens(content)
 			totalTokens += tokens
-			fmt.Fprintf(a.config.Stderr, "⪢ Including rule file: %s (~%d tokens)\n", path, tokens)
-			fmt.Fprintln(a.config.Stdout, content)
+			
+			ruleObj := &Rule{
+				Path:        path,
+				Content:     content,
+				Frontmatter: frontmatter,
+				Tokens:      tokens,
+			}
+			
+			// Visit the rule using the configured visitor
+			if err := a.config.Visitor.VisitRule(ctx, ruleObj); err != nil {
+				return fmt.Errorf("visitor error for rule %s: %w", path, err)
+			}
 
 			return nil
 

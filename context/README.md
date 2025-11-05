@@ -88,6 +88,9 @@ type Config struct {
 	
 	// Stderr is where progress messages are written (defaults to os.Stderr)
 	Stderr io.Writer
+	
+	// Visitor is called for each selected rule (defaults to DefaultRuleVisitor)
+	Visitor RuleVisitor
 }
 ```
 
@@ -146,6 +149,54 @@ Estimate the number of LLM tokens in text:
 ```go
 tokens := context.EstimateTokens("This is some text")
 ```
+
+### RuleVisitor (Visitor Pattern)
+
+The `RuleVisitor` interface allows you to customize how rules are processed as they are selected. This enables advanced use cases like logging, filtering, transformation, or custom output formatting.
+
+```go
+type RuleVisitor interface {
+	// VisitRule is called for each rule that matches the selection criteria
+	VisitRule(ctx context.Context, rule *Rule) error
+}
+```
+
+The `Rule` type contains all information about a selected rule:
+
+```go
+type Rule struct {
+	Path        string            // Absolute path to the rule file
+	Content     string            // Parsed content (without frontmatter)
+	Frontmatter map[string]string // YAML frontmatter metadata
+	Tokens      int               // Estimated token count
+}
+```
+
+**Example: Custom Visitor**
+
+```go
+// CustomVisitor collects rule metadata
+type CustomVisitor struct {
+	Rules []*context.Rule
+}
+
+func (v *CustomVisitor) VisitRule(ctx context.Context, rule *context.Rule) error {
+	// Custom processing logic
+	v.Rules = append(v.Rules, rule)
+	fmt.Printf("Processing rule: %s (%d tokens)\n", rule.Path, rule.Tokens)
+	return nil
+}
+
+// Use the custom visitor
+visitor := &CustomVisitor{}
+assembler := context.NewAssembler(context.Config{
+	WorkDir:  ".",
+	TaskName: "my-task",
+	Visitor:  visitor,
+})
+```
+
+By default, the `DefaultRuleVisitor` is used, which writes rule content to stdout and logs progress to stderr.
 
 ## Advanced Usage
 
