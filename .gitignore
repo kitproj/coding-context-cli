@@ -7,3 +7,5 @@ examples/*/basic
 examples/*/*
 !examples/*/*.go
 !examples/*/*.md
+examples/*/visitor
+examples/*/basic
