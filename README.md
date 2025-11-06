@@ -62,6 +62,7 @@ Options:
     	Change to directory before doing anything. (default ".")
   -p value
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
+  -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
 ```
@@ -171,6 +172,52 @@ coding-context-cli -s environment=staging deploy
 # Deploy to production
 coding-context-cli -s environment=production deploy
 ```
+
+### Resume Mode
+
+Resume mode is designed for continuing work on a task where you've already established context. When using the `-r` flag:
+
+1. **Rules are skipped**: All rule files are excluded from output, saving tokens and reducing context size
+2. **Resume-specific task prompts are selected**: Only task files with `resume: true` in their frontmatter are used
+
+This is particularly useful in agentic workflows where an AI agent has already been primed with rules and is continuing work from a previous session.
+
+**Example usage:**
+
+```bash
+# Initial task invocation (includes all rules)
+coding-context-cli fix-bug | ai-agent
+
+# Resume the task (skips rules, uses resume prompt)
+coding-context-cli -r fix-bug | ai-agent
+```
+
+**Example task files for resume mode:**
+
+Initial task (`.agents/tasks/fix-bug-initial.md`):
+```markdown
+---
+task_name: fix-bug
+---
+# Fix Bug
+
+Analyze the issue and implement a fix.
+Follow the coding standards and write tests.
+```
+
+Resume task (`.agents/tasks/fix-bug-resume.md`):
+```markdown
+---
+task_name: fix-bug
+resume: true
+---
+# Fix Bug - Continue
+
+Continue working on the bug fix.
+Review your previous work and complete remaining tasks.
+```
+
+When you run `coding-context-cli fix-bug`, it uses the initial task with all rules. When you run `coding-context-cli -r fix-bug`, it uses the resume task without any rules.
 
 ### Rule Files
 
