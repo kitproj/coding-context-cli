@@ -974,10 +974,11 @@ if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
 t.Fatalf("failed to write rule file: %v", err)
 }
 
-// Create a normal task file (without resume: true)
+// Create a normal task file (with resume: false)
 normalTaskFile := filepath.Join(tasksDir, "fix-bug-initial.md")
 normalTaskContent := `---
 task_name: fix-bug
+resume: false
 ---
 # Fix Bug (Initial)
 
@@ -1001,8 +1002,8 @@ if err := os.WriteFile(resumeTaskFile, []byte(resumeTaskContent), 0644); err != 
 t.Fatalf("failed to write resume task file: %v", err)
 }
 
-// Test 1: Run in normal mode (without -r flag)
-cmd = exec.Command(binaryPath, "-C", tmpDir, "fix-bug")
+// Test 1: Run in normal mode (with -s resume=false to select non-resume task)
+cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "resume=false", "fix-bug")
 output, err := cmd.CombinedOutput()
 if err != nil {
 t.Fatalf("failed to run binary in normal mode: %v\n%s", err, output)

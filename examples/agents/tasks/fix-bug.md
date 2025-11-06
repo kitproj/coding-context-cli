@@ -1,5 +1,6 @@
 ---
 task_name: fix-bug
+resume: false
 ---
 
 # Bug Fix Task

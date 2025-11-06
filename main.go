@@ -60,6 +60,11 @@ func run(ctx context.Context, args []string) error {
 	taskName := args[0]
 	includes["task_name"] = taskName
 
+	// If resume mode is enabled, add resume=true as a selector
+	if resume {
+		includes["resume"] = "true"
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get user home directory: %w", err)
@@ -103,20 +108,6 @@ func run(ctx context.Context, args []string) error {
 			// Check if task_name is present in frontmatter
 			if _, hasTaskName := frontmatter["task_name"]; !hasTaskName {
 				return fmt.Errorf("task file %s is missing required 'task_name' field in frontmatter", path)
-			}
-
-			// Filter based on resume mode
-			resumeValue, hasResume := frontmatter["resume"]
-			if resume {
-				// In resume mode, only include tasks with resume: true
-				if !hasResume || resumeValue != "true" {
-					return nil
-				}
-			} else {
-				// In normal mode, exclude tasks with resume: true
-				if hasResume && resumeValue == "true" {
-					return nil
-				}
 			}
 
 			// Check if file matches include selectors (task_name is already in includes)
