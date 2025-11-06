@@ -11,11 +11,11 @@ import (
 
 // CustomVisitor is a test visitor that collects rule information
 type CustomVisitor struct {
-	VisitedRules []*Rule
+	VisitedRules []*Document
 	stderr       *bytes.Buffer
 }
 
-func (v *CustomVisitor) VisitRule(ctx context.Context, rule *Rule) error {
+func (v *CustomVisitor) VisitRule(ctx context.Context, rule *Document) error {
 	v.VisitedRules = append(v.VisitedRules, rule)
 	return nil
 }
@@ -71,7 +71,7 @@ Please help with this task.
 	// Create custom visitor
 	var stderr bytes.Buffer
 	customVisitor := &CustomVisitor{
-		VisitedRules: make([]*Rule, 0),
+		VisitedRules: make([]*Document, 0),
 		stderr:       &stderr,
 	}
 
@@ -88,7 +88,7 @@ Please help with this task.
 	})
 
 	ctx := context.Background()
-	if err := assembler.Assemble(ctx); err != nil {
+	if _, err := assembler.Assemble(ctx); err != nil {
 		t.Fatalf("Assemble() error = %v", err)
 	}
 
@@ -178,7 +178,8 @@ Please help with this task.
 	})
 
 	ctx := context.Background()
-	if err := assembler.Assemble(ctx); err != nil {
+	task, err := assembler.Assemble(ctx)
+	if err != nil {
 		t.Fatalf("Assemble() error = %v", err)
 	}
 
@@ -188,14 +189,14 @@ Please help with this task.
 		t.Errorf("rule content not found in stdout with default visitor")
 	}
 
-	// Check that task content is present
-	if !strings.Contains(outputStr, "# Test Task") {
-		t.Errorf("task content not found in stdout")
+	// Check that task content is in the returned document
+	if !strings.Contains(task.Content, "# Test Task") {
+		t.Errorf("task content not found in returned document")
 	}
 
-	// Check stderr for progress messages
+	// Check stderr for progress messages (slog format)
 	stderrStr := stderr.String()
-	if !strings.Contains(stderrStr, "Including rule file") {
+	if !strings.Contains(stderrStr, "including rule file") {
 		t.Errorf("progress messages not found in stderr with default visitor")
 	}
 }

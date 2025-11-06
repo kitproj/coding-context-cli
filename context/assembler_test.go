@@ -58,27 +58,28 @@ Please help with this task.
 	})
 
 	ctx := context.Background()
-	if err := assembler.Assemble(ctx); err != nil {
+	task, err := assembler.Assemble(ctx)
+	if err != nil {
 		t.Fatalf("Assemble() error = %v", err)
 	}
 
-	// Check that rule content is present
+	// Check that rule content is present in stdout (via visitor)
 	outputStr := stdout.String()
 	if !strings.Contains(outputStr, "# Development Setup") {
 		t.Errorf("rule content not found in stdout")
 	}
 
-	// Check that task content is present
-	if !strings.Contains(outputStr, "# Test Task") {
-		t.Errorf("task content not found in stdout")
+	// Check that task content is in the returned document
+	if !strings.Contains(task.Content, "# Test Task") {
+		t.Errorf("task content not found in returned document")
 	}
 
-	// Check stderr for progress messages
+	// Check stderr for progress messages (slog format)
 	stderrStr := stderr.String()
-	if !strings.Contains(stderrStr, "Including rule file") {
+	if !strings.Contains(stderrStr, "including rule file") {
 		t.Errorf("progress messages not found in stderr")
 	}
-	if !strings.Contains(stderrStr, "Total estimated tokens") {
+	if !strings.Contains(stderrStr, "total estimated tokens") {
 		t.Errorf("total token count not found in stderr")
 	}
 }
@@ -120,14 +121,14 @@ Please work on ${component} and fix ${issue}.
 	})
 
 	ctx := context.Background()
-	if err := assembler.Assemble(ctx); err != nil {
+	task, err := assembler.Assemble(ctx)
+	if err != nil {
 		t.Fatalf("Assemble() error = %v", err)
 	}
 
-	// Check that template variables were expanded
-	outputStr := stdout.String()
-	if !strings.Contains(outputStr, "Please work on auth and fix login bug.") {
-		t.Errorf("template variables were not expanded correctly. Output:\n%s", outputStr)
+	// Check that template variables were expanded in the returned task
+	if !strings.Contains(task.Content, "Please work on auth and fix login bug.") {
+		t.Errorf("template variables were not expanded correctly. Task content:\n%s", task.Content)
 	}
 }
 
@@ -196,7 +197,7 @@ Please help with this task.
 	})
 
 	ctx := context.Background()
-	if err := assembler.Assemble(ctx); err != nil {
+	if _, err := assembler.Assemble(ctx); err != nil {
 		t.Fatalf("Assemble() error = %v", err)
 	}
 
@@ -225,7 +226,7 @@ func TestAssembler_TaskNotFound(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	err := assembler.Assemble(ctx)
+	_, err := assembler.Assemble(ctx)
 	if err == nil {
 		t.Fatalf("expected error for nonexistent task, got nil")
 	}

@@ -4,11 +4,27 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
+
+// Frontmatter represents YAML frontmatter metadata
+type Frontmatter map[string]string
+
+// Document represents a markdown file with frontmatter (both rules and tasks)
+type Document struct {
+	// Path is the absolute path to the file
+	Path string
+	// Content is the parsed content of the file (without frontmatter)
+	Content string
+	// Frontmatter contains the YAML frontmatter metadata
+	Frontmatter Frontmatter
+	// Tokens is the estimated token count for this document
+	Tokens int
+}
 
 // Config holds the configuration for context assembly
 type Config struct {
@@ -26,6 +42,8 @@ type Config struct {
 	Stderr io.Writer
 	// Visitor is called for each selected rule (defaults to DefaultRuleVisitor)
 	Visitor RuleVisitor
+	// Logger is used for logging (defaults to slog.Default())
+	Logger *slog.Logger
 }
 
 // Assembler assembles context from rule and task files
@@ -47,21 +65,27 @@ func NewAssembler(config Config) *Assembler {
 	if config.Selectors == nil {
 		config.Selectors = make(SelectorMap)
 	}
+	if config.Logger == nil {
+		// Create a logger that writes to the configured stderr
+		handler := slog.NewTextHandler(config.Stderr, nil)
+		config.Logger = slog.New(handler)
+	}
 	if config.Visitor == nil {
 		config.Visitor = &DefaultRuleVisitor{
 			stdout: config.Stdout,
-			stderr: config.Stderr,
+			logger: config.Logger,
 		}
 	}
 	return &Assembler{config: config}
 }
 
-// Assemble assembles the context and writes it to the configured output
-func (a *Assembler) Assemble(ctx context.Context) error {
+// Assemble assembles the context and returns the task document
+// Rules are processed via the configured visitor
+func (a *Assembler) Assemble(ctx context.Context) (*Document, error) {
 	// Change to work directory if specified
 	if a.config.WorkDir != "" {
 		if err := os.Chdir(a.config.WorkDir); err != nil {
-			return fmt.Errorf("failed to chdir to %s: %w", a.config.WorkDir, err)
+			return nil, fmt.Errorf("failed to chdir to %s: %w", a.config.WorkDir, err)
 		}
 	}
 
@@ -70,7 +94,7 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %w", err)
+		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
 	// find the task prompt
@@ -88,7 +112,7 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 	}
 
 	if taskPromptPath == "" {
-		return fmt.Errorf("prompt file not found for task: %s in %v", a.config.TaskName, taskPromptPaths)
+		return nil, fmt.Errorf("prompt file not found for task: %s in %v", a.config.TaskName, taskPromptPaths)
 	}
 
 	// Track total tokens
@@ -141,7 +165,7 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 		if _, err := os.Stat(rule); os.IsNotExist(err) {
 			continue
 		} else if err != nil {
-			return fmt.Errorf("failed to stat rule path %s: %w", rule, err)
+			return nil, fmt.Errorf("failed to stat rule path %s: %w", rule, err)
 		}
 
 		err := filepath.Walk(rule, func(path string, info os.FileInfo, err error) error {
@@ -196,11 +220,11 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 				return fmt.Errorf("failed to stat bootstrap file %s: %w", bootstrapFilePath, err)
 			}
 
-			// Create Rule object and visit it
+			// Create Document object and visit it
 			tokens := EstimateTokens(content)
 			totalTokens += tokens
 			
-			ruleObj := &Rule{
+			doc := &Document{
 				Path:        path,
 				Content:     content,
 				Frontmatter: frontmatter,
@@ -208,7 +232,7 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 			}
 			
 			// Visit the rule using the configured visitor
-			if err := a.config.Visitor.VisitRule(ctx, ruleObj); err != nil {
+			if err := a.config.Visitor.VisitRule(ctx, doc); err != nil {
 				return fmt.Errorf("visitor error for rule %s: %w", path, err)
 			}
 
@@ -216,13 +240,13 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 
 		})
 		if err != nil {
-			return fmt.Errorf("failed to walk rule dir: %w", err)
+			return nil, fmt.Errorf("failed to walk rule dir: %w", err)
 		}
 	}
 
 	content, err := ParseMarkdownFile(taskPromptPath, &struct{}{})
 	if err != nil {
-		return fmt.Errorf("failed to parse prompt file %s: %w", taskPromptPath, err)
+		return nil, fmt.Errorf("failed to parse prompt file %s: %w", taskPromptPath, err)
 	}
 
 	expanded := os.Expand(content, func(key string) string {
@@ -236,12 +260,14 @@ func (a *Assembler) Assemble(ctx context.Context) error {
 	// Estimate tokens for this file
 	tokens := EstimateTokens(expanded)
 	totalTokens += tokens
-	fmt.Fprintf(a.config.Stderr, "⪢ Including task file: %s (~%d tokens)\n", taskPromptPath, tokens)
+	
+	a.config.Logger.Info("including task file", "path", taskPromptPath, "tokens", tokens)
+	a.config.Logger.Info("total estimated tokens", "count", totalTokens)
 
-	fmt.Fprintln(a.config.Stdout, expanded)
-
-	// Print total token count
-	fmt.Fprintf(a.config.Stderr, "⪢ Total estimated tokens: %d\n", totalTokens)
-
-	return nil
+	// Return the task document
+	return &Document{
+		Path:    taskPromptPath,
+		Content: expanded,
+		Tokens:  tokens,
+	}, nil
 }

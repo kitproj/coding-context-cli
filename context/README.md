@@ -157,18 +157,20 @@ The `RuleVisitor` interface allows you to customize how rules are processed as t
 ```go
 type RuleVisitor interface {
 	// VisitRule is called for each rule that matches the selection criteria
-	VisitRule(ctx context.Context, rule *Rule) error
+	VisitRule(ctx context.Context, rule *Document) error
 }
 ```
 
-The `Rule` type contains all information about a selected rule:
+The `Document` type represents both rules and tasks (they share the same structure):
 
 ```go
-type Rule struct {
-	Path        string            // Absolute path to the rule file
-	Content     string            // Parsed content (without frontmatter)
-	Frontmatter map[string]string // YAML frontmatter metadata
-	Tokens      int               // Estimated token count
+type Frontmatter map[string]string
+
+type Document struct {
+	Path        string      // Absolute path to the file
+	Content     string      // Parsed content (without frontmatter)
+	Frontmatter Frontmatter // YAML frontmatter metadata
+	Tokens      int         // Estimated token count
 }
 ```
 
@@ -177,10 +179,10 @@ type Rule struct {
 ```go
 // CustomVisitor collects rule metadata
 type CustomVisitor struct {
-	Rules []*context.Rule
+	Rules []*context.Document
 }
 
-func (v *CustomVisitor) VisitRule(ctx context.Context, rule *context.Rule) error {
+func (v *CustomVisitor) VisitRule(ctx context.Context, rule *context.Document) error {
 	// Custom processing logic
 	v.Rules = append(v.Rules, rule)
 	fmt.Printf("Processing rule: %s (%d tokens)\n", rule.Path, rule.Tokens)

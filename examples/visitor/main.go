@@ -13,7 +13,7 @@ type LoggingVisitor struct {
 	RuleCount int
 }
 
-func (v *LoggingVisitor) VisitRule(ctx context.Context, rule *ctxlib.Rule) error {
+func (v *LoggingVisitor) VisitRule(ctx context.Context, rule *ctxlib.Document) error {
 	v.RuleCount++
 
 	// Log detailed information about each rule
@@ -49,10 +49,14 @@ func main() {
 	// Assemble the context
 	assembler := ctxlib.NewAssembler(config)
 	ctx := context.Background()
-	if err := assembler.Assemble(ctx); err != nil {
+	task, err := assembler.Assemble(ctx)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+	
+	// Print the task content
+	fmt.Println(task.Content)
 
 	// Print summary
 	fmt.Fprintf(os.Stderr, "\n=== Summary ===\n")

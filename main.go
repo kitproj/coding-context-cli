@@ -59,5 +59,13 @@ func run(c ctx.Context, args []string) error {
 		Selectors: includes,
 	})
 
-	return assembler.Assemble(c)
+	task, err := assembler.Assemble(c)
+	if err != nil {
+		return err
+	}
+	
+	// Print the task content
+	fmt.Println(task.Content)
+	
+	return nil
 }

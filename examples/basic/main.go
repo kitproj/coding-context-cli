@@ -31,8 +31,12 @@ func main() {
 
 	// Assemble the context
 	ctx := context.Background()
-	if err := assembler.Assemble(ctx); err != nil {
+	task, err := assembler.Assemble(ctx)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+	
+	// Print the task content
+	fmt.Println(task.Content)
 }
