@@ -941,3 +941,107 @@ Deploy to the production environment.
 		t.Errorf("staging task content should not be in stdout when selecting production")
 	}
 }
+
+func TestResumeMode(t *testing.T) {
+// Build the binary
+binaryPath := filepath.Join(t.TempDir(), "coding-context")
+cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+if output, err := cmd.CombinedOutput(); err != nil {
+t.Fatalf("failed to build binary: %v\n%s", err, output)
+}
+
+// Create a temporary directory structure
+tmpDir := t.TempDir()
+rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+if err := os.MkdirAll(rulesDir, 0755); err != nil {
+t.Fatalf("failed to create rules dir: %v", err)
+}
+if err := os.MkdirAll(tasksDir, 0755); err != nil {
+t.Fatalf("failed to create tasks dir: %v", err)
+}
+
+// Create a rule file that should be included in normal mode
+ruleFile := filepath.Join(rulesDir, "coding-standards.md")
+ruleContent := `---
+---
+# Coding Standards
+
+These are the coding standards for the project.
+`
+if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+t.Fatalf("failed to write rule file: %v", err)
+}
+
+// Create a normal task file (without resume: true)
+normalTaskFile := filepath.Join(tasksDir, "fix-bug-initial.md")
+normalTaskContent := `---
+task_name: fix-bug
+---
+# Fix Bug (Initial)
+
+This is the initial task prompt for fixing a bug.
+`
+if err := os.WriteFile(normalTaskFile, []byte(normalTaskContent), 0644); err != nil {
+t.Fatalf("failed to write normal task file: %v", err)
+}
+
+// Create a resume task file (with resume: true)
+resumeTaskFile := filepath.Join(tasksDir, "fix-bug-resume.md")
+resumeTaskContent := `---
+task_name: fix-bug
+resume: true
+---
+# Fix Bug (Resume)
+
+This is the resume task prompt for continuing the bug fix.
+`
+if err := os.WriteFile(resumeTaskFile, []byte(resumeTaskContent), 0644); err != nil {
+t.Fatalf("failed to write resume task file: %v", err)
+}
+
+// Test 1: Run in normal mode (without -r flag)
+cmd = exec.Command(binaryPath, "-C", tmpDir, "fix-bug")
+output, err := cmd.CombinedOutput()
+if err != nil {
+t.Fatalf("failed to run binary in normal mode: %v\n%s", err, output)
+}
+
+outputStr := string(output)
+
+// In normal mode, rules should be included
+if !strings.Contains(outputStr, "# Coding Standards") {
+t.Errorf("normal mode: rule content not found in stdout")
+}
+
+// In normal mode, should use the normal task (not resume task)
+if !strings.Contains(outputStr, "# Fix Bug (Initial)") {
+t.Errorf("normal mode: normal task content not found in stdout")
+}
+if strings.Contains(outputStr, "# Fix Bug (Resume)") {
+t.Errorf("normal mode: resume task content should not be in stdout")
+}
+
+// Test 2: Run in resume mode (with -r flag)
+cmd = exec.Command(binaryPath, "-C", tmpDir, "-r", "fix-bug")
+output, err = cmd.CombinedOutput()
+if err != nil {
+t.Fatalf("failed to run binary in resume mode: %v\n%s", err, output)
+}
+
+outputStr = string(output)
+
+// In resume mode, rules should NOT be included
+if strings.Contains(outputStr, "# Coding Standards") {
+t.Errorf("resume mode: rule content should not be in stdout")
+}
+
+// In resume mode, should use the resume task
+if !strings.Contains(outputStr, "# Fix Bug (Resume)") {
+t.Errorf("resume mode: resume task content not found in stdout")
+}
+if strings.Contains(outputStr, "# Fix Bug (Initial)") {
+t.Errorf("resume mode: normal task content should not be in stdout")
+}
+}

@@ -15,6 +15,7 @@ import (
 
 var (
 	workDir  string
+	resume   bool
 	params   = make(paramMap)
 	includes = make(selectorMap)
 )
@@ -24,6 +25,7 @@ func main() {
 	defer cancel()
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
+	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
 
@@ -103,6 +105,20 @@ func run(ctx context.Context, args []string) error {
 				return fmt.Errorf("task file %s is missing required 'task_name' field in frontmatter", path)
 			}
 
+			// Filter based on resume mode
+			resumeValue, hasResume := frontmatter["resume"]
+			if resume {
+				// In resume mode, only include tasks with resume: true
+				if !hasResume || resumeValue != "true" {
+					return nil
+				}
+			} else {
+				// In normal mode, exclude tasks with resume: true
+				if hasResume && resumeValue == "true" {
+					return nil
+				}
+			}
+
 			// Check if file matches include selectors (task_name is already in includes)
 			if !includes.matchesIncludes(frontmatter) {
 				return nil
@@ -131,7 +147,9 @@ func run(ctx context.Context, args []string) error {
 	// Track total tokens
 	var totalTokens int
 
-	for _, rule := range []string{
+	// Skip rules processing in resume mode
+	if !resume {
+		for _, rule := range []string{
 		"CLAUDE.local.md",
 
 		".agents/rules",
@@ -246,6 +264,7 @@ func run(ctx context.Context, args []string) error {
 			return fmt.Errorf("failed to walk rule dir: %w", err)
 		}
 	}
+	} // end of if !resume
 
 	content, err := parseMarkdownFile(taskPromptPath, &struct{}{})
 	if err != nil {
