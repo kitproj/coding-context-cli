@@ -15,6 +15,7 @@ import (
 
 var (
 	workDir  string
+	resume   bool
 	params   = make(paramMap)
 	includes = make(selectorMap)
 )
@@ -24,6 +25,7 @@ func main() {
 	defer cancel()
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
+	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
 
@@ -57,6 +59,7 @@ func run(ctx context.Context, args []string) error {
 	// Add task name to includes so rules can be filtered by task
 	taskName := args[0]
 	includes["task_name"] = taskName
+	includes["resume"] = fmt.Sprint(resume)
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -92,7 +95,7 @@ func run(ctx context.Context, args []string) error {
 			}
 
 			// Parse frontmatter to check task_name
-			var frontmatter map[string]string
+			var frontmatter frontMatter
 			_, err = parseMarkdownFile(path, &frontmatter)
 			if err != nil {
 				return fmt.Errorf("failed to parse task file %s: %w", path, err)
@@ -131,121 +134,124 @@ func run(ctx context.Context, args []string) error {
 	// Track total tokens
 	var totalTokens int
 
-	for _, rule := range []string{
-		"CLAUDE.local.md",
+	// Skip rules processing in resume mode
+	if !resume {
+		for _, rule := range []string{
+			"CLAUDE.local.md",
 
-		".agents/rules",
-		".cursor/rules",
-		".augment/rules",
-		".windsurf/rules",
-		".opencode/agent",
-		".opencode/command",
+			".agents/rules",
+			".cursor/rules",
+			".augment/rules",
+			".windsurf/rules",
+			".opencode/agent",
+			".opencode/command",
 
-		".github/copilot-instructions.md",
-		".gemini/styleguide.md",
-		".github/agents",
-		".augment/guidelines.md",
+			".github/copilot-instructions.md",
+			".gemini/styleguide.md",
+			".github/agents",
+			".augment/guidelines.md",
 
-		"AGENTS.md",
-		"CLAUDE.md",
-		"GEMINI.md",
+			"AGENTS.md",
+			"CLAUDE.md",
+			"GEMINI.md",
 
-		".cursorrules",
-		".windsurfrules",
+			".cursorrules",
+			".windsurfrules",
 
-		// ancestors
-		"../AGENTS.md",
-		"../CLAUDE.md",
-		"../GEMINI.md",
+			// ancestors
+			"../AGENTS.md",
+			"../CLAUDE.md",
+			"../GEMINI.md",
 
-		"../../AGENTS.md",
-		"../../CLAUDE.md",
-		"../../GEMINI.md",
+			"../../AGENTS.md",
+			"../../CLAUDE.md",
+			"../../GEMINI.md",
 
-		// user
-		filepath.Join(homeDir, ".agents", "rules"),
-		filepath.Join(homeDir, ".claude", "CLAUDE.md"),
-		filepath.Join(homeDir, ".codex", "AGENTS.md"),
-		filepath.Join(homeDir, ".gemini", "GEMINI.md"),
-		filepath.Join(homeDir, ".opencode", "rules"),
+			// user
+			filepath.Join(homeDir, ".agents", "rules"),
+			filepath.Join(homeDir, ".claude", "CLAUDE.md"),
+			filepath.Join(homeDir, ".codex", "AGENTS.md"),
+			filepath.Join(homeDir, ".gemini", "GEMINI.md"),
+			filepath.Join(homeDir, ".opencode", "rules"),
 
-		// system
-		"/etc/agents/rules",
-		"/etc/opencode/rules",
-	} {
+			// system
+			"/etc/agents/rules",
+			"/etc/opencode/rules",
+		} {
 
-		// Skip if the path doesn't exist
-		if _, err := os.Stat(rule); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("failed to stat rule path %s: %w", rule, err)
-		}
-
-		err := filepath.Walk(rule, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
+			// Skip if the path doesn't exist
+			if _, err := os.Stat(rule); os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to stat rule path %s: %w", rule, err)
 			}
 
-			// Only process .md and .mdc files as rule files
-			ext := filepath.Ext(path)
-			if ext != ".md" && ext != ".mdc" {
-				return nil
-			}
-
-			// Parse frontmatter to check selectors
-			var frontmatter map[string]string
-			content, err := parseMarkdownFile(path, &frontmatter)
-			if err != nil {
-				return fmt.Errorf("failed to parse markdown file: %w", err)
-			}
-
-			// Check if file matches include selectors.
-			// Note: Files with duplicate basenames will both be included.
-			if !includes.matchesIncludes(frontmatter) {
-				fmt.Fprintf(os.Stderr, "⪢ Excluding rule file (does not match include selectors): %s\n", path)
-				return nil
-			}
-
-			// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
-			// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
-			baseNameWithoutExt := strings.TrimSuffix(path, ext)
-			bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
-
-			if _, err := os.Stat(bootstrapFilePath); err == nil {
-				// Bootstrap file exists, make it executable and run it before printing content
-				if err := os.Chmod(bootstrapFilePath, 0755); err != nil {
-					return fmt.Errorf("failed to chmod bootstrap file %s: %w", bootstrapFilePath, err)
+			err := filepath.Walk(rule, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if info.IsDir() {
+					return nil
 				}
 
-				fmt.Fprintf(os.Stderr, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
-
-				cmd := exec.CommandContext(ctx, bootstrapFilePath)
-				cmd.Stdout = os.Stderr
-				cmd.Stderr = os.Stderr
-
-				if err := cmd.Run(); err != nil {
-					return fmt.Errorf("failed to run bootstrap script: %w", err)
+				// Only process .md and .mdc files as rule files
+				ext := filepath.Ext(path)
+				if ext != ".md" && ext != ".mdc" {
+					return nil
 				}
-			} else if !os.IsNotExist(err) {
-				return fmt.Errorf("failed to stat bootstrap file %s: %w", bootstrapFilePath, err)
+
+				// Parse frontmatter to check selectors
+				var frontmatter frontMatter
+				content, err := parseMarkdownFile(path, &frontmatter)
+				if err != nil {
+					return fmt.Errorf("failed to parse markdown file: %w", err)
+				}
+
+				// Check if file matches include selectors.
+				// Note: Files with duplicate basenames will both be included.
+				if !includes.matchesIncludes(frontmatter) {
+					fmt.Fprintf(os.Stderr, "⪢ Excluding rule file (does not match include selectors): %s\n", path)
+					return nil
+				}
+
+				// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
+				// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
+				baseNameWithoutExt := strings.TrimSuffix(path, ext)
+				bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
+
+				if _, err := os.Stat(bootstrapFilePath); err == nil {
+					// Bootstrap file exists, make it executable and run it before printing content
+					if err := os.Chmod(bootstrapFilePath, 0755); err != nil {
+						return fmt.Errorf("failed to chmod bootstrap file %s: %w", bootstrapFilePath, err)
+					}
+
+					fmt.Fprintf(os.Stderr, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
+
+					cmd := exec.CommandContext(ctx, bootstrapFilePath)
+					cmd.Stdout = os.Stderr
+					cmd.Stderr = os.Stderr
+
+					if err := cmd.Run(); err != nil {
+						return fmt.Errorf("failed to run bootstrap script: %w", err)
+					}
+				} else if !os.IsNotExist(err) {
+					return fmt.Errorf("failed to stat bootstrap file %s: %w", bootstrapFilePath, err)
+				}
+
+				// Estimate tokens for this file
+				tokens := estimateTokens(content)
+				totalTokens += tokens
+				fmt.Fprintf(os.Stderr, "⪢ Including rule file: %s (~%d tokens)\n", path, tokens)
+				fmt.Println(content)
+
+				return nil
+
+			})
+			if err != nil {
+				return fmt.Errorf("failed to walk rule dir: %w", err)
 			}
-
-			// Estimate tokens for this file
-			tokens := estimateTokens(content)
-			totalTokens += tokens
-			fmt.Fprintf(os.Stderr, "⪢ Including rule file: %s (~%d tokens)\n", path, tokens)
-			fmt.Println(content)
-
-			return nil
-
-		})
-		if err != nil {
-			return fmt.Errorf("failed to walk rule dir: %w", err)
 		}
-	}
+	} // end of if !resume
 
 	content, err := parseMarkdownFile(taskPromptPath, &struct{}{})
 	if err != nil {
