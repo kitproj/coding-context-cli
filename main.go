@@ -61,9 +61,7 @@ func run(ctx context.Context, args []string) error {
 	includes["task_name"] = taskName
 
 	// If resume mode is enabled, add resume=true as a selector
-	if resume {
-		includes["resume"] = "true"
-	}
+		includes["resume"] = resume
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
