@@ -9,7 +9,7 @@ This tool collects context from predefined rule files and a task-specific prompt
 - **Dynamic Context Assembly**: Merges context from various source files.
 - **Task-Specific Prompts**: Use different prompts for different tasks (e.g., `feature`, `bugfix`).
 - **Rule-Based Context**: Define reusable context snippets (rules) that can be included or excluded.
-- **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors.
+- **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors (matches top-level YAML fields only).
 - **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically.
 - **Parameter Substitution**: Inject values into your task prompts.
 - **Token Estimation**: Get an estimate of the total token count for the generated context.
@@ -65,6 +65,7 @@ Options:
   -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
+    	Note: Only matches top-level YAML fields in frontmatter.
 ```
 
 ### Example
@@ -102,7 +103,7 @@ The tool assembles the context in the following order:
 
 1.  **Rule Files**: It searches a list of predefined locations for rule files (`.md` or `.mdc`). These locations include the current directory, ancestor directories, user's home directory, and system-wide directories.
 2.  **Bootstrap Scripts**: For each rule file found (e.g., `my-rule.md`), it looks for an executable script named `my-rule-bootstrap`. If found, it runs the script before processing the rule file. These scripts are meant for bootstrapping the environment (e.g., installing tools) and their output is sent to `stderr`, not into the main context.
-3.  **Filtering**: If `-s` (include) flag is used, it parses the YAML frontmatter of each rule file to decide whether to include it.
+3.  **Filtering**: If `-s` (include) flag is used, it parses the YAML frontmatter of each rule file to decide whether to include it. Note that selectors can only match top-level YAML fields (e.g., `language: go`), not nested fields.
 4.  **Task Prompt**: It searches for a task file with `task_name: <task-name>` in its frontmatter. The filename doesn't matter. If selectors are provided with `-s`, they are used to filter between multiple task files with the same `task_name`.
 5.  **Parameter Expansion**: It substitutes variables in the task prompt using the `-p` flags.
 6.  **Output**: It prints the content of all included rule files, followed by the expanded task prompt, to standard output.
@@ -241,6 +242,12 @@ language: Go
 ```
 
 To include this rule only when working on the backend, you would use `-s system=backend`.
+
+**Note:** Frontmatter selectors can only match top-level YAML fields. For example:
+- ✅ Works: `language: Go` matches `-s language=Go`
+- ❌ Doesn't work: Nested fields like `metadata.version: 1.0` cannot be matched with `-s metadata.version=1.0`
+
+If you need to filter on nested data, flatten your frontmatter structure to use top-level fields only.
 
 ### Bootstrap Scripts
 
