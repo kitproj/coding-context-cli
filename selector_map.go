@@ -32,7 +32,7 @@ func (includes *selectorMap) matchesIncludes(frontmatter frontMatter) bool {
 	for key, value := range *includes {
 		fmValue, exists := frontmatter[key]
 		// If key exists, it must match the value
-		if exists && fmValue != value {
+		if exists && fmt.Sprint(fmValue) != value {
 			return false
 		}
 		// If key doesn't exist, allow it
