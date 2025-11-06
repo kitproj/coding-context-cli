@@ -1,0 +1,6 @@
+lint:
+	go mod tidy
+	command -v goimports || go install golang.org/x/tools/cmd/goimports@latest
+	$$(go env GOPATH)/bin/goimports -w .
+	go vet ./...
+	go run golang.org/x/tools/cmd/deadcode@latest ./...
