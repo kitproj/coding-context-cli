@@ -28,25 +28,11 @@ func (s *selectorMap) Set(value string) error {
 
 // matchesIncludes returns true if the frontmatter matches all include selectors
 // If a key doesn't exist in frontmatter, it's allowed
-func (includes *selectorMap) matchesIncludes(frontmatter map[string]string) bool {
+func (includes *selectorMap) matchesIncludes(frontmatter frontMatter) bool {
 	for key, value := range *includes {
 		fmValue, exists := frontmatter[key]
 		// If key exists, it must match the value
-		if exists && fmValue != value {
-			return false
-		}
-		// If key doesn't exist, allow it
-	}
-	return true
-}
-
-// matchesExcludes returns true if the frontmatter doesn't match any exclude selectors
-// If a key doesn't exist in frontmatter, it's allowed
-func (excludes *selectorMap) matchesExcludes(frontmatter map[string]string) bool {
-	for key, value := range *excludes {
-		fmValue, exists := frontmatter[key]
-		// If key exists and matches the value, exclude it
-		if exists && fmValue == value {
+		if exists && fmt.Sprint(fmValue) != value {
 			return false
 		}
 		// If key doesn't exist, allow it
