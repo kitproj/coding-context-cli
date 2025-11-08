@@ -17,16 +17,24 @@ func (s *selector) String() string {
 }
 
 func (s *selector) Set(value string) error {
-	// If empty, allow it (means no filtering)
+	// Default to "true" if empty (match everything)
 	if value == "" {
-		s.expression = ""
-		s.program = nil
-		return nil
+		value = "true"
 	}
 
-	// Create a CEL environment with dynamic types for frontmatter
+	// Create a CEL environment with common frontmatter fields as dynamic variables
+	// This allows expressions to reference fields directly without "frontmatter." prefix
 	env, err := cel.NewEnv(
-		cel.Variable("frontmatter", cel.MapType(cel.StringType, cel.DynType)),
+		// Common task/rule fields
+		cel.Variable("task_name", cel.DynType),
+		cel.Variable("resume", cel.DynType),
+		cel.Variable("language", cel.DynType),
+		cel.Variable("stage", cel.DynType),
+		cel.Variable("environment", cel.DynType),
+		cel.Variable("env", cel.DynType),
+		cel.Variable("is_active", cel.DynType),
+		cel.Variable("experimental", cel.DynType),
+		// Add other common fields as needed
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create CEL environment: %w", err)
@@ -67,10 +75,8 @@ func (s *selector) matchesIncludes(frontmatter frontMatter) bool {
 		fmMap[k] = v
 	}
 
-	// Evaluate the expression
-	result, _, err := s.program.Eval(map[string]any{
-		"frontmatter": fmMap,
-	})
+	// Evaluate the expression with frontmatter fields directly accessible
+	result, _, err := s.program.Eval(fmMap)
 	if err != nil {
 		// If evaluation fails (e.g., due to missing field), match it
 		// This maintains backward compatibility where missing keys were allowed

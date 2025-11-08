@@ -311,7 +311,7 @@ Please help with this task.
 	}
 
 	// Run the binary with selector filtering for Python
-	cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "frontmatter.language == 'python'", "test-task")
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "language == 'python'", "test-task")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
@@ -910,7 +910,7 @@ Deploy to the production environment.
 	}
 
 	// Run the binary with selector for staging
-	cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "frontmatter.environment == 'staging'", "deploy")
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "environment == 'staging'", "deploy")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run binary for staging: %v\n%s", err, output)
@@ -926,7 +926,7 @@ Deploy to the production environment.
 	}
 
 	// Run the binary with selector for production
-	cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "frontmatter.environment == 'production'", "deploy")
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "environment == 'production'", "deploy")
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run binary for production: %v\n%s", err, output)

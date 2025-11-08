@@ -59,19 +59,21 @@ func run(ctx context.Context, args []string) error {
 	// Build the complete CEL expression by combining user selector with task_name and resume filters
 	taskName := args[0]
 
-	// Build the base expression for task_name and resume
-	// The resume check should be: (!has(frontmatter.resume) || frontmatter.resume == expected)
-	// This allows tasks without a resume field to match, treating them as if they have resume=false
-	baseExpr := fmt.Sprintf("frontmatter.task_name == '%s' && (!has(frontmatter.resume) || frontmatter.resume == %v)",
+	// Build the base expression for task_name and resume (without "frontmatter." prefix)
+	// Since we can't use has() on bare identifiers, we'll check if resume is null instead
+	// resume == null is true for missing fields, resume == expected for present fields
+	baseExpr := fmt.Sprintf("task_name == '%s' && (resume == null || resume == %v)",
 		taskName, resume)
 
-	// If user provided a selector, combine it with AND for task filtering
-	// User selectors CAN be used to distinguish between multiple tasks with the same name
+	// User selector defaults to empty string if not provided
+	// Only combine with AND if user provided a selector
 	var taskSelectorExpr string
-	if includes.expression != "" {
-		taskSelectorExpr = fmt.Sprintf("(%s) && (%s)", baseExpr, includes.expression)
-	} else {
+	if includes.expression == "" {
+		// No user selector, just use base expression
 		taskSelectorExpr = baseExpr
+	} else {
+		// Combine base expression with user selector
+		taskSelectorExpr = fmt.Sprintf("(%s) && (%s)", baseExpr, includes.expression)
 	}
 
 	// Create a selector for filtering tasks

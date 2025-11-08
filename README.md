@@ -64,13 +64,13 @@ Options:
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
   -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
   -s value
-    	CEL expression to filter rules and tasks by frontmatter (e.g., "frontmatter.language == 'Go' && frontmatter.env == 'production'").
+    	CEL expression to filter rules and tasks by frontmatter (e.g., "language == 'Go' && env == 'production'").
 ```
 
 ### Example
 
 ```bash
-coding-context-cli -p jira_issue_key=PROJ-1234 -s "frontmatter.language == 'Go'" fix-bug | llm -m gemini-pro
+coding-context-cli -p jira_issue_key=PROJ-1234 -s "language == 'Go'" fix-bug | llm -m gemini-pro
 ```
 
 This command will:
@@ -167,10 +167,10 @@ Deploy the application to production with all safety checks.
 You can then select the appropriate task using CEL expressions:
 ```bash
 # Deploy to staging
-coding-context-cli -s "frontmatter.environment == 'staging'" deploy
+coding-context-cli -s "environment == 'staging'" deploy
 
 # Deploy to production
-coding-context-cli -s "frontmatter.environment == 'production'" deploy
+coding-context-cli -s "environment == 'production'" deploy
 ```
 
 ### Resume Mode
@@ -243,7 +243,7 @@ language: Go
 To include this rule only when working on Go code, you would use a CEL expression:
 
 ```bash
-coding-context-cli -s "frontmatter.language == 'Go'" fix-bug
+coding-context-cli -s "language == 'Go'" fix-bug
 ```
 
 This will include all rules with `language: Go` in their frontmatter, excluding rules for other languages.
@@ -260,13 +260,13 @@ Then select only the relevant rules using CEL expressions:
 
 ```bash
 # Work on Python code with Python-specific rules
-coding-context-cli -s "frontmatter.language == 'Python'" fix-bug
+coding-context-cli -s "language == 'Python'" fix-bug
 
 # Work on JavaScript code with JavaScript-specific rules
-coding-context-cli -s "frontmatter.language == 'JavaScript'" enhance-feature
+coding-context-cli -s "language == 'JavaScript'" enhance-feature
 
 # Work on multiple languages with OR
-coding-context-cli -s "frontmatter.language == 'Go' || frontmatter.language == 'Python'" fix-bug
+coding-context-cli -s "language == 'Go' || language == 'Python'" fix-bug
 ```
 
 **Common Linguist Languages**
@@ -306,22 +306,19 @@ Selectors use CEL (Common Expression Language) for powerful filtering capabiliti
 
 ```bash
 # Simple equality
--s "frontmatter.language == 'Go'"
+-s "language == 'Go'"
 
 # Multiple conditions with AND
--s "frontmatter.language == 'Go' && frontmatter.stage == 'implementation'"
+-s "language == 'Go' && stage == 'implementation'"
 
 # Multiple conditions with OR
--s "frontmatter.language == 'Python' || frontmatter.language == 'Go'"
-
-# Check if field exists
--s "has(frontmatter.experimental) && frontmatter.experimental == true"
+-s "language == 'Python' || language == 'Go'"
 
 # Combine multiple conditions
--s "(frontmatter.language == 'Go' || frontmatter.language == 'Rust') && frontmatter.stage == 'testing'"
+-s "(language == 'Go' || language == 'Rust') && stage == 'testing'"
 ```
 
-If a field referenced in the expression doesn't exist in the frontmatter, the rule/task will still match (for backward compatibility). To explicitly check for field existence, use the `has()` function.
+If a field referenced in the expression doesn't exist in the frontmatter, the rule/task will still match (for backward compatibility).
 
 ### Bootstrap Scripts
 
