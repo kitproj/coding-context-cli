@@ -7,70 +7,87 @@ title: Home
 
 A command-line interface for dynamically assembling context for AI coding agents.
 
-This tool collects context from predefined rule files and a task-specific prompt, substitutes parameters, and prints a single, combined context to standard output. This is useful for feeding a large amount of relevant information into an AI model like Claude, Gemini, or OpenAI's GPT series.
+This tool collects context from predefined rule files and task-specific prompts, substitutes parameters, and outputs a combined context to standard output. Use it to provide rich, relevant information to AI models like Claude, Gemini, or GPT.
 
-## Quick Start
+## Quick Example
 
 ```bash
-# Install the CLI
+# Install
 sudo curl -fsL -o /usr/local/bin/coding-context-cli \
-  https://github.com/kitproj/coding-context-cli/releases/download/v0.1.0/coding-context-cli_linux_amd64
+  https://github.com/kitproj/coding-context-cli/releases/latest/download/coding-context-cli_linux_amd64
 sudo chmod +x /usr/local/bin/coding-context-cli
 
-# Use it with an AI agent
-coding-context-cli -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
+# Use with an AI agent
+coding-context-cli -p issue_key=BUG-123 -s language=Go fix-bug | llm -m claude-3-5-sonnet-20241022
 ```
 
-## Features
+## Documentation Structure
+
+This documentation follows the [Diataxis](https://diataxis.fr/) framework, organized by your needs:
+
+### 📚 [Tutorials](./tutorials/getting-started) - *Learning-oriented*
+
+Step-by-step guides to get you started:
+- [Getting Started Tutorial](./tutorials/getting-started) - Your first steps with the CLI
+
+**Best for:** Learning the basics, first-time users, hands-on practice
+
+### 🛠️ [How-to Guides](./how-to/) - *Problem-oriented*
+
+Practical guides to solve specific problems:
+- [Create Task Files](./how-to/create-tasks) - Define what AI agents should do
+- [Create Rule Files](./how-to/create-rules) - Provide reusable context
+- [Use Frontmatter Selectors](./how-to/use-selectors) - Filter rules and tasks
+- [Use with AI Agents](./how-to/use-with-ai-agents) - Integrate with various AI tools
+- [Integrate with GitHub Actions](./how-to/github-actions) - Automate with CI/CD
+
+**Best for:** Solving specific problems, achieving specific goals, practical tasks
+
+### 📖 [Reference](./reference/) - *Information-oriented*
+
+Technical specifications and API details:
+- [CLI Reference](./reference/cli) - Command-line options and arguments
+- [File Formats](./reference/file-formats) - Task and rule file specifications
+- [Search Paths](./reference/search-paths) - Where files are discovered
+
+**Best for:** Looking up specific details, understanding options, technical specifications
+
+### 💡 [Explanation](./explanation/) - *Understanding-oriented*
+
+Conceptual guides to deepen your understanding:
+- [Agentic Workflows](./explanation/agentic-workflows) - Understanding autonomous AI workflows
+- [Architecture](./explanation/architecture) - How the CLI works internally
+
+**Best for:** Understanding concepts, learning why things work the way they do, big picture
+
+## Key Features
 
 - **Dynamic Context Assembly**: Merges context from various source files
-- **Task-Specific Prompts**: Use different prompts for different tasks (e.g., `feature`, `bugfix`)
-- **Rule-Based Context**: Define reusable context snippets (rules) that can be included or excluded
-- **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors
-- **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically
-- **Parameter Substitution**: Inject values into your task prompts
-- **Token Estimation**: Get an estimate of the total token count for the generated context
+- **Task-Specific Prompts**: Different prompts for different tasks
+- **Rule-Based Context**: Reusable context snippets
+- **Frontmatter Filtering**: Select rules based on metadata
+- **Bootstrap Scripts**: Fetch or generate context dynamically
+- **Parameter Substitution**: Inject runtime values
+- **Token Estimation**: Monitor context size
 
-## Supported Coding Agents
+## Supported AI Agent Formats
 
-This tool is compatible with configuration files from various AI coding agents and IDEs:
+Automatically discovers rules from configuration files for:
+- **Anthropic Claude**, **Cursor**, **GitHub Copilot**
+- **Google Gemini**, **OpenCode.ai**, **Windsurf**
+- **Augment**, **Codex**, and generic `.agents/` directories
 
-- **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`
-- **[Codex](https://codex.ai/)**: `AGENTS.md`, `.codex/AGENTS.md`
-- **[Cursor](https://cursor.sh/)**: `.cursor/rules`, `.cursorrules`
-- **[Augment](https://augmentcode.com/)**: `.augment/rules`, `.augment/guidelines.md`
-- **[Windsurf](https://codeium.com/windsurf)**: `.windsurf/rules`, `.windsurfrules`
-- **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent`, `.opencode/command`, `.opencode/rules`
-- **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents`
-- **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md`
-- **Generic AI Agents**: `AGENTS.md`, `.agents/rules`
+See [Search Paths Reference](./reference/search-paths) for complete list.
 
-## Agentic Workflows
+## Quick Links
 
-This tool plays a crucial role in the **agentic workflow ecosystem** by providing rich, contextual information to AI agents. It complements systems like **GitHub Next's Agentic Workflows** by:
+- [GitHub Repository](https://github.com/kitproj/coding-context-cli) - Source code and releases
+- [Report Issues](https://github.com/kitproj/coding-context-cli/issues) - Bug reports and feature requests
+- [License](https://github.com/kitproj/coding-context-cli/blob/main/LICENSE) - MIT License
 
-- **Context Preparation**: Assembles rules, guidelines, and task-specific prompts before agent execution
-- **Workflow Integration**: Can be invoked in GitHub Actions to provide context to autonomous agents
-- **Dynamic Context**: Supports runtime parameters and bootstrap scripts for real-time information
-- **Multi-Stage Support**: Different context assemblies for planning, implementation, and validation stages
+## Need Help?
 
-For a comprehensive guide on using this tool with agentic workflows, see the [Agentic Workflows](./agentic-workflows) guide.
-
-## Documentation
-
-- [Getting Started](./getting-started) - Installation and first steps
-- [Usage Guide](./usage) - Detailed usage instructions and CLI reference
-- [Agentic Workflows](./agentic-workflows) - Integration with GitHub Actions and AI workflows
-- [Examples](./examples) - Real-world examples and templates
-
-## GitHub Repository
-
-Visit the [GitHub repository](https://github.com/kitproj/coding-context-cli) to:
-- Report issues
-- Contribute to the project
-- View the source code
-- Download the latest releases
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/kitproj/coding-context-cli/blob/main/LICENSE) file for details.
+- **New to the CLI?** Start with the [Getting Started Tutorial](./tutorials/getting-started)
+- **Have a specific goal?** Check the [How-to Guides](./how-to/)
+- **Looking for details?** See the [Reference Documentation](./reference/)
+- **Want to understand concepts?** Read the [Explanations](./explanation/)
