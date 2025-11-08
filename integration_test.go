@@ -1046,3 +1046,152 @@ This is the resume task prompt for continuing the bug fix.
 		t.Errorf("resume mode: normal task content should not be in stdout")
 	}
 }
+
+func TestTaskTypeSelectors(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create production-specific rule
+	productionRuleFile := filepath.Join(rulesDir, "production-standards.md")
+	productionRuleContent := `---
+task_type: production
+---
+# Production Standards
+
+- Write comprehensive tests
+- Add detailed documentation
+- Follow all security practices
+`
+	if err := os.WriteFile(productionRuleFile, []byte(productionRuleContent), 0644); err != nil {
+		t.Fatalf("failed to write production rule file: %v", err)
+	}
+
+	// Create POC-specific rule
+	pocRuleFile := filepath.Join(rulesDir, "poc-guidelines.md")
+	pocRuleContent := `---
+task_type: poc
+---
+# POC Guidelines
+
+- DO NOT write tests
+- DO NOT add comments
+- Focus on speed
+`
+	if err := os.WriteFile(pocRuleFile, []byte(pocRuleContent), 0644); err != nil {
+		t.Fatalf("failed to write POC rule file: %v", err)
+	}
+
+	// Create general rule (no task_type)
+	generalRuleFile := filepath.Join(rulesDir, "general.md")
+	generalRuleContent := `---
+---
+# General Guidelines
+
+These apply to all tasks.
+`
+	if err := os.WriteFile(generalRuleFile, []byte(generalRuleContent), 0644); err != nil {
+		t.Fatalf("failed to write general rule file: %v", err)
+	}
+
+	// Create production task
+	productionTaskFile := filepath.Join(tasksDir, "implement-feature.md")
+	productionTaskContent := `---
+task_name: implement-feature
+task_type: production
+---
+# Production Feature Implementation
+
+Write production-ready code.
+`
+	if err := os.WriteFile(productionTaskFile, []byte(productionTaskContent), 0644); err != nil {
+		t.Fatalf("failed to write production task file: %v", err)
+	}
+
+	// Create POC task
+	pocTaskFile := filepath.Join(tasksDir, "poc-feature.md")
+	pocTaskContent := `---
+task_name: poc-feature
+task_type: poc
+---
+# POC Feature
+
+Quick proof of concept.
+`
+	if err := os.WriteFile(pocTaskFile, []byte(pocTaskContent), 0644); err != nil {
+		t.Fatalf("failed to write POC task file: %v", err)
+	}
+
+	// Test 1: Run production task with task_type selector
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "task_type=production", "implement-feature")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary for production task: %v\n%s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Should include production standards
+	if !strings.Contains(outputStr, "# Production Standards") {
+		t.Errorf("production task: production standards not found in stdout")
+	}
+
+	// Should NOT include POC guidelines
+	if strings.Contains(outputStr, "# POC Guidelines") {
+		t.Errorf("production task: POC guidelines should not be in stdout")
+	}
+
+	// Should include general guidelines (no task_type means it matches everything)
+	if !strings.Contains(outputStr, "# General Guidelines") {
+		t.Errorf("production task: general guidelines not found in stdout")
+	}
+
+	// Should include the production task
+	if !strings.Contains(outputStr, "# Production Feature Implementation") {
+		t.Errorf("production task: task content not found in stdout")
+	}
+
+	// Test 2: Run POC task with task_type selector
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "task_type=poc", "poc-feature")
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary for POC task: %v\n%s", err, output)
+	}
+
+	outputStr = string(output)
+
+	// Should include POC guidelines
+	if !strings.Contains(outputStr, "# POC Guidelines") {
+		t.Errorf("POC task: POC guidelines not found in stdout")
+	}
+
+	// Should NOT include production standards
+	if strings.Contains(outputStr, "# Production Standards") {
+		t.Errorf("POC task: production standards should not be in stdout")
+	}
+
+	// Should include general guidelines
+	if !strings.Contains(outputStr, "# General Guidelines") {
+		t.Errorf("POC task: general guidelines not found in stdout")
+	}
+
+	// Should include the POC task
+	if !strings.Contains(outputStr, "# POC Feature") {
+		t.Errorf("POC task: task content not found in stdout")
+	}
+}

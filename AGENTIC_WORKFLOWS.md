@@ -219,6 +219,62 @@ When fixing critical bugs:
 - Document the root cause
 ```
 
+#### Task Type Selectors
+
+Use `task_type` selectors to provide different rules for different kinds of work:
+
+**Production Code:**
+```bash
+coding-context-cli -s task_type=production implement-feature
+```
+
+**Proof of Concept:**
+```bash
+coding-context-cli -s task_type=poc poc-feature
+```
+
+**Research:**
+```bash
+coding-context-cli -s task_type=research research-topic
+```
+
+**Code Review:**
+```bash
+coding-context-cli -s task_type=review review-code
+```
+
+Example rule files:
+
+```markdown
+# .agents/rules/production-standards.md
+---
+task_type: production
+---
+# Production Standards
+
+- Write comprehensive tests (>80% coverage)
+- Add detailed documentation
+- Follow all security practices
+```
+
+```markdown
+# .agents/rules/poc-guidelines.md
+---
+task_type: poc
+---
+# POC Guidelines
+
+- DO NOT write tests - focus on speed
+- DO NOT add comments - code is temporary
+- DO use shortcuts and quick solutions
+```
+
+This allows different workflows to use appropriate guidelines:
+- POCs skip testing and documentation requirements
+- Production code enforces high standards
+- Research focuses on investigation and documentation
+- Reviews have specific code review checklists
+
 ### 3. Parameterize Task Prompts
 
 Use parameters to inject runtime information:

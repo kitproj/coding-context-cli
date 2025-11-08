@@ -174,6 +174,79 @@ coding-context-cli -s environment=staging deploy
 coding-context-cli -s environment=production deploy
 ```
 
+### Task Type Selectors
+
+Different kinds of tasks require different rules and guidance. For example, proof-of-concept code doesn't need tests or detailed comments, while production code requires comprehensive testing and documentation. You can use the `task_type` selector to provide task-specific context.
+
+**Example task types:**
+- `poc` - Proof of concept / prototypes
+- `production` - Production-ready code
+- `research` - Technical research and investigation
+- `review` - Code review tasks
+- `bugfix` - Bug fixes
+
+**Example POC task (`.agents/tasks/poc-feature.md`):**
+```markdown
+---
+task_name: poc-feature
+task_type: poc
+---
+# Proof of Concept
+
+Focus on speed and validation. Do NOT write tests or detailed comments.
+```
+
+**Example production task (`.agents/tasks/production-feature.md`):**
+```markdown
+---
+task_name: implement-feature
+task_type: production
+---
+# Production Feature
+
+Write production-ready code with comprehensive tests and documentation.
+```
+
+**Example rule for production code (`.agents/rules/production-standards.md`):**
+```markdown
+---
+task_type: production
+---
+# Production Code Standards
+
+- Write comprehensive unit tests (>80% coverage)
+- Add detailed error handling
+- Include documentation and comments
+- Follow all security best practices
+```
+
+**Example rule for POCs (`.agents/rules/poc-guidelines.md`):**
+```markdown
+---
+task_type: poc
+---
+# Proof of Concept Guidelines
+
+- DO NOT write tests - focus on speed
+- DO NOT add detailed comments
+- DO use shortcuts and temporary solutions
+- DO document findings and learnings
+```
+
+You can then invoke tasks with appropriate rules:
+```bash
+# POC development - excludes production standards, includes POC guidelines
+coding-context-cli -s task_type=poc poc-feature
+
+# Production development - includes production standards
+coding-context-cli -s task_type=production implement-feature
+
+# Research - focuses on investigation and documentation
+coding-context-cli -s task_type=research research-topic
+```
+
+See the [examples/agents](./examples/agents) directory for complete examples of task-type-based context assembly.
+
 ### Resume Mode
 
 Resume mode is designed for continuing work on a task where you've already established context. When using the `-r` flag:

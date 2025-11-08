@@ -1,4 +1,5 @@
 ---
+task_type: production
 stage: implementation
 language: go
 ---
