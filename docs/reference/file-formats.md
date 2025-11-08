@@ -61,6 +61,68 @@ region: us-east-1
 coding-context-cli -s environment=production -s region=us-east-1 deploy
 ```
 
+#### `selector` (optional)
+
+**Type:** Map/Object  
+**Purpose:** Automatically apply selectors to filter rules when this task is selected
+
+Tasks can specify selectors in their frontmatter to automatically filter rules based on criteria like language, task type, or other characteristics. This is particularly useful for implementing task type patterns.
+
+**Example:**
+```yaml
+---
+task_name: fix-go-bug
+selector:
+  language: Go
+  task_type: bug-fix
+---
+```
+
+**Effect:**
+When this task is selected, it automatically applies the selectors `language=Go` and `task_type=bug-fix` to filter rules. This means only rules with matching frontmatter will be included:
+- Rules with `language: Go` and `task_type: bug-fix` will be included
+- Rules without frontmatter will be included (they match all selectors)
+- Rules with different values for these fields will be excluded
+
+**Command-line override:**
+Command-line selectors take precedence over task-defined selectors:
+```bash
+# Task defines language=Go, but command line overrides to Python
+coding-context-cli -s language=Python fix-go-bug
+```
+
+**Common Use Cases:**
+
+*Task Type Pattern:* Different types of tasks (POC, bug-fix, feature-implementation) can have different rules:
+```yaml
+# POC task - selects rules with task_type: poc
+---
+task_name: create-poc
+selector:
+  task_type: poc
+---
+
+# Bug fix task - selects rules with task_type: bug-fix
+---
+task_name: fix-bug
+selector:
+  task_type: bug-fix
+---
+```
+
+Then create rules specific to each task type:
+- `rules/testing-poc.md` with `task_type: poc` (skip comprehensive tests)
+- `rules/testing-bugfix.md` with `task_type: bug-fix` (require regression tests)
+
+*Language-Specific Tasks:* Tasks targeting specific languages can automatically select language-specific rules:
+```yaml
+---
+task_name: refactor-python
+selector:
+  language: Python
+---
+```
+
 ### Parameter Substitution
 
 Use `${parameter_name}` syntax for dynamic values.

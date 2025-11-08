@@ -12,6 +12,7 @@ This tool collects context from predefined rule files and a task-specific prompt
 - **Task-Specific Prompts**: Use different prompts for different tasks (e.g., `feature`, `bugfix`).
 - **Rule-Based Context**: Define reusable context snippets (rules) that can be included or excluded.
 - **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors (matches top-level YAML fields only).
+- **Task Type Pattern**: Tasks can automatically select appropriate rules based on task type (e.g., `poc`, `bug-fix`, `feature-implementation`).
 - **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically.
 - **Parameter Substitution**: Inject values into your task prompts.
 - **Token Estimation**: Get an estimate of the total token count for the generated context.
@@ -299,6 +300,61 @@ When using language selectors, use the exact language names as defined by [GitHu
 - **YAML**: `YAML`
 
 Note the capitalization - for example, use `Go` not `go`, `JavaScript` not `javascript`, and `TypeScript` not `typescript`.
+
+**Example: Task Types**
+
+You can use the task type pattern to automatically apply different rules for different types of work:
+
+**Task with automatic selector (`.agents/tasks/fix-go-bug.md`):**
+```markdown
+---
+task_name: fix-go-bug
+selector:
+  language: Go
+  task_type: bug-fix
+---
+# Fix Go Bug
+
+Fix the bug with appropriate regression tests.
+```
+
+**POC task (`.agents/tasks/create-poc.md`):**
+```markdown
+---
+task_name: create-poc
+selector:
+  task_type: poc
+---
+# Create Proof of Concept
+
+Build a quick prototype. Skip comprehensive tests.
+```
+
+**Bug-fix rules (`.agents/rules/testing-bugfix.md`):**
+```markdown
+---
+task_type: bug-fix
+---
+# Bug Fix Testing
+
+- MUST include regression tests
+- Test should fail without the fix
+```
+
+**POC rules (`.agents/rules/testing-poc.md`):**
+```markdown
+---
+task_type: poc
+---
+# POC Testing
+
+- Skip comprehensive tests
+- Basic manual testing is sufficient
+```
+
+When you run `coding-context-cli fix-go-bug`, it automatically selects only rules with `language: Go` and `task_type: bug-fix`. When you run `coding-context-cli create-poc`, it selects rules with `task_type: poc`.
+
+See the [Use Task Types](./docs/how-to/use-task-types.md) guide for more examples.
 
 **Note:** Frontmatter selectors can only match top-level YAML fields. For example:
 - ✅ Works: `language: Go` matches `-s language=Go`

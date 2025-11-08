@@ -131,6 +131,32 @@ func run(ctx context.Context, args []string) error {
 
 	taskPromptPath := matchingTaskFile
 
+	// Parse the selected task file again to extract selectors from frontmatter
+	var taskFrontmatter frontMatter
+	_, err = parseMarkdownFile(taskPromptPath, &taskFrontmatter)
+	if err != nil {
+		return fmt.Errorf("failed to parse selected task file %s: %w", taskPromptPath, err)
+	}
+
+	// Merge task selectors into includes for rule filtering
+	// Task selectors are specified in the 'selector' field as a map
+	if selectorField, hasSelector := taskFrontmatter["selector"]; hasSelector {
+		if selectorMap, ok := selectorField.(map[any]any); ok {
+			fmt.Fprintf(os.Stderr, "⪢ Task defines selectors for rule filtering:\n")
+			for key, value := range selectorMap {
+				keyStr := fmt.Sprint(key)
+				valueStr := fmt.Sprint(value)
+				// Only add if not already specified on command line (command line takes precedence)
+				if _, exists := includes[keyStr]; !exists {
+					includes[keyStr] = valueStr
+					fmt.Fprintf(os.Stderr, "  - %s=%s\n", keyStr, valueStr)
+				} else {
+					fmt.Fprintf(os.Stderr, "  - %s=%s (overridden by command line: %s)\n", keyStr, valueStr, includes[keyStr])
+				}
+			}
+		}
+	}
+
 	// Track total tokens
 	var totalTokens int
 

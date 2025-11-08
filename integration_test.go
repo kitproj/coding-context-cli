@@ -1046,3 +1046,201 @@ This is the resume task prompt for continuing the bug fix.
 		t.Errorf("resume mode: normal task content should not be in stdout")
 	}
 }
+
+func TestTaskSelectorField(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create rule files with different selectors
+	goTestingRule := filepath.Join(rulesDir, "go-testing.md")
+	goTestingContent := `---
+language: Go
+task_type: bug-fix
+---
+# Go Bug Fix Testing
+
+Write comprehensive tests for bug fixes.
+`
+	if err := os.WriteFile(goTestingRule, []byte(goTestingContent), 0644); err != nil {
+		t.Fatalf("failed to write go testing rule: %v", err)
+	}
+
+	goPocRule := filepath.Join(rulesDir, "go-poc.md")
+	goPocContent := `---
+language: Go
+task_type: poc
+---
+# Go POC Guidelines
+
+For POCs, skip tests and detailed comments.
+`
+	if err := os.WriteFile(goPocRule, []byte(goPocContent), 0644); err != nil {
+		t.Fatalf("failed to write go poc rule: %v", err)
+	}
+
+	pythonRule := filepath.Join(rulesDir, "python.md")
+	pythonContent := `---
+language: Python
+---
+# Python Guidelines
+
+Python specific guidelines.
+`
+	if err := os.WriteFile(pythonRule, []byte(pythonContent), 0644); err != nil {
+		t.Fatalf("failed to write python rule: %v", err)
+	}
+
+	generalRule := filepath.Join(rulesDir, "general.md")
+	generalContent := `# General Guidelines
+
+These apply to all tasks.
+`
+	if err := os.WriteFile(generalRule, []byte(generalContent), 0644); err != nil {
+		t.Fatalf("failed to write general rule: %v", err)
+	}
+
+	// Create a task file with selector field
+	taskFile := filepath.Join(tasksDir, "fix-bug.md")
+	taskContent := `---
+task_name: fix-bug
+selector:
+  language: Go
+  task_type: bug-fix
+---
+# Fix Bug Task
+
+Fix the bug following the appropriate guidelines.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary - task selectors should automatically filter rules
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "fix-bug")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Should include general rule (no frontmatter)
+	if !strings.Contains(outputStr, "# General Guidelines") {
+		t.Errorf("general rule should be included")
+	}
+
+	// Should include Go bug-fix testing rule (matches both selectors)
+	if !strings.Contains(outputStr, "# Go Bug Fix Testing") {
+		t.Errorf("go bug-fix testing rule should be included")
+	}
+
+	// Should NOT include Go POC rule (wrong task_type)
+	if strings.Contains(outputStr, "# Go POC Guidelines") {
+		t.Errorf("go poc rule should not be included (wrong task_type)")
+	}
+
+	// Should NOT include Python rule (wrong language)
+	if strings.Contains(outputStr, "# Python Guidelines") {
+		t.Errorf("python rule should not be included (wrong language)")
+	}
+
+	// Should include the task content
+	if !strings.Contains(outputStr, "# Fix Bug Task") {
+		t.Errorf("task content should be included")
+	}
+}
+
+func TestTaskSelectorFieldOverride(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create rule files
+	goRule := filepath.Join(rulesDir, "go.md")
+	goContent := `---
+language: Go
+---
+# Go Guidelines
+`
+	if err := os.WriteFile(goRule, []byte(goContent), 0644); err != nil {
+		t.Fatalf("failed to write go rule: %v", err)
+	}
+
+	pythonRule := filepath.Join(rulesDir, "python.md")
+	pythonContent := `---
+language: Python
+---
+# Python Guidelines
+`
+	if err := os.WriteFile(pythonRule, []byte(pythonContent), 0644); err != nil {
+		t.Fatalf("failed to write python rule: %v", err)
+	}
+
+	// Create a task file with selector field
+	taskFile := filepath.Join(tasksDir, "fix-bug.md")
+	taskContent := `---
+task_name: fix-bug
+selector:
+  language: Go
+---
+# Fix Bug Task
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run with command-line override - should use Python instead of Go
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-s", "language=Python", "fix-bug")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Should include Python rule (command-line override)
+	if !strings.Contains(outputStr, "# Python Guidelines") {
+		t.Errorf("python rule should be included (command-line override)")
+	}
+
+	// Should NOT include Go rule (overridden by command-line)
+	if strings.Contains(outputStr, "# Go Guidelines") {
+		t.Errorf("go rule should not be included (overridden by command-line)")
+	}
+
+	// Should mention override in stderr
+	if !strings.Contains(outputStr, "overridden by command line") {
+		t.Errorf("should mention command-line override in stderr")
+	}
+}
