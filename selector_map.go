@@ -45,6 +45,7 @@ func (s *selectorMap) Set(value string) error {
 // - For each key in selectors, if that key exists in frontmatter, it must match at least one of the values (OR logic within same key)
 // - All keys in selectors must be satisfied (AND logic across different keys)
 // - If a selector key doesn't exist in frontmatter, it's allowed (matches)
+// - Frontmatter values can be scalars or arrays. For arrays, any element matching any selector value is a match.
 func (includes *selectorMap) matchesIncludes(frontmatter frontMatter) bool {
 	for key, values := range *includes {
 		fmValue, exists := frontmatter[key]
@@ -54,13 +55,33 @@ func (includes *selectorMap) matchesIncludes(frontmatter frontMatter) bool {
 			continue
 		}
 
-		// If key exists, check if frontmatter value matches ANY of the selector values
-		fmValueStr := fmt.Sprint(fmValue)
+		// Check if frontmatter value matches ANY of the selector values
 		matched := false
-		for _, value := range values {
-			if fmValueStr == value {
-				matched = true
-				break
+
+		// Handle both scalar and array values in frontmatter
+		switch v := fmValue.(type) {
+		case []any:
+			// Frontmatter value is an array - check if any element matches any selector value
+			for _, elem := range v {
+				elemStr := fmt.Sprint(elem)
+				for _, value := range values {
+					if elemStr == value {
+						matched = true
+						break
+					}
+				}
+				if matched {
+					break
+				}
+			}
+		default:
+			// Frontmatter value is a scalar - match as string
+			fmValueStr := fmt.Sprint(fmValue)
+			for _, value := range values {
+				if fmValueStr == value {
+					matched = true
+					break
+				}
 			}
 		}
 

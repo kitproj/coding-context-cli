@@ -1203,3 +1203,70 @@ task_name: test-and
 		t.Error("Output should NOT contain Go Implementation")
 	}
 }
+
+func TestArrayValuesInFrontmatter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create rule file with array in frontmatter
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Rule with array of languages
+	multiLangRule := filepath.Join(rulesDir, "multi-lang.md")
+	if err := os.WriteFile(multiLangRule, []byte(`---
+languages:
+- Go
+- Typescript
+---
+# Multi-Language Standards
+This applies to both Go and Typescript.
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Rule with single language
+	goOnlyRule := filepath.Join(rulesDir, "go-only.md")
+	if err := os.WriteFile(goOnlyRule, []byte(`---
+languages: Python
+---
+# Python-Only Standards
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create task file
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	if err := os.WriteFile(taskFile, []byte(`---
+task_name: array-test
+---
+# Array Test Task
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test with selector that matches array element
+	cmd := exec.Command("go", "run", ".", "-C", tmpDir, "-s", "languages=Go", "array-test")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("command failed: %v\nOutput: %s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Should include multi-lang rule (Go is in the array)
+	if !strings.Contains(outputStr, "# Multi-Language Standards") {
+		t.Error("Output should contain multi-language rule (Go is in array)")
+	}
+
+	// Should NOT include python-only rule
+	if strings.Contains(outputStr, "# Python-Only Standards") {
+		t.Error("Output should NOT contain Python-only rule")
+	}
+}

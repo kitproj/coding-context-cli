@@ -251,6 +251,28 @@ To include this rule only when working on the backend, you would use `-s system=
 
 If you need to filter on nested data, flatten your frontmatter structure to use top-level fields only.
 
+#### Array Values in Frontmatter
+
+Frontmatter fields can be either scalar values or arrays. When a field contains an array, a rule matches if **any element** in the array matches the selector value.
+
+**Example:**
+```markdown
+---
+languages:
+- Go
+- Typescript
+- Python
+---
+
+# Polyglot Standards
+These standards apply to multiple languages.
+```
+
+This rule will match any of these selectors:
+- `-s languages=Go`
+- `-s languages=Typescript`
+- `-s languages=Python`
+
 #### Inclusive Selection (OR Logic)
 
 When you specify the same selector key multiple times, rules matching **any** of the values will be included (OR logic). Different keys use AND logic.
@@ -265,7 +287,9 @@ coding-context-cli -s language=Go -s language=Typescript fix-bug
 This will include:
 - Rules with `language: Go`
 - Rules with `language: Typescript`
-- Rules without a `language` field (allowed)
+- Rules with `languages: [Go, ...]` (array containing Go)
+- Rules with `languages: [Typescript, ...]` (array containing Typescript)
+- Rules without a `language` or `languages` field (allowed)
 
 ```bash
 # Include rules for (Go OR Typescript) AND implementation stage

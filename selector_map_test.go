@@ -295,3 +295,83 @@ func TestSelectorMap_InclusiveSelection(t *testing.T) {
 		})
 	}
 }
+
+// TestSelectorMap_MatchesArrayValues tests matching against array values in frontmatter
+func TestSelectorMap_MatchesArrayValues(t *testing.T) {
+	tests := []struct {
+		name        string
+		selectors   []string
+		frontmatter frontMatter
+		wantMatch   bool
+	}{
+		{
+			name:        "array value - match first element",
+			selectors:   []string{"language=Go"},
+			frontmatter: frontMatter{"language": []any{"Go", "Typescript"}},
+			wantMatch:   true,
+		},
+		{
+			name:        "array value - match second element",
+			selectors:   []string{"language=Typescript"},
+			frontmatter: frontMatter{"language": []any{"Go", "Typescript"}},
+			wantMatch:   true,
+		},
+		{
+			name:        "array value - no match",
+			selectors:   []string{"language=Python"},
+			frontmatter: frontMatter{"language": []any{"Go", "Typescript"}},
+			wantMatch:   false,
+		},
+		{
+			name:        "multiple selectors - match array element",
+			selectors:   []string{"language=Go", "language=Python"},
+			frontmatter: frontMatter{"language": []any{"Go", "Typescript"}},
+			wantMatch:   true,
+		},
+		{
+			name:        "array value with AND - both match",
+			selectors:   []string{"language=Go", "stage=testing"},
+			frontmatter: frontMatter{"language": []any{"Go", "Typescript"}, "stage": "testing"},
+			wantMatch:   true,
+		},
+		{
+			name:        "array value with AND - language matches, stage doesn't",
+			selectors:   []string{"language=Go", "stage=implementation"},
+			frontmatter: frontMatter{"language": []any{"Go", "Typescript"}, "stage": "testing"},
+			wantMatch:   false,
+		},
+		{
+			name:        "both values are arrays - match",
+			selectors:   []string{"language=Go", "language=Python"},
+			frontmatter: frontMatter{"language": []any{"Go", "Typescript"}, "framework": []any{"React", "Vue"}},
+			wantMatch:   true,
+		},
+		{
+			name:        "string selector still works with scalar frontmatter",
+			selectors:   []string{"language=Go"},
+			frontmatter: frontMatter{"language": "Go"},
+			wantMatch:   true,
+		},
+		{
+			name:        "empty array - no match",
+			selectors:   []string{"language=Go"},
+			frontmatter: frontMatter{"language": []any{}},
+			wantMatch:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := make(selectorMap)
+			for _, sel := range tt.selectors {
+				if err := s.Set(sel); err != nil {
+					t.Fatalf("Set() error = %v", err)
+				}
+			}
+
+			if got := s.matchesIncludes(tt.frontmatter); got != tt.wantMatch {
+				t.Errorf("matchesIncludes() = %v, want %v\nSelectors: %v\nFrontmatter: %v", got, tt.wantMatch, s, tt.frontmatter)
+			}
+		})
+	}
+}
