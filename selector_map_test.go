@@ -74,22 +74,22 @@ func TestSelectorMap_SetMultiple(t *testing.T) {
 	if len(s) != 2 {
 		t.Errorf("Set() resulted in %d selectors, want 2", len(s))
 	}
-	
+
 	// Test setting the same key multiple times (inclusive selection)
 	if err := s.Set("language=typescript"); err != nil {
 		t.Fatalf("Set() error = %v", err)
 	}
-	
+
 	// Should still have 2 keys, but language should have 2 values
 	if len(s) != 2 {
 		t.Errorf("Set() resulted in %d keys, want 2", len(s))
 	}
-	
+
 	languageValues := s["language"]
 	if len(languageValues) != 2 {
 		t.Errorf("language has %d values, want 2", len(languageValues))
 	}
-	
+
 	if languageValues[0] != "go" || languageValues[1] != "typescript" {
 		t.Errorf("language values = %v, want [go, typescript]", languageValues)
 	}

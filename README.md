@@ -65,6 +65,8 @@ Options:
   -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
+    	Same key multiple times uses OR logic (e.g., -s language=Go -s language=Typescript).
+    	Different keys use AND logic (e.g., -s language=Go -s stage=implementation).
     	Note: Only matches top-level YAML fields in frontmatter.
 ```
 
@@ -248,6 +250,39 @@ To include this rule only when working on the backend, you would use `-s system=
 - ❌ Doesn't work: Nested fields like `metadata.version: 1.0` cannot be matched with `-s metadata.version=1.0`
 
 If you need to filter on nested data, flatten your frontmatter structure to use top-level fields only.
+
+#### Inclusive Selection (OR Logic)
+
+When you specify the same selector key multiple times, rules matching **any** of the values will be included (OR logic). Different keys use AND logic.
+
+**Examples:**
+
+```bash
+# Include rules for Go OR Typescript
+coding-context-cli -s language=Go -s language=Typescript fix-bug
+```
+
+This will include:
+- Rules with `language: Go`
+- Rules with `language: Typescript`
+- Rules without a `language` field (allowed)
+
+```bash
+# Include rules for (Go OR Typescript) AND implementation stage
+coding-context-cli -s language=Go -s language=Typescript -s stage=implementation fix-bug
+```
+
+This will include:
+- Rules with `language: Go` AND `stage: implementation`
+- Rules with `language: Typescript` AND `stage: implementation`
+- Rules with `language: Go` AND no `stage` field
+- Rules with `language: Typescript` AND no `stage` field
+- Rules with no `language` field AND `stage: implementation`
+- Rules with neither field
+
+This will exclude:
+- Rules with `language: Python` (doesn't match Go or Typescript)
+- Rules with `language: Go` AND `stage: testing` (stage doesn't match implementation)
 
 ### Bootstrap Scripts
 

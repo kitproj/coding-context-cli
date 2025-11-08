@@ -1046,3 +1046,160 @@ This is the resume task prompt for continuing the bug fix.
 		t.Errorf("resume mode: normal task content should not be in stdout")
 	}
 }
+
+func TestInclusiveSelectionWithMultipleLanguages(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create rule files for different languages
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Go rule
+	goRule := filepath.Join(rulesDir, "go-rule.md")
+	if err := os.WriteFile(goRule, []byte(`---
+language: Go
+---
+# Go Rules
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Typescript rule
+	tsRule := filepath.Join(rulesDir, "ts-rule.md")
+	if err := os.WriteFile(tsRule, []byte(`---
+language: Typescript
+---
+# Typescript Rules
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Python rule (should be excluded)
+	pythonRule := filepath.Join(rulesDir, "python-rule.md")
+	if err := os.WriteFile(pythonRule, []byte(`---
+language: Python
+---
+# Python Rules
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create task file
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	if err := os.WriteFile(taskFile, []byte(`---
+task_name: multi-lang
+---
+# Multi-Language Task
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test with multiple language selectors (inclusive OR)
+	cmd := exec.Command("go", "run", ".", "-C", tmpDir, "-s", "language=Go", "-s", "language=Typescript", "multi-lang")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("command failed: %v\nOutput: %s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Should include Go and Typescript rules
+	if !strings.Contains(outputStr, "# Go Rules") {
+		t.Error("Output should contain Go rules")
+	}
+	if !strings.Contains(outputStr, "# Typescript Rules") {
+		t.Error("Output should contain Typescript rules")
+	}
+
+	// Should NOT include Python rules
+	if strings.Contains(outputStr, "# Python Rules") {
+		t.Error("Output should NOT contain Python rules")
+	}
+}
+
+func TestInclusiveSelectionWithAndLogic(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create rule files with multiple frontmatter fields
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Go + testing
+	goTestRule := filepath.Join(rulesDir, "go-test.md")
+	if err := os.WriteFile(goTestRule, []byte(`---
+language: Go
+stage: testing
+---
+# Go Testing
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Go + implementation (should be excluded)
+	goImplRule := filepath.Join(rulesDir, "go-impl.md")
+	if err := os.WriteFile(goImplRule, []byte(`---
+language: Go
+stage: implementation
+---
+# Go Implementation
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Typescript + testing
+	tsTestRule := filepath.Join(rulesDir, "ts-test.md")
+	if err := os.WriteFile(tsTestRule, []byte(`---
+language: Typescript
+stage: testing
+---
+# Typescript Testing
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create task file
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	if err := os.WriteFile(taskFile, []byte(`---
+task_name: test-and
+---
+# Test AND Logic
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test with (language=Go OR Typescript) AND stage=testing
+	cmd := exec.Command("go", "run", ".", "-C", tmpDir, "-s", "language=Go", "-s", "language=Typescript", "-s", "stage=testing", "test-and")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("command failed: %v\nOutput: %s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Should include Go testing and Typescript testing
+	if !strings.Contains(outputStr, "# Go Testing") {
+		t.Error("Output should contain Go Testing")
+	}
+	if !strings.Contains(outputStr, "# Typescript Testing") {
+		t.Error("Output should contain Typescript Testing")
+	}
+
+	// Should NOT include Go implementation
+	if strings.Contains(outputStr, "# Go Implementation") {
+		t.Error("Output should NOT contain Go Implementation")
+	}
+}

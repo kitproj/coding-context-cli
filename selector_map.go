@@ -35,7 +35,7 @@ func (s *selectorMap) Set(value string) error {
 	}
 	key := strings.TrimSpace(kv[0])
 	val := strings.TrimSpace(kv[1])
-	
+
 	// Append value to the list for this key (supports multiple values per key)
 	(*s)[key] = append((*s)[key], val)
 	return nil
@@ -48,12 +48,12 @@ func (s *selectorMap) Set(value string) error {
 func (includes *selectorMap) matchesIncludes(frontmatter frontMatter) bool {
 	for key, values := range *includes {
 		fmValue, exists := frontmatter[key]
-		
+
 		// If key doesn't exist in frontmatter, allow it
 		if !exists {
 			continue
 		}
-		
+
 		// If key exists, check if frontmatter value matches ANY of the selector values
 		fmValueStr := fmt.Sprint(fmValue)
 		matched := false
@@ -63,7 +63,7 @@ func (includes *selectorMap) matchesIncludes(frontmatter frontMatter) bool {
 				break
 			}
 		}
-		
+
 		// If none of the values matched, this selector key fails
 		if !matched {
 			return false
