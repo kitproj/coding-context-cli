@@ -5,11 +5,23 @@ import (
 	"strings"
 )
 
-// selectorMap reuses paramMap for parsing key=value pairs
-type selectorMap paramMap
+// selectorMap stores multiple values per key for inclusive selection
+// When the same key is specified multiple times (e.g., -s language=Go -s language=Typescript),
+// a rule matches if its frontmatter value matches ANY of the specified values (OR logic).
+// Different keys use AND logic (e.g., -s language=Go -s stage=implementation).
+type selectorMap map[string][]string
 
 func (s *selectorMap) String() string {
-	return (*paramMap)(s).String()
+	if *s == nil {
+		return ""
+	}
+	var parts []string
+	for key, values := range *s {
+		for _, value := range values {
+			parts = append(parts, fmt.Sprintf("%s=%s", key, value))
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 func (s *selectorMap) Set(value string) error {
@@ -21,21 +33,41 @@ func (s *selectorMap) Set(value string) error {
 	if *s == nil {
 		*s = make(selectorMap)
 	}
-	// Trim spaces from both key and value for selectors
-	(*s)[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+	key := strings.TrimSpace(kv[0])
+	val := strings.TrimSpace(kv[1])
+	
+	// Append value to the list for this key (supports multiple values per key)
+	(*s)[key] = append((*s)[key], val)
 	return nil
 }
 
-// matchesIncludes returns true if the frontmatter matches all include selectors
-// If a key doesn't exist in frontmatter, it's allowed
+// matchesIncludes returns true if the frontmatter matches the include selectors
+// - For each key in selectors, if that key exists in frontmatter, it must match at least one of the values (OR logic within same key)
+// - All keys in selectors must be satisfied (AND logic across different keys)
+// - If a selector key doesn't exist in frontmatter, it's allowed (matches)
 func (includes *selectorMap) matchesIncludes(frontmatter frontMatter) bool {
-	for key, value := range *includes {
+	for key, values := range *includes {
 		fmValue, exists := frontmatter[key]
-		// If key exists, it must match the value
-		if exists && fmt.Sprint(fmValue) != value {
+		
+		// If key doesn't exist in frontmatter, allow it
+		if !exists {
+			continue
+		}
+		
+		// If key exists, check if frontmatter value matches ANY of the selector values
+		fmValueStr := fmt.Sprint(fmValue)
+		matched := false
+		for _, value := range values {
+			if fmValueStr == value {
+				matched = true
+				break
+			}
+		}
+		
+		// If none of the values matched, this selector key fails
+		if !matched {
 			return false
 		}
-		// If key doesn't exist, allow it
 	}
 	return true
 }
