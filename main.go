@@ -17,7 +17,7 @@ var (
 	workDir  string
 	resume   bool
 	params   = make(paramMap)
-	includes = make(selectorMap)
+	includes selector
 )
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
-	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
+	flag.Var(&includes, "s", "CEL expression to filter rules and tasks by frontmatter (e.g., \"frontmatter.language == 'Go' && frontmatter.env == 'production'\").")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
@@ -56,10 +56,29 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to chdir to %s: %w", workDir, err)
 	}
 
-	// Add task name to includes so rules can be filtered by task
+	// Build the complete CEL expression by combining user selector with task_name and resume filters
 	taskName := args[0]
-	includes["task_name"] = taskName
-	includes["resume"] = fmt.Sprint(resume)
+	
+	// Build the base expression for task_name and resume
+	// The resume check should be: (!has(frontmatter.resume) || frontmatter.resume == expected)
+	// This allows tasks without a resume field to match, treating them as if they have resume=false
+	baseExpr := fmt.Sprintf("frontmatter.task_name == '%s' && (!has(frontmatter.resume) || frontmatter.resume == %v)", 
+		taskName, resume)
+	
+	// If user provided a selector, combine it with AND for task filtering
+	// User selectors CAN be used to distinguish between multiple tasks with the same name
+	var taskSelectorExpr string
+	if includes.expression != "" {
+		taskSelectorExpr = fmt.Sprintf("(%s) && (%s)", baseExpr, includes.expression)
+	} else {
+		taskSelectorExpr = baseExpr
+	}
+	
+	// Create a selector for filtering tasks
+	taskSelector := selector{}
+	if err := taskSelector.Set(taskSelectorExpr); err != nil {
+		return fmt.Errorf("failed to create task selector: %w", err)
+	}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -106,8 +125,8 @@ func run(ctx context.Context, args []string) error {
 				return fmt.Errorf("task file %s is missing required 'task_name' field in frontmatter", path)
 			}
 
-			// Check if file matches include selectors (task_name is already in includes)
-			if !includes.matchesIncludes(frontmatter) {
+			// Check if file matches task selector (includes task_name and resume)
+			if !taskSelector.matchesIncludes(frontmatter) {
 				return nil
 			}
 
