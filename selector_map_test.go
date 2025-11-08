@@ -9,21 +9,56 @@ func TestSelectorMap_Set(t *testing.T) {
 		name    string
 		value   string
 		wantKey string
+		wantOp  selectorOperator
 		wantVal string
 		wantErr bool
 	}{
 		{
-			name:    "valid selector",
+			name:    "valid selector - equals",
 			value:   "env=production",
 			wantKey: "env",
+			wantOp:  selectorEquals,
 			wantVal: "production",
+			wantErr: false,
+		},
+		{
+			name:    "valid selector - includes",
+			value:   "language:=Go",
+			wantKey: "language",
+			wantOp:  selectorIncludes,
+			wantVal: "Go",
+			wantErr: false,
+		},
+		{
+			name:    "valid selector - not equals",
+			value:   "env!=staging",
+			wantKey: "env",
+			wantOp:  selectorNotEquals,
+			wantVal: "staging",
+			wantErr: false,
+		},
+		{
+			name:    "valid selector - not includes",
+			value:   "language!:Python",
+			wantKey: "language",
+			wantOp:  selectorNotIncludes,
+			wantVal: "Python",
 			wantErr: false,
 		},
 		{
 			name:    "selector with spaces",
 			value:   "env = production",
 			wantKey: "env",
+			wantOp:  selectorEquals,
 			wantVal: "production",
+			wantErr: false,
+		},
+		{
+			name:    "selector with spaces - includes",
+			value:   "language := Go",
+			wantKey: "language",
+			wantOp:  selectorIncludes,
+			wantVal: "Go",
 			wantErr: false,
 		},
 		{
@@ -53,8 +88,12 @@ func TestSelectorMap_Set(t *testing.T) {
 					t.Errorf("Set() resulted in %d selectors, want 1", len(s))
 					return
 				}
-				if s[tt.wantKey] != tt.wantVal {
-					t.Errorf("Set() s[%q] = %q, want %q", tt.wantKey, s[tt.wantKey], tt.wantVal)
+				sel := s[tt.wantKey]
+				if sel.operator != tt.wantOp {
+					t.Errorf("Set() operator = %q, want %q", sel.operator, tt.wantOp)
+				}
+				if sel.value != tt.wantVal {
+					t.Errorf("Set() value = %q, want %q", sel.value, tt.wantVal)
 				}
 			}
 		})
@@ -66,7 +105,7 @@ func TestSelectorMap_SetMultiple(t *testing.T) {
 	if err := s.Set("env=production"); err != nil {
 		t.Fatalf("Set() error = %v", err)
 	}
-	if err := s.Set("language=go"); err != nil {
+	if err := s.Set("language:=go"); err != nil {
 		t.Fatalf("Set() error = %v", err)
 	}
 
@@ -82,76 +121,163 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		frontmatter frontMatter
 		wantMatch   bool
 	}{
+		// Test equals operator
 		{
-			name:        "single include - match",
+			name:        "equals - match",
 			selectors:   []string{"env=production"},
 			frontmatter: frontMatter{"env": "production"},
 			wantMatch:   true,
 		},
 		{
-			name:        "single include - no match",
+			name:        "equals - no match",
 			selectors:   []string{"env=production"},
 			frontmatter: frontMatter{"env": "development"},
 			wantMatch:   false,
 		},
 		{
-			name:        "single include - key missing (allowed)",
+			name:        "equals - key missing (allowed)",
 			selectors:   []string{"env=production"},
 			frontmatter: frontMatter{"language": "go"},
 			wantMatch:   true,
 		},
 		{
-			name:        "multiple includes - all match",
-			selectors:   []string{"env=production", "language=go"},
-			frontmatter: frontMatter{"env": "production", "language": "go"},
+			name:        "equals - boolean value match",
+			selectors:   []string{"is_active=true"},
+			frontmatter: frontMatter{"is_active": true},
+			wantMatch:   true,
+		},
+
+		// Test includes operator with scalar
+		{
+			name:        "includes - scalar match",
+			selectors:   []string{"language:=Go"},
+			frontmatter: frontMatter{"language": "Go"},
 			wantMatch:   true,
 		},
 		{
-			name:        "multiple includes - one doesn't match",
-			selectors:   []string{"env=production", "language=go"},
-			frontmatter: frontMatter{"env": "production", "language": "python"},
+			name:        "includes - scalar no match",
+			selectors:   []string{"language:=Go"},
+			frontmatter: frontMatter{"language": "Python"},
+			wantMatch:   false,
+		},
+
+		// Test includes operator with array
+		{
+			name:        "includes - array contains value",
+			selectors:   []string{"language:=Go"},
+			frontmatter: frontMatter{"language": []any{"Go", "TypeScript"}},
+			wantMatch:   true,
+		},
+		{
+			name:        "includes - array does not contain value",
+			selectors:   []string{"language:=Python"},
+			frontmatter: frontMatter{"language": []any{"Go", "TypeScript"}},
 			wantMatch:   false,
 		},
 		{
-			name:        "multiple includes - one key missing (allowed)",
-			selectors:   []string{"env=production", "language=go"},
+			name:        "includes - array with single value",
+			selectors:   []string{"language:=Go"},
+			frontmatter: frontMatter{"language": []any{"Go"}},
+			wantMatch:   true,
+		},
+		{
+			name:        "includes - key missing (allowed)",
+			selectors:   []string{"language:=Go"},
+			frontmatter: frontMatter{"env": "production"},
+			wantMatch:   true,
+		},
+
+		// Test not equals operator
+		{
+			name:        "not equals - different value",
+			selectors:   []string{"env!=staging"},
 			frontmatter: frontMatter{"env": "production"},
 			wantMatch:   true,
 		},
 		{
-			name:        "empty includes - always match",
+			name:        "not equals - same value (no match)",
+			selectors:   []string{"env!=staging"},
+			frontmatter: frontMatter{"env": "staging"},
+			wantMatch:   false,
+		},
+		{
+			name:        "not equals - key missing (allowed)",
+			selectors:   []string{"env!=staging"},
+			frontmatter: frontMatter{"language": "go"},
+			wantMatch:   true,
+		},
+
+		// Test not includes operator with scalar
+		{
+			name:        "not includes - scalar different",
+			selectors:   []string{"language!:Python"},
+			frontmatter: frontMatter{"language": "Go"},
+			wantMatch:   true,
+		},
+		{
+			name:        "not includes - scalar same (no match)",
+			selectors:   []string{"language!:Python"},
+			frontmatter: frontMatter{"language": "Python"},
+			wantMatch:   false,
+		},
+
+		// Test not includes operator with array
+		{
+			name:        "not includes - array does not contain",
+			selectors:   []string{"language!:Python"},
+			frontmatter: frontMatter{"language": []any{"Go", "TypeScript"}},
+			wantMatch:   true,
+		},
+		{
+			name:        "not includes - array contains (no match)",
+			selectors:   []string{"language!:Go"},
+			frontmatter: frontMatter{"language": []any{"Go", "TypeScript"}},
+			wantMatch:   false,
+		},
+		{
+			name:        "not includes - key missing (allowed)",
+			selectors:   []string{"language!:Python"},
+			frontmatter: frontMatter{"env": "production"},
+			wantMatch:   true,
+		},
+
+		// Test multiple selectors
+		{
+			name:        "multiple - all match",
+			selectors:   []string{"env=production", "language:=Go"},
+			frontmatter: frontMatter{"env": "production", "language": []any{"Go", "TypeScript"}},
+			wantMatch:   true,
+		},
+		{
+			name:        "multiple - one doesn't match",
+			selectors:   []string{"env=production", "language:=Python"},
+			frontmatter: frontMatter{"env": "production", "language": []any{"Go", "TypeScript"}},
+			wantMatch:   false,
+		},
+		{
+			name:        "multiple - mixed operators",
+			selectors:   []string{"env=production", "language:=Go", "stage!=testing"},
+			frontmatter: frontMatter{"env": "production", "language": []any{"Go", "TypeScript"}, "stage": "implementation"},
+			wantMatch:   true,
+		},
+
+		// Edge cases
+		{
+			name:        "empty selectors - always match",
 			selectors:   []string{},
 			frontmatter: frontMatter{"env": "production"},
 			wantMatch:   true,
 		},
 		{
-			name:        "empty frontmatter - key missing (allowed)",
+			name:        "empty frontmatter - positive selectors (allowed)",
 			selectors:   []string{"env=production"},
 			frontmatter: frontMatter{},
 			wantMatch:   true,
 		},
 		{
-			name:        "task_name include - match",
-			selectors:   []string{"task_name=deploy"},
-			frontmatter: frontMatter{"task_name": "deploy"},
-			wantMatch:   true,
-		},
-		{
-			name:        "task_name include - no match",
-			selectors:   []string{"task_name=deploy"},
-			frontmatter: frontMatter{"task_name": "test"},
-			wantMatch:   false,
-		},
-		{
-			name:        "task_name include - key missing (allowed)",
-			selectors:   []string{"task_name=deploy"},
-			frontmatter: frontMatter{"env": "production"},
-			wantMatch:   true,
-		},
-		{
-			name:        "include a boolean value - match",
-			selectors:   []string{"is_active=true"},
-			frontmatter: frontMatter{"is_active": true},
+			name:        "empty frontmatter - negative selectors (allowed)",
+			selectors:   []string{"env!=staging"},
+			frontmatter: frontMatter{},
 			wantMatch:   true,
 		},
 	}
@@ -175,7 +301,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 func TestSelectorMap_String(t *testing.T) {
 	s := make(selectorMap)
 	s.Set("env=production")
-	s.Set("language=go")
+	s.Set("language:=go")
 
 	str := s.String()
 	if str == "" {

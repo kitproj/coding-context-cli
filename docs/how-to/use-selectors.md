@@ -7,6 +7,120 @@ title: Use Frontmatter Selectors
 
 This guide shows you how to use frontmatter selectors to filter which rules and tasks are included.
 
+## Selector Operators
+
+Selectors support multiple operators for different matching behaviors:
+
+| Operator | Name | Description | Example |
+|----------|------|-------------|---------|
+| `=` | Equals | Exact match (default) | `language=Go` |
+| `:=` | Includes | Value in array or equals scalar | `language:=TypeScript` |
+| `!=` | Not Equals | Value does not equal | `env!=staging` |
+| `!:` | Not Includes | Value not in array | `language!:Python` |
+
+### Equals (`=`)
+
+Matches when the frontmatter value exactly equals the selector value.
+
+```bash
+# Include only Go rules
+coding-context-cli -s language=Go fix-bug
+```
+
+**Frontmatter:**
+```yaml
+---
+language: Go
+---
+```
+
+### Includes (`:=`)
+
+Matches when:
+- The frontmatter value is a scalar and equals the selector value, OR
+- The frontmatter value is an array and contains the selector value
+
+This is useful for rules that apply to multiple languages.
+
+```bash
+# Include rules for TypeScript (works with both scalar and array)
+coding-context-cli -s language:=TypeScript implement-feature
+```
+
+**Frontmatter examples that match:**
+```yaml
+---
+# Scalar match
+language: TypeScript
+---
+```
+
+```yaml
+---
+# Array match
+language:
+  - TypeScript
+  - JavaScript
+---
+```
+
+### Not Equals (`!=`)
+
+Matches when the frontmatter value does not equal the selector value. Useful for excluding specific values.
+
+```bash
+# Exclude staging-specific rules
+coding-context-cli -s env!=staging deploy
+```
+
+**Frontmatter:**
+```yaml
+---
+env: production  # Matches (not staging)
+---
+```
+
+### Not Includes (`!:`)
+
+Matches when:
+- The frontmatter value is a scalar and does not equal the selector value, OR
+- The frontmatter value is an array and does not contain the selector value
+
+```bash
+# Exclude Python rules
+coding-context-cli -s language!:Python implement-feature
+```
+
+**Frontmatter examples that match:**
+```yaml
+---
+language: Go  # Matches (not Python)
+---
+```
+
+```yaml
+---
+language:
+  - Go
+  - TypeScript  # Matches (Python not in array)
+---
+```
+
+**Frontmatter examples that don't match:**
+```yaml
+---
+language: Python  # Doesn't match (is Python)
+---
+```
+
+```yaml
+---
+language:
+  - Python
+  - Go  # Doesn't match (Python in array)
+---
+```
+
 ## Basic Selector Usage
 
 Include only rules matching a specific frontmatter field:
@@ -28,6 +142,13 @@ coding-context-cli -s language=Go -s stage=testing implement-feature
 ```
 
 This includes only rules with BOTH `language: Go` AND `stage: testing`.
+
+You can also combine different operators:
+
+```bash
+# Include TypeScript rules but exclude testing stage
+coding-context-cli -s language:=TypeScript -s stage!=testing implement-feature
+```
 
 ## Selecting Tasks
 
@@ -64,16 +185,43 @@ coding-context-cli -s environment=production deploy
 
 ### By Language
 
+**Single language (exact match):**
 ```bash
 # Python project
 coding-context-cli -s language=Python fix-bug
 
 # JavaScript project
 coding-context-cli -s language=JavaScript code-review
+```
 
-# Multi-language (run separately)
-coding-context-cli -s language=Go implement-backend
-coding-context-cli -s language=JavaScript implement-frontend
+**Multiple languages (using includes operator):**
+```bash
+# Include rules that support TypeScript (either as scalar or in array)
+coding-context-cli -s language:=TypeScript implement-feature
+
+# Include rules that support Go
+coding-context-cli -s language:=Go implement-backend
+```
+
+**Example rule for multiple languages:**
+```markdown
+---
+language:
+  - TypeScript
+  - JavaScript
+---
+# Web Development Standards
+
+Standards that apply to both TypeScript and JavaScript.
+```
+
+**Excluding languages:**
+```bash
+# Exclude Python rules
+coding-context-cli -s language!=Python fix-bug
+
+# Exclude rules with Python in them (scalar or array)
+coding-context-cli -s language!:Python implement-feature
 ```
 
 ### By Stage
@@ -87,6 +235,9 @@ coding-context-cli -s stage=implementation implement-feature
 
 # Testing phase
 coding-context-cli -s stage=testing test-feature
+
+# Everything except testing
+coding-context-cli -s stage!=testing implement-feature
 ```
 
 ### By Priority
@@ -94,6 +245,9 @@ coding-context-cli -s stage=testing test-feature
 ```bash
 # High priority rules only
 coding-context-cli -s priority=high fix-critical-bug
+
+# Exclude low priority rules
+coding-context-cli -s priority!=low fix-bug
 
 # Include all priorities (no selector)
 coding-context-cli fix-bug

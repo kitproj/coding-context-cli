@@ -66,7 +66,8 @@ Options:
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
   -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
   -s value
-    	Include rules with matching frontmatter. Can be specified multiple times as key=value.
+    	Include rules with matching frontmatter. Can be specified multiple times as key<op>value.
+    	Operators: = (equals), := (includes), != (not equals), !: (not includes)
     	Note: Only matches top-level YAML fields in frontmatter.
 ```
 
@@ -251,6 +252,44 @@ coding-context-cli -s language=Go fix-bug
 
 This will include all rules with `language: Go` in their frontmatter, excluding rules for other languages.
 
+**Example: Multi-Language Rules**
+
+You can also create rules that apply to multiple languages using YAML arrays:
+
+```markdown
+---
+language:
+  - TypeScript
+  - JavaScript
+---
+
+# Web Development Standards
+
+- Use ESLint for linting
+- Write unit tests with Jest
+- Follow modern JavaScript/TypeScript best practices
+```
+
+To include rules for TypeScript (whether specified as a scalar or in an array), use the `:=` (includes) operator:
+
+```bash
+# Include rules that apply to TypeScript
+coding-context-cli -s language:=TypeScript implement-feature
+```
+
+This will match both:
+- Rules with `language: TypeScript` (scalar)
+- Rules with `language: [TypeScript, JavaScript]` (array containing TypeScript)
+
+**Selector Operators:**
+
+- `=` : Exact match (e.g., `language=Go`)
+- `:=` : Includes - matches if value is in array or equals scalar (e.g., `language:=TypeScript`)
+- `!=` : Not equals - excludes exact matches (e.g., `env!=staging`)
+- `!:` : Not includes - excludes if value is in array or equals scalar (e.g., `language!:Python`)
+
+For more details, see the [selector documentation](https://kitproj.github.io/coding-context-cli/how-to/use-selectors).
+
 **Example: Language-Specific Rules**
 
 You can create multiple language-specific rule files:
@@ -267,6 +306,9 @@ coding-context-cli -s language=Python fix-bug
 
 # Work on JavaScript code with JavaScript-specific rules
 coding-context-cli -s language=JavaScript enhance-feature
+
+# Exclude Python rules
+coding-context-cli -s language!=Python implement-feature
 ```
 
 **Common Linguist Languages**

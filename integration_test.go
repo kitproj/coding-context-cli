@@ -1046,3 +1046,191 @@ This is the resume task prompt for continuing the bug fix.
 		t.Errorf("resume mode: normal task content should not be in stdout")
 	}
 }
+
+func TestSelectorOperators(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create rule files with different languages
+	// Rule 1: Single language (Go)
+	ruleFile1 := filepath.Join(rulesDir, "go-standards.md")
+	ruleContent1 := `---
+language: Go
+---
+# Go Standards
+
+Go specific coding standards.
+`
+	if err := os.WriteFile(ruleFile1, []byte(ruleContent1), 0644); err != nil {
+		t.Fatalf("failed to write go rule file: %v", err)
+	}
+
+	// Rule 2: Multiple languages (array)
+	ruleFile2 := filepath.Join(rulesDir, "web-standards.md")
+	ruleContent2 := `---
+language:
+  - TypeScript
+  - JavaScript
+---
+# Web Standards
+
+Web development standards for TypeScript and JavaScript.
+`
+	if err := os.WriteFile(ruleFile2, []byte(ruleContent2), 0644); err != nil {
+		t.Fatalf("failed to write web rule file: %v", err)
+	}
+
+	// Rule 3: Python
+	ruleFile3 := filepath.Join(rulesDir, "python-standards.md")
+	ruleContent3 := `---
+language: Python
+---
+# Python Standards
+
+Python specific coding standards.
+`
+	if err := os.WriteFile(ruleFile3, []byte(ruleContent3), 0644); err != nil {
+		t.Fatalf("failed to write python rule file: %v", err)
+	}
+
+	// Rule 4: No language selector (general)
+	ruleFile4 := filepath.Join(rulesDir, "general.md")
+	ruleContent4 := `---
+---
+# General Guidelines
+
+General coding guidelines.
+`
+	if err := os.WriteFile(ruleFile4, []byte(ruleContent4), 0644); err != nil {
+		t.Fatalf("failed to write general rule file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+task_name: test-task
+---
+# Test Task
+
+Please help with this task.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Test 1: Includes operator with scalar value
+	t.Run("includes operator - scalar match", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "-C", tmpDir, "-s", "language:=Go", "test-task")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("failed to run binary: %v\n%s", err, output)
+		}
+
+		outputStr := string(output)
+		if !strings.Contains(outputStr, "# Go Standards") {
+			t.Errorf("Go Standards not found in output (should match scalar)")
+		}
+		if strings.Contains(outputStr, "# Python Standards") {
+			t.Errorf("Python Standards found in output (should not match)")
+		}
+		if !strings.Contains(outputStr, "# General Guidelines") {
+			t.Errorf("General Guidelines not found in output (should always be included)")
+		}
+	})
+
+	// Test 2: Includes operator with array value
+	t.Run("includes operator - array match", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "-C", tmpDir, "-s", "language:=TypeScript", "test-task")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("failed to run binary: %v\n%s", err, output)
+		}
+
+		outputStr := string(output)
+		if !strings.Contains(outputStr, "# Web Standards") {
+			t.Errorf("Web Standards not found in output (TypeScript should match array)")
+		}
+		if strings.Contains(outputStr, "# Go Standards") {
+			t.Errorf("Go Standards found in output (should not match)")
+		}
+	})
+
+	// Test 3: Not equals operator
+	t.Run("not equals operator", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "-C", tmpDir, "-s", "language!=Python", "test-task")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("failed to run binary: %v\n%s", err, output)
+		}
+
+		outputStr := string(output)
+		if strings.Contains(outputStr, "# Python Standards") {
+			t.Errorf("Python Standards found in output (should be excluded by !=)")
+		}
+		if !strings.Contains(outputStr, "# Go Standards") {
+			t.Errorf("Go Standards not found in output (should be included)")
+		}
+		if !strings.Contains(outputStr, "# Web Standards") {
+			t.Errorf("Web Standards not found in output (should be included)")
+		}
+	})
+
+	// Test 4: Not includes operator
+	t.Run("not includes operator - exclude from array", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "-C", tmpDir, "-s", "language!:TypeScript", "test-task")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("failed to run binary: %v\n%s", err, output)
+		}
+
+		outputStr := string(output)
+		if strings.Contains(outputStr, "# Web Standards") {
+			t.Errorf("Web Standards found in output (TypeScript should be excluded from array)")
+		}
+		if !strings.Contains(outputStr, "# Go Standards") {
+			t.Errorf("Go Standards not found in output (should be included)")
+		}
+		if !strings.Contains(outputStr, "# Python Standards") {
+			t.Errorf("Python Standards not found in output (should be included)")
+		}
+	})
+
+	// Test 5: Multiple selectors with different operators
+	t.Run("multiple operators combined", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "-C", tmpDir,
+			"-s", "language:=TypeScript",
+			"-s", "language!:Python",
+			"test-task")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("failed to run binary: %v\n%s", err, output)
+		}
+
+		outputStr := string(output)
+		if !strings.Contains(outputStr, "# Web Standards") {
+			t.Errorf("Web Standards not found in output (should match includes TypeScript)")
+		}
+		if strings.Contains(outputStr, "# Python Standards") {
+			t.Errorf("Python Standards found in output (should be excluded by !:)")
+		}
+		if !strings.Contains(outputStr, "# Go Standards") {
+			t.Errorf("Go Standards not found in output (should match both conditions)")
+		}
+	})
+}

@@ -58,8 +58,8 @@ func run(ctx context.Context, args []string) error {
 
 	// Add task name to includes so rules can be filtered by task
 	taskName := args[0]
-	includes["task_name"] = taskName
-	includes["resume"] = fmt.Sprint(resume)
+	includes["task_name"] = selector{operator: selectorEquals, value: taskName}
+	includes["resume"] = selector{operator: selectorEquals, value: fmt.Sprint(resume)}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
