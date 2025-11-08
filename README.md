@@ -4,6 +4,8 @@ A command-line interface for dynamically assembling context for AI coding agents
 
 This tool collects context from predefined rule files and a task-specific prompt, substitutes parameters, and prints a single, combined context to standard output. This is useful for feeding a large amount of relevant information into an AI model like Claude, Gemini, or OpenAI's GPT series.
 
+**📖 [View Full Documentation](https://kitproj.github.io/coding-context-cli/)**
+
 ## Features
 
 - **Dynamic Context Assembly**: Merges context from various source files.
