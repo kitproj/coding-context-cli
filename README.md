@@ -243,7 +243,62 @@ language: Go
 - Use the standard logging library.
 ```
 
-To include this rule only when working on the backend, you would use `-s system=backend`.
+To include this rule only when working on Go code, you would use `-s language=Go`:
+
+```bash
+coding-context-cli -s language=Go fix-bug
+```
+
+This will include all rules with `language: Go` in their frontmatter, excluding rules for other languages.
+
+**Example: Language-Specific Rules**
+
+You can create multiple language-specific rule files:
+
+- `.agents/rules/python-standards.md` with `language: Python`
+- `.agents/rules/javascript-standards.md` with `language: JavaScript`
+- `.agents/rules/go-standards.md` with `language: Go`
+
+Then select only the relevant rules:
+
+```bash
+# Work on Python code with Python-specific rules
+coding-context-cli -s language=Python fix-bug
+
+# Work on JavaScript code with JavaScript-specific rules
+coding-context-cli -s language=JavaScript enhance-feature
+```
+
+**Common Linguist Languages**
+
+When using language selectors, use the exact language names as defined by [GitHub Linguist](https://github.com/github-linguist/linguist/blob/master/lib/linguist/languages.yml). Here are common languages with correct capitalization:
+
+- **C**: `C`
+- **C#**: `C#`
+- **C++**: `C++`
+- **CSS**: `CSS`
+- **Dart**: `Dart`
+- **Elixir**: `Elixir`
+- **Go**: `Go`
+- **Haskell**: `Haskell`
+- **HTML**: `HTML`
+- **Java**: `Java`
+- **JavaScript**: `JavaScript`
+- **Kotlin**: `Kotlin`
+- **Lua**: `Lua`
+- **Markdown**: `Markdown`
+- **Objective-C**: `Objective-C`
+- **PHP**: `PHP`
+- **Python**: `Python`
+- **Ruby**: `Ruby`
+- **Rust**: `Rust`
+- **Scala**: `Scala`
+- **Shell**: `Shell`
+- **Swift**: `Swift`
+- **TypeScript**: `TypeScript`
+- **YAML**: `YAML`
+
+Note the capitalization - for example, use `Go` not `go`, `JavaScript` not `javascript`, and `TypeScript` not `typescript`.
 
 **Note:** Frontmatter selectors can only match top-level YAML fields. For example:
 - ✅ Works: `language: Go` matches `-s language=Go`
