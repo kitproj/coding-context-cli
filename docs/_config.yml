@@ -1,0 +1,37 @@
+title: Coding Context CLI
+description: A command-line interface for dynamically assembling context for AI coding agents
+theme: jekyll-theme-cayman
+baseurl: /coding-context-cli
+url: https://kitproj.github.io
+
+# Navigation
+navigation:
+  - title: Home
+    url: /
+  - title: Getting Started
+    url: /getting-started
+  - title: Usage
+    url: /usage
+  - title: Agentic Workflows
+    url: /agentic-workflows
+  - title: Examples
+    url: /examples
+  - title: GitHub
+    url: https://github.com/kitproj/coding-context-cli
+
+# Social links
+github_username: kitproj
+repository: kitproj/coding-context-cli
+
+# Build settings
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+
+# Exclude files from build
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
