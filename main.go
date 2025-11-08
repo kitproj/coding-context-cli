@@ -27,7 +27,7 @@ func main() {
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
-	flag.Var(&includes, "s", "CEL expression to filter rules and tasks by frontmatter (e.g., \"frontmatter.language == 'Go' && frontmatter.env == 'production'\").")
+	flag.Var(&includes, "s", "CEL expression to filter rules and tasks by frontmatter (e.g., \"language == 'Go' && env == 'production'\").")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
