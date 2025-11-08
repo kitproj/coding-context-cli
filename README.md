@@ -9,7 +9,7 @@ This tool collects context from predefined rule files and a task-specific prompt
 - **Dynamic Context Assembly**: Merges context from various source files.
 - **Task-Specific Prompts**: Use different prompts for different tasks (e.g., `feature`, `bugfix`).
 - **Rule-Based Context**: Define reusable context snippets (rules) that can be included or excluded.
-- **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors (matches top-level YAML fields only).
+- **Frontmatter Filtering**: Select rules and tasks based on metadata using CEL (Common Expression Language) expressions.
 - **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically.
 - **Parameter Substitution**: Inject values into your task prompts.
 - **Token Estimation**: Get an estimate of the total token count for the generated context.
@@ -64,14 +64,13 @@ Options:
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
   -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
   -s value
-    	Include rules with matching frontmatter. Can be specified multiple times as key=value.
-    	Note: Only matches top-level YAML fields in frontmatter.
+    	CEL expression to filter rules and tasks by frontmatter (e.g., "frontmatter.language == 'Go' && frontmatter.env == 'production'").
 ```
 
 ### Example
 
 ```bash
-coding-context-cli -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
+coding-context-cli -p jira_issue_key=PROJ-1234 -s "frontmatter.language == 'Go'" fix-bug | llm -m gemini-pro
 ```
 
 This command will:
@@ -103,8 +102,8 @@ The tool assembles the context in the following order:
 
 1.  **Rule Files**: It searches a list of predefined locations for rule files (`.md` or `.mdc`). These locations include the current directory, ancestor directories, user's home directory, and system-wide directories.
 2.  **Bootstrap Scripts**: For each rule file found (e.g., `my-rule.md`), it looks for an executable script named `my-rule-bootstrap`. If found, it runs the script before processing the rule file. These scripts are meant for bootstrapping the environment (e.g., installing tools) and their output is sent to `stderr`, not into the main context.
-3.  **Filtering**: If `-s` (include) flag is used, it parses the YAML frontmatter of each rule file to decide whether to include it. Note that selectors can only match top-level YAML fields (e.g., `language: go`), not nested fields.
-4.  **Task Prompt**: It searches for a task file with `task_name: <task-name>` in its frontmatter. The filename doesn't matter. If selectors are provided with `-s`, they are used to filter between multiple task files with the same `task_name`.
+3.  **Filtering**: If `-s` flag is used, it evaluates a CEL expression against the YAML frontmatter of each rule file to decide whether to include it. The frontmatter is accessible as a map object in the expression.
+4.  **Task Prompt**: It searches for a task file with `task_name: <task-name>` in its frontmatter. The filename doesn't matter. If a selector is provided with `-s`, it is used to filter between multiple task files with the same `task_name`.
 5.  **Parameter Expansion**: It substitutes variables in the task prompt using the `-p` flags.
 6.  **Output**: It prints the content of all included rule files, followed by the expanded task prompt, to standard output.
 7.  **Token Count**: A running total of estimated tokens is printed to standard error.
@@ -165,13 +164,13 @@ environment: production
 Deploy the application to production with all safety checks.
 ```
 
-You can then select the appropriate task using:
+You can then select the appropriate task using CEL expressions:
 ```bash
 # Deploy to staging
-coding-context-cli -s environment=staging deploy
+coding-context-cli -s "frontmatter.environment == 'staging'" deploy
 
 # Deploy to production
-coding-context-cli -s environment=production deploy
+coding-context-cli -s "frontmatter.environment == 'production'" deploy
 ```
 
 ### Resume Mode
@@ -241,10 +240,10 @@ language: Go
 - Use the standard logging library.
 ```
 
-To include this rule only when working on Go code, you would use `-s language=Go`:
+To include this rule only when working on Go code, you would use a CEL expression:
 
 ```bash
-coding-context-cli -s language=Go fix-bug
+coding-context-cli -s "frontmatter.language == 'Go'" fix-bug
 ```
 
 This will include all rules with `language: Go` in their frontmatter, excluding rules for other languages.
@@ -257,14 +256,17 @@ You can create multiple language-specific rule files:
 - `.agents/rules/javascript-standards.md` with `language: JavaScript`
 - `.agents/rules/go-standards.md` with `language: Go`
 
-Then select only the relevant rules:
+Then select only the relevant rules using CEL expressions:
 
 ```bash
 # Work on Python code with Python-specific rules
-coding-context-cli -s language=Python fix-bug
+coding-context-cli -s "frontmatter.language == 'Python'" fix-bug
 
 # Work on JavaScript code with JavaScript-specific rules
-coding-context-cli -s language=JavaScript enhance-feature
+coding-context-cli -s "frontmatter.language == 'JavaScript'" enhance-feature
+
+# Work on multiple languages with OR
+coding-context-cli -s "frontmatter.language == 'Go' || frontmatter.language == 'Python'" fix-bug
 ```
 
 **Common Linguist Languages**
@@ -298,11 +300,28 @@ When using language selectors, use the exact language names as defined by [GitHu
 
 Note the capitalization - for example, use `Go` not `go`, `JavaScript` not `javascript`, and `TypeScript` not `typescript`.
 
-**Note:** Frontmatter selectors can only match top-level YAML fields. For example:
-- ✅ Works: `language: Go` matches `-s language=Go`
-- ❌ Doesn't work: Nested fields like `metadata.version: 1.0` cannot be matched with `-s metadata.version=1.0`
+**CEL Expression Examples:**
 
-If you need to filter on nested data, flatten your frontmatter structure to use top-level fields only.
+Selectors use CEL (Common Expression Language) for powerful filtering capabilities:
+
+```bash
+# Simple equality
+-s "frontmatter.language == 'Go'"
+
+# Multiple conditions with AND
+-s "frontmatter.language == 'Go' && frontmatter.stage == 'implementation'"
+
+# Multiple conditions with OR
+-s "frontmatter.language == 'Python' || frontmatter.language == 'Go'"
+
+# Check if field exists
+-s "has(frontmatter.experimental) && frontmatter.experimental == true"
+
+# Combine multiple conditions
+-s "(frontmatter.language == 'Go' || frontmatter.language == 'Rust') && frontmatter.stage == 'testing'"
+```
+
+If a field referenced in the expression doesn't exist in the frontmatter, the rule/task will still match (for backward compatibility). To explicitly check for field existence, use the `has()` function.
 
 ### Bootstrap Scripts
 
