@@ -1,6 +1,8 @@
 ---
 layout: default
 title: Integrate with GitHub Actions
+parent: How-to Guides
+nav_order: 5
 ---
 
 # How to Integrate with GitHub Actions

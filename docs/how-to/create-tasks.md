@@ -1,6 +1,8 @@
 ---
 layout: default
 title: Create Task Files
+parent: How-to Guides
+nav_order: 1
 ---
 
 # How to Create Task Files

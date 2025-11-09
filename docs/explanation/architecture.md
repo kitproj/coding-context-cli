@@ -1,6 +1,8 @@
 ---
 layout: default
 title: How the CLI Works
+parent: Explanation
+nav_order: 2
 ---
 
 # How the CLI Works

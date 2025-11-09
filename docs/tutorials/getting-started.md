@@ -1,6 +1,8 @@
 ---
 layout: default
 title: Getting Started Tutorial
+parent: Tutorials
+nav_order: 1
 ---
 
 # Getting Started Tutorial

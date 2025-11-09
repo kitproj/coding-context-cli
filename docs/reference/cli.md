@@ -1,6 +1,8 @@
 ---
 layout: default
 title: CLI Reference
+parent: Reference
+nav_order: 1
 ---
 
 # CLI Reference
