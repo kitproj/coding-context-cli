@@ -20,6 +20,13 @@ nav_sort: case_insensitive
 back_to_top: true
 back_to_top_text: "Back to top"
 
+# External links
+aux_links:
+  "GitHub Repository":
+    - "https://github.com/kitproj/coding-context-cli"
+  "Report Issues":
+    - "https://github.com/kitproj/coding-context-cli/issues"
+
 # Footer content
 footer_content: 'Copyright &copy; 2024 Kitproj. Distributed under the <a href="https://github.com/kitproj/coding-context-cli/blob/main/LICENSE">MIT License</a>.'
 
@@ -36,3 +43,4 @@ exclude:
   - Gemfile.lock
   - node_modules
   - vendor
+  - README.md
