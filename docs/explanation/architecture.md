@@ -330,7 +330,6 @@ Error: no task found with task_name: fix-bug
 Searched:
   - ./.agents/tasks/
   - ~/.agents/tasks/
-  - /etc/agents/tasks/
 
 Tip: Check that your task file has 'task_name: fix-bug' in frontmatter
 ```
