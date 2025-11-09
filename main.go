@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -14,10 +16,11 @@ import (
 )
 
 var (
-	workDir  string
-	resume   bool
-	params   = make(paramMap)
-	includes = make(selectorMap)
+	workDir     string
+	resume      bool
+	params      = make(paramMap)
+	includes    = make(selectorMap)
+	remoteRules []string
 )
 
 func main() {
@@ -28,6 +31,14 @@ func main() {
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
+	flag.Func("remote-rule", "Add a remote rule URL (HTTP/HTTPS). Can be specified multiple times.", func(s string) error {
+		remoteRules = append(remoteRules, s)
+		return nil
+	})
+	flag.Func("remote-task", "Add a remote task search URL (HTTP/HTTPS). Can be specified multiple times.", func(s string) error {
+		// We'll handle remote tasks later, for now just accept the flag
+		return nil
+	})
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
@@ -75,13 +86,15 @@ func run(ctx context.Context, args []string) error {
 
 	var matchingTaskFile string
 	for _, dir := range taskSearchDirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("failed to stat task dir %s: %w", dir, err)
+		_, _, statErr := statFile(dir)
+		if statErr != nil {
+			if errors.Is(statErr, fs.ErrNotExist) {
+				continue
+			}
+			return fmt.Errorf("failed to stat task dir %s: %w", dir, statErr)
 		}
 
-		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		err := walkPath(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -136,7 +149,8 @@ func run(ctx context.Context, args []string) error {
 
 	// Skip rules processing in resume mode
 	if !resume {
-		for _, rule := range []string{
+		// Build the list of rule locations (local and remote)
+		rulePaths := []string{
 			"CLAUDE.local.md",
 
 			".agents/rules",
@@ -177,16 +191,23 @@ func run(ctx context.Context, args []string) error {
 			// system
 			"/etc/agents/rules",
 			"/etc/opencode/rules",
-		} {
+		}
+
+		// Append remote rules from command line flags
+		rulePaths = append(rulePaths, remoteRules...)
+
+		for _, rule := range rulePaths {
 
 			// Skip if the path doesn't exist
-			if _, err := os.Stat(rule); os.IsNotExist(err) {
-				continue
-			} else if err != nil {
-				return fmt.Errorf("failed to stat rule path %s: %w", rule, err)
+			_, _, statErr := statFile(rule)
+			if statErr != nil {
+				if errors.Is(statErr, fs.ErrNotExist) {
+					continue
+				}
+				return fmt.Errorf("failed to stat rule path %s: %w", rule, statErr)
 			}
 
-			err := filepath.Walk(rule, func(path string, info os.FileInfo, err error) error {
+			err := walkPath(rule, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
@@ -216,26 +237,30 @@ func run(ctx context.Context, args []string) error {
 
 				// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
 				// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
+				// Bootstrap scripts are only supported for local files, not remote URLs
 				baseNameWithoutExt := strings.TrimSuffix(path, ext)
 				bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
 
-				if _, err := os.Stat(bootstrapFilePath); err == nil {
-					// Bootstrap file exists, make it executable and run it before printing content
-					if err := os.Chmod(bootstrapFilePath, 0755); err != nil {
-						return fmt.Errorf("failed to chmod bootstrap file %s: %w", bootstrapFilePath, err)
+				// Only check for bootstrap scripts if this is a local file path (not URL)
+				if !strings.HasPrefix(path, "http://") && !strings.HasPrefix(path, "https://") {
+					if _, err := os.Stat(bootstrapFilePath); err == nil {
+						// Bootstrap file exists, make it executable and run it before printing content
+						if err := os.Chmod(bootstrapFilePath, 0755); err != nil {
+							return fmt.Errorf("failed to chmod bootstrap file %s: %w", bootstrapFilePath, err)
+						}
+
+						fmt.Fprintf(os.Stderr, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
+
+						cmd := exec.CommandContext(ctx, bootstrapFilePath)
+						cmd.Stdout = os.Stderr
+						cmd.Stderr = os.Stderr
+
+						if err := cmd.Run(); err != nil {
+							return fmt.Errorf("failed to run bootstrap script: %w", err)
+						}
+					} else if !os.IsNotExist(err) {
+						return fmt.Errorf("failed to stat bootstrap file %s: %w", bootstrapFilePath, err)
 					}
-
-					fmt.Fprintf(os.Stderr, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
-
-					cmd := exec.CommandContext(ctx, bootstrapFilePath)
-					cmd.Stdout = os.Stderr
-					cmd.Stderr = os.Stderr
-
-					if err := cmd.Run(); err != nil {
-						return fmt.Errorf("failed to run bootstrap script: %w", err)
-					}
-				} else if !os.IsNotExist(err) {
-					return fmt.Errorf("failed to stat bootstrap file %s: %w", bootstrapFilePath, err)
 				}
 
 				// Estimate tokens for this file
