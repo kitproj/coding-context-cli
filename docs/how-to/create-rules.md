@@ -1,6 +1,8 @@
 ---
 layout: default
 title: Create Rule Files
+parent: How-to Guides
+nav_order: 2
 ---
 
 # How to Create Rule Files

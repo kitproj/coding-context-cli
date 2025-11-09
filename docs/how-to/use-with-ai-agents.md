@@ -1,6 +1,8 @@
 ---
 layout: default
 title: Use with AI Agents
+parent: How-to Guides
+nav_order: 4
 ---
 
 # How to Use with AI Agents

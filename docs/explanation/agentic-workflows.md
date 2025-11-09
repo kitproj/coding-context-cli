@@ -1,6 +1,8 @@
 ---
 layout: default
 title: Understanding Agentic Workflows
+parent: Explanation
+nav_order: 1
 ---
 
 # Understanding Agentic Workflows

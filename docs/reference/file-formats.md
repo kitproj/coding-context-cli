@@ -1,6 +1,8 @@
 ---
 layout: default
 title: File Formats
+parent: Reference
+nav_order: 2
 ---
 
 # File Formats Reference

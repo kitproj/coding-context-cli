@@ -1,6 +1,8 @@
 ---
 layout: default
-title: Search Paths Reference
+title: Search Paths
+parent: Reference
+nav_order: 3
 ---
 
 # Search Paths Reference

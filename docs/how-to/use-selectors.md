@@ -1,6 +1,8 @@
 ---
 layout: default
 title: Use Frontmatter Selectors
+parent: How-to Guides
+nav_order: 3
 ---
 
 # How to Use Frontmatter Selectors
