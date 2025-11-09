@@ -17,7 +17,7 @@ func downloadRemoteDirectory(ctx context.Context, src string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %w", err)
 	}
-	
+
 	// go-getter requires the destination to not exist, so create a subdirectory
 	tmpDir := filepath.Join(tmpBase, "download")
 

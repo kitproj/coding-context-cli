@@ -14,11 +14,11 @@ import (
 )
 
 var (
-	workDir      string
-	resume       bool
-	params       = make(paramMap)
-	includes     = make(selectorMap)
-	remotePaths  []string
+	workDir     string
+	resume      bool
+	params      = make(paramMap)
+	includes    = make(selectorMap)
+	remotePaths []string
 )
 
 func main() {
