@@ -13,7 +13,6 @@ Task files are searched in the following directories, in order of precedence:
 
 1. `./.agents/tasks/`
 2. `~/.agents/tasks/`
-3. `/etc/agents/tasks/`
 
 ### Discovery Rules
 
@@ -28,12 +27,10 @@ Task files are searched in the following directories, in order of precedence:
 Project structure:
 ./.agents/tasks/fix-bug.md          (task_name: fix-bug)
 ~/.agents/tasks/code-review.md      (task_name: code-review)
-/etc/agents/tasks/deploy.md         (task_name: deploy)
 
 Commands:
 coding-context-cli fix-bug          → Uses ./.agents/tasks/fix-bug.md
 coding-context-cli code-review      → Uses ~/.agents/tasks/code-review.md
-coding-context-cli deploy           → Uses /etc/agents/tasks/deploy.md
 ```
 
 ## Rule File Search Paths
@@ -82,13 +79,6 @@ Rule files are discovered from multiple locations supporting various AI agent fo
 ~/.github/agents/
 ~/.codex/AGENTS.md
 ~/.gemini/styleguide.md
-```
-
-### System-Wide Rules (Lowest Precedence)
-
-```
-/etc/agents/rules/
-/etc/opencode/rules/
 ```
 
 ## Supported AI Agent Formats
@@ -144,7 +134,6 @@ When multiple rule files exist:
 1. Project-specific (`./.agents/rules/`)
 2. Parent directories (moving up)
 3. User-specific (`~/.agents/rules/`)
-4. System-wide (`/etc/agents/rules/`)
 
 All matching files are included (unless filtered by selectors).
 

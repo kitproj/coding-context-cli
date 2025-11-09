@@ -1117,4 +1117,3 @@ Please help with this task.
 		t.Errorf("task content not found in stdout")
 	}
 }
-

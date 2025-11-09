@@ -91,7 +91,6 @@ coding-context-cli \
 Task files must be in one of these directories:
 - `./.agents/tasks/`
 - `~/.agents/tasks/`
-- `/etc/agents/tasks/`
 
 The filename itself doesn't matter; only the `task_name` frontmatter field is used for selection.
 
