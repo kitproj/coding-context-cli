@@ -1050,206 +1050,206 @@ This is the resume task prompt for continuing the bug fix.
 }
 
 func TestRemoteRuleFromHTTP(t *testing.T) {
-// Build the binary
-binaryPath := filepath.Join(t.TempDir(), "coding-context")
-cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-if output, err := cmd.CombinedOutput(); err != nil {
-t.Fatalf("failed to build binary: %v\n%s", err, output)
-}
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
 
-// Create a test HTTP server serving rule files
-server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-if r.URL.Path == "/rules/remote-rule.md" {
-w.WriteHeader(http.StatusOK)
-w.Write([]byte(`---
+	// Create a test HTTP server serving rule files
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/rules/remote-rule.md" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`---
 ---
 # Remote Rule
 
 This is a rule loaded from HTTP.
 `))
-} else {
-w.WriteHeader(http.StatusNotFound)
-}
-}))
-defer server.Close()
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
 
-// Create a temporary directory structure for local task
-tmpDir := t.TempDir()
-tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+	// Create a temporary directory structure for local task
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-if err := os.MkdirAll(tasksDir, 0755); err != nil {
-t.Fatalf("failed to create tasks dir: %v", err)
-}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
 
-// Create a task file
-taskFile := filepath.Join(tasksDir, "test-task.md")
-taskContent := `---
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
 task_name: test-task
 ---
 # Test Task
 
 Please help with this task.
 `
-if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
-t.Fatalf("failed to write task file: %v", err)
-}
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
 
-// Run the binary with remote rule
-remoteRuleURL := server.URL + "/rules/remote-rule.md"
-cmd = exec.Command(binaryPath, "-C", tmpDir, "-remote-rule", remoteRuleURL, "test-task")
-output, err := cmd.CombinedOutput()
-if err != nil {
-t.Fatalf("failed to run binary: %v\n%s", err, output)
-}
+	// Run the binary with remote rule
+	remoteRuleURL := server.URL + "/rules/remote-rule.md"
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-remote-rule", remoteRuleURL, "test-task")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
 
-// Check that remote rule content is present
-outputStr := string(output)
-if !strings.Contains(outputStr, "# Remote Rule") {
-t.Errorf("remote rule content not found in stdout")
-}
-if !strings.Contains(outputStr, "This is a rule loaded from HTTP") {
-t.Errorf("remote rule description not found in stdout")
-}
+	// Check that remote rule content is present
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "# Remote Rule") {
+		t.Errorf("remote rule content not found in stdout")
+	}
+	if !strings.Contains(outputStr, "This is a rule loaded from HTTP") {
+		t.Errorf("remote rule description not found in stdout")
+	}
 
-// Check that task content is present
-if !strings.Contains(outputStr, "# Test Task") {
-t.Errorf("task content not found in stdout")
-}
+	// Check that task content is present
+	if !strings.Contains(outputStr, "# Test Task") {
+		t.Errorf("task content not found in stdout")
+	}
 }
 
 func TestRemoteRuleNotFound(t *testing.T) {
-// Build the binary
-binaryPath := filepath.Join(t.TempDir(), "coding-context")
-cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-if output, err := cmd.CombinedOutput(); err != nil {
-t.Fatalf("failed to build binary: %v\n%s", err, output)
-}
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
 
-// Create a test HTTP server that returns 404
-server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-w.WriteHeader(http.StatusNotFound)
-}))
-defer server.Close()
+	// Create a test HTTP server that returns 404
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
 
-// Create a temporary directory structure for local task
-tmpDir := t.TempDir()
-tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+	// Create a temporary directory structure for local task
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-if err := os.MkdirAll(tasksDir, 0755); err != nil {
-t.Fatalf("failed to create tasks dir: %v", err)
-}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
 
-// Create a task file
-taskFile := filepath.Join(tasksDir, "test-task.md")
-taskContent := `---
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
 task_name: test-task
 ---
 # Test Task
 
 Please help with this task.
 `
-if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
-t.Fatalf("failed to write task file: %v", err)
-}
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
 
-// Run the binary with remote rule that doesn't exist
-remoteRuleURL := server.URL + "/rules/nonexistent.md"
-cmd = exec.Command(binaryPath, "-C", tmpDir, "-remote-rule", remoteRuleURL, "test-task")
-output, err := cmd.CombinedOutput()
-if err != nil {
-t.Fatalf("failed to run binary: %v\n%s", err, output)
-}
+	// Run the binary with remote rule that doesn't exist
+	remoteRuleURL := server.URL + "/rules/nonexistent.md"
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-remote-rule", remoteRuleURL, "test-task")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
 
-// Should succeed but just skip the missing remote rule
-// Check that task content is present
-outputStr := string(output)
-if !strings.Contains(outputStr, "# Test Task") {
-t.Errorf("task content not found in stdout")
-}
+	// Should succeed but just skip the missing remote rule
+	// Check that task content is present
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "# Test Task") {
+		t.Errorf("task content not found in stdout")
+	}
 }
 
 func TestMultipleRemoteRules(t *testing.T) {
-// Build the binary
-binaryPath := filepath.Join(t.TempDir(), "coding-context")
-cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-if output, err := cmd.CombinedOutput(); err != nil {
-t.Fatalf("failed to build binary: %v\n%s", err, output)
-}
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
 
-// Create a test HTTP server serving multiple rule files
-server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-if r.URL.Path == "/rules/rule1.md" {
-w.WriteHeader(http.StatusOK)
-w.Write([]byte(`---
+	// Create a test HTTP server serving multiple rule files
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/rules/rule1.md" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`---
 ---
 # Rule 1
 
 First remote rule.
 `))
-} else if r.URL.Path == "/rules/rule2.md" {
-w.WriteHeader(http.StatusOK)
-w.Write([]byte(`---
+		} else if r.URL.Path == "/rules/rule2.md" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`---
 ---
 # Rule 2
 
 Second remote rule.
 `))
-} else {
-w.WriteHeader(http.StatusNotFound)
-}
-}))
-defer server.Close()
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
 
-// Create a temporary directory structure for local task
-tmpDir := t.TempDir()
-tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+	// Create a temporary directory structure for local task
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-if err := os.MkdirAll(tasksDir, 0755); err != nil {
-t.Fatalf("failed to create tasks dir: %v", err)
-}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
 
-// Create a task file
-taskFile := filepath.Join(tasksDir, "test-task.md")
-taskContent := `---
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
 task_name: test-task
 ---
 # Test Task
 
 Please help with this task.
 `
-if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
-t.Fatalf("failed to write task file: %v", err)
-}
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
 
-// Run the binary with multiple remote rules
-remoteRuleURL1 := server.URL + "/rules/rule1.md"
-remoteRuleURL2 := server.URL + "/rules/rule2.md"
-cmd = exec.Command(binaryPath, "-C", tmpDir, 
-"-remote-rule", remoteRuleURL1, 
-"-remote-rule", remoteRuleURL2, 
-"test-task")
-output, err := cmd.CombinedOutput()
-if err != nil {
-t.Fatalf("failed to run binary: %v\n%s", err, output)
-}
+	// Run the binary with multiple remote rules
+	remoteRuleURL1 := server.URL + "/rules/rule1.md"
+	remoteRuleURL2 := server.URL + "/rules/rule2.md"
+	cmd = exec.Command(binaryPath, "-C", tmpDir,
+		"-remote-rule", remoteRuleURL1,
+		"-remote-rule", remoteRuleURL2,
+		"test-task")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
 
-// Check that both remote rule contents are present
-outputStr := string(output)
-if !strings.Contains(outputStr, "# Rule 1") {
-t.Errorf("rule 1 content not found in stdout")
-}
-if !strings.Contains(outputStr, "# Rule 2") {
-t.Errorf("rule 2 content not found in stdout")
-}
-if !strings.Contains(outputStr, "First remote rule") {
-t.Errorf("rule 1 description not found in stdout")
-}
-if !strings.Contains(outputStr, "Second remote rule") {
-t.Errorf("rule 2 description not found in stdout")
-}
+	// Check that both remote rule contents are present
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "# Rule 1") {
+		t.Errorf("rule 1 content not found in stdout")
+	}
+	if !strings.Contains(outputStr, "# Rule 2") {
+		t.Errorf("rule 2 content not found in stdout")
+	}
+	if !strings.Contains(outputStr, "First remote rule") {
+		t.Errorf("rule 1 description not found in stdout")
+	}
+	if !strings.Contains(outputStr, "Second remote rule") {
+		t.Errorf("rule 2 description not found in stdout")
+	}
 
-// Check that task content is present
-if !strings.Contains(outputStr, "# Test Task") {
-t.Errorf("task content not found in stdout")
-}
+	// Check that task content is present
+	if !strings.Contains(outputStr, "# Test Task") {
+		t.Errorf("task content not found in stdout")
+	}
 }

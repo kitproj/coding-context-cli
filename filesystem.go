@@ -126,7 +126,7 @@ func (hfs *HTTPFileSystem) Walk(root string, fn filepath.WalkFunc) error {
 	// Reconstruct the full URL for the walk function
 	urlPath := filepath.ToSlash(root)
 	fullURL := hfs.baseURL + "/" + strings.TrimPrefix(urlPath, "/")
-	
+
 	// Call the walk function with the full URL so it can be opened later
 	return fn(fullURL, info, nil)
 }
