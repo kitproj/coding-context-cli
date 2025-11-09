@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	_ "embed"
-	"errors"
 	"flag"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -16,11 +14,11 @@ import (
 )
 
 var (
-	workDir     string
-	resume      bool
-	params      = make(paramMap)
-	includes    = make(selectorMap)
-	remoteRules []string
+	workDir      string
+	resume       bool
+	params       = make(paramMap)
+	includes     = make(selectorMap)
+	remotePaths  []string
 )
 
 func main() {
@@ -28,15 +26,11 @@ func main() {
 	defer cancel()
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
-	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
+	flag.BoolVar(&resume, "resume", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.Func("remote-rule", "Add a remote rule URL (HTTP/HTTPS). Can be specified multiple times.", func(s string) error {
-		remoteRules = append(remoteRules, s)
-		return nil
-	})
-	flag.Func("remote-task", "Add a remote task search URL (HTTP/HTTPS). Can be specified multiple times.", func(s string) error {
-		// We'll handle remote tasks later, for now just accept the flag
+	flag.Func("r", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
+		remotePaths = append(remotePaths, s)
 		return nil
 	})
 
@@ -67,6 +61,25 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to chdir to %s: %w", workDir, err)
 	}
 
+	// Download remote directories if specified
+	var downloadedDirs []string
+	defer func() {
+		// Clean up downloaded directories on exit
+		for _, dir := range downloadedDirs {
+			cleanupRemoteDirectory(dir)
+		}
+	}()
+
+	for _, remotePath := range remotePaths {
+		fmt.Fprintf(os.Stderr, "⪢ Downloading remote directory: %s\n", remotePath)
+		localPath, err := downloadRemoteDirectory(ctx, remotePath)
+		if err != nil {
+			return fmt.Errorf("failed to download remote directory %s: %w", remotePath, err)
+		}
+		downloadedDirs = append(downloadedDirs, localPath)
+		fmt.Fprintf(os.Stderr, "⪢ Downloaded to: %s\n", localPath)
+	}
+
 	// Add task name to includes so rules can be filtered by task
 	taskName := args[0]
 	includes["task_name"] = taskName
@@ -84,17 +97,21 @@ func run(ctx context.Context, args []string) error {
 		filepath.Join("/etc", "agents", "tasks"),
 	}
 
+	// Add downloaded remote directories to task search paths
+	for _, dir := range downloadedDirs {
+		taskSearchDirs = append(taskSearchDirs, filepath.Join(dir, ".agents", "tasks"))
+		taskSearchDirs = append(taskSearchDirs, filepath.Join(dir, "agents", "tasks"))
+	}
+
 	var matchingTaskFile string
 	for _, dir := range taskSearchDirs {
-		_, _, statErr := statFile(dir)
-		if statErr != nil {
-			if errors.Is(statErr, fs.ErrNotExist) {
-				continue
-			}
-			return fmt.Errorf("failed to stat task dir %s: %w", dir, statErr)
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return fmt.Errorf("failed to stat task dir %s: %w", dir, err)
 		}
 
-		err := walkPath(dir, func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -193,21 +210,38 @@ func run(ctx context.Context, args []string) error {
 			"/etc/opencode/rules",
 		}
 
-		// Append remote rules from command line flags
-		rulePaths = append(rulePaths, remoteRules...)
+		// Append remote directories to rule paths
+		for _, dir := range downloadedDirs {
+			rulePaths = append(rulePaths,
+				filepath.Join(dir, ".agents", "rules"),
+				filepath.Join(dir, "agents", "rules"),
+				filepath.Join(dir, ".cursor", "rules"),
+				filepath.Join(dir, ".augment", "rules"),
+				filepath.Join(dir, ".windsurf", "rules"),
+				filepath.Join(dir, ".opencode", "agent"),
+				filepath.Join(dir, ".opencode", "command"),
+				filepath.Join(dir, ".github", "copilot-instructions.md"),
+				filepath.Join(dir, ".gemini", "styleguide.md"),
+				filepath.Join(dir, ".github", "agents"),
+				filepath.Join(dir, ".augment", "guidelines.md"),
+				filepath.Join(dir, "AGENTS.md"),
+				filepath.Join(dir, "CLAUDE.md"),
+				filepath.Join(dir, "GEMINI.md"),
+				filepath.Join(dir, ".cursorrules"),
+				filepath.Join(dir, ".windsurfrules"),
+			)
+		}
 
 		for _, rule := range rulePaths {
 
 			// Skip if the path doesn't exist
-			_, _, statErr := statFile(rule)
-			if statErr != nil {
-				if errors.Is(statErr, fs.ErrNotExist) {
-					continue
-				}
-				return fmt.Errorf("failed to stat rule path %s: %w", rule, statErr)
+			if _, err := os.Stat(rule); os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to stat rule path %s: %w", rule, err)
 			}
 
-			err := walkPath(rule, func(path string, info os.FileInfo, err error) error {
+			err := filepath.Walk(rule, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
@@ -237,30 +271,26 @@ func run(ctx context.Context, args []string) error {
 
 				// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
 				// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
-				// Bootstrap scripts are only supported for local files, not remote URLs
 				baseNameWithoutExt := strings.TrimSuffix(path, ext)
 				bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
 
-				// Only check for bootstrap scripts if this is a local file path (not URL)
-				if !strings.HasPrefix(path, "http://") && !strings.HasPrefix(path, "https://") {
-					if _, err := os.Stat(bootstrapFilePath); err == nil {
-						// Bootstrap file exists, make it executable and run it before printing content
-						if err := os.Chmod(bootstrapFilePath, 0755); err != nil {
-							return fmt.Errorf("failed to chmod bootstrap file %s: %w", bootstrapFilePath, err)
-						}
-
-						fmt.Fprintf(os.Stderr, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
-
-						cmd := exec.CommandContext(ctx, bootstrapFilePath)
-						cmd.Stdout = os.Stderr
-						cmd.Stderr = os.Stderr
-
-						if err := cmd.Run(); err != nil {
-							return fmt.Errorf("failed to run bootstrap script: %w", err)
-						}
-					} else if !os.IsNotExist(err) {
-						return fmt.Errorf("failed to stat bootstrap file %s: %w", bootstrapFilePath, err)
+				if _, err := os.Stat(bootstrapFilePath); err == nil {
+					// Bootstrap file exists, make it executable and run it before printing content
+					if err := os.Chmod(bootstrapFilePath, 0755); err != nil {
+						return fmt.Errorf("failed to chmod bootstrap file %s: %w", bootstrapFilePath, err)
 					}
+
+					fmt.Fprintf(os.Stderr, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
+
+					cmd := exec.CommandContext(ctx, bootstrapFilePath)
+					cmd.Stdout = os.Stderr
+					cmd.Stderr = os.Stderr
+
+					if err := cmd.Run(); err != nil {
+						return fmt.Errorf("failed to run bootstrap script: %w", err)
+					}
+				} else if !os.IsNotExist(err) {
+					return fmt.Errorf("failed to stat bootstrap file %s: %w", bootstrapFilePath, err)
 				}
 
 				// Estimate tokens for this file

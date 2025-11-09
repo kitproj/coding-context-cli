@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"os"
 
 	yaml "go.yaml.in/yaml/v2"
 )
@@ -11,12 +12,11 @@ import (
 // parseMarkdownFile parses the file into frontmatter and content
 func parseMarkdownFile(path string, frontmatter any) (string, error) {
 
-	fh, fsys, err := openFile(path)
+	fh, err := os.Open(path)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer fh.Close()
-	_ = fsys // fsys is available if needed for future enhancements
 
 	s := bufio.NewScanner(fh)
 

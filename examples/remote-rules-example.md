@@ -1,25 +1,33 @@
-# Remote Rules Example
+# Remote Directory Example
 
-This example demonstrates how to use remote rule files with coding-context-cli.
+This example demonstrates how to use remote directories with coding-context-cli.
 
 ## Use Case
 
-You have coding standards hosted on a central server or CDN that you want to share across multiple projects. Instead of duplicating these files in each repository, you can load them from a remote URL.
+You have coding standards and tasks in a central Git repository or other remote location that you want to share across multiple projects. Instead of duplicating these files in each repository, you can load them from a remote directory.
 
 ## Example Setup
 
-### 1. Host Your Rules
+### 1. Create a Remote Repository
 
-Host your rule files on any HTTP/HTTPS server. For example:
+Create a Git repository with your shared rules and tasks:
 
-- GitHub Raw Files: `https://raw.githubusercontent.com/org/repo/main/rules/standards.md`
-- GitHub Pages: `https://org.github.io/repo/rules/standards.md`
-- CDN: `https://cdn.example.com/rules/standards.md`
-- Internal Server: `https://internal.company.com/rules/standards.md`
+```
+shared-rules/
+├── .agents/
+│   ├── rules/
+│   │   ├── coding-standards.md
+│   │   ├── security-guidelines.md
+│   │   └── testing-best-practices.md
+│   └── tasks/
+│       ├── code-review.md
+│       └── fix-security-issue.md
+└── README.md
+```
 
-### 2. Create a Remote Rule File
+### 2. Create Rule Files
 
-**Example: `coding-standards.md`**
+**Example: `.agents/rules/coding-standards.md`**
 
 ```markdown
 ---
@@ -33,37 +41,96 @@ language: Go
 - Add comments for exported functions
 ```
 
-### 3. Use the Remote Rule
+### 3. Use the Remote Directory
 
 ```bash
-# Single remote rule
+# Clone from Git repository
 coding-context-cli \
-  -remote-rule https://example.com/rules/coding-standards.md \
+  -r git::https://github.com/company/shared-rules.git \
   fix-bug
 
-# Multiple remote rules
+# Use a specific branch or tag
 coding-context-cli \
-  -remote-rule https://example.com/rules/coding-standards.md \
-  -remote-rule https://example.com/rules/security-guidelines.md \
-  -remote-rule https://example.com/rules/performance-best-practices.md \
+  -r 'git::https://github.com/company/shared-rules.git?ref=v1.0' \
   implement-feature
 
-# Mix local and remote rules
+# Use a subdirectory within the repo
 coding-context-cli \
-  -remote-rule https://example.com/shared/org-standards.md \
-  -s language=Go \
+  -r 'git::https://github.com/company/mono-repo.git//coding-standards' \
   refactor-code
+
+# Mix local and remote directories
+coding-context-cli \
+  -r git::https://github.com/company/shared-rules.git \
+  -s language=Go \
+  implement-feature
 ```
 
-## Real-World Example: GitHub Raw Files
+## Supported Protocols
 
-You can use GitHub to host your shared rules:
+The `-r` flag uses HashiCorp's go-getter library, which supports many protocols:
+
+### Git Repositories
+
+```bash
+# HTTPS
+coding-context-cli -r git::https://github.com/company/rules.git fix-bug
+
+# SSH
+coding-context-cli -r git::git@github.com:company/rules.git fix-bug
+
+# With authentication token
+coding-context-cli -r 'git::https://token@github.com/company/rules.git' fix-bug
+
+# Specific branch
+coding-context-cli -r 'git::https://github.com/company/rules.git?ref=main' fix-bug
+
+# Specific tag
+coding-context-cli -r 'git::https://github.com/company/rules.git?ref=v1.0.0' fix-bug
+
+# Specific commit
+coding-context-cli -r 'git::https://github.com/company/rules.git?ref=abc123' fix-bug
+
+# Subdirectory (note the double slash)
+coding-context-cli -r 'git::https://github.com/company/mono.git//standards' fix-bug
+```
+
+### HTTP/HTTPS
+
+```bash
+# Download and extract tar.gz
+coding-context-cli -r https://example.com/rules.tar.gz fix-bug
+
+# Download and extract zip
+coding-context-cli -r https://example.com/rules.zip fix-bug
+
+# File server directory
+coding-context-cli -r https://example.com/rules/ fix-bug
+```
+
+### S3 Buckets
+
+```bash
+# S3 bucket
+coding-context-cli -r s3::https://s3.amazonaws.com/bucket/rules fix-bug
+
+# With region
+coding-context-cli -r s3::https://s3-us-west-2.amazonaws.com/bucket/rules fix-bug
+```
+
+### Local Files
+
+```bash
+# Local directory (useful for testing)
+coding-context-cli -r file:///path/to/local/rules fix-bug
+```
+
+## Real-World Example: GitHub Repository
 
 ```bash
 # Load organization-wide coding standards from GitHub
 coding-context-cli \
-  -remote-rule https://raw.githubusercontent.com/company/shared-rules/main/coding-standards.md \
-  -remote-rule https://raw.githubusercontent.com/company/shared-rules/main/security.md \
+  -r git::https://github.com/company/shared-rules.git \
   -p component=auth \
   fix-security-issue | llm -m claude-3-sonnet
 ```
@@ -74,45 +141,51 @@ coding-context-cli \
 2. **Version Control**: Use git tags/branches to manage different versions of rules
 3. **No Duplication**: Don't need to copy rules into every repository
 4. **Easy Distribution**: Share rules across teams and organizations
-5. **Mix and Match**: Combine remote rules with local project-specific rules
+5. **Mix and Match**: Combine remote directories with local project-specific rules
+6. **Full Feature Support**: Bootstrap scripts work in downloaded directories
 
 ## Important Notes
 
-- Remote files are fetched on each invocation (no caching)
-- Bootstrap scripts are NOT supported for remote files
-- Missing remote files are silently skipped
-- Works with any HTTP/HTTPS endpoint
-- Respects standard HTTP status codes (404 = not found, etc.)
+- Remote directories are downloaded to a temporary location
+- Downloaded directories are cleaned up after execution
+- Bootstrap scripts are supported in remote directories
+- All standard directory structures are supported (`.agents/rules`, `.agents/tasks`, etc.)
+- Downloads happen on each invocation (use git caching for better performance)
 
 ## Troubleshooting
 
-### Remote file not loading
+### Remote directory not accessible
 
 Check:
-1. URL is accessible (test with `curl`)
-2. File is served with correct Content-Type
-3. No authentication required (basic auth not currently supported)
-4. URL is direct to the file (not a directory listing)
+1. URL is accessible (test with git clone or curl)
+2. Authentication is configured (SSH keys, tokens, etc.)
+3. Correct protocol prefix (git::, s3::, etc.)
+4. Network connectivity
 
 ### Performance concerns
 
-- Remote files are fetched on every run
-- Consider caching layer if you have many remote rules
-- Use a CDN for better performance across locations
+- Remote directories are downloaded on every run
+- Use git shallow clones for large repos (automatically done by go-getter)
+- Consider local caching strategies for frequently used remote directories
+- Use specific tags/commits for reproducible builds
 
-## Advanced: Dynamic Rules
+## Advanced: Multiple Remote Sources
 
-You can even use dynamic endpoints that generate rules on-the-fly:
+You can combine multiple remote directories:
 
 ```bash
-# Load rules from an API endpoint
+# Load from multiple sources
 coding-context-cli \
-  -remote-rule https://api.company.com/rules/current/coding-standards \
+  -r git::https://github.com/company/standards.git \
+  -r git::https://github.com/team/project-rules.git \
+  -r https://cdn.company.com/shared-rules.tar.gz \
   implement-feature
 ```
 
 This allows for:
-- Conditional rules based on project type
-- Time-based rules (e.g., different standards during migration periods)
-- Team-specific rules
-- Environment-specific guidelines
+- Company-wide standards from one repo
+- Team-specific rules from another repo  
+- Project-specific rules from a CDN
+- Local rules in the current directory
+
+All sources are merged together and processed as if they were in a single directory.

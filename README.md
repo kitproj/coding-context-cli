@@ -64,11 +64,10 @@ Options:
     	Change to directory before doing anything. (default ".")
   -p value
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
-  -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
-  -remote-rule value
-    	Add a remote rule URL (HTTP/HTTPS). Can be specified multiple times.
-  -remote-task value
-    	Add a remote task search URL (HTTP/HTTPS). Can be specified multiple times.
+  -r value
+    	Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).
+  -resume
+    	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
@@ -90,18 +89,26 @@ This command will:
 6. Print the combined context (rules + task) to `stdout`.
 7. Pipe the output to another program (in this case, `llm`).
 
-**Using remote rules:**
+**Using remote directories:**
 ```bash
 coding-context-cli \
-  -remote-rule https://example.com/shared-rules/coding-standards.md \
-  -remote-rule https://example.com/shared-rules/security-guidelines.md \
+  -r https://github.com/company/shared-rules.git \
+  -r s3::https://s3.amazonaws.com/my-bucket/coding-standards \
   fix-bug | llm -m gemini-pro
 ```
 
 This command will:
-1. Fetch remote rule files from the specified URLs
-2. Combine them with local rules and tasks
-3. Apply the same processing as with local files
+1. Download remote directories using go-getter
+2. Search for rules and tasks in the downloaded directories
+3. Combine them with local rules and tasks
+4. Apply the same processing as with local files
+
+The `-r` flag supports various protocols via go-getter:
+- `http://` and `https://` - HTTP/HTTPS URLs
+- `git::` - Git repositories  
+- `s3::` - S3 buckets
+- `file://` - Local file paths
+- And more (see go-getter documentation)
 
 ### Example Tasks
 
@@ -153,43 +160,53 @@ The tool supports loading rules and tasks from remote locations via HTTP/HTTPS U
 
 - **Shared team guidelines**: Host coding standards on a central server
 - **Organization-wide rules**: Distribute common rules across multiple projects
-- **Version-controlled context**: Serve rules from GitHub Pages, CDNs, or internal servers
+- **Version-controlled context**: Serve rules from Git repositories
 - **Dynamic rules**: Update shared rules without modifying individual repositories
 
 **Usage:**
 
 ```bash
-# Single remote rule
-coding-context-cli -remote-rule https://example.com/rules/coding-standards.md fix-bug
+# Clone a Git repository containing rules
+coding-context-cli -r git::https://github.com/company/shared-rules.git fix-bug
 
-# Multiple remote rules
+# Use multiple remote sources
 coding-context-cli \
-  -remote-rule https://example.com/rules/security.md \
-  -remote-rule https://example.com/rules/performance.md \
-  -remote-rule https://example.com/rules/style-guide.md \
+  -r git::https://github.com/company/shared-rules.git \
+  -r https://cdn.company.com/coding-standards \
   deploy
 
-# Mix local and remote rules
+# Mix local and remote directories
 coding-context-cli \
-  -remote-rule https://company.com/shared/coding-standards.md \
+  -r git::https://github.com/company/shared-rules.git \
   -s language=Go \
   implement-feature
 ```
 
-**Important notes:**
-- Remote rules must be direct URLs to `.md` or `.mdc` files
-- Bootstrap scripts are **not** supported for remote files (only local files)
-- Missing remote files are silently skipped (no error)
-- Remote files are fetched on each invocation (no caching currently)
-- Works with any HTTP/HTTPS server (GitHub raw files, CDNs, static sites, etc.)
+**Supported protocols (via go-getter):**
+- `http://` and `https://` - HTTP/HTTPS URLs (downloads tar.gz, zip, or directories)
+- `git::` - Git repositories (e.g., `git::https://github.com/user/repo.git`)
+- `s3::` - S3 buckets (e.g., `s3::https://s3.amazonaws.com/bucket/path`)
+- `file://` - Local file paths
+- And more - see [go-getter documentation](https://github.com/hashicorp/go-getter)
 
-**Example: Using GitHub raw files:**
+**Important notes:**
+- Remote directories are downloaded to a temporary location
+- Bootstrap scripts work in downloaded directories
+- Downloaded directories are cleaned up after execution
+- Supports all standard directory structures (`.agents/rules`, `.agents/tasks`, etc.)
+
+**Example: Using a Git repository:**
 
 ```bash
+# Use a specific branch or tag
 coding-context-cli \
-  -remote-rule https://raw.githubusercontent.com/company/shared-rules/main/coding-standards.md \
-  -remote-rule https://raw.githubusercontent.com/company/shared-rules/main/security.md \
+  -r 'git::https://github.com/company/shared-rules.git?ref=v1.0' \
   fix-bug
+
+# Use a subdirectory within the repo
+coding-context-cli \
+  -r 'git::https://github.com/company/mono-repo.git//coding-standards' \
+  implement-feature
 ```
 
 ## File Formats
@@ -241,14 +258,14 @@ coding-context-cli -s environment=production deploy
 
 ### Resume Mode
 
-Resume mode is designed for continuing work on a task where you've already established context. When using the `-r` flag:
+Resume mode is designed for continuing work on a task where you've already established context. When using the `-resume` flag:
 
 1. **Rules are skipped**: All rule files are excluded from output, saving tokens and reducing context size
 2. **Resume-specific task prompts are selected**: Automatically adds `-s resume=true` selector to find task files with `resume: true` in their frontmatter
 
 This is particularly useful in agentic workflows where an AI agent has already been primed with rules and is continuing work from a previous session.
 
-**The `-r` flag is shorthand for:**
+**The `-resume` flag is shorthand for:**
 - Adding `-s resume=true` selector
 - Skipping all rules output
 
@@ -259,7 +276,7 @@ This is particularly useful in agentic workflows where an AI agent has already b
 coding-context-cli -s resume=false fix-bug | ai-agent
 
 # Resume the task (skips rules, uses task with resume: true)
-coding-context-cli -r fix-bug | ai-agent
+coding-context-cli -resume fix-bug | ai-agent
 ```
 
 **Example task files for resume mode:**
