@@ -65,13 +65,18 @@ Options:
   -p value
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
   -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
+  -remote-rule value
+    	Add a remote rule URL (HTTP/HTTPS). Can be specified multiple times.
+  -remote-task value
+    	Add a remote task search URL (HTTP/HTTPS). Can be specified multiple times.
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
 ```
 
-### Example
+### Examples
 
+**Basic usage with local files:**
 ```bash
 coding-context-cli -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
 ```
@@ -84,6 +89,19 @@ This command will:
 5. Substitute `${jira_issue_key}` with `PROJ-1234` in the task prompt.
 6. Print the combined context (rules + task) to `stdout`.
 7. Pipe the output to another program (in this case, `llm`).
+
+**Using remote rules:**
+```bash
+coding-context-cli \
+  -remote-rule https://example.com/shared-rules/coding-standards.md \
+  -remote-rule https://example.com/shared-rules/security-guidelines.md \
+  fix-bug | llm -m gemini-pro
+```
+
+This command will:
+1. Fetch remote rule files from the specified URLs
+2. Combine them with local rules and tasks
+3. Apply the same processing as with local files
 
 ### Example Tasks
 
@@ -128,6 +146,51 @@ The tool searches for a variety of files and directories, including:
 - `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` (and in parent directories)
 - User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, `~/.opencode/rules`, etc.
 - System-wide rules in `/etc/agents/rules`, `/etc/opencode/rules`.
+
+### Remote File System Support
+
+The tool supports loading rules and tasks from remote locations via HTTP/HTTPS URLs. This enables:
+
+- **Shared team guidelines**: Host coding standards on a central server
+- **Organization-wide rules**: Distribute common rules across multiple projects
+- **Version-controlled context**: Serve rules from GitHub Pages, CDNs, or internal servers
+- **Dynamic rules**: Update shared rules without modifying individual repositories
+
+**Usage:**
+
+```bash
+# Single remote rule
+coding-context-cli -remote-rule https://example.com/rules/coding-standards.md fix-bug
+
+# Multiple remote rules
+coding-context-cli \
+  -remote-rule https://example.com/rules/security.md \
+  -remote-rule https://example.com/rules/performance.md \
+  -remote-rule https://example.com/rules/style-guide.md \
+  deploy
+
+# Mix local and remote rules
+coding-context-cli \
+  -remote-rule https://company.com/shared/coding-standards.md \
+  -s language=Go \
+  implement-feature
+```
+
+**Important notes:**
+- Remote rules must be direct URLs to `.md` or `.mdc` files
+- Bootstrap scripts are **not** supported for remote files (only local files)
+- Missing remote files are silently skipped (no error)
+- Remote files are fetched on each invocation (no caching currently)
+- Works with any HTTP/HTTPS server (GitHub raw files, CDNs, static sites, etc.)
+
+**Example: Using GitHub raw files:**
+
+```bash
+coding-context-cli \
+  -remote-rule https://raw.githubusercontent.com/company/shared-rules/main/coding-standards.md \
+  -remote-rule https://raw.githubusercontent.com/company/shared-rules/main/security.md \
+  fix-bug
+```
 
 ## File Formats
 
