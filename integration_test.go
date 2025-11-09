@@ -1046,3 +1046,75 @@ This is the resume task prompt for continuing the bug fix.
 		t.Errorf("resume mode: normal task content should not be in stdout")
 	}
 }
+
+func TestRemoteRuleFromHTTP(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a remote directory structure to serve
+	remoteDir := t.TempDir()
+	rulesDir := filepath.Join(remoteDir, ".agents", "rules")
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create remote rules dir: %v", err)
+	}
+
+	// Create a remote rule file
+	remoteRuleFile := filepath.Join(rulesDir, "remote-rule.md")
+	remoteRuleContent := `---
+---
+# Remote Rule
+
+This is a rule loaded from a remote directory.
+`
+	if err := os.WriteFile(remoteRuleFile, []byte(remoteRuleContent), 0644); err != nil {
+		t.Fatalf("failed to write remote rule file: %v", err)
+	}
+
+	// Create a temporary directory structure for local task
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+task_name: test-task
+---
+# Test Task
+
+Please help with this task.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary with remote directory (using file:// URL)
+	remoteURL := "file://" + remoteDir
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-d", remoteURL, "test-task")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	// Check that remote rule content is present
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "# Remote Rule") {
+		t.Errorf("remote rule content not found in stdout")
+	}
+	if !strings.Contains(outputStr, "This is a rule loaded from a remote directory") {
+		t.Errorf("remote rule description not found in stdout")
+	}
+
+	// Check that task content is present
+	if !strings.Contains(outputStr, "# Test Task") {
+		t.Errorf("task content not found in stdout")
+	}
+}
+

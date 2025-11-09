@@ -14,10 +14,11 @@ import (
 )
 
 var (
-	workDir  string
-	resume   bool
-	params   = make(paramMap)
-	includes = make(selectorMap)
+	workDir      string
+	resume       bool
+	params       = make(paramMap)
+	includes     = make(selectorMap)
+	remotePaths  []string
 )
 
 func main() {
@@ -28,6 +29,10 @@ func main() {
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
+	flag.Func("d", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
+		remotePaths = append(remotePaths, s)
+		return nil
+	})
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
@@ -56,6 +61,25 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to chdir to %s: %w", workDir, err)
 	}
 
+	// Download remote directories if specified
+	var downloadedDirs []string
+	defer func() {
+		// Clean up downloaded directories on exit
+		for _, dir := range downloadedDirs {
+			cleanupRemoteDirectory(dir)
+		}
+	}()
+
+	for _, remotePath := range remotePaths {
+		fmt.Fprintf(os.Stderr, "⪢ Downloading remote directory: %s\n", remotePath)
+		localPath, err := downloadRemoteDirectory(ctx, remotePath)
+		if err != nil {
+			return fmt.Errorf("failed to download remote directory %s: %w", remotePath, err)
+		}
+		downloadedDirs = append(downloadedDirs, localPath)
+		fmt.Fprintf(os.Stderr, "⪢ Downloaded to: %s\n", localPath)
+	}
+
 	// Add task name to includes so rules can be filtered by task
 	taskName := args[0]
 	includes["task_name"] = taskName
@@ -71,6 +95,12 @@ func run(ctx context.Context, args []string) error {
 		filepath.Join(".agents", "tasks"),
 		filepath.Join(homeDir, ".agents", "tasks"),
 		filepath.Join("/etc", "agents", "tasks"),
+	}
+
+	// Add downloaded remote directories to task search paths
+	for _, dir := range downloadedDirs {
+		taskSearchDirs = append(taskSearchDirs, filepath.Join(dir, ".agents", "tasks"))
+		taskSearchDirs = append(taskSearchDirs, filepath.Join(dir, "agents", "tasks"))
 	}
 
 	var matchingTaskFile string
@@ -136,7 +166,8 @@ func run(ctx context.Context, args []string) error {
 
 	// Skip rules processing in resume mode
 	if !resume {
-		for _, rule := range []string{
+		// Build the list of rule locations (local and remote)
+		rulePaths := []string{
 			"CLAUDE.local.md",
 
 			".agents/rules",
@@ -177,7 +208,31 @@ func run(ctx context.Context, args []string) error {
 			// system
 			"/etc/agents/rules",
 			"/etc/opencode/rules",
-		} {
+		}
+
+		// Append remote directories to rule paths
+		for _, dir := range downloadedDirs {
+			rulePaths = append(rulePaths,
+				filepath.Join(dir, ".agents", "rules"),
+				filepath.Join(dir, "agents", "rules"),
+				filepath.Join(dir, ".cursor", "rules"),
+				filepath.Join(dir, ".augment", "rules"),
+				filepath.Join(dir, ".windsurf", "rules"),
+				filepath.Join(dir, ".opencode", "agent"),
+				filepath.Join(dir, ".opencode", "command"),
+				filepath.Join(dir, ".github", "copilot-instructions.md"),
+				filepath.Join(dir, ".gemini", "styleguide.md"),
+				filepath.Join(dir, ".github", "agents"),
+				filepath.Join(dir, ".augment", "guidelines.md"),
+				filepath.Join(dir, "AGENTS.md"),
+				filepath.Join(dir, "CLAUDE.md"),
+				filepath.Join(dir, "GEMINI.md"),
+				filepath.Join(dir, ".cursorrules"),
+				filepath.Join(dir, ".windsurfrules"),
+			)
+		}
+
+		for _, rule := range rulePaths {
 
 			// Skip if the path doesn't exist
 			if _, err := os.Stat(rule); os.IsNotExist(err) {

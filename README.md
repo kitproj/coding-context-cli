@@ -62,6 +62,8 @@ Usage:
 Options:
   -C string
     	Change to directory before doing anything. (default ".")
+  -d value
+    	Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).
   -p value
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
   -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
@@ -70,8 +72,9 @@ Options:
     	Note: Only matches top-level YAML fields in frontmatter.
 ```
 
-### Example
+### Examples
 
+**Basic usage with local files:**
 ```bash
 coding-context-cli -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
 ```
@@ -84,6 +87,27 @@ This command will:
 5. Substitute `${jira_issue_key}` with `PROJ-1234` in the task prompt.
 6. Print the combined context (rules + task) to `stdout`.
 7. Pipe the output to another program (in this case, `llm`).
+
+**Using remote directories:**
+```bash
+coding-context-cli \
+  -d git::https://github.com/company/shared-rules.git \
+  -d s3::https://s3.amazonaws.com/my-bucket/coding-standards \
+  fix-bug | llm -m gemini-pro
+```
+
+This command will:
+1. Download remote directories using go-getter
+2. Search for rules and tasks in the downloaded directories
+3. Combine them with local rules and tasks
+4. Apply the same processing as with local files
+
+The `-d` flag supports various protocols via go-getter:
+- `http://` and `https://` - HTTP/HTTPS URLs
+- `git::` - Git repositories  
+- `s3::` - S3 buckets
+- `file://` - Local file paths
+- And more (see go-getter documentation)
 
 ### Example Tasks
 
@@ -128,6 +152,61 @@ The tool searches for a variety of files and directories, including:
 - `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` (and in parent directories)
 - User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, `~/.opencode/rules`, etc.
 - System-wide rules in `/etc/agents/rules`, `/etc/opencode/rules`.
+
+### Remote File System Support
+
+The tool supports loading rules and tasks from remote locations via HTTP/HTTPS URLs. This enables:
+
+- **Shared team guidelines**: Host coding standards on a central server
+- **Organization-wide rules**: Distribute common rules across multiple projects
+- **Version-controlled context**: Serve rules from Git repositories
+- **Dynamic rules**: Update shared rules without modifying individual repositories
+
+**Usage:**
+
+```bash
+# Clone a Git repository containing rules
+coding-context-cli -d git::https://github.com/company/shared-rules.git fix-bug
+
+# Use multiple remote sources
+coding-context-cli \
+  -d git::https://github.com/company/shared-rules.git \
+  -d https://cdn.company.com/coding-standards \
+  deploy
+
+# Mix local and remote directories
+coding-context-cli \
+  -d git::https://github.com/company/shared-rules.git \
+  -s language=Go \
+  implement-feature
+```
+
+**Supported protocols (via go-getter):**
+- `http://` and `https://` - HTTP/HTTPS URLs (downloads tar.gz, zip, or directories)
+- `git::` - Git repositories (e.g., `git::https://github.com/user/repo.git`)
+- `s3::` - S3 buckets (e.g., `s3::https://s3.amazonaws.com/bucket/path`)
+- `file://` - Local file paths
+- And more - see [go-getter documentation](https://github.com/hashicorp/go-getter)
+
+**Important notes:**
+- Remote directories are downloaded to a temporary location
+- Bootstrap scripts work in downloaded directories
+- Downloaded directories are cleaned up after execution
+- Supports all standard directory structures (`.agents/rules`, `.agents/tasks`, etc.)
+
+**Example: Using a Git repository:**
+
+```bash
+# Use a specific branch or tag
+coding-context-cli \
+  -d 'git::https://github.com/company/shared-rules.git?ref=v1.0' \
+  fix-bug
+
+# Use a subdirectory within the repo
+coding-context-cli \
+  -d 'git::https://github.com/company/mono-repo.git//coding-standards' \
+  implement-feature
+```
 
 ## File Formats
 
