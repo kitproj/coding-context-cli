@@ -30,7 +30,7 @@ This tool is compatible with configuration files from various AI coding agents a
 - **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md`
 - **Generic AI Agents**: `AGENTS.md`, `.agents/rules`
 
-The tool automatically discovers and includes rules from these locations in your project, parent directories, user home directory (`~`), and system-wide directories (`/etc`).
+The tool automatically discovers and includes rules from these locations in your project, parent directories, and user home directory (`~`).
 
 ## Agentic Workflows
 
@@ -142,7 +142,6 @@ The tool looks for task and rule files in the following locations, in order of p
 **Tasks:**
 - `./.agents/tasks/*.md` (any `.md` file with matching `task_name` in frontmatter)
 - `~/.agents/tasks/*.md`
-- `/etc/agents/tasks/*.md`
 
 **Rules:**
 The tool searches for a variety of files and directories, including:
@@ -151,7 +150,6 @@ The tool searches for a variety of files and directories, including:
 - `.github/copilot-instructions.md`, `.gemini/styleguide.md`
 - `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` (and in parent directories)
 - User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, `~/.opencode/rules`, etc.
-- System-wide rules in `/etc/agents/rules`, `/etc/opencode/rules`.
 
 ### Remote File System Support
 

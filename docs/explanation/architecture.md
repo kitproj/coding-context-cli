@@ -55,7 +55,6 @@ Search paths (in order):
 1. Project-specific: ./.agents/rules/, ./.cursor/rules/, etc.
 2. Parent directories: ../AGENTS.md, ../../AGENTS.md, etc.
 3. User-specific: ~/.agents/rules/, ~/.claude/CLAUDE.md, etc.
-4. System-wide: /etc/agents/rules/
 ```
 
 For each location:
@@ -114,7 +113,6 @@ Search task file locations for files with matching `task_name`:
 Search paths:
 1. ./.agents/tasks/*.md
 2. ~/.agents/tasks/*.md
-3. /etc/agents/tasks/*.md
 ```
 
 For each `.md` file:

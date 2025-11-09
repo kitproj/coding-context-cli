@@ -94,13 +94,11 @@ func run(ctx context.Context, args []string) error {
 	taskSearchDirs := []string{
 		filepath.Join(".agents", "tasks"),
 		filepath.Join(homeDir, ".agents", "tasks"),
-		filepath.Join("/etc", "agents", "tasks"),
 	}
 
 	// Add downloaded remote directories to task search paths
 	for _, dir := range downloadedDirs {
 		taskSearchDirs = append(taskSearchDirs, filepath.Join(dir, ".agents", "tasks"))
-		taskSearchDirs = append(taskSearchDirs, filepath.Join(dir, "agents", "tasks"))
 	}
 
 	var matchingTaskFile string
@@ -204,17 +202,12 @@ func run(ctx context.Context, args []string) error {
 			filepath.Join(homeDir, ".codex", "AGENTS.md"),
 			filepath.Join(homeDir, ".gemini", "GEMINI.md"),
 			filepath.Join(homeDir, ".opencode", "rules"),
-
-			// system
-			"/etc/agents/rules",
-			"/etc/opencode/rules",
 		}
 
 		// Append remote directories to rule paths
 		for _, dir := range downloadedDirs {
 			rulePaths = append(rulePaths,
 				filepath.Join(dir, ".agents", "rules"),
-				filepath.Join(dir, "agents", "rules"),
 				filepath.Join(dir, ".cursor", "rules"),
 				filepath.Join(dir, ".augment", "rules"),
 				filepath.Join(dir, ".windsurf", "rules"),
