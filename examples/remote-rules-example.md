@@ -46,22 +46,22 @@ language: Go
 ```bash
 # Clone from Git repository
 coding-context-cli \
-  -r git::https://github.com/company/shared-rules.git \
+  -d git::https://github.com/company/shared-rules.git \
   fix-bug
 
 # Use a specific branch or tag
 coding-context-cli \
-  -r 'git::https://github.com/company/shared-rules.git?ref=v1.0' \
+  -d 'git::https://github.com/company/shared-rules.git?ref=v1.0' \
   implement-feature
 
 # Use a subdirectory within the repo
 coding-context-cli \
-  -r 'git::https://github.com/company/mono-repo.git//coding-standards' \
+  -d 'git::https://github.com/company/mono-repo.git//coding-standards' \
   refactor-code
 
 # Mix local and remote directories
 coding-context-cli \
-  -r git::https://github.com/company/shared-rules.git \
+  -d git::https://github.com/company/shared-rules.git \
   -s language=Go \
   implement-feature
 ```
@@ -74,55 +74,55 @@ The `-r` flag uses HashiCorp's go-getter library, which supports many protocols:
 
 ```bash
 # HTTPS
-coding-context-cli -r git::https://github.com/company/rules.git fix-bug
+coding-context-cli -d git::https://github.com/company/rules.git fix-bug
 
 # SSH
-coding-context-cli -r git::git@github.com:company/rules.git fix-bug
+coding-context-cli -d git::git@github.com:company/rules.git fix-bug
 
 # With authentication token
-coding-context-cli -r 'git::https://token@github.com/company/rules.git' fix-bug
+coding-context-cli -d 'git::https://token@github.com/company/rules.git' fix-bug
 
 # Specific branch
-coding-context-cli -r 'git::https://github.com/company/rules.git?ref=main' fix-bug
+coding-context-cli -d 'git::https://github.com/company/rules.git?ref=main' fix-bug
 
 # Specific tag
-coding-context-cli -r 'git::https://github.com/company/rules.git?ref=v1.0.0' fix-bug
+coding-context-cli -d 'git::https://github.com/company/rules.git?ref=v1.0.0' fix-bug
 
 # Specific commit
-coding-context-cli -r 'git::https://github.com/company/rules.git?ref=abc123' fix-bug
+coding-context-cli -d 'git::https://github.com/company/rules.git?ref=abc123' fix-bug
 
 # Subdirectory (note the double slash)
-coding-context-cli -r 'git::https://github.com/company/mono.git//standards' fix-bug
+coding-context-cli -d 'git::https://github.com/company/mono.git//standards' fix-bug
 ```
 
 ### HTTP/HTTPS
 
 ```bash
 # Download and extract tar.gz
-coding-context-cli -r https://example.com/rules.tar.gz fix-bug
+coding-context-cli -d https://example.com/rules.tar.gz fix-bug
 
 # Download and extract zip
-coding-context-cli -r https://example.com/rules.zip fix-bug
+coding-context-cli -d https://example.com/rules.zip fix-bug
 
 # File server directory
-coding-context-cli -r https://example.com/rules/ fix-bug
+coding-context-cli -d https://example.com/rules/ fix-bug
 ```
 
 ### S3 Buckets
 
 ```bash
 # S3 bucket
-coding-context-cli -r s3::https://s3.amazonaws.com/bucket/rules fix-bug
+coding-context-cli -d s3::https://s3.amazonaws.com/bucket/rules fix-bug
 
 # With region
-coding-context-cli -r s3::https://s3-us-west-2.amazonaws.com/bucket/rules fix-bug
+coding-context-cli -d s3::https://s3-us-west-2.amazonaws.com/bucket/rules fix-bug
 ```
 
 ### Local Files
 
 ```bash
 # Local directory (useful for testing)
-coding-context-cli -r file:///path/to/local/rules fix-bug
+coding-context-cli -d file:///path/to/local/rules fix-bug
 ```
 
 ## Real-World Example: GitHub Repository
@@ -130,7 +130,7 @@ coding-context-cli -r file:///path/to/local/rules fix-bug
 ```bash
 # Load organization-wide coding standards from GitHub
 coding-context-cli \
-  -r git::https://github.com/company/shared-rules.git \
+  -d git::https://github.com/company/shared-rules.git \
   -p component=auth \
   fix-security-issue | llm -m claude-3-sonnet
 ```
@@ -176,9 +176,9 @@ You can combine multiple remote directories:
 ```bash
 # Load from multiple sources
 coding-context-cli \
-  -r git::https://github.com/company/standards.git \
-  -r git::https://github.com/team/project-rules.git \
-  -r https://cdn.company.com/shared-rules.tar.gz \
+  -d git::https://github.com/company/standards.git \
+  -d git::https://github.com/team/project-rules.git \
+  -d https://cdn.company.com/shared-rules.tar.gz \
   implement-feature
 ```
 

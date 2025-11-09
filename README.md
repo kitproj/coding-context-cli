@@ -62,12 +62,11 @@ Usage:
 Options:
   -C string
     	Change to directory before doing anything. (default ".")
+  -d value
+    	Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).
   -p value
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
-  -r value
-    	Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).
-  -resume
-    	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
+  -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
@@ -92,8 +91,8 @@ This command will:
 **Using remote directories:**
 ```bash
 coding-context-cli \
-  -r https://github.com/company/shared-rules.git \
-  -r s3::https://s3.amazonaws.com/my-bucket/coding-standards \
+  -d git::https://github.com/company/shared-rules.git \
+  -d s3::https://s3.amazonaws.com/my-bucket/coding-standards \
   fix-bug | llm -m gemini-pro
 ```
 
@@ -103,7 +102,7 @@ This command will:
 3. Combine them with local rules and tasks
 4. Apply the same processing as with local files
 
-The `-r` flag supports various protocols via go-getter:
+The `-d` flag supports various protocols via go-getter:
 - `http://` and `https://` - HTTP/HTTPS URLs
 - `git::` - Git repositories  
 - `s3::` - S3 buckets
@@ -167,17 +166,17 @@ The tool supports loading rules and tasks from remote locations via HTTP/HTTPS U
 
 ```bash
 # Clone a Git repository containing rules
-coding-context-cli -r git::https://github.com/company/shared-rules.git fix-bug
+coding-context-cli -d git::https://github.com/company/shared-rules.git fix-bug
 
 # Use multiple remote sources
 coding-context-cli \
-  -r git::https://github.com/company/shared-rules.git \
-  -r https://cdn.company.com/coding-standards \
+  -d git::https://github.com/company/shared-rules.git \
+  -d https://cdn.company.com/coding-standards \
   deploy
 
 # Mix local and remote directories
 coding-context-cli \
-  -r git::https://github.com/company/shared-rules.git \
+  -d git::https://github.com/company/shared-rules.git \
   -s language=Go \
   implement-feature
 ```
@@ -200,12 +199,12 @@ coding-context-cli \
 ```bash
 # Use a specific branch or tag
 coding-context-cli \
-  -r 'git::https://github.com/company/shared-rules.git?ref=v1.0' \
+  -d 'git::https://github.com/company/shared-rules.git?ref=v1.0' \
   fix-bug
 
 # Use a subdirectory within the repo
 coding-context-cli \
-  -r 'git::https://github.com/company/mono-repo.git//coding-standards' \
+  -d 'git::https://github.com/company/mono-repo.git//coding-standards' \
   implement-feature
 ```
 
@@ -258,14 +257,14 @@ coding-context-cli -s environment=production deploy
 
 ### Resume Mode
 
-Resume mode is designed for continuing work on a task where you've already established context. When using the `-resume` flag:
+Resume mode is designed for continuing work on a task where you've already established context. When using the `-r` flag:
 
 1. **Rules are skipped**: All rule files are excluded from output, saving tokens and reducing context size
 2. **Resume-specific task prompts are selected**: Automatically adds `-s resume=true` selector to find task files with `resume: true` in their frontmatter
 
 This is particularly useful in agentic workflows where an AI agent has already been primed with rules and is continuing work from a previous session.
 
-**The `-resume` flag is shorthand for:**
+**The `-r` flag is shorthand for:**
 - Adding `-s resume=true` selector
 - Skipping all rules output
 
@@ -276,7 +275,7 @@ This is particularly useful in agentic workflows where an AI agent has already b
 coding-context-cli -s resume=false fix-bug | ai-agent
 
 # Resume the task (skips rules, uses task with resume: true)
-coding-context-cli -resume fix-bug | ai-agent
+coding-context-cli -r fix-bug | ai-agent
 ```
 
 **Example task files for resume mode:**

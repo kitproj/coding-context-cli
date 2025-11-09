@@ -1024,8 +1024,8 @@ This is the resume task prompt for continuing the bug fix.
 		t.Errorf("normal mode: resume task content should not be in stdout")
 	}
 
-	// Test 2: Run in resume mode (with -resume flag)
-	cmd = exec.Command(binaryPath, "-C", tmpDir, "-resume", "fix-bug")
+	// Test 2: Run in resume mode (with -r flag)
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-r", "fix-bug")
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run binary in resume mode: %v\n%s", err, output)
@@ -1097,7 +1097,7 @@ Please help with this task.
 
 	// Run the binary with remote directory (using file:// URL)
 	remoteURL := "file://" + remoteDir
-	cmd = exec.Command(binaryPath, "-C", tmpDir, "-r", remoteURL, "test-task")
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-d", remoteURL, "test-task")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run binary: %v\n%s", err, output)
