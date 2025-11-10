@@ -153,6 +153,27 @@ coding-context-cli \
 
 The AI agent will receive the assembled context and provide a response based on your coding standards and task requirements.
 
+## Bonus: Using Remote Directories
+
+You can also load rules and tasks from remote repositories instead of creating local files:
+
+```bash
+# Load rules from a Git repository
+coding-context-cli \
+  -d git::https://github.com/company/shared-coding-rules.git \
+  -p issue_key=BUG-123 \
+  -p description="Application crashes on startup" \
+  -s language=Go \
+  fix-bug | llm -m claude-3-5-sonnet-20241022
+```
+
+This is useful for:
+- Sharing organizational coding standards across projects
+- Centralizing team guidelines
+- Avoiding duplication of rule files
+
+Learn more in the [How to Use Remote Directories](../how-to/use-remote-directories) guide.
+
 ## What You've Learned
 
 You've successfully:
@@ -161,10 +182,12 @@ You've successfully:
 - ✅ Created a rule file with frontmatter selectors
 - ✅ Assembled context with parameters and selectors
 - ✅ Used the assembled context with an AI agent
+- ✅ Learned about loading rules from remote directories
 
 ## Next Steps
 
 Now that you understand the basics, explore:
+- [How to Use Remote Directories](../how-to/use-remote-directories) - Load rules from Git, HTTP, or S3
 - [How-to Guides](../how-to/) - Solve specific problems
 - [Reference Documentation](../reference/) - Detailed technical information
 - [Explanations](../explanation/) - Understand concepts in depth

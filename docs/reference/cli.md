@@ -44,6 +44,48 @@ Change to the specified directory before processing files.
 coding-context-cli -C /path/to/project fix-bug
 ```
 
+### `-d <url>`
+
+**Type:** String (URL or path)  
+**Repeatable:** Yes
+
+Load rules and tasks from a remote directory. The directory is downloaded to a temporary location before processing and cleaned up afterward.
+
+Supports various protocols via [go-getter](https://github.com/hashicorp/go-getter):
+- `git::` - Git repositories (HTTPS, SSH)
+- `http://`, `https://` - HTTP/HTTPS URLs (tar.gz, zip, directories)
+- `s3::` - S3 buckets
+- `file://` - Local file paths
+
+**Examples:**
+```bash
+# Load from Git repository
+coding-context-cli -d git::https://github.com/company/shared-rules.git fix-bug
+
+# Use specific branch or tag
+coding-context-cli -d 'git::https://github.com/company/shared-rules.git?ref=v1.0' fix-bug
+
+# Use subdirectory within repository (note the double slash)
+coding-context-cli -d 'git::https://github.com/company/mono-repo.git//standards' fix-bug
+
+# Load from HTTP archive
+coding-context-cli -d https://example.com/coding-rules.tar.gz fix-bug
+
+# Multiple remote sources
+coding-context-cli \
+  -d git::https://github.com/company/shared-rules.git \
+  -d https://cdn.example.com/team-rules.zip \
+  fix-bug
+
+# Mix local and remote
+coding-context-cli \
+  -d git::https://github.com/company/org-standards.git \
+  -s language=Go \
+  fix-bug
+```
+
+**See also:** [How to Use Remote Directories](../how-to/use-remote-directories)
+
 ### `-p <key>=<value>`
 
 **Type:** Key-value pair  
@@ -175,6 +217,26 @@ coding-context-cli -C /path/to/project fix-bug
 # Run from subdirectory
 cd backend
 coding-context-cli fix-bug  # Uses backend/.agents/ if it exists
+```
+
+### Remote Directories
+
+```bash
+# Load from Git repository
+coding-context-cli -d git::https://github.com/company/shared-rules.git fix-bug
+
+# Use specific version
+coding-context-cli -d 'git::https://github.com/company/rules.git?ref=v1.0.0' fix-bug
+
+# Combine multiple sources
+coding-context-cli \
+  -d git::https://github.com/company/org-standards.git \
+  -d git::https://github.com/team/project-rules.git \
+  -s language=Go \
+  implement-feature
+
+# Load from HTTP archive
+coding-context-cli -d https://cdn.company.com/rules.tar.gz code-review
 ```
 
 ### Resume Mode

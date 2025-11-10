@@ -39,6 +39,7 @@ Practical guides to solve specific problems:
 - [Create Task Files](./how-to/create-tasks) - Define what AI agents should do
 - [Create Rule Files](./how-to/create-rules) - Provide reusable context
 - [Use Frontmatter Selectors](./how-to/use-selectors) - Filter rules and tasks
+- [Use Remote Directories](./how-to/use-remote-directories) - Load rules from Git, HTTP, or S3
 - [Use with AI Agents](./how-to/use-with-ai-agents) - Integrate with various AI tools
 - [Integrate with GitHub Actions](./how-to/github-actions) - Automate with CI/CD
 
@@ -64,6 +65,7 @@ Conceptual guides to deepen your understanding:
 ## Key Features
 
 - **Dynamic Context Assembly**: Merges context from various source files
+- **Remote Directories**: Load rules from Git, HTTP, S3, and other sources
 - **Task-Specific Prompts**: Different prompts for different tasks
 - **Rule-Based Context**: Reusable context snippets
 - **Frontmatter Filtering**: Select rules based on metadata
