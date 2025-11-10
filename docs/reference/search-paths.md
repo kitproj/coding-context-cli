@@ -9,7 +9,30 @@ nav_order: 3
 
 Complete reference for where the CLI searches for task files and rule files.
 
-## Task File Search Paths
+## Remote Directories
+
+When using the `-d` flag, the CLI downloads remote directories to a temporary location and includes them in the search paths.
+
+**Example:**
+```bash
+coding-context-cli -d git::https://github.com/company/shared-rules.git fix-bug
+```
+
+The downloaded directory is searched for rules and tasks in all standard locations (`.agents/rules/`, `.agents/tasks/`, `AGENTS.md`, etc.) before being automatically cleaned up.
+
+Multiple remote directories can be specified and are processed in the order given:
+```bash
+coding-context-cli \
+  -d git::https://github.com/company/org-standards.git \
+  -d git::https://github.com/team/team-rules.git \
+  fix-bug
+```
+
+See [How to Use Remote Directories](../how-to/use-remote-directories) for complete documentation.
+
+## Local Search Paths
+
+### Task File Search Paths
 
 Task files are searched in the following directories, in order of precedence:
 
@@ -22,6 +45,7 @@ Task files are searched in the following directories, in order of precedence:
 - The filename doesn't matter; only the `task_name` frontmatter field
 - First match wins (unless selectors create ambiguity)
 - Searches stop when a matching task is found
+- Remote directories (via `-d` flag) are searched before local directories
 
 ### Example
 
@@ -39,7 +63,17 @@ coding-context-cli code-review      → Uses ~/.agents/tasks/code-review.md
 
 Rule files are discovered from multiple locations supporting various AI agent formats.
 
-### Project-Specific Rules (Highest Precedence)
+### Remote Directories (Highest Precedence)
+
+When using `-d` flag, remote directories are searched first:
+
+```bash
+coding-context-cli -d git::https://github.com/company/rules.git fix-bug
+```
+
+The remote directory is searched for all standard file patterns listed below.
+
+### Project-Specific Rules
 
 **Agent-specific directories:**
 ```
