@@ -42,7 +42,7 @@ func TestSelectorMap_Set(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := make(selectorMap)
+			s := make(context.SelectorMap)
 			err := s.Set(tt.value)
 
 			if (err != nil) != tt.wantErr {
@@ -64,7 +64,7 @@ func TestSelectorMap_Set(t *testing.T) {
 }
 
 func TestSelectorMap_SetMultiple(t *testing.T) {
-	s := make(selectorMap)
+	s := make(context.SelectorMap)
 	if err := s.Set("env=production"); err != nil {
 		t.Fatalf("Set() error = %v", err)
 	}
@@ -154,7 +154,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := make(selectorMap)
+			s := make(context.SelectorMap)
 			for _, sel := range tt.selectors {
 				if err := s.Set(sel); err != nil {
 					t.Fatalf("Set() error = %v", err)
@@ -227,7 +227,7 @@ func TestSelectorMap_MatchesExcludes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := make(selectorMap)
+			s := make(context.SelectorMap)
 			for _, sel := range tt.selectors {
 				if err := s.Set(sel); err != nil {
 					t.Fatalf("Set() error = %v", err)
@@ -242,7 +242,7 @@ func TestSelectorMap_MatchesExcludes(t *testing.T) {
 }
 
 func TestSelectorMap_String(t *testing.T) {
-	s := make(selectorMap)
+	s := make(context.SelectorMap)
 	s.Set("env=production")
 	s.Set("language=go")
 

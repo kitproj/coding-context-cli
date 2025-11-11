@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/kitproj/coding-context-cli/context"
+)
 
 func TestEstimateTokens(t *testing.T) {
 	tests := []struct {
@@ -56,9 +60,9 @@ This is content.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := estimateTokens(tt.text)
+			got := context.EstimateTokens(tt.text)
 			if got != tt.want {
-				t.Errorf("estimateTokens() = %d, want %d", got, tt.want)
+				t.Errorf("context.EstimateTokens() = %d, want %d", got, tt.want)
 			}
 		})
 	}

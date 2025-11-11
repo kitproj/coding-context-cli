@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/kitproj/coding-context-cli/context"
 )
 
 func TestParseMarkdownFile(t *testing.T) {
@@ -69,26 +71,26 @@ This is the content.
 
 			// Parse the file
 			var frontmatter map[string]string
-			content, err := parseMarkdownFile(tmpFile, &frontmatter)
+			content, err := context.ParseMarkdownFile(tmpFile, &frontmatter)
 
 			// Check error
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseMarkdownFile() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("context.ParseMarkdownFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			// Check content
 			if content != tt.wantContent {
-				t.Errorf("parseMarkdownFile() content = %q, want %q", content, tt.wantContent)
+				t.Errorf("context.ParseMarkdownFile() content = %q, want %q", content, tt.wantContent)
 			}
 
 			// Check frontmatter
 			if len(frontmatter) != len(tt.wantFrontmatter) {
-				t.Errorf("parseMarkdownFile() frontmatter length = %d, want %d", len(frontmatter), len(tt.wantFrontmatter))
+				t.Errorf("context.ParseMarkdownFile() frontmatter length = %d, want %d", len(frontmatter), len(tt.wantFrontmatter))
 			}
 			for k, v := range tt.wantFrontmatter {
 				if frontmatter[k] != v {
-					t.Errorf("parseMarkdownFile() frontmatter[%q] = %q, want %q", k, frontmatter[k], v)
+					t.Errorf("context.ParseMarkdownFile() frontmatter[%q] = %q, want %q", k, frontmatter[k], v)
 				}
 			}
 		})
@@ -97,8 +99,8 @@ This is the content.
 
 func TestParseMarkdownFile_FileNotFound(t *testing.T) {
 	var frontmatter map[string]string
-	_, err := parseMarkdownFile("/nonexistent/file.md", &frontmatter)
+	_, err := context.ParseMarkdownFile("/nonexistent/file.md", &frontmatter)
 	if err == nil {
-		t.Error("parseMarkdownFile() expected error for non-existent file, got nil")
+		t.Error("context.ParseMarkdownFile() expected error for non-existent file, got nil")
 	}
 }
