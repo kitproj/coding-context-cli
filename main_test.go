@@ -591,12 +591,13 @@ func TestRunBootstrapScript(t *testing.T) {
 
 func TestWriteTaskFileContent(t *testing.T) {
 	tests := []struct {
-		name           string
-		taskFile       string
-		params         paramMap
-		setupFiles     func(t *testing.T, tmpDir string) string // returns task file path
-		expectInOutput string
-		wantErr        bool
+		name                string
+		taskFile            string
+		params              paramMap
+		emitTaskFrontmatter bool
+		setupFiles          func(t *testing.T, tmpDir string) string // returns task file path
+		expectInOutput      string
+		wantErr             bool
 	}{
 		{
 			name:     "simple task",
@@ -659,6 +660,21 @@ func TestWriteTaskFileContent(t *testing.T) {
 			expectInOutput: "Hello Bob, your value is ${missing}.",
 			wantErr:        false,
 		},
+		{
+			name:                "task with frontmatter emission enabled",
+			taskFile:            "task.md",
+			params:              paramMap{},
+			emitTaskFrontmatter: true,
+			setupFiles: func(t *testing.T, tmpDir string) string {
+				taskPath := filepath.Join(tmpDir, "task.md")
+				createMarkdownFile(t, taskPath,
+					"task_name: test_task\nenv: production\nversion: 1.0",
+					"# Task with Frontmatter\nThis task has frontmatter.")
+				return taskPath
+			},
+			expectInOutput: "task_name: test_task",
+			wantErr:        false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -668,10 +684,11 @@ func TestWriteTaskFileContent(t *testing.T) {
 
 			var output, logOut bytes.Buffer
 			cc := &codingContext{
-				matchingTaskFile: taskPath,
-				params:           tt.params,
-				output:           &output,
-				logOut:           &logOut,
+				matchingTaskFile:    taskPath,
+				params:              tt.params,
+				emitTaskFrontmatter: tt.emitTaskFrontmatter,
+				output:              &output,
+				logOut:              &logOut,
 			}
 
 			err := cc.writeTaskFileContent()
@@ -686,10 +703,26 @@ func TestWriteTaskFileContent(t *testing.T) {
 				}
 			}
 
+			outputStr := output.String()
 			if tt.expectInOutput != "" {
-				outputStr := output.String()
 				if !strings.Contains(outputStr, tt.expectInOutput) {
 					t.Errorf("writeTaskFileContent() output should contain %q, got:\n%s", tt.expectInOutput, outputStr)
+				}
+			}
+
+			// Additional checks for frontmatter emission
+			if tt.emitTaskFrontmatter {
+				// Verify frontmatter delimiters are present
+				if !strings.Contains(outputStr, "---") {
+					t.Errorf("writeTaskFileContent() with emitTaskFrontmatter=true should contain '---' delimiters, got:\n%s", outputStr)
+				}
+				// Verify YAML frontmatter structure
+				if !strings.Contains(outputStr, "task_name:") {
+					t.Errorf("writeTaskFileContent() with emitTaskFrontmatter=true should contain 'task_name:' field, got:\n%s", outputStr)
+				}
+				// Verify task content is still present
+				if !strings.Contains(outputStr, "# Task with Frontmatter") {
+					t.Errorf("writeTaskFileContent() should contain task content, got:\n%s", outputStr)
 				}
 			}
 

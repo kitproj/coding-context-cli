@@ -12,14 +12,17 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	yaml "github.com/goccy/go-yaml"
 )
 
 type codingContext struct {
-	workDir     string
-	resume      bool
-	params      paramMap
-	includes    selectorMap
-	remotePaths []string
+	workDir             string
+	resume              bool
+	params              paramMap
+	includes            selectorMap
+	remotePaths         []string
+	emitTaskFrontmatter bool
 
 	downloadedDirs   []string
 	matchingTaskFile string
@@ -45,6 +48,7 @@ func main() {
 
 	flag.StringVar(&cc.workDir, "C", ".", "Change to directory before doing anything.")
 	flag.BoolVar(&cc.resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
+	flag.BoolVar(&cc.emitTaskFrontmatter, "t", false, "Print task frontmatter at the beginning of output.")
 	flag.Var(&cc.params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&cc.includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Func("d", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
@@ -281,7 +285,9 @@ func (cc *codingContext) runBootstrapScript(ctx context.Context, path, ext strin
 }
 
 func (cc *codingContext) writeTaskFileContent() error {
-	content, err := parseMarkdownFile(cc.matchingTaskFile, &struct{}{})
+	taskMatter := make(map[string]any)
+
+	content, err := parseMarkdownFile(cc.matchingTaskFile, &taskMatter)
 	if err != nil {
 		return fmt.Errorf("failed to parse prompt file %s: %w", cc.matchingTaskFile, err)
 	}
@@ -298,6 +304,15 @@ func (cc *codingContext) writeTaskFileContent() error {
 	tokens := estimateTokens(expanded)
 	cc.totalTokens += tokens
 	fmt.Fprintf(cc.logOut, "⪢ Including task file: %s (~%d tokens)\n", cc.matchingTaskFile, tokens)
+
+	if cc.emitTaskFrontmatter {
+		fmt.Fprintln(cc.output, "---")
+		if err := yaml.NewEncoder(cc.output).Encode(taskMatter); err != nil {
+			return fmt.Errorf("failed to encode task matter: %w", err)
+		}
+		fmt.Fprintln(cc.output, "---")
+	}
+
 	fmt.Fprintln(cc.output, expanded)
 
 	// Print total token count
