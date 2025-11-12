@@ -6,18 +6,11 @@ import (
 	"fmt"
 	"os"
 
-	"gopkg.in/yaml.v3"
+	yaml "github.com/goccy/go-yaml"
 )
 
 // parseMarkdownFile parses the file into frontmatter and content
 func parseMarkdownFile(path string, frontmatter any) (string, error) {
-	content, _, err := parseMarkdownFileWithRawFrontmatter(path, frontmatter)
-	return content, err
-}
-
-// parseMarkdownFileWithRawFrontmatter parses the file and returns content and raw frontmatter text
-func parseMarkdownFileWithRawFrontmatter(path string, frontmatter any) (string, string, error) {
-
 	fh, err := os.Open(path)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to open file: %w", err)
