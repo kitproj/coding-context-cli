@@ -14,11 +14,12 @@ import (
 )
 
 var (
-	workDir     string
-	resume      bool
-	params      = make(paramMap)
-	includes    = make(selectorMap)
-	remotePaths []string
+	workDir              string
+	resume               bool
+	printTaskFrontmatter bool
+	params               = make(paramMap)
+	includes             = make(selectorMap)
+	remotePaths          []string
 )
 
 func main() {
@@ -27,6 +28,7 @@ func main() {
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
+	flag.BoolVar(&printTaskFrontmatter, "t", false, "Print task frontmatter at the beginning of output.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Func("d", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
@@ -161,6 +163,21 @@ func run(ctx context.Context, args []string) error {
 
 	// Track total tokens
 	var totalTokens int
+
+	// Parse task file to get frontmatter and content
+	var taskFrontmatter frontMatter
+	taskContent, taskRawFrontmatter, err := parseMarkdownFileWithRawFrontmatter(taskPromptPath, &taskFrontmatter)
+	if err != nil {
+		return fmt.Errorf("failed to parse prompt file %s: %w", taskPromptPath, err)
+	}
+
+	// Print task frontmatter at the beginning if requested
+	if printTaskFrontmatter {
+		fmt.Println("---")
+		fmt.Print(taskRawFrontmatter)
+		fmt.Println("---")
+		fmt.Println()
+	}
 
 	// Skip rules processing in resume mode
 	if !resume {
@@ -301,12 +318,7 @@ func run(ctx context.Context, args []string) error {
 		}
 	} // end of if !resume
 
-	content, err := parseMarkdownFile(taskPromptPath, &struct{}{})
-	if err != nil {
-		return fmt.Errorf("failed to parse prompt file %s: %w", taskPromptPath, err)
-	}
-
-	expanded := os.Expand(content, func(key string) string {
+	expanded := os.Expand(taskContent, func(key string) string {
 		if val, ok := params[key]; ok {
 			return val
 		}
