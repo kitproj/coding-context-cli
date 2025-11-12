@@ -1117,3 +1117,143 @@ Please help with this task.
 		t.Errorf("task content not found in stdout")
 	}
 }
+
+func TestPrintTaskFrontmatter(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+	if err := os.MkdirAll(tasksDir, 0755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "test-rule.md")
+	ruleContent := `---
+language: go
+---
+# Test Rule
+
+This is a test rule.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	// Create a task file with frontmatter
+	taskFile := filepath.Join(tasksDir, "test-task.md")
+	taskContent := `---
+task_name: test-task
+author: tester
+version: 1.0
+---
+# Test Task
+
+This is a test task.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Test without -t flag (should not print frontmatter)
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "test-task")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary without -t: %v\n%s", err, output)
+	}
+
+	outputStr := string(output)
+	// Should not contain frontmatter delimiters in the main output
+	lines := strings.Split(outputStr, "\n")
+	if len(lines) > 0 && lines[0] == "---" {
+		t.Errorf("frontmatter should not be printed without -t flag")
+	}
+	// Task content should be present
+	if !strings.Contains(outputStr, "# Test Task") {
+		t.Errorf("task content not found in output without -t flag")
+	}
+	// Rule content should be present
+	if !strings.Contains(outputStr, "# Test Rule") {
+		t.Errorf("rule content not found in output without -t flag")
+	}
+
+	// Test with -t flag (should print frontmatter)
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "-t", "test-task")
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary with -t: %v\n%s", err, output)
+	}
+
+	outputStr = string(output)
+	lines = strings.Split(outputStr, "\n")
+	
+	// First line should be frontmatter delimiter
+	if lines[0] != "---" {
+		t.Errorf("expected first line to be '---', got %q", lines[0])
+	}
+	
+	// Should contain task frontmatter fields
+	if !strings.Contains(outputStr, "task_name: test-task") {
+		t.Errorf("task frontmatter field 'task_name' not found in output")
+	}
+	if !strings.Contains(outputStr, "author: tester") {
+		t.Errorf("task frontmatter field 'author' not found in output")
+	}
+	if !strings.Contains(outputStr, "version: 1.0") {
+		t.Errorf("task frontmatter field 'version' not found in output")
+	}
+	
+	// Find the second --- (end of frontmatter)
+	secondDelimiterIdx := -1
+	for i := 1; i < len(lines); i++ {
+		if lines[i] == "---" {
+			secondDelimiterIdx = i
+			break
+		}
+	}
+	if secondDelimiterIdx == -1 {
+		t.Errorf("expected to find closing frontmatter delimiter '---'")
+	}
+	
+	// Rule content should appear after frontmatter
+	if !strings.Contains(outputStr, "# Test Rule") {
+		t.Errorf("rule content not found in output with -t flag")
+	}
+	
+	// Task content should appear after rules
+	if !strings.Contains(outputStr, "# Test Task") {
+		t.Errorf("task content not found in output with -t flag")
+	}
+	
+	// Verify order: frontmatter should come before rules, rules before task content
+	frontmatterIdx := strings.Index(outputStr, "task_name: test-task")
+	ruleIdx := strings.Index(outputStr, "# Test Rule")
+	taskIdx := strings.Index(outputStr, "# Test Task")
+	
+	if frontmatterIdx == -1 || ruleIdx == -1 || taskIdx == -1 {
+		t.Fatalf("could not find all required sections in output")
+	}
+	
+	if frontmatterIdx > ruleIdx {
+		t.Errorf("frontmatter should appear before rules")
+	}
+	if ruleIdx > taskIdx {
+		t.Errorf("rules should appear before task content")
+	}
+	
+	// Rule frontmatter should NOT be printed
+	if strings.Contains(outputStr, "language: go") {
+		t.Errorf("rule frontmatter should not be printed in output")
+	}
+}
