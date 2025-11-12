@@ -172,7 +172,7 @@ func run(ctx context.Context, args []string) error {
 	}
 
 	// Print task frontmatter at the beginning if requested
-	if printTaskFrontmatter && taskRawFrontmatter != "" {
+	if printTaskFrontmatter {
 		fmt.Println("---")
 		fmt.Print(taskRawFrontmatter)
 		fmt.Println("---")
