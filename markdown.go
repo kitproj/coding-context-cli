@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	yaml "go.yaml.in/yaml/v2"
+	"gopkg.in/yaml.v3"
 )
 
 // parseMarkdownFile parses the file into frontmatter and content
