@@ -9,6 +9,26 @@ import (
 	getter "github.com/hashicorp/go-getter/v2"
 )
 
+func (cc *codingContext) downloadRemoteDirectories(ctx context.Context) error {
+	for _, remotePath := range cc.remotePaths {
+		fmt.Fprintf(os.Stderr, "⪢ Downloading remote directory: %s\n", remotePath)
+		localPath, err := downloadRemoteDirectory(ctx, remotePath)
+		if err != nil {
+			return fmt.Errorf("failed to download remote directory %s: %w", remotePath, err)
+		}
+		cc.downloadedDirs = append(cc.downloadedDirs, localPath)
+		fmt.Fprintf(os.Stderr, "⪢ Downloaded to: %s\n", localPath)
+	}
+
+	return nil
+}
+
+func (cc *codingContext) cleanupDownloadedDirectories() {
+	for _, dir := range cc.downloadedDirs {
+		cleanupRemoteDirectory(dir)
+	}
+}
+
 // downloadRemoteDirectory downloads a remote directory using go-getter
 // and returns the local path where it was downloaded
 func downloadRemoteDirectory(ctx context.Context, src string) (string, error) {
