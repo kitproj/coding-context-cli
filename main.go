@@ -26,6 +26,8 @@ type codingContext struct {
 
 	downloadedDirs   []string
 	matchingTaskFile string
+	taskFrontmatter  frontMatter // Parsed task frontmatter
+	taskContent      string      // Parsed task content (before parameter expansion)
 	totalTokens      int
 	output           io.Writer
 	logOut           io.Writer
@@ -89,8 +91,8 @@ func (cc *codingContext) run(ctx context.Context, args []string) error {
 
 	// Add task name to includes so rules can be filtered by task
 	taskName := args[0]
-	cc.includes["task_name"] = taskName
-	cc.includes["resume"] = fmt.Sprint(cc.resume)
+	cc.includes["task_name"] = []string{taskName}
+	cc.includes["resume"] = []string{fmt.Sprint(cc.resume)}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -101,12 +103,21 @@ func (cc *codingContext) run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to find task file: %w", err)
 	}
 
+	// Parse task file early to extract selector labels for filtering rules and tools
+	if err := cc.parseTaskFile(); err != nil {
+		return fmt.Errorf("failed to parse task file: %w", err)
+	}
+
+	if err := cc.printTaskFrontmatter(); err != nil {
+		return fmt.Errorf("failed to emit task frontmatter: %w", err)
+	}
+
 	if err := cc.findExecuteRuleFiles(ctx, homeDir); err != nil {
 		return fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
-	if err := cc.writeTaskFileContent(); err != nil {
-		return fmt.Errorf("failed to write task file content: %w", err)
+	if err := cc.emitTaskFileContent(); err != nil {
+		return fmt.Errorf("failed to emit task file content: %w", err)
 	}
 
 	return nil
@@ -284,15 +295,79 @@ func (cc *codingContext) runBootstrapScript(ctx context.Context, path, ext strin
 	return nil
 }
 
-func (cc *codingContext) writeTaskFileContent() error {
-	taskMatter := make(map[string]any)
+// parseTaskFile parses the task file and extracts selector labels from frontmatter.
+// The selectors are added to cc.includes for filtering rules and tools.
+// The parsed frontmatter and content are stored in cc.taskFrontmatter and cc.taskContent.
+func (cc *codingContext) parseTaskFile() error {
+	cc.taskFrontmatter = make(frontMatter)
 
-	content, err := parseMarkdownFile(cc.matchingTaskFile, &taskMatter)
+	content, err := parseMarkdownFile(cc.matchingTaskFile, &cc.taskFrontmatter)
 	if err != nil {
-		return fmt.Errorf("failed to parse prompt file %s: %w", cc.matchingTaskFile, err)
+		return fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, err)
 	}
 
-	expanded := os.Expand(content, func(key string) string {
+	cc.taskContent = content
+
+	// Extract selector labels from frontmatter
+	// Look for a "selectors" field that contains a map of key-value pairs
+	// Values can be strings or arrays (for OR logic)
+	if selectorsRaw, ok := cc.taskFrontmatter["selectors"]; ok {
+		selectorsMap, ok := selectorsRaw.(map[string]any)
+		if !ok {
+			// Try to handle it as a map[interface{}]interface{} (common YAML unmarshal result)
+			if selectorsMapAny, ok := selectorsRaw.(map[any]any); ok {
+				selectorsMap = make(map[string]any)
+				for k, v := range selectorsMapAny {
+					selectorsMap[fmt.Sprint(k)] = v
+				}
+			} else {
+				return fmt.Errorf("task file %s has invalid 'selectors' field: expected map, got %T", cc.matchingTaskFile, selectorsRaw)
+			}
+		}
+
+		// Add selectors to includes
+		// Convert all values to []string slices for OR logic
+		for key, value := range selectorsMap {
+			var strSlice []string
+			switch v := value.(type) {
+			case []any:
+				// Convert []any to []string
+				strSlice = make([]string, len(v))
+				for i, item := range v {
+					strSlice[i] = fmt.Sprint(item)
+				}
+			case string:
+				// Convert string to single-element slice
+				strSlice = []string{v}
+			default:
+				return fmt.Errorf("task file %s has invalid selector value for key %q: expected string or array, got %T", cc.matchingTaskFile, key, value)
+			}
+			cc.includes[key] = strSlice
+		}
+	}
+
+	return nil
+}
+
+// emitTaskFrontmatterOnly emits only the task frontmatter to the output.
+// This is used to print frontmatter before rules when -t flag is set.
+func (cc *codingContext) printTaskFrontmatter() error {
+	if !cc.emitTaskFrontmatter {
+		return nil
+	}
+
+	fmt.Fprintln(cc.output, "---")
+	if err := yaml.NewEncoder(cc.output).Encode(cc.taskFrontmatter); err != nil {
+		return fmt.Errorf("failed to encode task frontmatter: %w", err)
+	}
+	fmt.Fprintln(cc.output, "---")
+	return nil
+}
+
+// emitTaskFileContent emits the parsed task content to the output.
+// It expands parameters, estimates tokens, and optionally includes frontmatter.
+func (cc *codingContext) emitTaskFileContent() error {
+	expanded := os.Expand(cc.taskContent, func(key string) string {
 		if val, ok := cc.params[key]; ok {
 			return val
 		}
@@ -304,14 +379,6 @@ func (cc *codingContext) writeTaskFileContent() error {
 	tokens := estimateTokens(expanded)
 	cc.totalTokens += tokens
 	fmt.Fprintf(cc.logOut, "⪢ Including task file: %s (~%d tokens)\n", cc.matchingTaskFile, tokens)
-
-	if cc.emitTaskFrontmatter {
-		fmt.Fprintln(cc.output, "---")
-		if err := yaml.NewEncoder(cc.output).Encode(taskMatter); err != nil {
-			return fmt.Errorf("failed to encode task matter: %w", err)
-		}
-		fmt.Fprintln(cc.output, "---")
-	}
 
 	fmt.Fprintln(cc.output, expanded)
 
