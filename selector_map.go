@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 )
 
-// selectorMap stores selector key-value pairs where values are always string slices
-// Multiple values for the same key use OR logic (match any value in the slice)
-type selectorMap map[string][]string
+// selectorMap stores selector key-value pairs where values are stored in inner maps
+// Multiple values for the same key use OR logic (match any value in the inner map)
+// Each value can be represented exactly once per key
+type selectorMap map[string]map[string]bool
 
 func (s *selectorMap) String() string {
 	if *s == nil {
@@ -16,10 +16,14 @@ func (s *selectorMap) String() string {
 	}
 	var parts []string
 	for k, v := range *s {
-		if len(v) == 1 {
-			parts = append(parts, fmt.Sprintf("%s=%s", k, v[0]))
+		values := make([]string, 0, len(v))
+		for val := range v {
+			values = append(values, val)
+		}
+		if len(values) == 1 {
+			parts = append(parts, fmt.Sprintf("%s=%s", k, values[0]))
 		} else {
-			parts = append(parts, fmt.Sprintf("%s=%v", k, v))
+			parts = append(parts, fmt.Sprintf("%s=%v", k, values))
 		}
 	}
 	return fmt.Sprintf("{%s}", strings.Join(parts, ", "))
@@ -37,22 +41,39 @@ func (s *selectorMap) Set(value string) error {
 	key := strings.TrimSpace(kv[0])
 	newValue := strings.TrimSpace(kv[1])
 
-	// If key already exists, append to slice for OR logic
-	if existingValues, exists := (*s)[key]; exists {
-		// Check if new value is already in the slice
-		if !slices.Contains(existingValues, newValue) {
-			(*s)[key] = append(existingValues, newValue)
-		}
-	} else {
-		// Key doesn't exist, store as single-element slice
-		(*s)[key] = []string{newValue}
-	}
+	s.SetValue(key, newValue)
 	return nil
+}
+
+// SetValue sets a value in the inner map for the given key.
+// If the key doesn't exist, it creates a new inner map.
+// Each value can be represented exactly once per key.
+func (s *selectorMap) SetValue(key, value string) {
+	if *s == nil {
+		*s = make(selectorMap)
+	}
+	if (*s)[key] == nil {
+		(*s)[key] = make(map[string]bool)
+	}
+	(*s)[key][value] = true
+}
+
+// GetValue returns true if the given value exists in the inner map for the given key.
+// Returns false if the key doesn't exist or the value is not present.
+func (s *selectorMap) GetValue(key, value string) bool {
+	if *s == nil {
+		return false
+	}
+	innerMap, exists := (*s)[key]
+	if !exists {
+		return false
+	}
+	return innerMap[value]
 }
 
 // matchesIncludes returns true if the frontmatter matches all include selectors
 // If a key doesn't exist in frontmatter, it's allowed
-// Multiple values for the same key use OR logic (matches if frontmatter value is in the slice)
+// Multiple values for the same key use OR logic (matches if frontmatter value is in the inner map)
 func (includes *selectorMap) matchesIncludes(frontmatter frontMatter) bool {
 	for key, values := range *includes {
 		fmValue, exists := frontmatter[key]
@@ -61,9 +82,9 @@ func (includes *selectorMap) matchesIncludes(frontmatter frontMatter) bool {
 			continue
 		}
 
-		// Check if frontmatter value matches any element in the slice (OR logic)
+		// Check if frontmatter value matches any element in the inner map (OR logic)
 		fmStr := fmt.Sprint(fmValue)
-		if !slices.Contains(values, fmStr) {
+		if !values[fmStr] {
 			return false
 		}
 	}

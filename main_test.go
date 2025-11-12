@@ -209,7 +209,7 @@ func TestFindTaskFile(t *testing.T) {
 			name:     "task with matching selector",
 			taskName: "filtered_task",
 			includes: selectorMap{
-				"env": []string{"prod"},
+				"env": map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
@@ -223,7 +223,7 @@ func TestFindTaskFile(t *testing.T) {
 			name:     "task with non-matching selector",
 			taskName: "filtered_task",
 			includes: selectorMap{
-				"env": []string{"dev"},
+				"env": map[string]bool{"dev": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
@@ -273,7 +273,7 @@ func TestFindTaskFile(t *testing.T) {
 			if cc.includes == nil {
 				cc.includes = make(selectorMap)
 			}
-			cc.includes["task_name"] = []string{tt.taskName}
+			cc.includes.SetValue("task_name", tt.taskName)
 
 			// Set downloadedDirs if specified in test case
 			if len(tt.downloadedDirs) > 0 {
@@ -340,7 +340,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			name:   "exclude rule with non-matching selector",
 			resume: false,
 			includes: selectorMap{
-				"env": []string{"prod"},
+				"env": map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
 				createMarkdownFile(t, filepath.Join(tmpDir, "CLAUDE.md"),
@@ -353,7 +353,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			name:   "include rule with matching selector",
 			resume: false,
 			includes: selectorMap{
-				"env": []string{"prod"},
+				"env": map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
 				createMarkdownFile(t, filepath.Join(tmpDir, "CLAUDE.md"),
@@ -780,8 +780,8 @@ func TestParseTaskFile(t *testing.T) {
 			taskFile:        "task.md",
 			initialIncludes: make(selectorMap),
 			expectedIncludes: selectorMap{
-				"language": []string{"Go"},
-				"env":      []string{"prod"},
+				"language": map[string]bool{"Go": true},
+				"env":      map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
@@ -795,10 +795,10 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "task with selectors merges with existing includes",
 			taskFile:        "task.md",
-			initialIncludes: selectorMap{"existing": []string{"value"}},
+			initialIncludes: selectorMap{"existing": map[string]bool{"value": true}},
 			expectedIncludes: selectorMap{
-				"existing": []string{"value"},
-				"language": []string{"Python"},
+				"existing": map[string]bool{"value": true},
+				"language": map[string]bool{"Python": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
@@ -814,7 +814,7 @@ func TestParseTaskFile(t *testing.T) {
 			taskFile:        "task.md",
 			initialIncludes: make(selectorMap),
 			expectedIncludes: selectorMap{
-				"rule_name": []string{"rule1", "rule2"},
+				"rule_name": map[string]bool{"rule1": true, "rule2": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
@@ -872,13 +872,13 @@ func TestParseTaskFile(t *testing.T) {
 					if actualValue, ok := cc.includes[key]; !ok {
 						t.Errorf("parseTaskFile() expected includes[%q] = %v, but key not found", key, expectedValue)
 					} else {
-						// Compare []string slices
+						// Compare map[string]bool structures
 						if len(actualValue) != len(expectedValue) {
-							t.Errorf("parseTaskFile() includes[%q] array length = %d, want %d", key, len(actualValue), len(expectedValue))
+							t.Errorf("parseTaskFile() includes[%q] map length = %d, want %d", key, len(actualValue), len(expectedValue))
 						} else {
-							for i, expectedVal := range expectedValue {
-								if actualValue[i] != expectedVal {
-									t.Errorf("parseTaskFile() includes[%q][%d] = %q, want %q", key, i, actualValue[i], expectedVal)
+							for expectedVal := range expectedValue {
+								if !actualValue[expectedVal] {
+									t.Errorf("parseTaskFile() includes[%q] does not contain value %q", key, expectedVal)
 								}
 							}
 						}
@@ -1028,8 +1028,8 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 			}
 
 			// Set up task name in includes (as done in run())
-			cc.includes["task_name"] = []string{"test-task"}
-			cc.includes["resume"] = []string{"false"}
+			cc.includes.SetValue("task_name", "test-task")
+			cc.includes.SetValue("resume", "false")
 
 			// Find and parse task file
 			homeDir, err := os.UserHomeDir()
@@ -1168,7 +1168,7 @@ func TestTaskFileWalker(t *testing.T) {
 			if cc.includes == nil {
 				cc.includes = make(selectorMap)
 			}
-			cc.includes["task_name"] = []string{tt.taskName}
+			cc.includes.SetValue("task_name", tt.taskName)
 
 			walker := cc.taskFileWalker(tt.taskName)
 			err := walker(tt.filePath, &tt.fileInfo, nil)
@@ -1236,7 +1236,7 @@ func TestRuleFileWalker(t *testing.T) {
 		},
 		{
 			name:             "exclude rule with non-matching selector",
-			includes:         selectorMap{"env": []string{"prod"}},
+			includes:         selectorMap{"env": map[string]bool{"prod": true}},
 			fileInfo:         fileInfoMock{isDir: false, name: "rule.md"},
 			filePath:         "rule.md",
 			fileContent:      "---\nenv: dev\n---\n# Dev Rule",
@@ -1246,7 +1246,7 @@ func TestRuleFileWalker(t *testing.T) {
 		},
 		{
 			name:           "include rule with matching selector",
-			includes:       selectorMap{"env": []string{"prod"}},
+			includes:       selectorMap{"env": map[string]bool{"prod": true}},
 			fileInfo:       fileInfoMock{isDir: false, name: "rule.md"},
 			filePath:       "rule.md",
 			fileContent:    "---\nenv: prod\n---\n# Prod Rule",

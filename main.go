@@ -91,8 +91,8 @@ func (cc *codingContext) run(ctx context.Context, args []string) error {
 
 	// Add task name to includes so rules can be filtered by task
 	taskName := args[0]
-	cc.includes["task_name"] = []string{taskName}
-	cc.includes["resume"] = []string{fmt.Sprint(cc.resume)}
+	cc.includes.SetValue("task_name", taskName)
+	cc.includes.SetValue("resume", fmt.Sprint(cc.resume))
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -326,23 +326,20 @@ func (cc *codingContext) parseTaskFile() error {
 		}
 
 		// Add selectors to includes
-		// Convert all values to []string slices for OR logic
+		// Convert all values to map[string]bool for OR logic
 		for key, value := range selectorsMap {
-			var strSlice []string
 			switch v := value.(type) {
 			case []any:
-				// Convert []any to []string
-				strSlice = make([]string, len(v))
-				for i, item := range v {
-					strSlice[i] = fmt.Sprint(item)
+				// Convert []any to map[string]bool
+				for _, item := range v {
+					cc.includes.SetValue(key, fmt.Sprint(item))
 				}
 			case string:
-				// Convert string to single-element slice
-				strSlice = []string{v}
+				// Convert string to single value in map
+				cc.includes.SetValue(key, v)
 			default:
 				return fmt.Errorf("task file %s has invalid selector value for key %q: expected string or array, got %T", cc.matchingTaskFile, key, value)
 			}
-			cc.includes[key] = strSlice
 		}
 	}
 

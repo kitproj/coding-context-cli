@@ -53,8 +53,8 @@ func TestSelectorMap_Set(t *testing.T) {
 					t.Errorf("Set() resulted in %d selectors, want 1", len(s))
 					return
 				}
-				if len(s[tt.wantKey]) != 1 || s[tt.wantKey][0] != tt.wantVal {
-					t.Errorf("Set() s[%q] = %v, want [%q]", tt.wantKey, s[tt.wantKey], tt.wantVal)
+				if !s.GetValue(tt.wantKey, tt.wantVal) {
+					t.Errorf("Set() s[%q] does not contain value %q", tt.wantKey, tt.wantVal)
 				}
 			}
 		})
@@ -137,7 +137,9 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			frontmatter: frontMatter{"rule_name": "rule2"},
 			wantMatch:   true,
 			setupSelectors: func(s selectorMap) {
-				s["rule_name"] = []string{"rule1", "rule2", "rule3"}
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+				s.SetValue("rule_name", "rule3")
 			},
 		},
 		{
@@ -146,7 +148,9 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			frontmatter: frontMatter{"rule_name": "rule4"},
 			wantMatch:   false,
 			setupSelectors: func(s selectorMap) {
-				s["rule_name"] = []string{"rule1", "rule2", "rule3"}
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+				s.SetValue("rule_name", "rule3")
 			},
 		},
 		{
@@ -155,7 +159,8 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			frontmatter: frontMatter{"env": "prod"},
 			wantMatch:   true,
 			setupSelectors: func(s selectorMap) {
-				s["rule_name"] = []string{"rule1", "rule2"}
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
 			},
 		},
 		{
@@ -164,7 +169,8 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			frontmatter: frontMatter{"env": "prod", "rule_name": "rule1"},
 			wantMatch:   true,
 			setupSelectors: func(s selectorMap) {
-				s["rule_name"] = []string{"rule1", "rule2"}
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
 			},
 		},
 		{
@@ -173,7 +179,8 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			frontmatter: frontMatter{"env": "prod", "rule_name": "rule1"},
 			wantMatch:   false,
 			setupSelectors: func(s selectorMap) {
-				s["rule_name"] = []string{"rule1", "rule2"}
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
 			},
 		},
 		{
@@ -182,8 +189,10 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			frontmatter: frontMatter{"rule_name": "rule1", "language": "go"},
 			wantMatch:   true,
 			setupSelectors: func(s selectorMap) {
-				s["rule_name"] = []string{"rule1", "rule2"}
-				s["language"] = []string{"go", "python"}
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+				s.SetValue("language", "go")
+				s.SetValue("language", "python")
 			},
 		},
 		{
@@ -192,8 +201,10 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			frontmatter: frontMatter{"rule_name": "rule1", "language": "java"},
 			wantMatch:   false,
 			setupSelectors: func(s selectorMap) {
-				s["rule_name"] = []string{"rule1", "rule2"}
-				s["language"] = []string{"go", "python"}
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+				s.SetValue("language", "go")
+				s.SetValue("language", "python")
 			},
 		},
 		{
