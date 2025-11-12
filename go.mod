@@ -4,7 +4,7 @@ go 1.24.4
 
 require (
 	github.com/hashicorp/go-getter/v2 v2.2.3
-	go.yaml.in/yaml/v2 v2.4.2
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
