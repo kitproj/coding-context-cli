@@ -147,6 +147,48 @@ coding-context-cli -s language=Go -s priority=high fix-bug
 coding-context-cli -s environment=production deploy
 ```
 
+### `-t`
+
+**Type:** Boolean flag  
+**Default:** False
+
+Print the task's YAML frontmatter at the beginning of the output. This includes all frontmatter fields such as `task_name`, `selectors`, `resume`, and any custom fields.
+
+Use this when downstream tools or AI agents need access to task metadata for decision-making or workflow automation.
+
+**Example:**
+```bash
+# Emit task frontmatter with the assembled context
+coding-context-cli -t fix-bug
+```
+
+**Output:**
+```yaml
+---
+task_name: fix-bug
+resume: false
+---
+# Fix Bug Task
+...
+```
+
+**Example with selectors:**
+```bash
+coding-context-cli -t implement-feature
+```
+
+If the task includes `selectors` in frontmatter, they appear in the output:
+```yaml
+---
+task_name: implement-feature
+selectors:
+  language: Go
+  stage: implementation
+---
+# Implementation
+...
+```
+
 ## Exit Codes
 
 - `0` - Success

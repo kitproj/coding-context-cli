@@ -130,6 +130,76 @@ coding-context-cli -s resume=false refactor
 coding-context-cli -r refactor
 ```
 
+## Tasks with Embedded Selectors
+
+Instead of requiring `-s` flags on every invocation, you can embed selectors directly in the task frontmatter. This is useful for tasks that always need specific rules.
+
+**Example (`.agents/tasks/implement-go-feature.md`):**
+```markdown
+---
+task_name: implement-feature
+selectors:
+  language: Go
+  stage: implementation
+---
+# Implement Feature in Go
+
+Implement the feature following Go best practices and implementation guidelines.
+
+Feature name: ${feature_name}
+Requirements: ${requirements}
+```
+
+**Usage:**
+```bash
+# Automatically applies language=Go and stage=implementation selectors
+coding-context-cli -p feature_name="User Auth" implement-feature
+```
+
+**Example with OR logic using arrays:**
+```markdown
+---
+task_name: write-tests
+selectors:
+  language: [Go, Python]
+  stage: testing
+---
+# Write Tests
+
+Write comprehensive tests for the code.
+```
+
+This matches rules where `(language=Go OR language=Python) AND stage=testing`.
+
+**Combining embedded and command-line selectors:**
+```bash
+# Task has: selectors.language = Go
+# Command adds: -s priority=high
+# Result: Includes rules matching language=Go AND priority=high
+coding-context-cli -s priority=high implement-feature
+```
+
+## Emitting Task Frontmatter
+
+Use the `-t` flag to include the task frontmatter in the output. This is useful when downstream tools need access to task metadata.
+
+**Example:**
+```bash
+coding-context-cli -t implement-feature
+```
+
+**Output:**
+```yaml
+---
+task_name: implement-feature
+selectors:
+  language: Go
+  stage: implementation
+---
+# Implement Feature in Go
+...
+```
+
 ## Best Practices
 
 1. **Use descriptive task names**: Make them clear and specific
