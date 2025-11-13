@@ -116,6 +116,12 @@ func (cc *codingContext) run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
+	// Run bootstrap script for the task file if it exists
+	taskExt := filepath.Ext(cc.matchingTaskFile)
+	if err := cc.runBootstrapScript(ctx, cc.matchingTaskFile, taskExt); err != nil {
+		return fmt.Errorf("failed to run task bootstrap script: %w", err)
+	}
+
 	if err := cc.emitTaskFileContent(); err != nil {
 		return fmt.Errorf("failed to emit task file content: %w", err)
 	}
