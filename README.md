@@ -22,7 +22,7 @@ This tool is compatible with configuration files from various AI coding agents a
 
 - **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`
 - **[Codex](https://codex.ai/)**: `AGENTS.md`, `.codex/AGENTS.md`
-- **[Cursor](https://cursor.sh/)**: `.cursor/rules`, `.cursorrules`
+- **[Cursor](https://cursor.sh/)**: `.cursor/rules`, `.cursor/commands`, `.cursorrules`
 - **[Augment](https://augmentcode.com/)**: `.augment/rules`, `.augment/guidelines.md`
 - **[Windsurf](https://codeium.com/windsurf)**: `.windsurf/rules`, `.windsurfrules`
 - **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent`, `.opencode/command`, `.opencode/rules`
@@ -141,6 +141,7 @@ The tool looks for task and rule files in the following locations, in order of p
 
 **Tasks:**
 - `./.agents/tasks/*.md` (any `.md` file with matching `task_name` in frontmatter)
+- `./.cursor/commands/*.md`
 - `~/.agents/tasks/*.md`
 
 **Rules:**
