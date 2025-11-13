@@ -47,10 +47,32 @@ For a comprehensive guide on using this tool with agentic workflows, see [AGENTI
 
 You can install the CLI by downloading the latest release from the [releases page](https://github.com/kitproj/coding-context-cli/releases) or by building from source.
 
+### Linux
+
+**AMD64:**
 ```bash
-# Example for Linux
-sudo curl -fsL -o /usr/local/bin/coding-context-cli https://github.com/kitproj/coding-context-cli/releases/download/v0.1.0/coding-context-cli_linux_amd64
-sudo chmod +x /usr/local/bin/coding-context-cli
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.13/coding-context_v0.0.13_linux_amd64
+sudo chmod +x /usr/local/bin/coding-context
+```
+
+**ARM64:**
+```bash
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.13/coding-context_v0.0.13_linux_arm64
+sudo chmod +x /usr/local/bin/coding-context
+```
+
+### MacOS
+
+**Intel (AMD64):**
+```bash
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.13/coding-context_v0.0.13_darwin_amd64
+sudo chmod +x /usr/local/bin/coding-context
+```
+
+**Apple Silicon (ARM64):**
+```bash
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.13/coding-context_v0.0.13_darwin_arm64
+sudo chmod +x /usr/local/bin/coding-context
 ```
 
 ## Usage
