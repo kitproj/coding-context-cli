@@ -151,12 +151,13 @@ Each of these would have a corresponding `.md` file with `task_name` in the fron
 The tool assembles the context in the following order:
 
 1.  **Rule Files**: It searches a list of predefined locations for rule files (`.md` or `.mdc`). These locations include the current directory, ancestor directories, user's home directory, and system-wide directories.
-2.  **Bootstrap Scripts**: For each rule file found (e.g., `my-rule.md`), it looks for an executable script named `my-rule-bootstrap`. If found, it runs the script before processing the rule file. These scripts are meant for bootstrapping the environment (e.g., installing tools) and their output is sent to `stderr`, not into the main context.
+2.  **Rule Bootstrap Scripts**: For each rule file found (e.g., `my-rule.md`), it looks for an executable script named `my-rule-bootstrap`. If found, it runs the script before processing the rule file. These scripts are meant for bootstrapping the environment (e.g., installing tools) and their output is sent to `stderr`, not into the main context.
 3.  **Filtering**: If `-s` (include) flag is used, it parses the YAML frontmatter of each rule file to decide whether to include it. Note that selectors can only match top-level YAML fields (e.g., `language: go`), not nested fields.
 4.  **Task Prompt**: It searches for a task file with `task_name: <task-name>` in its frontmatter. The filename doesn't matter. If selectors are provided with `-s`, they are used to filter between multiple task files with the same `task_name`.
-5.  **Parameter Expansion**: It substitutes variables in the task prompt using the `-p` flags.
-6.  **Output**: It prints the content of all included rule files, followed by the expanded task prompt, to standard output.
-7.  **Token Count**: A running total of estimated tokens is printed to standard error.
+5.  **Task Bootstrap Script**: For the task file found (e.g., `fix-bug.md`), it looks for an executable script named `fix-bug-bootstrap`. If found, it runs the script before processing the task file. This allows task-specific environment setup or data preparation.
+6.  **Parameter Expansion**: It substitutes variables in the task prompt using the `-p` flags.
+7.  **Output**: It prints the content of all included rule files, followed by the expanded task prompt, to standard output.
+8.  **Token Count**: A running total of estimated tokens is printed to standard error.
 
 ### File Search Paths
 
@@ -458,13 +459,17 @@ If you need to filter on nested data, flatten your frontmatter structure to use 
 
 ### Bootstrap Scripts
 
-A bootstrap script is an executable file that has the same name as a rule file but with a `-bootstrap` suffix. These scripts are used to prepare the environment, for example by installing necessary tools. The output of these scripts is sent to `stderr` and is not part of the AI context.
+A bootstrap script is an executable file that has the same name as a rule or task file but with a `-bootstrap` suffix. These scripts are used to prepare the environment, for example by installing necessary tools. The output of these scripts is sent to `stderr` and is not part of the AI context.
 
-**Example:**
+**Examples:**
 - Rule file: `.agents/rules/jira.md`
-- Bootstrap script: `.agents/rules/jira-bootstrap`
+- Rule bootstrap script: `.agents/rules/jira-bootstrap`
+- Task file: `.agents/tasks/fix-bug.md`
+- Task bootstrap script: `.agents/tasks/fix-bug-bootstrap`
 
-If `jira-bootstrap` is an executable script, it will be run before its corresponding rule file is processed.
+Bootstrap scripts are executed in the following order:
+1. Rule bootstrap scripts run before their corresponding rule files are processed
+2. Task bootstrap scripts run after all rules are processed but before the task content is emitted
 
 **`.agents/rules/jira-bootstrap`:**
 ```bash
@@ -475,6 +480,14 @@ then
     echo "Installing jira-cli..." >&2
     # Add installation commands here
 fi
+```
+
+**`.agents/tasks/fix-bug-bootstrap`:**
+```bash
+#!/bin/bash
+# This script fetches the latest issue details before the task runs.
+echo "Fetching issue information..." >&2
+# Fetch and prepare issue data
 ```
 
 ### Emitting Task Frontmatter
