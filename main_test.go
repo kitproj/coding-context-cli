@@ -305,15 +305,17 @@ func TestFindTaskFile(t *testing.T) {
 
 func TestFindExecuteRuleFiles(t *testing.T) {
 	tests := []struct {
-		name              string
-		resume            bool
-		includes          selectorMap
-		setupFiles        func(t *testing.T, tmpDir string)
-		downloadedDirs    []string // Directories to add to downloadedDirs
-		wantTokens        int
-		wantMinTokens     bool // Check that tokens > 0
-		expectInOutput    string
-		expectNotInOutput string
+		name               string
+		resume             bool
+		includes           selectorMap
+		setupFiles         func(t *testing.T, tmpDir string)
+		downloadedDirs     []string // Directories to add to downloadedDirs
+		wantTokens         int
+		wantMinTokens      bool // Check that tokens > 0
+		expectInOutput     string
+		expectNotInOutput  string
+		expectBootstrapRun bool   // Whether bootstrap script should run
+		bootstrapPath      string // Path to bootstrap script to check
 	}{
 		{
 			name:   "resume mode skips rules",
@@ -409,6 +411,29 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			wantMinTokens:  true,
 			expectInOutput: "Downloaded Rule",
 		},
+		{
+			name:   "bootstrap script should not run on excluded files",
+			resume: false,
+			includes: selectorMap{
+				"env": map[string]bool{"prod": true},
+			},
+			setupFiles: func(t *testing.T, tmpDir string) {
+				// Create an excluded rule file (env: dev doesn't match env: prod)
+				rulePath := filepath.Join(tmpDir, "CLAUDE.md")
+				createMarkdownFile(t, rulePath,
+					"env: dev",
+					"# Dev Rule")
+				// Create a bootstrap script for this rule
+				bootstrapPath := filepath.Join(tmpDir, "CLAUDE-bootstrap")
+				if err := os.WriteFile(bootstrapPath, []byte("#!/bin/sh\necho 'bootstrap ran' >&2"), 0o644); err != nil {
+					t.Fatalf("failed to create bootstrap file: %v", err)
+				}
+			},
+			wantTokens:         0,
+			expectNotInOutput:  "# Dev Rule",
+			expectBootstrapRun: false,
+			bootstrapPath:      "CLAUDE-bootstrap",
+		},
 	}
 
 	for _, tt := range tests {
@@ -427,12 +452,17 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			}
 
 			var output, logOut bytes.Buffer
+			bootstrapRan := false
 			cc := &codingContext{
 				resume:   tt.resume,
 				includes: tt.includes,
 				output:   &output,
 				logOut:   &logOut,
 				cmdRunner: func(cmd *exec.Cmd) error {
+					// Track if bootstrap script was executed
+					if cmd.Path != "" {
+						bootstrapRan = true
+					}
 					return nil // Mock command runner
 				},
 			}
@@ -466,6 +496,16 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			}
 			if tt.expectNotInOutput != "" && strings.Contains(outputStr, tt.expectNotInOutput) {
 				t.Errorf("findExecuteRuleFiles() output should not contain %q, got:\n%s", tt.expectNotInOutput, outputStr)
+			}
+
+			// Check bootstrap script execution
+			if tt.bootstrapPath != "" {
+				if tt.expectBootstrapRun && !bootstrapRan {
+					t.Errorf("findExecuteRuleFiles() expected bootstrap script %q to run, but it didn't", tt.bootstrapPath)
+				}
+				if !tt.expectBootstrapRun && bootstrapRan {
+					t.Errorf("findExecuteRuleFiles() expected bootstrap script %q NOT to run, but it did", tt.bootstrapPath)
+				}
 			}
 		})
 	}
@@ -821,6 +861,38 @@ func TestParseTaskFile(t *testing.T) {
 				createMarkdownFile(t, taskPath,
 					"task_name: test\nselectors:\n  rule_name:\n    - rule1\n    - rule2",
 					"# Task with Array Selectors")
+				return taskPath
+			},
+			wantErr: false,
+		},
+		{
+			name:            "selectors from -s flag and task file are additive",
+			taskFile:        "task.md",
+			initialIncludes: selectorMap{"var": map[string]bool{"arg1": true}},
+			expectedIncludes: selectorMap{
+				"var": map[string]bool{"arg1": true, "arg2": true},
+			},
+			setupFiles: func(t *testing.T, tmpDir string) string {
+				taskPath := filepath.Join(tmpDir, "task.md")
+				createMarkdownFile(t, taskPath,
+					"task_name: test\nselectors:\n  var: arg2",
+					"# Task with Additive Selectors")
+				return taskPath
+			},
+			wantErr: false,
+		},
+		{
+			name:            "task with integer selector value",
+			taskFile:        "task.md",
+			initialIncludes: make(selectorMap),
+			expectedIncludes: selectorMap{
+				"version": map[string]bool{"42": true},
+			},
+			setupFiles: func(t *testing.T, tmpDir string) string {
+				taskPath := filepath.Join(tmpDir, "task.md")
+				createMarkdownFile(t, taskPath,
+					"task_name: test\nselectors:\n  version: 42",
+					"# Task with Integer Selector")
 				return taskPath
 			},
 			wantErr: false,

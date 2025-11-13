@@ -219,6 +219,18 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			frontmatter: frontMatter{"env": "staging"},
 			wantMatch:   false,
 		},
+		{
+			name:        "empty value selector - key exists in frontmatter (no match)",
+			selectors:   []string{"env="},
+			frontmatter: frontMatter{"env": "production"},
+			wantMatch:   false,
+		},
+		{
+			name:        "empty value selector - key missing in frontmatter (match)",
+			selectors:   []string{"env="},
+			frontmatter: frontMatter{"language": "go"},
+			wantMatch:   true,
+		},
 	}
 
 	for _, tt := range tests {

@@ -243,15 +243,15 @@ func (cc *codingContext) ruleFileWalker(ctx context.Context) func(path string, i
 			return fmt.Errorf("failed to parse markdown file: %w", err)
 		}
 
-		if err := cc.runBootstrapScript(ctx, path, ext); err != nil {
-			return fmt.Errorf("failed to run bootstrap script: %w", err)
-		}
-
-		// Check if file matches include selectors.
+		// Check if file matches include selectors BEFORE running bootstrap script.
 		// Note: Files with duplicate basenames will both be included.
 		if !cc.includes.matchesIncludes(frontmatter) {
 			fmt.Fprintf(cc.logOut, "⪢ Excluding rule file (does not match include selectors): %s\n", path)
 			return nil
+		}
+
+		if err := cc.runBootstrapScript(ctx, path, ext); err != nil {
+			return fmt.Errorf("failed to run bootstrap script (path: %s): %w", path, err)
 		}
 
 		// Estimate tokens for this file
@@ -289,7 +289,7 @@ func (cc *codingContext) runBootstrapScript(ctx context.Context, path, ext strin
 	cmd.Stderr = cc.logOut
 
 	if err := cc.cmdRunner(cmd); err != nil {
-		return fmt.Errorf("failed to run bootstrap script: %w", err)
+		return err
 	}
 
 	return nil
@@ -337,6 +337,9 @@ func (cc *codingContext) parseTaskFile() error {
 			case string:
 				// Convert string to single value in map
 				cc.includes.SetValue(key, v)
+			case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
+				// Convert scalar numeric or boolean to string
+				cc.includes.SetValue(key, fmt.Sprint(v))
 			default:
 				return fmt.Errorf("task file %s has invalid selector value for key %q: expected string or array, got %T", cc.matchingTaskFile, key, value)
 			}
@@ -346,8 +349,8 @@ func (cc *codingContext) parseTaskFile() error {
 	return nil
 }
 
-// emitTaskFrontmatterOnly emits only the task frontmatter to the output.
-// This is used to print frontmatter before rules when -t flag is set.
+// printTaskFrontmatter emits only the task frontmatter to the output and
+// only if emitTaskFrontmatter is true.
 func (cc *codingContext) printTaskFrontmatter() error {
 	if !cc.emitTaskFrontmatter {
 		return nil
@@ -362,7 +365,7 @@ func (cc *codingContext) printTaskFrontmatter() error {
 }
 
 // emitTaskFileContent emits the parsed task content to the output.
-// It expands parameters, estimates tokens, and optionally includes frontmatter.
+// It expands parameters and estimates tokens.
 func (cc *codingContext) emitTaskFileContent() error {
 	expanded := os.Expand(cc.taskContent, func(key string) string {
 		if val, ok := cc.params[key]; ok {

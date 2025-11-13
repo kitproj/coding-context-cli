@@ -41,7 +41,16 @@ func (s *selectorMap) Set(value string) error {
 	key := strings.TrimSpace(kv[0])
 	newValue := strings.TrimSpace(kv[1])
 
-	s.SetValue(key, newValue)
+	// If value is empty, set the key to an empty map only if it's currently unset
+	if newValue == "" {
+		if _, exists := (*s)[key]; !exists {
+			(*s)[key] = make(map[string]bool)
+		}
+		return nil
+	} else {
+		s.SetValue(key, newValue)
+	}
+
 	return nil
 }
 
