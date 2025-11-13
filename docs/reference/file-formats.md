@@ -63,6 +63,74 @@ region: us-east-1
 coding-context-cli -s environment=production -s region=us-east-1 deploy
 ```
 
+#### `selectors` (optional)
+
+**Type:** Map of key-value pairs  
+**Purpose:** Automatically filter rules and tasks without requiring `-s` flags on the command line
+
+The `selectors` field allows a task to specify which rules should be included when the task is executed. This is equivalent to passing `-s` flags but is declared in the task file itself.
+
+**Example:**
+```yaml
+---
+task_name: implement-feature
+selectors:
+  language: Go
+  stage: implementation
+---
+```
+
+**Usage:**
+```bash
+# Automatically includes rules with language=Go AND stage=implementation
+coding-context-cli implement-feature
+```
+
+This is equivalent to:
+```bash
+coding-context-cli -s language=Go -s stage=implementation implement-feature
+```
+
+**OR Logic with Arrays:**
+
+You can specify multiple values for the same key using YAML arrays for OR logic:
+
+```yaml
+---
+task_name: test-code
+selectors:
+  language: [Go, Python, JavaScript]
+  stage: testing
+---
+```
+
+This matches rules where `(language=Go OR language=Python OR language=JavaScript) AND stage=testing`.
+
+**Combining with Command-Line Selectors:**
+
+Selectors from the task frontmatter and command-line `-s` flags are combined (additive):
+
+```bash
+# Task frontmatter has: selectors.language = Go
+# Command line adds: -s priority=high
+# Result: Rules must match language=Go AND priority=high
+coding-context-cli -s priority=high implement-feature
+```
+
+**Special Selector: `rule_name`**
+
+You can filter to specific rule files by their base filename (without extension):
+
+```yaml
+---
+task_name: my-task
+selectors:
+  rule_name: [security-standards, go-best-practices]
+---
+```
+
+This would only include the rules from `security-standards.md` and `go-best-practices.md`.
+
 ### Parameter Substitution
 
 Use `${parameter_name}` syntax for dynamic values.

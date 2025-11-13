@@ -123,6 +123,106 @@ coding-context-cli -s resume=true fix-bug  # but also skips rules
 
 Use resume mode when continuing work in a new session to save tokens.
 
+## Task Frontmatter Selectors
+
+Instead of specifying selectors on the command line every time, you can embed them directly in task files using the `selectors` field.
+
+### Basic Task Selectors
+
+**Task file (`.agents/tasks/implement-go-feature.md`):**
+```markdown
+---
+task_name: implement-feature
+selectors:
+  language: go
+  stage: implementation
+---
+# Implement Feature in Go
+...
+```
+
+**Usage:**
+```bash
+# Automatically applies language=go and stage=implementation
+coding-context-cli implement-feature
+```
+
+This is equivalent to:
+```bash
+coding-context-cli -s language=go -s stage=implementation implement-feature
+```
+
+### Array Selectors (OR Logic)
+
+Use arrays for OR logic within the same selector key:
+
+**Task file:**
+```markdown
+---
+task_name: refactor-code
+selectors:
+  language: [go, python, javascript]
+  stage: refactoring
+---
+```
+
+**Usage:**
+```bash
+# Includes rules matching (go OR python OR javascript) AND refactoring
+coding-context-cli refactor-code
+```
+
+### Combining Command-Line and Task Selectors
+
+Selectors from task frontmatter and the command line are combined (additive):
+
+**Task file with embedded selectors:**
+```markdown
+---
+task_name: deploy
+selectors:
+  stage: deployment
+---
+```
+
+**Usage:**
+```bash
+# Combines task selectors with command-line selectors
+# Result: stage=deployment AND environment=production
+coding-context-cli -s environment=production deploy
+```
+
+### When to Use Task Frontmatter Selectors
+
+**Use task frontmatter selectors when:**
+- A task always needs specific rules (e.g., language-specific tasks)
+- You want to simplify command-line invocations
+- The selectors are intrinsic to the task's purpose
+
+**Use command-line selectors when:**
+- Selectors vary between invocations
+- You need runtime flexibility
+- Multiple users run the same task differently
+
+### Viewing Task Frontmatter
+
+Use the `-t` flag to see which selectors are embedded in a task:
+
+```bash
+coding-context-cli -t implement-feature
+```
+
+**Output:**
+```yaml
+---
+task_name: implement-feature
+selectors:
+  language: go
+  stage: implementation
+---
+# Task content...
+```
+
 ## Understanding Selector Matching
 
 **Rules are included if:**

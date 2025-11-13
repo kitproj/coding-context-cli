@@ -70,6 +70,7 @@ Options:
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
+  -t	Print task frontmatter at the beginning of output.
 ```
 
 ### Examples
@@ -253,6 +254,56 @@ coding-context-cli -s environment=staging deploy
 coding-context-cli -s environment=production deploy
 ```
 
+#### Task Frontmatter Selectors
+
+Task files can include a `selectors` field in their frontmatter to automatically filter rules without requiring explicit `-s` flags on the command line. This is useful for tasks that always need specific rules.
+
+**Example (`.agents/tasks/implement-go-feature.md`):**
+```markdown
+---
+task_name: implement-feature
+selectors:
+  language: Go
+  stage: implementation
+---
+# Implement Feature
+
+Implement the feature following Go best practices and implementation guidelines.
+```
+
+When you run this task, it automatically applies the selectors:
+```bash
+# This command automatically includes only rules with language=Go and stage=implementation
+coding-context-cli implement-feature
+```
+
+This is equivalent to:
+```bash
+coding-context-cli -s language=Go -s stage=implementation implement-feature
+```
+
+**Selectors support OR logic for the same key using arrays:**
+```markdown
+---
+task_name: test-code
+selectors:
+  language: [Go, Python]
+  stage: testing
+---
+```
+
+This will include rules that match `(language=Go OR language=Python) AND stage=testing`.
+
+**Combining task selectors with command-line selectors:**
+
+Selectors from both the task frontmatter and command line are combined (additive):
+```bash
+# Task has: selectors.language = Go
+# Command adds: -s priority=high
+# Result: includes rules matching language=Go AND priority=high
+coding-context-cli -s priority=high implement-feature
+```
+
 ### Resume Mode
 
 Resume mode is designed for continuing work on a task where you've already established context. When using the `-r` flag:
@@ -402,4 +453,46 @@ then
     echo "Installing jira-cli..." >&2
     # Add installation commands here
 fi
+```
+
+### Emitting Task Frontmatter
+
+The `-t` flag allows you to include the task's YAML frontmatter at the beginning of the output. This is useful when the AI agent or downstream tool needs access to metadata about the task being executed.
+
+**Example usage:**
+```bash
+coding-context-cli -t -p issue_number=123 fix-bug
+```
+
+**Output format:**
+```yaml
+---
+task_name: fix-bug
+resume: false
+---
+# Fix Bug Task
+
+Fix the bug in issue #123...
+```
+
+This can be useful for:
+- **Agent decision making**: The AI can see metadata like priority, environment, or stage
+- **Workflow automation**: Downstream tools can parse the frontmatter to make decisions
+- **Debugging**: You can verify which task variant was selected and what selectors were applied
+
+**Example with selectors in frontmatter:**
+```bash
+coding-context-cli -t implement-feature
+```
+
+If the task has `selectors` in its frontmatter, they will be visible in the output:
+```yaml
+---
+task_name: implement-feature
+selectors:
+  language: Go
+  stage: implementation
+---
+# Implementation Task
+...
 ```
