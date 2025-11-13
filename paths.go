@@ -5,6 +5,7 @@ import "path/filepath"
 func allTaskSearchPaths(homeDir string) []string {
 	return []string{
 		filepath.Join(".agents", "tasks"),
+		filepath.Join(".cursor", "commands"),
 		filepath.Join(homeDir, ".agents", "tasks"),
 	}
 }
@@ -73,5 +74,6 @@ func downloadedRulePaths(dir string) []string {
 func downloadedTaskSearchPaths(dir string) []string {
 	return []string{
 		filepath.Join(dir, ".agents", "tasks"),
+		filepath.Join(dir, ".cursor", "commands"),
 	}
 }

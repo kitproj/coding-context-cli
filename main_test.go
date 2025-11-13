@@ -260,12 +260,47 @@ func TestFindTaskFile(t *testing.T) {
 			downloadedDirs: []string{"downloaded"}, // Relative path, will be joined with tmpDir
 			wantErr:        false,
 		},
+		{
+			name:     "task file found in .cursor/commands directory",
+			taskName: "cursor_task",
+			setupFiles: func(t *testing.T, tmpDir string) {
+				taskDir := filepath.Join(tmpDir, ".cursor", "commands")
+				createMarkdownFile(t, filepath.Join(taskDir, "cursor-task.md"),
+					"task_name: cursor_task",
+					"# Cursor Task")
+			},
+			wantErr: false,
+		},
+		{
+			name:     "task file found in downloaded .cursor/commands directory",
+			taskName: "cursor_remote_task",
+			setupFiles: func(t *testing.T, tmpDir string) {
+				// Create task file in downloaded directory's .cursor/commands
+				downloadedDir := filepath.Join(tmpDir, "downloaded")
+				taskDir := filepath.Join(downloadedDir, ".cursor", "commands")
+				createMarkdownFile(t, filepath.Join(taskDir, "remote.md"),
+					"task_name: cursor_remote_task",
+					"# Cursor Remote Task")
+			},
+			downloadedDirs: []string{"downloaded"}, // Relative path, will be joined with tmpDir
+			wantErr:        false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			tt.setupFiles(t, tmpDir)
+
+			// Change to temp dir for relative path searches
+			oldDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("failed to get working directory: %v", err)
+			}
+			defer os.Chdir(oldDir)
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatalf("failed to chdir: %v", err)
+			}
 
 			cc := &codingContext{
 				includes: tt.includes,
@@ -283,7 +318,12 @@ func TestFindTaskFile(t *testing.T) {
 				}
 			}
 
-			err := cc.findTaskFile(tmpDir, tt.taskName)
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				t.Fatalf("failed to get user home directory: %v", err)
+			}
+
+			err = cc.findTaskFile(homeDir, tt.taskName)
 
 			if tt.wantErr {
 				if err == nil {
