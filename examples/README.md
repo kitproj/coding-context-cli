@@ -93,6 +93,9 @@ Tasks define specific workflows for agents to execute:
 - **`plan-feature.md`**: Creates comprehensive feature plans
 - **`code-review.md`**: Performs code reviews on PRs
 - **`fix-bug.md`**: Analyzes and fixes bugs
+- **`implement-go-feature.md`**: Implements features in Go (with embedded selectors)
+- **`write-tests.md`**: Writes comprehensive tests
+- **`refactor-code.md`**: Refactors code for multiple languages (demonstrates array selectors)
 
 Tasks use parameter substitution for dynamic content:
 
@@ -106,6 +109,40 @@ task_name: fix-bug
 Issue: #${issue_number}
 Title: ${issue_title}
 ```
+
+**New: Tasks can embed selectors in frontmatter** to automatically filter rules:
+
+```markdown
+---
+task_name: implement-feature
+selectors:
+  language: go
+  stage: implementation
+---
+
+# Implement Feature in Go
+...
+```
+
+When you run this task, it automatically applies the selectors without requiring `-s` flags:
+
+```bash
+# Automatically includes language=go and stage=implementation rules
+coding-context-cli implement-feature
+```
+
+**Array selectors** allow OR logic for the same key:
+
+```markdown
+---
+task_name: refactor-code
+selectors:
+  language: [go, python, javascript]
+  stage: refactoring
+---
+```
+
+This matches rules for ANY of the specified languages.
 
 ## Getting Started
 
@@ -137,6 +174,12 @@ Title: ${issue_title}
      -s task=code-review \
      -p pr_number=123 \
      code-review
+   
+   # Test tasks with embedded selectors
+   coding-context-cli implement-feature
+   
+   # View task frontmatter with -t flag
+   coding-context-cli -t implement-feature
    ```
 
 4. **Deploy workflows:**
