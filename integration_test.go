@@ -890,3 +890,151 @@ This is a test task.
 		t.Errorf("rule frontmatter should not be printed in output")
 	}
 }
+
+func TestTaskBootstrapFromFile(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a simple task file
+	taskFile := filepath.Join(dirs.tasksDir, "test-task.md")
+	taskContent := `---
+task_name: test-task
+---
+# Test Task
+
+This is a test task.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Create a bootstrap file for the task (test-task.md -> test-task-bootstrap)
+	bootstrapFile := filepath.Join(dirs.tasksDir, "test-task-bootstrap")
+	bootstrapContent := `#!/bin/bash
+echo "Running task bootstrap"
+`
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0o755); err != nil {
+		t.Fatalf("failed to write task bootstrap file: %v", err)
+	}
+
+	// Run the program
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
+
+	// Check that bootstrap output appears before task content
+	bootstrapIdx := strings.Index(output, "Running task bootstrap")
+	taskIdx := strings.Index(output, "# Test Task")
+
+	if bootstrapIdx == -1 {
+		t.Errorf("task bootstrap output not found in stdout")
+	}
+	if taskIdx == -1 {
+		t.Errorf("task content not found in stdout")
+	}
+	if bootstrapIdx != -1 && taskIdx != -1 && bootstrapIdx > taskIdx {
+		t.Errorf("task bootstrap output should appear before task content")
+	}
+}
+
+func TestTaskBootstrapFileNotRequired(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a task file WITHOUT a bootstrap
+	taskFile := filepath.Join(dirs.tasksDir, "no-bootstrap-task.md")
+	taskContent := `---
+task_name: no-bootstrap-task
+---
+# Task Without Bootstrap
+
+This task has no bootstrap script.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the program - should succeed without a bootstrap file
+	output := runTool(t, "-C", dirs.tmpDir, "no-bootstrap-task")
+
+	// Check that task content is present
+	if !strings.Contains(output, "# Task Without Bootstrap") {
+		t.Errorf("task content not found in stdout")
+	}
+}
+
+func TestTaskBootstrapWithRuleBootstrap(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a rule file with bootstrap
+	ruleFile := filepath.Join(dirs.rulesDir, "setup.md")
+	ruleContent := `---
+---
+# Setup Rule
+
+Setup instructions.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	ruleBootstrapFile := filepath.Join(dirs.rulesDir, "setup-bootstrap")
+	ruleBootstrapContent := `#!/bin/bash
+echo "Running rule bootstrap"
+`
+	if err := os.WriteFile(ruleBootstrapFile, []byte(ruleBootstrapContent), 0o755); err != nil {
+		t.Fatalf("failed to write rule bootstrap file: %v", err)
+	}
+
+	// Create a task file with bootstrap
+	taskFile := filepath.Join(dirs.tasksDir, "deploy-task.md")
+	taskContent := `---
+task_name: deploy-task
+---
+# Deploy Task
+
+Deploy instructions.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	taskBootstrapFile := filepath.Join(dirs.tasksDir, "deploy-task-bootstrap")
+	taskBootstrapContent := `#!/bin/bash
+echo "Running task bootstrap"
+`
+	if err := os.WriteFile(taskBootstrapFile, []byte(taskBootstrapContent), 0o755); err != nil {
+		t.Fatalf("failed to write task bootstrap file: %v", err)
+	}
+
+	// Run the program
+	output := runTool(t, "-C", dirs.tmpDir, "deploy-task")
+
+	// Check that both bootstrap scripts ran
+	if !strings.Contains(output, "Running rule bootstrap") {
+		t.Errorf("rule bootstrap output not found in stdout")
+	}
+	if !strings.Contains(output, "Running task bootstrap") {
+		t.Errorf("task bootstrap output not found in stdout")
+	}
+
+	// Check that both rule and task contents are present
+	if !strings.Contains(output, "# Setup Rule") {
+		t.Errorf("rule content not found in stdout")
+	}
+	if !strings.Contains(output, "# Deploy Task") {
+		t.Errorf("task content not found in stdout")
+	}
+
+	// Verify the order: rule bootstrap -> rule content -> task bootstrap -> task content
+	ruleBootstrapIdx := strings.Index(output, "Running rule bootstrap")
+	ruleContentIdx := strings.Index(output, "# Setup Rule")
+	taskBootstrapIdx := strings.Index(output, "Running task bootstrap")
+	taskContentIdx := strings.Index(output, "# Deploy Task")
+
+	if ruleBootstrapIdx > ruleContentIdx {
+		t.Errorf("rule bootstrap should run before rule content")
+	}
+	if ruleContentIdx > taskBootstrapIdx {
+		t.Errorf("rule content should appear before task bootstrap")
+	}
+	if taskBootstrapIdx > taskContentIdx {
+		t.Errorf("task bootstrap should run before task content")
+	}
+}
