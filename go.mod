@@ -3,8 +3,8 @@ module github.com/kitproj/coding-context-cli
 go 1.24.4
 
 require (
+	github.com/goccy/go-yaml v1.18.0
 	github.com/hashicorp/go-getter/v2 v2.2.3
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

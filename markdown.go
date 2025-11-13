@@ -6,21 +6,14 @@ import (
 	"fmt"
 	"os"
 
-	"gopkg.in/yaml.v3"
+	yaml "github.com/goccy/go-yaml"
 )
 
 // parseMarkdownFile parses the file into frontmatter and content
 func parseMarkdownFile(path string, frontmatter any) (string, error) {
-	content, _, err := parseMarkdownFileWithRawFrontmatter(path, frontmatter)
-	return content, err
-}
-
-// parseMarkdownFileWithRawFrontmatter parses the file and returns content and raw frontmatter text
-func parseMarkdownFileWithRawFrontmatter(path string, frontmatter any) (string, string, error) {
-
 	fh, err := os.Open(path)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to open file: %w", err)
+		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer fh.Close()
 
@@ -42,7 +35,7 @@ func parseMarkdownFileWithRawFrontmatter(path string, frontmatter any) (string, 
 			} else {
 				state = 2 // No frontmatter, start scanning content
 				if _, err := content.WriteString(line + "\n"); err != nil {
-					return "", "", fmt.Errorf("failed to write content: %w", err)
+					return "", fmt.Errorf("failed to write content: %w", err)
 				}
 			}
 		case 1: // Scanning frontmatter
@@ -50,28 +43,26 @@ func parseMarkdownFileWithRawFrontmatter(path string, frontmatter any) (string, 
 				state = 2 // End of frontmatter, start scanning content
 			} else {
 				if _, err := frontMatterBytes.WriteString(line + "\n"); err != nil {
-					return "", "", fmt.Errorf("failed to write frontmatter: %w", err)
+					return "", fmt.Errorf("failed to write frontmatter: %w", err)
 				}
 			}
 		case 2: // Scanning content
 			if _, err := content.WriteString(line + "\n"); err != nil {
-				return "", "", fmt.Errorf("failed to write content: %w", err)
+				return "", fmt.Errorf("failed to write content: %w", err)
 			}
 		}
 	}
 
 	if err := s.Err(); err != nil {
-		return "", "", fmt.Errorf("failed to scan file: %w", err)
+		return "", fmt.Errorf("failed to scan file: %w", err)
 	}
 
 	// Parse frontmatter if we collected any
-	var rawFrontmatter string
 	if frontMatterBytes.Len() > 0 {
-		rawFrontmatter = frontMatterBytes.String()
 		if err := yaml.Unmarshal(frontMatterBytes.Bytes(), frontmatter); err != nil {
-			return "", "", fmt.Errorf("failed to unmarshal frontmatter: %w", err)
+			return "", fmt.Errorf("failed to unmarshal frontmatter: %w", err)
 		}
 	}
 
-	return content.String(), rawFrontmatter, nil
+	return content.String(), nil
 }

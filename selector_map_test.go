@@ -53,8 +53,8 @@ func TestSelectorMap_Set(t *testing.T) {
 					t.Errorf("Set() resulted in %d selectors, want 1", len(s))
 					return
 				}
-				if s[tt.wantKey] != tt.wantVal {
-					t.Errorf("Set() s[%q] = %q, want %q", tt.wantKey, s[tt.wantKey], tt.wantVal)
+				if !s.GetValue(tt.wantKey, tt.wantVal) {
+					t.Errorf("Set() s[%q] does not contain value %q", tt.wantKey, tt.wantVal)
 				}
 			}
 		})
@@ -77,81 +77,158 @@ func TestSelectorMap_SetMultiple(t *testing.T) {
 
 func TestSelectorMap_MatchesIncludes(t *testing.T) {
 	tests := []struct {
-		name        string
-		selectors   []string
-		frontmatter frontMatter
-		wantMatch   bool
+		name           string
+		selectors      []string
+		setupSelectors func(s selectorMap) // Optional function to set up array selectors directly
+		frontmatter    frontMatter
+		wantMatch      bool
 	}{
 		{
-			name:        "single include - match",
+			name:        "single selector - match",
 			selectors:   []string{"env=production"},
 			frontmatter: frontMatter{"env": "production"},
 			wantMatch:   true,
 		},
 		{
-			name:        "single include - no match",
+			name:        "single selector - no match",
 			selectors:   []string{"env=production"},
 			frontmatter: frontMatter{"env": "development"},
 			wantMatch:   false,
 		},
 		{
-			name:        "single include - key missing (allowed)",
+			name:        "single selector - key missing (allowed)",
 			selectors:   []string{"env=production"},
 			frontmatter: frontMatter{"language": "go"},
 			wantMatch:   true,
 		},
 		{
-			name:        "multiple includes - all match",
+			name:        "multiple selectors - all match",
 			selectors:   []string{"env=production", "language=go"},
 			frontmatter: frontMatter{"env": "production", "language": "go"},
 			wantMatch:   true,
 		},
 		{
-			name:        "multiple includes - one doesn't match",
+			name:        "multiple selectors - one doesn't match",
 			selectors:   []string{"env=production", "language=go"},
 			frontmatter: frontMatter{"env": "production", "language": "python"},
 			wantMatch:   false,
 		},
 		{
-			name:        "multiple includes - one key missing (allowed)",
+			name:        "multiple selectors - one key missing (allowed)",
 			selectors:   []string{"env=production", "language=go"},
 			frontmatter: frontMatter{"env": "production"},
 			wantMatch:   true,
 		},
 		{
-			name:        "empty includes - always match",
+			name:        "empty selectors - always match",
 			selectors:   []string{},
 			frontmatter: frontMatter{"env": "production"},
 			wantMatch:   true,
 		},
 		{
-			name:        "empty frontmatter - key missing (allowed)",
-			selectors:   []string{"env=production"},
-			frontmatter: frontMatter{},
+			name:        "boolean value conversion - match",
+			selectors:   []string{"is_active=true"},
+			frontmatter: frontMatter{"is_active": true},
 			wantMatch:   true,
 		},
 		{
-			name:        "task_name include - match",
-			selectors:   []string{"task_name=deploy"},
-			frontmatter: frontMatter{"task_name": "deploy"},
+			name:        "array selector - match",
+			selectors:   []string{},
+			frontmatter: frontMatter{"rule_name": "rule2"},
+			wantMatch:   true,
+			setupSelectors: func(s selectorMap) {
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+				s.SetValue("rule_name", "rule3")
+			},
+		},
+		{
+			name:        "array selector - no match",
+			selectors:   []string{},
+			frontmatter: frontMatter{"rule_name": "rule4"},
+			wantMatch:   false,
+			setupSelectors: func(s selectorMap) {
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+				s.SetValue("rule_name", "rule3")
+			},
+		},
+		{
+			name:        "array selector - key missing (allowed)",
+			selectors:   []string{},
+			frontmatter: frontMatter{"env": "prod"},
+			wantMatch:   true,
+			setupSelectors: func(s selectorMap) {
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+			},
+		},
+		{
+			name:        "mixed selectors - array and string both match",
+			selectors:   []string{"env=prod"},
+			frontmatter: frontMatter{"env": "prod", "rule_name": "rule1"},
+			wantMatch:   true,
+			setupSelectors: func(s selectorMap) {
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+			},
+		},
+		{
+			name:        "mixed selectors - string doesn't match",
+			selectors:   []string{"env=dev"},
+			frontmatter: frontMatter{"env": "prod", "rule_name": "rule1"},
+			wantMatch:   false,
+			setupSelectors: func(s selectorMap) {
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+			},
+		},
+		{
+			name:        "multiple array selectors - both match",
+			selectors:   []string{},
+			frontmatter: frontMatter{"rule_name": "rule1", "language": "go"},
+			wantMatch:   true,
+			setupSelectors: func(s selectorMap) {
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+				s.SetValue("language", "go")
+				s.SetValue("language", "python")
+			},
+		},
+		{
+			name:        "multiple array selectors - one doesn't match",
+			selectors:   []string{},
+			frontmatter: frontMatter{"rule_name": "rule1", "language": "java"},
+			wantMatch:   false,
+			setupSelectors: func(s selectorMap) {
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+				s.SetValue("language", "go")
+				s.SetValue("language", "python")
+			},
+		},
+		{
+			name:        "OR logic - same key multiple values matches",
+			selectors:   []string{"env=prod", "env=dev"},
+			frontmatter: frontMatter{"env": "dev"},
 			wantMatch:   true,
 		},
 		{
-			name:        "task_name include - no match",
-			selectors:   []string{"task_name=deploy"},
-			frontmatter: frontMatter{"task_name": "test"},
+			name:        "OR logic - same key multiple values no match",
+			selectors:   []string{"env=prod", "env=dev"},
+			frontmatter: frontMatter{"env": "staging"},
 			wantMatch:   false,
 		},
 		{
-			name:        "task_name include - key missing (allowed)",
-			selectors:   []string{"task_name=deploy"},
+			name:        "empty value selector - key exists in frontmatter (no match)",
+			selectors:   []string{"env="},
 			frontmatter: frontMatter{"env": "production"},
-			wantMatch:   true,
+			wantMatch:   false,
 		},
 		{
-			name:        "include a boolean value - match",
-			selectors:   []string{"is_active=true"},
-			frontmatter: frontMatter{"is_active": true},
+			name:        "empty value selector - key missing in frontmatter (match)",
+			selectors:   []string{"env="},
+			frontmatter: frontMatter{"language": "go"},
 			wantMatch:   true,
 		},
 	}
@@ -163,6 +240,11 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 				if err := s.Set(sel); err != nil {
 					t.Fatalf("Set() error = %v", err)
 				}
+			}
+
+			// Set up array selectors if provided
+			if tt.setupSelectors != nil {
+				tt.setupSelectors(s)
 			}
 
 			if got := s.matchesIncludes(tt.frontmatter); got != tt.wantMatch {
