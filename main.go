@@ -95,12 +95,16 @@ func run(ctx context.Context, args []string) error {
 	// find the task prompt by searching for a file with matching task_name in frontmatter
 	taskSearchDirs := []string{
 		filepath.Join(".agents", "tasks"),
+		filepath.Join(".cursor", "commands"),
 		filepath.Join(homeDir, ".agents", "tasks"),
 	}
 
 	// Add downloaded remote directories to task search paths
 	for _, dir := range downloadedDirs {
-		taskSearchDirs = append(taskSearchDirs, filepath.Join(dir, ".agents", "tasks"))
+		taskSearchDirs = append(taskSearchDirs,
+			filepath.Join(dir, ".agents", "tasks"),
+			filepath.Join(dir, ".cursor", "commands"),
+		)
 	}
 
 	var matchingTaskFile string

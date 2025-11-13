@@ -1257,3 +1257,52 @@ This is a test task.
 		t.Errorf("rule frontmatter should not be printed in output")
 	}
 }
+
+func TestCursorCommandsTaskSupport(t *testing.T) {
+	// Build the binary
+	binaryPath := filepath.Join(t.TempDir(), "coding-context")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, output)
+	}
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+	cursorCommandsDir := filepath.Join(tmpDir, ".cursor", "commands")
+
+	if err := os.MkdirAll(cursorCommandsDir, 0755); err != nil {
+		t.Fatalf("failed to create cursor commands dir: %v", err)
+	}
+
+	// Create a task file in .cursor/commands
+	taskFile := filepath.Join(cursorCommandsDir, "cursor-task.md")
+	taskContent := `---
+task_name: cursor-test
+---
+# Cursor Test Task
+
+This task is loaded from .cursor/commands directory.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the binary
+	cmd = exec.Command(binaryPath, "-C", tmpDir, "cursor-test")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run binary: %v\n%s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Check that task content is present
+	if !strings.Contains(outputStr, "# Cursor Test Task") {
+		t.Errorf("Cursor task content not found in stdout")
+	}
+
+	// Check that task description is present
+	if !strings.Contains(outputStr, "This task is loaded from .cursor/commands directory.") {
+		t.Errorf("Cursor task description not found in stdout")
+	}
+}
