@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -30,7 +31,7 @@ type codingContext struct {
 	taskContent      string      // Parsed task content (before parameter expansion)
 	totalTokens      int
 	output           io.Writer
-	logOut           io.Writer
+	logger           *slog.Logger
 	cmdRunner        func(cmd *exec.Cmd) error
 }
 
@@ -38,11 +39,13 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+
 	cc := &codingContext{
 		params:   make(Params),
 		includes: make(selectorMap),
 		output:   os.Stdout,
-		logOut:   flag.CommandLine.Output(),
+		logger:   logger,
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
 		},
@@ -59,17 +62,16 @@ func main() {
 	})
 
 	flag.Usage = func() {
-		fmt.Fprintf(cc.logOut, "Usage:")
-		fmt.Fprintln(cc.logOut)
-		fmt.Fprintln(cc.logOut, "  coding-context [options] <task-name>")
-		fmt.Fprintln(cc.logOut)
-		fmt.Fprintln(cc.logOut, "Options:")
+		cc.logger.Info("Usage:")
+		cc.logger.Info("  coding-context [options] <task-name>")
+		cc.logger.Info("")
+		cc.logger.Info("Options:")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 
 	if err := cc.run(ctx, flag.Args()); err != nil {
-		fmt.Fprintf(cc.logOut, "Error: %v\n", err)
+		cc.logger.Error("Error", "error", err)
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -262,7 +264,7 @@ func (cc *codingContext) ruleFileWalker(ctx context.Context) func(path string, i
 		// Check if file matches include selectors BEFORE running bootstrap script.
 		// Note: Files with duplicate basenames will both be included.
 		if !cc.includes.matchesIncludes(frontmatter) {
-			fmt.Fprintf(cc.logOut, "⪢ Excluding rule file (does not match include selectors): %s\n", path)
+			cc.logger.Info("Excluding rule file (does not match include selectors)", "path", path)
 			return nil
 		}
 
@@ -273,7 +275,7 @@ func (cc *codingContext) ruleFileWalker(ctx context.Context) func(path string, i
 		// Estimate tokens for this file
 		tokens := estimateTokens(content)
 		cc.totalTokens += tokens
-		fmt.Fprintf(cc.logOut, "⪢ Including rule file: %s (~%d tokens)\n", path, tokens)
+		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
 		fmt.Fprintln(cc.output, content)
 
 		return nil
@@ -298,11 +300,11 @@ func (cc *codingContext) runBootstrapScript(ctx context.Context, path, ext strin
 		return fmt.Errorf("failed to chmod bootstrap file %s: %w", bootstrapFilePath, err)
 	}
 
-	fmt.Fprintf(cc.logOut, "⪢ Running bootstrap script: %s\n", bootstrapFilePath)
+	cc.logger.Info("Running bootstrap script", "path", bootstrapFilePath)
 
 	cmd := exec.CommandContext(ctx, bootstrapFilePath)
-	cmd.Stdout = cc.logOut
-	cmd.Stderr = cc.logOut
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
 
 	if err := cc.cmdRunner(cmd); err != nil {
 		return err
@@ -394,12 +396,12 @@ func (cc *codingContext) emitTaskFileContent() error {
 	// Estimate tokens for this file
 	tokens := estimateTokens(expanded)
 	cc.totalTokens += tokens
-	fmt.Fprintf(cc.logOut, "⪢ Including task file: %s (~%d tokens)\n", cc.matchingTaskFile, tokens)
+	cc.logger.Info("Including task file", "path", cc.matchingTaskFile, "tokens", tokens)
 
 	fmt.Fprintln(cc.output, expanded)
 
 	// Print total token count
-	fmt.Fprintf(cc.logOut, "⪢ Total estimated tokens: %d\n", cc.totalTokens)
+	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
 
 	return nil
 }

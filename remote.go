@@ -11,13 +11,13 @@ import (
 
 func (cc *codingContext) downloadRemoteDirectories(ctx context.Context) error {
 	for _, remotePath := range cc.remotePaths {
-		fmt.Fprintf(cc.logOut, "⪢ Downloading remote directory: %s\n", remotePath)
+		cc.logger.Info("Downloading remote directory", "path", remotePath)
 		localPath, err := downloadRemoteDirectory(ctx, remotePath)
 		if err != nil {
 			return fmt.Errorf("failed to download remote directory %s: %w", remotePath, err)
 		}
 		cc.downloadedDirs = append(cc.downloadedDirs, localPath)
-		fmt.Fprintf(cc.logOut, "⪢ Downloaded to: %s\n", localPath)
+		cc.logger.Info("Downloaded to", "path", localPath)
 	}
 
 	return nil
@@ -30,7 +30,7 @@ func (cc *codingContext) cleanupDownloadedDirectories() {
 		}
 
 		if err := os.RemoveAll(dir); err != nil {
-			fmt.Fprintf(cc.logOut, "⪢ Error cleaning up downloaded directory %s: %v\n", dir, err)
+			cc.logger.Error("Error cleaning up downloaded directory", "path", dir, "error", err)
 		}
 	}
 }
