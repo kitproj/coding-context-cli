@@ -1,4 +1,4 @@
-package main
+package codingcontext
 
 import (
 	"bytes"
@@ -35,36 +35,24 @@ func createMarkdownFile(t *testing.T, path string, frontmatter string, content s
 func TestRun(t *testing.T) {
 	tests := []struct {
 		name        string
-		args        []string
+		taskName    string
 		workDir     string
 		resume      bool
-		params      paramMap
-		includes    selectorMap
+		params      ParamMap
+		includes    SelectorMap
 		setupFiles  func(t *testing.T, tmpDir string)
 		wantErr     bool
 		errContains string
 	}{
 		{
-			name:        "no arguments",
-			args:        []string{},
-			wantErr:     true,
-			errContains: "invalid usage",
-		},
-		{
-			name:        "too many arguments",
-			args:        []string{"task1", "task2"},
-			wantErr:     true,
-			errContains: "invalid usage",
-		},
-		{
 			name:        "task not found",
-			args:        []string{"nonexistent"},
+			taskName:    "nonexistent",
 			wantErr:     true,
 			errContains: "no task file found",
 		},
 		{
-			name: "successful task execution",
-			args: []string{"test_task"},
+			name:     "successful task execution",
+			taskName: "test_task",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				// Create task file
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
@@ -75,9 +63,9 @@ func TestRun(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "task with parameters",
-			args: []string{"param_task"},
-			params: paramMap{
+			name:     "task with parameters",
+			taskName: "param_task",
+			params: ParamMap{
 				"name": "value",
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -89,9 +77,9 @@ func TestRun(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:   "resume mode skips rules",
-			args:   []string{"resume_task"},
-			resume: true,
+			name:     "resume mode skips rules",
+			taskName: "resume_task",
+			resume:   true,
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
 				createMarkdownFile(t, filepath.Join(taskDir, "resume.md"),
@@ -124,7 +112,7 @@ func TestRun(t *testing.T) {
 			defer os.Chdir(oldDir)
 
 			var output, logOut bytes.Buffer
-			cc := &codingContext{
+			cc := &Context{
 				workDir:  tmpDir,
 				resume:   tt.resume,
 				params:   tt.params,
@@ -137,23 +125,23 @@ func TestRun(t *testing.T) {
 			}
 
 			if cc.params == nil {
-				cc.params = make(paramMap)
+				cc.params = make(ParamMap)
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(SelectorMap)
 			}
 
-			err = cc.run(context.Background(), tt.args)
+			err = cc.Run(context.Background(), tt.taskName)
 
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("run() expected error, got nil")
+					t.Errorf("Run() expected error, got nil")
 				} else if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
-					t.Errorf("run() error = %v, should contain %q", err, tt.errContains)
+					t.Errorf("Run() error = %v, should contain %q", err, tt.errContains)
 				}
 			} else {
 				if err != nil {
-					t.Errorf("run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
+					t.Errorf("Run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
 				}
 			}
 		})
@@ -164,7 +152,7 @@ func TestFindTaskFile(t *testing.T) {
 	tests := []struct {
 		name           string
 		taskName       string
-		includes       selectorMap
+		includes       SelectorMap
 		setupFiles     func(t *testing.T, tmpDir string)
 		downloadedDirs []string // Directories to add to downloadedDirs
 		wantErr        bool
@@ -208,7 +196,7 @@ func TestFindTaskFile(t *testing.T) {
 		{
 			name:     "task with matching selector",
 			taskName: "filtered_task",
-			includes: selectorMap{
+			includes: SelectorMap{
 				"env": map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -222,7 +210,7 @@ func TestFindTaskFile(t *testing.T) {
 		{
 			name:     "task with non-matching selector",
 			taskName: "filtered_task",
-			includes: selectorMap{
+			includes: SelectorMap{
 				"env": map[string]bool{"dev": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -327,11 +315,11 @@ func TestFindTaskFile(t *testing.T) {
 				t.Fatalf("failed to chdir: %v", err)
 			}
 
-			cc := &codingContext{
+			cc := &Context{
 				includes: tt.includes,
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(SelectorMap)
 			}
 			cc.includes.SetValue("task_name", tt.taskName)
 
@@ -372,7 +360,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 	tests := []struct {
 		name               string
 		resume             bool
-		includes           selectorMap
+		includes           SelectorMap
 		setupFiles         func(t *testing.T, tmpDir string)
 		downloadedDirs     []string // Directories to add to downloadedDirs
 		wantTokens         int
@@ -406,7 +394,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 		{
 			name:   "exclude rule with non-matching selector",
 			resume: false,
-			includes: selectorMap{
+			includes: SelectorMap{
 				"env": map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -419,7 +407,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 		{
 			name:   "include rule with matching selector",
 			resume: false,
-			includes: selectorMap{
+			includes: SelectorMap{
 				"env": map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -479,7 +467,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 		{
 			name:   "bootstrap script should not run on excluded files",
 			resume: false,
-			includes: selectorMap{
+			includes: SelectorMap{
 				"env": map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -518,7 +506,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 
 			var output, logOut bytes.Buffer
 			bootstrapRan := false
-			cc := &codingContext{
+			cc := &Context{
 				resume:   tt.resume,
 				includes: tt.includes,
 				output:   &output,
@@ -532,7 +520,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 				},
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(SelectorMap)
 			}
 
 			// Set downloadedDirs if specified in test case
@@ -650,7 +638,7 @@ func TestRunBootstrapScript(t *testing.T) {
 
 			var logOut bytes.Buffer
 			cmdRan := false
-			cc := &codingContext{
+			cc := &Context{
 				logOut: &logOut,
 				cmdRunner: func(cmd *exec.Cmd) error {
 					cmdRan = true
@@ -698,7 +686,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 	tests := []struct {
 		name                string
 		taskFile            string
-		params              paramMap
+		params              ParamMap
 		emitTaskFrontmatter bool
 		setupFiles          func(t *testing.T, tmpDir string) string // returns task file path
 		expectInOutput      string
@@ -707,7 +695,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 		{
 			name:     "simple task",
 			taskFile: "task.md",
-			params:   paramMap{},
+			params:   ParamMap{},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
@@ -721,7 +709,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 		{
 			name:     "task with parameter substitution",
 			taskFile: "task.md",
-			params: paramMap{
+			params: ParamMap{
 				"name":  "Alice",
 				"value": "123",
 			},
@@ -738,7 +726,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 		{
 			name:     "task with missing parameter",
 			taskFile: "task.md",
-			params:   paramMap{},
+			params:   ParamMap{},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
@@ -752,7 +740,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 		{
 			name:     "task with partial parameter substitution",
 			taskFile: "task.md",
-			params: paramMap{
+			params: ParamMap{
 				"name": "Bob",
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
@@ -768,7 +756,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 		{
 			name:                "task with frontmatter emission enabled",
 			taskFile:            "task.md",
-			params:              paramMap{},
+			params:              ParamMap{},
 			emitTaskFrontmatter: true,
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
@@ -788,13 +776,13 @@ func TestWriteTaskFileContent(t *testing.T) {
 			taskPath := tt.setupFiles(t, tmpDir)
 
 			var output, logOut bytes.Buffer
-			cc := &codingContext{
+			cc := &Context{
 				matchingTaskFile:    taskPath,
 				params:              tt.params,
 				emitTaskFrontmatter: tt.emitTaskFrontmatter,
 				output:              &output,
 				logOut:              &logOut,
-				includes:            make(selectorMap),
+				includes:            make(SelectorMap),
 			}
 
 			// Parse task file first
@@ -861,16 +849,16 @@ func TestParseTaskFile(t *testing.T) {
 		name             string
 		taskFile         string
 		setupFiles       func(t *testing.T, tmpDir string) string // returns task file path
-		initialIncludes  selectorMap
-		expectedIncludes selectorMap // expected includes after parsing
+		initialIncludes  SelectorMap
+		expectedIncludes SelectorMap // expected includes after parsing
 		wantErr          bool
 		errContains      string
 	}{
 		{
 			name:             "task without selectors field",
 			taskFile:         "task.md",
-			initialIncludes:  make(selectorMap),
-			expectedIncludes: make(selectorMap),
+			initialIncludes:  make(SelectorMap),
+			expectedIncludes: make(SelectorMap),
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
@@ -883,8 +871,8 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "task with selectors field",
 			taskFile:        "task.md",
-			initialIncludes: make(selectorMap),
-			expectedIncludes: selectorMap{
+			initialIncludes: make(SelectorMap),
+			expectedIncludes: SelectorMap{
 				"language": map[string]bool{"Go": true},
 				"env":      map[string]bool{"prod": true},
 			},
@@ -900,8 +888,8 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "task with selectors merges with existing includes",
 			taskFile:        "task.md",
-			initialIncludes: selectorMap{"existing": map[string]bool{"value": true}},
-			expectedIncludes: selectorMap{
+			initialIncludes: SelectorMap{"existing": map[string]bool{"value": true}},
+			expectedIncludes: SelectorMap{
 				"existing": map[string]bool{"value": true},
 				"language": map[string]bool{"Python": true},
 			},
@@ -917,8 +905,8 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "task with array selector values",
 			taskFile:        "task.md",
-			initialIncludes: make(selectorMap),
-			expectedIncludes: selectorMap{
+			initialIncludes: make(SelectorMap),
+			expectedIncludes: SelectorMap{
 				"rule_name": map[string]bool{"rule1": true, "rule2": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
@@ -933,8 +921,8 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "selectors from -s flag and task file are additive",
 			taskFile:        "task.md",
-			initialIncludes: selectorMap{"var": map[string]bool{"arg1": true}},
-			expectedIncludes: selectorMap{
+			initialIncludes: SelectorMap{"var": map[string]bool{"arg1": true}},
+			expectedIncludes: SelectorMap{
 				"var": map[string]bool{"arg1": true, "arg2": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
@@ -949,8 +937,8 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "task with integer selector value",
 			taskFile:        "task.md",
-			initialIncludes: make(selectorMap),
-			expectedIncludes: selectorMap{
+			initialIncludes: make(SelectorMap),
+			expectedIncludes: SelectorMap{
 				"version": map[string]bool{"42": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
@@ -965,7 +953,7 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "task with invalid selectors field type",
 			taskFile:        "task.md",
-			initialIncludes: make(selectorMap),
+			initialIncludes: make(SelectorMap),
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
@@ -983,12 +971,12 @@ func TestParseTaskFile(t *testing.T) {
 			tmpDir := t.TempDir()
 			taskPath := tt.setupFiles(t, tmpDir)
 
-			cc := &codingContext{
+			cc := &Context{
 				matchingTaskFile: taskPath,
 				includes:         tt.initialIncludes,
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(SelectorMap)
 			}
 
 			err := cc.parseTaskFile()
@@ -1154,9 +1142,9 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 			}
 
 			var output, logOut bytes.Buffer
-			cc := &codingContext{
+			cc := &Context{
 				workDir:  tmpDir,
-				includes: make(selectorMap),
+				includes: make(SelectorMap),
 				output:   &output,
 				logOut:   &logOut,
 				cmdRunner: func(cmd *exec.Cmd) error {
@@ -1220,7 +1208,7 @@ func TestTaskFileWalker(t *testing.T) {
 	tests := []struct {
 		name          string
 		taskName      string
-		includes      selectorMap
+		includes      SelectorMap
 		fileInfo      fileInfoMock
 		filePath      string
 		fileContent   string // frontmatter + content
@@ -1298,12 +1286,12 @@ func TestTaskFileWalker(t *testing.T) {
 				tt.filePath = fullPath
 			}
 
-			cc := &codingContext{
+			cc := &Context{
 				includes:         tt.includes,
 				matchingTaskFile: tt.existingMatch,
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(SelectorMap)
 			}
 			cc.includes.SetValue("task_name", tt.taskName)
 
@@ -1335,7 +1323,7 @@ func TestTaskFileWalker(t *testing.T) {
 func TestRuleFileWalker(t *testing.T) {
 	tests := []struct {
 		name             string
-		includes         selectorMap
+		includes         SelectorMap
 		fileInfo         fileInfoMock
 		filePath         string
 		fileContent      string
@@ -1373,7 +1361,7 @@ func TestRuleFileWalker(t *testing.T) {
 		},
 		{
 			name:             "exclude rule with non-matching selector",
-			includes:         selectorMap{"env": map[string]bool{"prod": true}},
+			includes:         SelectorMap{"env": map[string]bool{"prod": true}},
 			fileInfo:         fileInfoMock{isDir: false, name: "rule.md"},
 			filePath:         "rule.md",
 			fileContent:      "---\nenv: dev\n---\n# Dev Rule",
@@ -1383,7 +1371,7 @@ func TestRuleFileWalker(t *testing.T) {
 		},
 		{
 			name:           "include rule with matching selector",
-			includes:       selectorMap{"env": map[string]bool{"prod": true}},
+			includes:       SelectorMap{"env": map[string]bool{"prod": true}},
 			fileInfo:       fileInfoMock{isDir: false, name: "rule.md"},
 			filePath:       "rule.md",
 			fileContent:    "---\nenv: prod\n---\n# Prod Rule",
@@ -1409,7 +1397,7 @@ func TestRuleFileWalker(t *testing.T) {
 			}
 
 			var output, logOut bytes.Buffer
-			cc := &codingContext{
+			cc := &Context{
 				includes: tt.includes,
 				output:   &output,
 				logOut:   &logOut,
@@ -1418,7 +1406,7 @@ func TestRuleFileWalker(t *testing.T) {
 				},
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(SelectorMap)
 			}
 
 			walker := cc.ruleFileWalker(context.Background())

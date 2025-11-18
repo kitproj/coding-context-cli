@@ -1,4 +1,4 @@
-package main
+package codingcontext
 
 import (
 	"bufio"
@@ -9,8 +9,8 @@ import (
 	yaml "github.com/goccy/go-yaml"
 )
 
-// parseMarkdownFile parses the file into frontmatter and content
-func parseMarkdownFile(path string, frontmatter any) (string, error) {
+// ParseMarkdownFile parses the file into frontmatter and content
+func ParseMarkdownFile(path string, frontmatter any) (string, error) {
 	fh, err := os.Open(path)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)

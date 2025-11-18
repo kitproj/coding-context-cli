@@ -1,16 +1,16 @@
-package main
+package codingcontext
 
 import (
 	"fmt"
 	"strings"
 )
 
-// selectorMap stores selector key-value pairs where values are stored in inner maps
+// SelectorMap stores selector key-value pairs where values are stored in inner maps
 // Multiple values for the same key use OR logic (match any value in the inner map)
 // Each value can be represented exactly once per key
-type selectorMap map[string]map[string]bool
+type SelectorMap map[string]map[string]bool
 
-func (s *selectorMap) String() string {
+func (s *SelectorMap) String() string {
 	if *s == nil {
 		return "{}"
 	}
@@ -29,14 +29,15 @@ func (s *selectorMap) String() string {
 	return fmt.Sprintf("{%s}", strings.Join(parts, ", "))
 }
 
-func (s *selectorMap) Set(value string) error {
+// Set parses a key=value string and adds it to the selector map
+func (s *SelectorMap) Set(value string) error {
 	// Parse key=value format with trimming
 	kv := strings.SplitN(value, "=", 2)
 	if len(kv) != 2 {
 		return fmt.Errorf("invalid selector format: %s", value)
 	}
 	if *s == nil {
-		*s = make(selectorMap)
+		*s = make(SelectorMap)
 	}
 	key := strings.TrimSpace(kv[0])
 	newValue := strings.TrimSpace(kv[1])
@@ -57,9 +58,9 @@ func (s *selectorMap) Set(value string) error {
 // SetValue sets a value in the inner map for the given key.
 // If the key doesn't exist, it creates a new inner map.
 // Each value can be represented exactly once per key.
-func (s *selectorMap) SetValue(key, value string) {
+func (s *SelectorMap) SetValue(key, value string) {
 	if *s == nil {
-		*s = make(selectorMap)
+		*s = make(SelectorMap)
 	}
 	if (*s)[key] == nil {
 		(*s)[key] = make(map[string]bool)
@@ -69,7 +70,7 @@ func (s *selectorMap) SetValue(key, value string) {
 
 // GetValue returns true if the given value exists in the inner map for the given key.
 // Returns false if the key doesn't exist or the value is not present.
-func (s *selectorMap) GetValue(key, value string) bool {
+func (s *SelectorMap) GetValue(key, value string) bool {
 	if *s == nil {
 		return false
 	}
@@ -80,10 +81,10 @@ func (s *selectorMap) GetValue(key, value string) bool {
 	return innerMap[value]
 }
 
-// matchesIncludes returns true if the frontmatter matches all include selectors
+// MatchesIncludes returns true if the frontmatter matches all include selectors
 // If a key doesn't exist in frontmatter, it's allowed
 // Multiple values for the same key use OR logic (matches if frontmatter value is in the inner map)
-func (includes *selectorMap) matchesIncludes(frontmatter frontMatter) bool {
+func (includes *SelectorMap) MatchesIncludes(frontmatter FrontMatter) bool {
 	for key, values := range *includes {
 		fmValue, exists := frontmatter[key]
 		if !exists {
