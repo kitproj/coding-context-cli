@@ -235,18 +235,14 @@ func TestFindTaskFile(t *testing.T) {
 			errContains: "no task file found",
 		},
 		{
-			name:     "task missing task_name field is skipped",
-			taskName: "my_task",
+			name:     "task without task_name uses filename",
+			taskName: "not-a-task",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
-				// Create a file without task_name (should be skipped)
+				// Create a file without task_name - should use filename as task name
 				createMarkdownFile(t, filepath.Join(taskDir, "not-a-task.md"),
 					"env: prod",
-					"# Not a task, just a rule")
-				// Create a proper task file
-				createMarkdownFile(t, filepath.Join(taskDir, "task.md"),
-					"task_name: my_task",
-					"# My Task")
+					"# Task using filename")
 			},
 			wantErr: false,
 		},
@@ -1276,12 +1272,12 @@ func TestTaskFileWalker(t *testing.T) {
 			errContains:   "multiple task files found",
 		},
 		{
-			name:        "task missing task_name is skipped",
-			taskName:    "test",
+			name:        "task without task_name uses filename",
+			taskName:    "task",
 			fileInfo:    fileInfoMock{isDir: false, name: "task.md"},
 			filePath:    "task.md",
 			fileContent: "---\nother: value\n---\n# Task",
-			expectMatch: false,
+			expectMatch: true,
 			wantErr:     false,
 		},
 	}

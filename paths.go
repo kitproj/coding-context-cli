@@ -8,7 +8,6 @@ func allTaskSearchPaths(homeDir string) []string {
 		filepath.Join(".cursor", "commands"),
 		filepath.Join(".opencode", "command"),
 		filepath.Join(homeDir, ".agents", "tasks"),
-		filepath.Join(homeDir, ".config", "opencode", "command"),
 	}
 }
 
@@ -21,7 +20,6 @@ func allRulePaths(homeDir string) []string {
 		".augment/rules",
 		".windsurf/rules",
 		".opencode/agent",
-		".opencode/command",
 
 		".github/copilot-instructions.md",
 		".gemini/styleguide.md",
@@ -60,7 +58,6 @@ func downloadedRulePaths(dir string) []string {
 		filepath.Join(dir, ".augment", "rules"),
 		filepath.Join(dir, ".windsurf", "rules"),
 		filepath.Join(dir, ".opencode", "agent"),
-		filepath.Join(dir, ".opencode", "command"),
 		filepath.Join(dir, ".github", "copilot-instructions.md"),
 		filepath.Join(dir, ".gemini", "styleguide.md"),
 		filepath.Join(dir, ".github", "agents"),
