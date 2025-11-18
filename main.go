@@ -19,14 +19,14 @@ import (
 type codingContext struct {
 	workDir             string
 	resume              bool
-	params              paramMap
-	includes            selectorMap
+	params              ParamMap
+	includes            SelectorMap
 	remotePaths         []string
 	emitTaskFrontmatter bool
 
 	downloadedDirs   []string
 	matchingTaskFile string
-	taskFrontmatter  frontMatter // Parsed task frontmatter
+	taskFrontmatter  FrontMatter // Parsed task frontmatter
 	taskContent      string      // Parsed task content (before parameter expansion)
 	totalTokens      int
 	output           io.Writer
@@ -39,8 +39,8 @@ func main() {
 	defer cancel()
 
 	cc := &codingContext{
-		params:   make(paramMap),
-		includes: make(selectorMap),
+		params:   make(ParamMap),
+		includes: make(SelectorMap),
 		output:   os.Stdout,
 		logOut:   flag.CommandLine.Output(),
 		cmdRunner: func(cmd *exec.Cmd) error {
@@ -131,11 +131,11 @@ func (cc *codingContext) run(ctx context.Context, args []string) error {
 
 func (cc *codingContext) findTaskFile(homeDir string, taskName string) error {
 	// find the task prompt by searching for a file with matching task_name in frontmatter
-	taskSearchDirs := allTaskSearchPaths(homeDir)
+	taskSearchDirs := AllTaskSearchPaths(homeDir)
 
 	// Add downloaded remote directories to task search paths
 	for _, dir := range cc.downloadedDirs {
-		taskSearchDirs = append(taskSearchDirs, downloadedTaskSearchPaths(dir)...)
+		taskSearchDirs = append(taskSearchDirs, DownloadedTaskSearchPaths(dir)...)
 	}
 
 	for _, dir := range taskSearchDirs {
@@ -171,9 +171,9 @@ func (cc *codingContext) taskFileWalker(taskName string) func(path string, info 
 		}
 
 		// Parse frontmatter to check task_name
-		var frontmatter frontMatter
+		var frontmatter FrontMatter
 
-		if _, err = parseMarkdownFile(path, &frontmatter); err != nil {
+		if _, err = ParseMarkdownFile(path, &frontmatter); err != nil {
 			return fmt.Errorf("failed to parse task file %s: %w", path, err)
 		}
 
@@ -193,7 +193,7 @@ func (cc *codingContext) taskFileWalker(taskName string) func(path string, info 
 		}
 
 		// Check if file matches include selectors (task_name is already in includes)
-		if !cc.includes.matchesIncludes(frontmatter) {
+		if !cc.includes.MatchesIncludes(frontmatter) {
 			return nil
 		}
 
@@ -215,11 +215,11 @@ func (cc *codingContext) findExecuteRuleFiles(ctx context.Context, homeDir strin
 	}
 
 	// Build the list of rule locations (local and remote)
-	rulePaths := allRulePaths(homeDir)
+	rulePaths := AllRulePaths(homeDir)
 
 	// Append remote directories to rule paths
 	for _, dir := range cc.downloadedDirs {
-		rulePaths = append(rulePaths, downloadedRulePaths(dir)...)
+		rulePaths = append(rulePaths, DownloadedRulePaths(dir)...)
 	}
 
 	for _, rule := range rulePaths {
@@ -253,15 +253,15 @@ func (cc *codingContext) ruleFileWalker(ctx context.Context) func(path string, i
 		}
 
 		// Parse frontmatter to check selectors
-		var frontmatter frontMatter
-		content, err := parseMarkdownFile(path, &frontmatter)
+		var frontmatter FrontMatter
+		content, err := ParseMarkdownFile(path, &frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to parse markdown file: %w", err)
 		}
 
 		// Check if file matches include selectors BEFORE running bootstrap script.
 		// Note: Files with duplicate basenames will both be included.
-		if !cc.includes.matchesIncludes(frontmatter) {
+		if !cc.includes.MatchesIncludes(frontmatter) {
 			fmt.Fprintf(cc.logOut, "⪢ Excluding rule file (does not match include selectors): %s\n", path)
 			return nil
 		}
@@ -271,7 +271,7 @@ func (cc *codingContext) ruleFileWalker(ctx context.Context) func(path string, i
 		}
 
 		// Estimate tokens for this file
-		tokens := estimateTokens(content)
+		tokens := EstimateTokens(content)
 		cc.totalTokens += tokens
 		fmt.Fprintf(cc.logOut, "⪢ Including rule file: %s (~%d tokens)\n", path, tokens)
 		fmt.Fprintln(cc.output, content)
@@ -315,9 +315,9 @@ func (cc *codingContext) runBootstrapScript(ctx context.Context, path, ext strin
 // The selectors are added to cc.includes for filtering rules and tools.
 // The parsed frontmatter and content are stored in cc.taskFrontmatter and cc.taskContent.
 func (cc *codingContext) parseTaskFile() error {
-	cc.taskFrontmatter = make(frontMatter)
+	cc.taskFrontmatter = make(FrontMatter)
 
-	content, err := parseMarkdownFile(cc.matchingTaskFile, &cc.taskFrontmatter)
+	content, err := ParseMarkdownFile(cc.matchingTaskFile, &cc.taskFrontmatter)
 	if err != nil {
 		return fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, err)
 	}
@@ -392,7 +392,7 @@ func (cc *codingContext) emitTaskFileContent() error {
 	})
 
 	// Estimate tokens for this file
-	tokens := estimateTokens(expanded)
+	tokens := EstimateTokens(expanded)
 	cc.totalTokens += tokens
 	fmt.Fprintf(cc.logOut, "⪢ Including task file: %s (~%d tokens)\n", cc.matchingTaskFile, tokens)
 

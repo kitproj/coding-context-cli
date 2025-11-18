@@ -2,7 +2,8 @@ package main
 
 import "path/filepath"
 
-func allTaskSearchPaths(homeDir string) []string {
+// AllTaskSearchPaths returns the standard paths to search for task files
+func AllTaskSearchPaths(homeDir string) []string {
 	return []string{
 		filepath.Join(".agents", "tasks"),
 		filepath.Join(".cursor", "commands"),
@@ -11,7 +12,8 @@ func allTaskSearchPaths(homeDir string) []string {
 	}
 }
 
-func allRulePaths(homeDir string) []string {
+// AllRulePaths returns the standard paths to search for rule files
+func AllRulePaths(homeDir string) []string {
 	return []string{
 		"CLAUDE.local.md",
 
@@ -51,7 +53,8 @@ func allRulePaths(homeDir string) []string {
 	}
 }
 
-func downloadedRulePaths(dir string) []string {
+// DownloadedRulePaths returns the paths to search for rule files in a downloaded directory
+func DownloadedRulePaths(dir string) []string {
 	return []string{
 		filepath.Join(dir, ".agents", "rules"),
 		filepath.Join(dir, ".cursor", "rules"),
@@ -70,7 +73,8 @@ func downloadedRulePaths(dir string) []string {
 	}
 }
 
-func downloadedTaskSearchPaths(dir string) []string {
+// DownloadedTaskSearchPaths returns the paths to search for task files in a downloaded directory
+func DownloadedTaskSearchPaths(dir string) []string {
 	return []string{
 		filepath.Join(dir, ".agents", "tasks"),
 		filepath.Join(dir, ".cursor", "commands"),

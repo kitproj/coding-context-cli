@@ -1,3 +1,4 @@
 package main
 
-type frontMatter map[string]any
+// FrontMatter represents YAML frontmatter as a map
+type FrontMatter map[string]any

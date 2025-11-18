@@ -47,17 +47,17 @@ func TestParamMap_Set(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := paramMap{}
+			p := ParamMap{}
 			err := p.Set(tt.value)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("paramMap.Set() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ParamMap.Set() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			if !tt.wantErr {
 				if p[tt.wantKey] != tt.wantVal {
-					t.Errorf("paramMap[%q] = %q, want %q", tt.wantKey, p[tt.wantKey], tt.wantVal)
+					t.Errorf("ParamMap[%q] = %q, want %q", tt.wantKey, p[tt.wantKey], tt.wantVal)
 				}
 			}
 		})
@@ -65,33 +65,33 @@ func TestParamMap_Set(t *testing.T) {
 }
 
 func TestParamMap_String(t *testing.T) {
-	p := paramMap{
+	p := ParamMap{
 		"key1": "value1",
 		"key2": "value2",
 	}
 	s := p.String()
 	if s == "" {
-		t.Error("paramMap.String() returned empty string")
+		t.Error("ParamMap.String() returned empty string")
 	}
 }
 
 func TestParamMap_SetMultiple(t *testing.T) {
-	p := paramMap{}
+	p := ParamMap{}
 
 	if err := p.Set("key1=value1"); err != nil {
-		t.Fatalf("paramMap.Set() failed: %v", err)
+		t.Fatalf("ParamMap.Set() failed: %v", err)
 	}
 	if err := p.Set("key2=value2"); err != nil {
-		t.Fatalf("paramMap.Set() failed: %v", err)
+		t.Fatalf("ParamMap.Set() failed: %v", err)
 	}
 
 	if len(p) != 2 {
-		t.Errorf("paramMap length = %d, want 2", len(p))
+		t.Errorf("ParamMap length = %d, want 2", len(p))
 	}
 	if p["key1"] != "value1" {
-		t.Errorf("paramMap[key1] = %q, want %q", p["key1"], "value1")
+		t.Errorf("ParamMap[key1] = %q, want %q", p["key1"], "value1")
 	}
 	if p["key2"] != "value2" {
-		t.Errorf("paramMap[key2] = %q, want %q", p["key2"], "value2")
+		t.Errorf("ParamMap[key2] = %q, want %q", p["key2"], "value2")
 	}
 }
