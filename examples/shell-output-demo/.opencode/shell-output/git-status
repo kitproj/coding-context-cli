@@ -1,0 +1,9 @@
+#!/bin/bash
+# This script outputs the current git status for context
+
+echo "## Git Repository Status"
+echo ""
+git status --short 2>/dev/null || echo "Not a git repository"
+echo ""
+echo "Recent commits:"
+git log --oneline -5 2>/dev/null || echo "No git history"

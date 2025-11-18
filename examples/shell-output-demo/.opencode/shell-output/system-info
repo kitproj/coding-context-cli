@@ -1,0 +1,8 @@
+#!/bin/bash
+# This script outputs system information
+
+echo "## System Information"
+echo ""
+echo "OS: $(uname -s)"
+echo "Architecture: $(uname -m)"
+echo "Date: $(date '+%Y-%m-%d %H:%M:%S')"

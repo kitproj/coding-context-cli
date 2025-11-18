@@ -118,6 +118,11 @@ func (cc *codingContext) run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
+	// Execute shell-output commands and include their output in the context
+	if err := cc.executeShellOutputs(ctx, homeDir); err != nil {
+		return fmt.Errorf("failed to execute shell outputs: %w", err)
+	}
+
 	// Run bootstrap script for the task file if it exists
 	taskExt := filepath.Ext(cc.matchingTaskFile)
 	if err := cc.runBootstrapScript(ctx, cc.matchingTaskFile, taskExt); err != nil {
@@ -404,4 +409,96 @@ func (cc *codingContext) emitTaskFileContent() error {
 	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
 
 	return nil
+}
+
+// executeShellOutputs finds and executes shell-output files, capturing their stdout
+// and including it in the context output.
+func (cc *codingContext) executeShellOutputs(ctx context.Context, homeDir string) error {
+	// Skip shell outputs in resume mode (like rules)
+	if cc.resume {
+		return nil
+	}
+
+	// Build the list of shell-output locations (local and remote)
+	shellOutputPaths := allShellOutputPaths(homeDir)
+
+	// Append remote directories to shell-output paths
+	for _, dir := range cc.downloadedDirs {
+		shellOutputPaths = append(shellOutputPaths, downloadedShellOutputPaths(dir)...)
+	}
+
+	for _, shellPath := range shellOutputPaths {
+		// Skip if the path doesn't exist
+		if _, err := os.Stat(shellPath); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return fmt.Errorf("failed to stat shell-output path %s: %w", shellPath, err)
+		}
+
+		if err := filepath.Walk(shellPath, cc.shellOutputFileWalker(ctx)); err != nil {
+			return fmt.Errorf("failed to walk shell-output dir: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// shellOutputFileWalker walks through shell-output files and executes them
+func (cc *codingContext) shellOutputFileWalker(ctx context.Context) func(path string, info os.FileInfo, err error) error {
+	return func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		} else if info.IsDir() {
+			return nil
+		}
+
+		// Skip .md files - they are metadata files, not executables
+		if filepath.Ext(path) == ".md" {
+			return nil
+		}
+
+		// Check if file has a metadata companion file (.md or .yaml) for frontmatter
+		var frontmatter frontMatter
+		metadataFile := path + ".md"
+		if _, err := os.Stat(metadataFile); err == nil {
+			// Parse metadata file for frontmatter
+			if _, err := parseMarkdownFile(metadataFile, &frontmatter); err != nil {
+				return fmt.Errorf("failed to parse metadata file %s: %w", metadataFile, err)
+			}
+		}
+
+		// Check if file matches include selectors
+		if !cc.includes.matchesIncludes(frontmatter) {
+			cc.logger.Info("Excluding shell-output file (does not match include selectors)", "path", path)
+			return nil
+		}
+
+		// Make file executable
+		if err := os.Chmod(path, 0o755); err != nil {
+			return fmt.Errorf("failed to chmod shell-output file %s: %w", path, err)
+		}
+
+		cc.logger.Info("Executing shell-output file", "path", path)
+
+		// Execute the file and capture stdout
+		cmd := exec.CommandContext(ctx, path)
+		var stdout strings.Builder
+		cmd.Stdout = &stdout
+		cmd.Stderr = os.Stderr
+
+		if err := cc.cmdRunner(cmd); err != nil {
+			return fmt.Errorf("failed to execute shell-output file %s: %w", path, err)
+		}
+
+		output := stdout.String()
+		// Estimate tokens for this output
+		tokens := estimateTokens(output)
+		cc.totalTokens += tokens
+		cc.logger.Info("Including shell-output", "path", path, "tokens", tokens)
+
+		// Print the output to context
+		fmt.Fprintln(cc.output, output)
+
+		return nil
+	}
 }

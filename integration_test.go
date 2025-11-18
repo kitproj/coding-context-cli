@@ -1052,3 +1052,180 @@ echo "Running task bootstrap"
 		t.Errorf("task bootstrap should run before task content")
 	}
 }
+
+func TestShellOutputSupport(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create shell-output directory
+	shellOutputDir := filepath.Join(tmpDir, ".opencode", "shell-output")
+	if err := os.MkdirAll(shellOutputDir, 0o755); err != nil {
+		t.Fatalf("failed to create shell-output dir: %v", err)
+	}
+
+	// Create a shell script that outputs some text
+	scriptFile := filepath.Join(shellOutputDir, "get-info")
+	scriptContent := `#!/bin/bash
+echo "Current Date: $(date +%Y-%m-%d)"
+echo "Shell Output Working!"
+`
+	if err := os.WriteFile(scriptFile, []byte(scriptContent), 0o755); err != nil {
+		t.Fatalf("failed to create shell script: %v", err)
+	}
+
+	// Create tasks directory
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a simple task file
+	taskFile := filepath.Join(tasksDir, "test-shell.md")
+	taskContent := `---
+task_name: test-shell
+---
+# Test Shell Output Task
+
+This task tests shell output functionality.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to create task file: %v", err)
+	}
+
+	// Run the tool
+	output := runTool(t, "-C", tmpDir, "test-shell")
+
+	// Verify shell output is included
+	if !strings.Contains(output, "Shell Output Working!") {
+		t.Errorf("Shell output content not found in stdout")
+	}
+	if !strings.Contains(output, "Current Date:") {
+		t.Errorf("Shell output date not found in stdout")
+	}
+	if !strings.Contains(output, "# Test Shell Output Task") {
+		t.Errorf("Task content not found in stdout")
+	}
+}
+
+func TestShellOutputWithSelectors(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create shell-output directory
+	shellOutputDir := filepath.Join(tmpDir, ".opencode", "shell-output")
+	if err := os.MkdirAll(shellOutputDir, 0o755); err != nil {
+		t.Fatalf("failed to create shell-output dir: %v", err)
+	}
+
+	// Create a shell script with metadata file
+	scriptFile := filepath.Join(shellOutputDir, "get-go-info")
+	scriptContent := `#!/bin/bash
+echo "Go environment information"
+`
+	if err := os.WriteFile(scriptFile, []byte(scriptContent), 0o755); err != nil {
+		t.Fatalf("failed to create shell script: %v", err)
+	}
+
+	// Create metadata file with frontmatter
+	metadataFile := filepath.Join(shellOutputDir, "get-go-info.md")
+	metadataContent := `---
+language: Go
+---
+`
+	if err := os.WriteFile(metadataFile, []byte(metadataContent), 0o644); err != nil {
+		t.Fatalf("failed to create metadata file: %v", err)
+	}
+
+	// Create another shell script without selector
+	scriptFile2 := filepath.Join(shellOutputDir, "get-python-info")
+	scriptContent2 := `#!/bin/bash
+echo "Python environment information"
+`
+	if err := os.WriteFile(scriptFile2, []byte(scriptContent2), 0o755); err != nil {
+		t.Fatalf("failed to create shell script 2: %v", err)
+	}
+
+	// Create metadata file with different language
+	metadataFile2 := filepath.Join(shellOutputDir, "get-python-info.md")
+	metadataContent2 := `---
+language: Python
+---
+`
+	if err := os.WriteFile(metadataFile2, []byte(metadataContent2), 0o644); err != nil {
+		t.Fatalf("failed to create metadata file 2: %v", err)
+	}
+
+	// Create tasks directory
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(tasksDir, "test-selector.md")
+	taskContent := `---
+task_name: test-selector
+---
+# Test Selector Task
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to create task file: %v", err)
+	}
+
+	// Run the tool with Go selector
+	output := runTool(t, "-C", tmpDir, "-s", "language=Go", "test-selector")
+
+	// Verify only Go shell output is included
+	if !strings.Contains(output, "Go environment information") {
+		t.Errorf("Go shell output not found in stdout")
+	}
+	if strings.Contains(output, "Python environment information") {
+		t.Errorf("Python shell output should be excluded with Go selector")
+	}
+}
+
+func TestShellOutputSkippedInResumeMode(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create shell-output directory
+	shellOutputDir := filepath.Join(tmpDir, ".opencode", "shell-output")
+	if err := os.MkdirAll(shellOutputDir, 0o755); err != nil {
+		t.Fatalf("failed to create shell-output dir: %v", err)
+	}
+
+	// Create a shell script
+	scriptFile := filepath.Join(shellOutputDir, "get-info")
+	scriptContent := `#!/bin/bash
+echo "This should not appear in resume mode"
+`
+	if err := os.WriteFile(scriptFile, []byte(scriptContent), 0o755); err != nil {
+		t.Fatalf("failed to create shell script: %v", err)
+	}
+
+	// Create tasks directory
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a resume task file
+	taskFile := filepath.Join(tasksDir, "test-resume.md")
+	taskContent := `---
+task_name: test-resume
+resume: true
+---
+# Resume Task
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to create task file: %v", err)
+	}
+
+	// Run the tool in resume mode
+	output := runTool(t, "-C", tmpDir, "-r", "test-resume")
+
+	// Verify shell output is NOT included
+	if strings.Contains(output, "This should not appear in resume mode") {
+		t.Errorf("Shell output should be skipped in resume mode")
+	}
+	if !strings.Contains(output, "# Resume Task") {
+		t.Errorf("Task content not found in stdout")
+	}
+}

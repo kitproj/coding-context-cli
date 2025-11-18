@@ -77,3 +77,16 @@ func downloadedTaskSearchPaths(dir string) []string {
 		filepath.Join(dir, ".opencode", "command"),
 	}
 }
+
+func allShellOutputPaths(homeDir string) []string {
+	return []string{
+		filepath.Join(".opencode", "shell-output"),
+		filepath.Join(homeDir, ".opencode", "shell-output"),
+	}
+}
+
+func downloadedShellOutputPaths(dir string) []string {
+	return []string{
+		filepath.Join(dir, ".opencode", "shell-output"),
+	}
+}
