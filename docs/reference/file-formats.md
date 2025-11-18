@@ -160,9 +160,14 @@ coding-context-cli \
 
 Task files must be in one of these directories:
 - `./.agents/tasks/`
+- `./.cursor/commands/`
+- `./.opencode/command/`
 - `~/.agents/tasks/`
+- `~/.config/opencode/command/`
 
 The filename itself doesn't matter; only the `task_name` frontmatter field is used for selection.
+
+**Note:** Some directories like `.opencode/command/` can contain both task files (with `task_name`) and rule files (without `task_name`).
 
 ## Rule Files
 

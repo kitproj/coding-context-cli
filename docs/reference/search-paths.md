@@ -37,12 +37,16 @@ See [How to Use Remote Directories](../how-to/use-remote-directories) for comple
 Task files are searched in the following directories, in order of precedence:
 
 1. `./.agents/tasks/`
-2. `~/.agents/tasks/`
+2. `./.cursor/commands/`
+3. `./.opencode/command/`
+4. `~/.agents/tasks/`
+5. `~/.config/opencode/command/`
 
 ### Discovery Rules
 
 - All `.md` files in these directories are examined
 - The filename doesn't matter; only the `task_name` frontmatter field
+- Files without `task_name` are skipped (treated as rules if the directory is also a rule path)
 - First match wins (unless selectors create ambiguity)
 - Searches stop when a matching task is found
 - Remote directories (via `-d` flag) are searched before local directories
@@ -51,12 +55,16 @@ Task files are searched in the following directories, in order of precedence:
 
 ```
 Project structure:
-./.agents/tasks/fix-bug.md          (task_name: fix-bug)
-~/.agents/tasks/code-review.md      (task_name: code-review)
+./.agents/tasks/fix-bug.md            (task_name: fix-bug)
+./.opencode/command/review-code.md    (task_name: review-code)
+~/.agents/tasks/code-review.md        (task_name: code-review)
+~/.config/opencode/command/deploy.md  (task_name: deploy)
 
 Commands:
 coding-context-cli fix-bug          → Uses ./.agents/tasks/fix-bug.md
+coding-context-cli review-code      → Uses ./.opencode/command/review-code.md
 coding-context-cli code-review      → Uses ~/.agents/tasks/code-review.md
+coding-context-cli deploy           → Uses ~/.config/opencode/command/deploy.md
 ```
 
 ## Rule File Search Paths
@@ -125,13 +133,22 @@ The CLI automatically discovers rules from configuration files for these AI codi
 |-------|----------------|
 | **Anthropic Claude** | `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md` |
 | **Codex** | `AGENTS.md`, `.codex/AGENTS.md` |
-| **Cursor** | `.cursor/rules/`, `.cursorrules` |
+| **Cursor** | `.cursor/rules/`, `.cursorrules`, `.cursor/commands/` (tasks) |
 | **Augment** | `.augment/rules/`, `.augment/guidelines.md` |
 | **Windsurf** | `.windsurf/rules/`, `.windsurfrules` |
-| **OpenCode.ai** | `.opencode/agent/`, `.opencode/command/`, `.opencode/rules/` |
+| **OpenCode.ai** | `.opencode/agent/`, `.opencode/command/` (rules & tasks), `.opencode/rules/` |
 | **GitHub Copilot** | `.github/copilot-instructions.md`, `.github/agents/` |
 | **Google Gemini** | `GEMINI.md`, `.gemini/styleguide.md` |
 | **Generic** | `AGENTS.md`, `.agents/rules/` |
+
+### Dual-Purpose Directories
+
+Some directories serve as both rule and task locations:
+
+- **`.opencode/command/`**: 
+  - Files with `task_name` in frontmatter are treated as tasks
+  - Files without `task_name` are treated as rules
+  - This allows organizing OpenCode commands and rules in a single location
 
 ## Discovery Behavior
 
