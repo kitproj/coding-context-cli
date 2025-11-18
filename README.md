@@ -12,6 +12,7 @@ This tool collects context from predefined rule files and a task-specific prompt
 - **Task-Specific Prompts**: Use different prompts for different tasks (e.g., `feature`, `bugfix`).
 - **Rule-Based Context**: Define reusable context snippets (rules) that can be included or excluded.
 - **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors (matches top-level YAML fields only).
+- **Shell Outputs**: Execute scripts and include their output as dynamic runtime context.
 - **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically.
 - **Parameter Substitution**: Inject values into your task prompts.
 - **Token Estimation**: Get an estimate of the total token count for the generated context.
@@ -153,11 +154,12 @@ The tool assembles the context in the following order:
 1.  **Rule Files**: It searches a list of predefined locations for rule files (`.md` or `.mdc`). These locations include the current directory, ancestor directories, user's home directory, and system-wide directories.
 2.  **Rule Bootstrap Scripts**: For each rule file found (e.g., `my-rule.md`), it looks for an executable script named `my-rule-bootstrap`. If found, it runs the script before processing the rule file. These scripts are meant for bootstrapping the environment (e.g., installing tools) and their output is sent to `stderr`, not into the main context.
 3.  **Filtering**: If `-s` (include) flag is used, it parses the YAML frontmatter of each rule file to decide whether to include it. Note that selectors can only match top-level YAML fields (e.g., `language: go`), not nested fields.
-4.  **Task Prompt**: It searches for a task file with `task_name: <task-name>` in its frontmatter. The filename doesn't matter. If selectors are provided with `-s`, they are used to filter between multiple task files with the same `task_name`.
-5.  **Task Bootstrap Script**: For the task file found (e.g., `fix-bug.md`), it looks for an executable script named `fix-bug-bootstrap`. If found, it runs the script before processing the task file. This allows task-specific environment setup or data preparation.
-6.  **Parameter Expansion**: It substitutes variables in the task prompt using the `-p` flags.
-7.  **Output**: It prints the content of all included rule files, followed by the expanded task prompt, to standard output.
-8.  **Token Count**: A running total of estimated tokens is printed to standard error.
+4.  **Shell Outputs**: It searches `.opencode/shell-output/` directories for executable scripts. These scripts are executed and their stdout is captured and included in the context. Optional `.md` metadata files enable selector-based filtering.
+5.  **Task Prompt**: It searches for a task file with `task_name: <task-name>` in its frontmatter. The filename doesn't matter. If selectors are provided with `-s`, they are used to filter between multiple task files with the same `task_name`.
+6.  **Task Bootstrap Script**: For the task file found (e.g., `fix-bug.md`), it looks for an executable script named `fix-bug-bootstrap`. If found, it runs the script before processing the task file. This allows task-specific environment setup or data preparation.
+7.  **Parameter Expansion**: It substitutes variables in the task prompt using the `-p` flags.
+8.  **Output**: It prints the content of all included rule files, shell outputs, and the expanded task prompt to standard output.
+9.  **Token Count**: A running total of estimated tokens is printed to standard error.
 
 ### File Search Paths
 
@@ -174,6 +176,10 @@ The tool searches for a variety of files and directories, including:
 - `.github/copilot-instructions.md`, `.gemini/styleguide.md`
 - `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` (and in parent directories)
 - User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, `~/.opencode/rules`, etc.
+
+**Shell Outputs:**
+- `./.opencode/shell-output/*` (executable scripts)
+- `~/.opencode/shell-output/*`
 
 ### Remote File System Support
 
