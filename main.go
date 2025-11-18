@@ -177,9 +177,19 @@ func (cc *codingContext) taskFileWalker(taskName string) func(path string, info 
 			return fmt.Errorf("failed to parse task file %s: %w", path, err)
 		}
 
-		// Check if task_name is present in frontmatter
-		if _, hasTaskName := frontmatter["task_name"]; !hasTaskName {
-			return fmt.Errorf("task file %s is missing required 'task_name' field in frontmatter", path)
+		// Get task_name from frontmatter, or use filename without .md extension
+		fileTaskName, hasTaskName := frontmatter["task_name"]
+		var taskNameStr string
+		if hasTaskName {
+			taskNameStr = fmt.Sprint(fileTaskName)
+		} else {
+			// Use filename without .md extension as task name
+			taskNameStr = strings.TrimSuffix(filepath.Base(path), ".md")
+		}
+
+		// Check if this file's task name matches the requested task name
+		if taskNameStr != taskName {
+			return nil
 		}
 
 		// Check if file matches include selectors (task_name is already in includes)

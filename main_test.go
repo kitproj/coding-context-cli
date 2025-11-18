@@ -235,16 +235,16 @@ func TestFindTaskFile(t *testing.T) {
 			errContains: "no task file found",
 		},
 		{
-			name:     "task missing task_name field",
-			taskName: "my_task",
+			name:     "task without task_name uses filename",
+			taskName: "not-a-task",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
-				createMarkdownFile(t, filepath.Join(taskDir, "task.md"),
+				// Create a file without task_name - should use filename as task name
+				createMarkdownFile(t, filepath.Join(taskDir, "not-a-task.md"),
 					"env: prod",
-					"# Task without name")
+					"# Task using filename")
 			},
-			wantErr:     true,
-			errContains: "missing required 'task_name' field",
+			wantErr: false,
 		},
 		{
 			name:     "task file found in downloaded directory",
@@ -281,6 +281,31 @@ func TestFindTaskFile(t *testing.T) {
 				createMarkdownFile(t, filepath.Join(taskDir, "remote.md"),
 					"task_name: cursor_remote_task",
 					"# Cursor Remote Task")
+			},
+			downloadedDirs: []string{"downloaded"}, // Relative path, will be joined with tmpDir
+			wantErr:        false,
+		},
+		{
+			name:     "task file found in .opencode/command directory",
+			taskName: "opencode_task",
+			setupFiles: func(t *testing.T, tmpDir string) {
+				taskDir := filepath.Join(tmpDir, ".opencode", "command")
+				createMarkdownFile(t, filepath.Join(taskDir, "opencode-task.md"),
+					"task_name: opencode_task",
+					"# OpenCode Task")
+			},
+			wantErr: false,
+		},
+		{
+			name:     "task file found in downloaded .opencode/command directory",
+			taskName: "opencode_remote_task",
+			setupFiles: func(t *testing.T, tmpDir string) {
+				// Create task file in downloaded directory's .opencode/command
+				downloadedDir := filepath.Join(tmpDir, "downloaded")
+				taskDir := filepath.Join(downloadedDir, ".opencode", "command")
+				createMarkdownFile(t, filepath.Join(taskDir, "remote.md"),
+					"task_name: opencode_remote_task",
+					"# OpenCode Remote Task")
 			},
 			downloadedDirs: []string{"downloaded"}, // Relative path, will be joined with tmpDir
 			wantErr:        false,
@@ -1247,13 +1272,13 @@ func TestTaskFileWalker(t *testing.T) {
 			errContains:   "multiple task files found",
 		},
 		{
-			name:        "task missing task_name",
-			taskName:    "test",
+			name:        "task without task_name uses filename",
+			taskName:    "task",
 			fileInfo:    fileInfoMock{isDir: false, name: "task.md"},
 			filePath:    "task.md",
 			fileContent: "---\nother: value\n---\n# Task",
-			wantErr:     true,
-			errContains: "missing required 'task_name' field",
+			expectMatch: true,
+			wantErr:     false,
 		},
 	}
 

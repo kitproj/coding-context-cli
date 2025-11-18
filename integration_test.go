@@ -422,14 +422,10 @@ echo "Bootstrap executed successfully"
 func TestOpenCodeRulesSupport(t *testing.T) {
 	tmpDir := t.TempDir()
 	openCodeAgentDir := filepath.Join(tmpDir, ".opencode", "agent")
-	openCodeCommandDir := filepath.Join(tmpDir, ".opencode", "command")
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
 	if err := os.MkdirAll(openCodeAgentDir, 0o755); err != nil {
 		t.Fatalf("failed to create opencode agent dir: %v", err)
-	}
-	if err := os.MkdirAll(openCodeCommandDir, 0o755); err != nil {
-		t.Fatalf("failed to create opencode command dir: %v", err)
 	}
 	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
@@ -443,16 +439,6 @@ This agent helps with documentation.
 `
 	if err := os.WriteFile(agentFile, []byte(agentContent), 0o644); err != nil {
 		t.Fatalf("failed to write agent file: %v", err)
-	}
-
-	// Create a command rule file in .opencode/command
-	commandFile := filepath.Join(openCodeCommandDir, "commit.md")
-	commandContent := `# Commit Command
-
-This command helps create commits.
-`
-	if err := os.WriteFile(commandFile, []byte(commandContent), 0o644); err != nil {
-		t.Fatalf("failed to write command file: %v", err)
 	}
 
 	// Create a task file
@@ -476,14 +462,42 @@ This is a test task.
 		t.Errorf("OpenCode agent rule content not found in stdout")
 	}
 
-	// Check that command rule content is present
-	if !strings.Contains(output, "# Commit Command") {
-		t.Errorf("OpenCode command rule content not found in stdout")
-	}
-
 	// Check that task content is present
 	if !strings.Contains(output, "# Test OpenCode Task") {
 		t.Errorf("task content not found in stdout")
+	}
+}
+
+func TestOpenCodeCommandTaskSupport(t *testing.T) {
+	tmpDir := t.TempDir()
+	openCodeCommandDir := filepath.Join(tmpDir, ".opencode", "command")
+
+	if err := os.MkdirAll(openCodeCommandDir, 0o755); err != nil {
+		t.Fatalf("failed to create opencode command dir: %v", err)
+	}
+
+	// Create a task file in .opencode/command
+	taskFile := filepath.Join(openCodeCommandDir, "fix-bug.md")
+	taskContent := `---
+task_name: fix-bug
+---
+# Fix Bug Command
+
+This is an OpenCode command task for fixing bugs.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the program
+	output := runTool(t, "-C", tmpDir, "fix-bug")
+
+	// Check that task content is present
+	if !strings.Contains(output, "# Fix Bug Command") {
+		t.Errorf("OpenCode command task content not found in stdout")
+	}
+	if !strings.Contains(output, "This is an OpenCode command task for fixing bugs.") {
+		t.Errorf("OpenCode command task description not found in stdout")
 	}
 }
 
@@ -518,7 +532,7 @@ This task has a different filename than task_name.
 	}
 }
 
-func TestTaskMissingTaskNameError(t *testing.T) {
+func TestTaskWithoutTaskNameUsesFilename(t *testing.T) {
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
@@ -526,28 +540,28 @@ func TestTaskMissingTaskNameError(t *testing.T) {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a task file WITHOUT task_name in frontmatter
-	taskFile := filepath.Join(tasksDir, "bad-task.md")
+	// Create a file WITHOUT task_name in frontmatter - should use filename
+	taskFile := filepath.Join(tasksDir, "my-task.md")
 	taskContent := `---
 description: A task without task_name
 ---
-# Bad Task
+# My Task
 
-This task is missing task_name in frontmatter.
+This file uses the filename as task_name.
 `
 	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
-		t.Fatalf("failed to write task file: %v", err)
+		t.Fatalf("failed to write file: %v", err)
 	}
 
-	// Run the program - should fail with an error
-	output, err := runToolWithError("-C", tmpDir, "bad-task")
-	if err == nil {
-		t.Fatalf("expected program to fail, but it succeeded")
-	}
+	// Run the program - should succeed using filename as task name
+	output := runTool(t, "-C", tmpDir, "my-task")
 
-	// Check that error message mentions missing task_name
-	if !strings.Contains(output, "missing required 'task_name' field in frontmatter") {
-		t.Errorf("expected error about missing task_name, got: %s", output)
+	// Check that task content is present
+	if !strings.Contains(output, "# My Task") {
+		t.Errorf("task content not found in stdout")
+	}
+	if !strings.Contains(output, "This file uses the filename as task_name.") {
+		t.Errorf("task description not found in stdout")
 	}
 }
 
