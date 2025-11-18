@@ -20,7 +20,7 @@ type codingContext struct {
 	workDir             string
 	resume              bool
 	params              Params
-	includes            selectorMap
+	includes            selectors
 	remotePaths         []string
 	emitTaskFrontmatter bool
 
@@ -40,7 +40,7 @@ func main() {
 
 	cc := &codingContext{
 		params:   make(Params),
-		includes: make(selectorMap),
+		includes: make(selectors),
 		output:   os.Stdout,
 		logOut:   flag.CommandLine.Output(),
 		cmdRunner: func(cmd *exec.Cmd) error {
