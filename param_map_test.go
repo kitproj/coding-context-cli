@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -98,57 +99,131 @@ func TestParams_SetMultiple(t *testing.T) {
 
 func TestParseParams(t *testing.T) {
 	tests := []struct {
-		name    string
-		value   string
-		wantKey string
-		wantVal string
-		wantErr bool
+		name     string
+		value    string
+		want     Params
+		wantErr  bool
+		errMatch string
 	}{
 		{
-			name:    "valid key=value",
-			value:   "key=value",
-			wantKey: "key",
-			wantVal: "value",
+			name:  "single key=value",
+			value: `key="value"`,
+			want: Params{
+				"key": "value",
+			},
 			wantErr: false,
 		},
 		{
-			name:    "key=value with equals in value",
-			value:   "key=value=with=equals",
-			wantKey: "key",
-			wantVal: "value=with=equals",
+			name:  "multiple key=value pairs",
+			value: `key1="value1",key2="value2"`,
+			want: Params{
+				"key1": "value1",
+				"key2": "value2",
+			},
 			wantErr: false,
 		},
 		{
-			name:    "empty value",
-			value:   "key=",
-			wantKey: "key",
-			wantVal: "",
+			name:  "value with spaces",
+			value: `name="John Doe"`,
+			want: Params{
+				"name": "John Doe",
+			},
 			wantErr: false,
 		},
 		{
-			name:    "invalid format - no equals",
-			value:   "keyvalue",
-			wantErr: true,
+			name:  "value with equals sign",
+			value: `formula="a=b+c"`,
+			want: Params{
+				"formula": "a=b+c",
+			},
+			wantErr: false,
 		},
 		{
-			name:    "invalid format - only key",
-			value:   "key",
-			wantErr: true,
+			name:  "value with comma inside quotes",
+			value: `list="one,two,three"`,
+			want: Params{
+				"list": "one,two,three",
+			},
+			wantErr: false,
+		},
+		{
+			name:  "multiple values with special chars",
+			value: `key1="value with spaces",key2="a=b",key3="x,y,z"`,
+			want: Params{
+				"key1": "value with spaces",
+				"key2": "a=b",
+				"key3": "x,y,z",
+			},
+			wantErr: false,
+		},
+		{
+			name:  "empty value",
+			value: `key=""`,
+			want: Params{
+				"key": "",
+			},
+			wantErr: false,
+		},
+		{
+			name:     "value without quotes",
+			value:    `key=value`,
+			wantErr:  true,
+			errMatch: "value must be quoted",
+		},
+		{
+			name:     "invalid format - no equals",
+			value:    `keyvalue`,
+			wantErr:  true,
+			errMatch: "invalid parameter format",
+		},
+		{
+			name:     "missing closing quote",
+			value:    `key="value`,
+			wantErr:  true,
+			errMatch: "value must be quoted",
+		},
+		{
+			name:    "empty string",
+			value:   ``,
+			want:    Params{},
+			wantErr: false,
+		},
+		{
+			name:  "spaces around key and value",
+			value: `  key1 = "value1" , key2 = "value2"  `,
+			want: Params{
+				"key1": "value1",
+				"key2": "value2",
+			},
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := ParseParams(tt.value)
+			got, err := ParseParams(tt.value)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseParams() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
+			if tt.wantErr && tt.errMatch != "" && err != nil {
+				if !strings.Contains(err.Error(), tt.errMatch) {
+					t.Errorf("ParseParams() error = %v, should contain %q", err, tt.errMatch)
+				}
+				return
+			}
+
 			if !tt.wantErr {
-				if p[tt.wantKey] != tt.wantVal {
-					t.Errorf("ParseParams()[%q] = %q, want %q", tt.wantKey, p[tt.wantKey], tt.wantVal)
+				if len(got) != len(tt.want) {
+					t.Errorf("ParseParams() got %d params, want %d: got=%v, want=%v", len(got), len(tt.want), got, tt.want)
+					return
+				}
+				for k, v := range tt.want {
+					if got[k] != v {
+						t.Errorf("ParseParams()[%q] = %q, want %q", k, got[k], v)
+					}
 				}
 			}
 		})
