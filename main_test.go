@@ -40,7 +40,7 @@ func TestRun(t *testing.T) {
 		workDir     string
 		resume      bool
 		params      Params
-		includes    selectorMap
+		includes    selectors
 		setupFiles  func(t *testing.T, tmpDir string)
 		wantErr     bool
 		errContains string
@@ -141,7 +141,7 @@ func TestRun(t *testing.T) {
 				cc.params = make(Params)
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(selectors)
 			}
 
 			err = cc.run(context.Background(), tt.args)
@@ -165,7 +165,7 @@ func TestFindTaskFile(t *testing.T) {
 	tests := []struct {
 		name           string
 		taskName       string
-		includes       selectorMap
+		includes       selectors
 		setupFiles     func(t *testing.T, tmpDir string)
 		downloadedDirs []string // Directories to add to downloadedDirs
 		wantErr        bool
@@ -209,7 +209,7 @@ func TestFindTaskFile(t *testing.T) {
 		{
 			name:     "task with matching selector",
 			taskName: "filtered_task",
-			includes: selectorMap{
+			includes: selectors{
 				"env": map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -223,7 +223,7 @@ func TestFindTaskFile(t *testing.T) {
 		{
 			name:     "task with non-matching selector",
 			taskName: "filtered_task",
-			includes: selectorMap{
+			includes: selectors{
 				"env": map[string]bool{"dev": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -332,7 +332,7 @@ func TestFindTaskFile(t *testing.T) {
 				includes: tt.includes,
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(selectors)
 			}
 			cc.includes.SetValue("task_name", tt.taskName)
 
@@ -373,7 +373,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 	tests := []struct {
 		name               string
 		resume             bool
-		includes           selectorMap
+		includes           selectors
 		setupFiles         func(t *testing.T, tmpDir string)
 		downloadedDirs     []string // Directories to add to downloadedDirs
 		wantTokens         int
@@ -407,7 +407,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 		{
 			name:   "exclude rule with non-matching selector",
 			resume: false,
-			includes: selectorMap{
+			includes: selectors{
 				"env": map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -420,7 +420,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 		{
 			name:   "include rule with matching selector",
 			resume: false,
-			includes: selectorMap{
+			includes: selectors{
 				"env": map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -480,7 +480,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 		{
 			name:   "bootstrap script should not run on excluded files",
 			resume: false,
-			includes: selectorMap{
+			includes: selectors{
 				"env": map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -533,7 +533,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 				},
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(selectors)
 			}
 
 			// Set downloadedDirs if specified in test case
@@ -795,7 +795,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 				emitTaskFrontmatter: tt.emitTaskFrontmatter,
 				output:              &output,
 				logger:              slog.New(slog.NewTextHandler(&logOut, nil)),
-				includes:            make(selectorMap),
+				includes:            make(selectors),
 			}
 
 			// Parse task file first
@@ -862,16 +862,16 @@ func TestParseTaskFile(t *testing.T) {
 		name             string
 		taskFile         string
 		setupFiles       func(t *testing.T, tmpDir string) string // returns task file path
-		initialIncludes  selectorMap
-		expectedIncludes selectorMap // expected includes after parsing
+		initialIncludes  selectors
+		expectedIncludes selectors // expected includes after parsing
 		wantErr          bool
 		errContains      string
 	}{
 		{
 			name:             "task without selectors field",
 			taskFile:         "task.md",
-			initialIncludes:  make(selectorMap),
-			expectedIncludes: make(selectorMap),
+			initialIncludes:  make(selectors),
+			expectedIncludes: make(selectors),
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
@@ -884,8 +884,8 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "task with selectors field",
 			taskFile:        "task.md",
-			initialIncludes: make(selectorMap),
-			expectedIncludes: selectorMap{
+			initialIncludes: make(selectors),
+			expectedIncludes: selectors{
 				"language": map[string]bool{"Go": true},
 				"env":      map[string]bool{"prod": true},
 			},
@@ -901,8 +901,8 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "task with selectors merges with existing includes",
 			taskFile:        "task.md",
-			initialIncludes: selectorMap{"existing": map[string]bool{"value": true}},
-			expectedIncludes: selectorMap{
+			initialIncludes: selectors{"existing": map[string]bool{"value": true}},
+			expectedIncludes: selectors{
 				"existing": map[string]bool{"value": true},
 				"language": map[string]bool{"Python": true},
 			},
@@ -918,8 +918,8 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "task with array selector values",
 			taskFile:        "task.md",
-			initialIncludes: make(selectorMap),
-			expectedIncludes: selectorMap{
+			initialIncludes: make(selectors),
+			expectedIncludes: selectors{
 				"rule_name": map[string]bool{"rule1": true, "rule2": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
@@ -934,8 +934,8 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "selectors from -s flag and task file are additive",
 			taskFile:        "task.md",
-			initialIncludes: selectorMap{"var": map[string]bool{"arg1": true}},
-			expectedIncludes: selectorMap{
+			initialIncludes: selectors{"var": map[string]bool{"arg1": true}},
+			expectedIncludes: selectors{
 				"var": map[string]bool{"arg1": true, "arg2": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
@@ -950,8 +950,8 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "task with integer selector value",
 			taskFile:        "task.md",
-			initialIncludes: make(selectorMap),
-			expectedIncludes: selectorMap{
+			initialIncludes: make(selectors),
+			expectedIncludes: selectors{
 				"version": map[string]bool{"42": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
@@ -966,7 +966,7 @@ func TestParseTaskFile(t *testing.T) {
 		{
 			name:            "task with invalid selectors field type",
 			taskFile:        "task.md",
-			initialIncludes: make(selectorMap),
+			initialIncludes: make(selectors),
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
@@ -989,7 +989,7 @@ func TestParseTaskFile(t *testing.T) {
 				includes:         tt.initialIncludes,
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(selectors)
 			}
 
 			err := cc.parseTaskFile()
@@ -1157,7 +1157,7 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 			var output, logOut bytes.Buffer
 			cc := &codingContext{
 				workDir:  tmpDir,
-				includes: make(selectorMap),
+				includes: make(selectors),
 				output:   &output,
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
@@ -1221,7 +1221,7 @@ func TestTaskFileWalker(t *testing.T) {
 	tests := []struct {
 		name          string
 		taskName      string
-		includes      selectorMap
+		includes      selectors
 		fileInfo      fileInfoMock
 		filePath      string
 		fileContent   string // frontmatter + content
@@ -1304,7 +1304,7 @@ func TestTaskFileWalker(t *testing.T) {
 				matchingTaskFile: tt.existingMatch,
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(selectors)
 			}
 			cc.includes.SetValue("task_name", tt.taskName)
 
@@ -1336,7 +1336,7 @@ func TestTaskFileWalker(t *testing.T) {
 func TestRuleFileWalker(t *testing.T) {
 	tests := []struct {
 		name             string
-		includes         selectorMap
+		includes         selectors
 		fileInfo         fileInfoMock
 		filePath         string
 		fileContent      string
@@ -1374,7 +1374,7 @@ func TestRuleFileWalker(t *testing.T) {
 		},
 		{
 			name:             "exclude rule with non-matching selector",
-			includes:         selectorMap{"env": map[string]bool{"prod": true}},
+			includes:         selectors{"env": map[string]bool{"prod": true}},
 			fileInfo:         fileInfoMock{isDir: false, name: "rule.md"},
 			filePath:         "rule.md",
 			fileContent:      "---\nenv: dev\n---\n# Dev Rule",
@@ -1384,7 +1384,7 @@ func TestRuleFileWalker(t *testing.T) {
 		},
 		{
 			name:           "include rule with matching selector",
-			includes:       selectorMap{"env": map[string]bool{"prod": true}},
+			includes:       selectors{"env": map[string]bool{"prod": true}},
 			fileInfo:       fileInfoMock{isDir: false, name: "rule.md"},
 			filePath:       "rule.md",
 			fileContent:    "---\nenv: prod\n---\n# Prod Rule",
@@ -1419,7 +1419,7 @@ func TestRuleFileWalker(t *testing.T) {
 				},
 			}
 			if cc.includes == nil {
-				cc.includes = make(selectorMap)
+				cc.includes = make(selectors)
 			}
 
 			walker := cc.ruleFileWalker(context.Background())

@@ -40,7 +40,7 @@ func TestSelectorMap_Set(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := make(selectorMap)
+			s := make(selectors)
 			err := s.Set(tt.value)
 
 			if (err != nil) != tt.wantErr {
@@ -62,7 +62,7 @@ func TestSelectorMap_Set(t *testing.T) {
 }
 
 func TestSelectorMap_SetMultiple(t *testing.T) {
-	s := make(selectorMap)
+	s := make(selectors)
 	if err := s.Set("env=production"); err != nil {
 		t.Fatalf("Set() error = %v", err)
 	}
@@ -79,7 +79,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 	tests := []struct {
 		name           string
 		selectors      []string
-		setupSelectors func(s selectorMap) // Optional function to set up array selectors directly
+		setupSelectors func(s selectors) // Optional function to set up array selectors directly
 		frontmatter    frontMatter
 		wantMatch      bool
 	}{
@@ -136,7 +136,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			selectors:   []string{},
 			frontmatter: frontMatter{"rule_name": "rule2"},
 			wantMatch:   true,
-			setupSelectors: func(s selectorMap) {
+			setupSelectors: func(s selectors) {
 				s.SetValue("rule_name", "rule1")
 				s.SetValue("rule_name", "rule2")
 				s.SetValue("rule_name", "rule3")
@@ -147,7 +147,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			selectors:   []string{},
 			frontmatter: frontMatter{"rule_name": "rule4"},
 			wantMatch:   false,
-			setupSelectors: func(s selectorMap) {
+			setupSelectors: func(s selectors) {
 				s.SetValue("rule_name", "rule1")
 				s.SetValue("rule_name", "rule2")
 				s.SetValue("rule_name", "rule3")
@@ -158,7 +158,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			selectors:   []string{},
 			frontmatter: frontMatter{"env": "prod"},
 			wantMatch:   true,
-			setupSelectors: func(s selectorMap) {
+			setupSelectors: func(s selectors) {
 				s.SetValue("rule_name", "rule1")
 				s.SetValue("rule_name", "rule2")
 			},
@@ -168,7 +168,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			selectors:   []string{"env=prod"},
 			frontmatter: frontMatter{"env": "prod", "rule_name": "rule1"},
 			wantMatch:   true,
-			setupSelectors: func(s selectorMap) {
+			setupSelectors: func(s selectors) {
 				s.SetValue("rule_name", "rule1")
 				s.SetValue("rule_name", "rule2")
 			},
@@ -178,7 +178,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			selectors:   []string{"env=dev"},
 			frontmatter: frontMatter{"env": "prod", "rule_name": "rule1"},
 			wantMatch:   false,
-			setupSelectors: func(s selectorMap) {
+			setupSelectors: func(s selectors) {
 				s.SetValue("rule_name", "rule1")
 				s.SetValue("rule_name", "rule2")
 			},
@@ -188,7 +188,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			selectors:   []string{},
 			frontmatter: frontMatter{"rule_name": "rule1", "language": "go"},
 			wantMatch:   true,
-			setupSelectors: func(s selectorMap) {
+			setupSelectors: func(s selectors) {
 				s.SetValue("rule_name", "rule1")
 				s.SetValue("rule_name", "rule2")
 				s.SetValue("language", "go")
@@ -200,7 +200,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 			selectors:   []string{},
 			frontmatter: frontMatter{"rule_name": "rule1", "language": "java"},
 			wantMatch:   false,
-			setupSelectors: func(s selectorMap) {
+			setupSelectors: func(s selectors) {
 				s.SetValue("rule_name", "rule1")
 				s.SetValue("rule_name", "rule2")
 				s.SetValue("language", "go")
@@ -235,7 +235,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := make(selectorMap)
+			s := make(selectors)
 			for _, sel := range tt.selectors {
 				if err := s.Set(sel); err != nil {
 					t.Fatalf("Set() error = %v", err)
@@ -255,7 +255,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 }
 
 func TestSelectorMap_String(t *testing.T) {
-	s := make(selectorMap)
+	s := make(selectors)
 	s.Set("env=production")
 	s.Set("language=go")
 
