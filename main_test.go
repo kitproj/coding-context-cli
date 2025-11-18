@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -130,7 +131,7 @@ func TestRun(t *testing.T) {
 				params:   tt.params,
 				includes: tt.includes,
 				output:   &output,
-				logOut:   &logOut,
+				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
 				},
@@ -522,7 +523,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 				resume:   tt.resume,
 				includes: tt.includes,
 				output:   &output,
-				logOut:   &logOut,
+				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					// Track if bootstrap script was executed
 					if cmd.Path != "" {
@@ -651,7 +652,7 @@ func TestRunBootstrapScript(t *testing.T) {
 			var logOut bytes.Buffer
 			cmdRan := false
 			cc := &codingContext{
-				logOut: &logOut,
+				logger: slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					cmdRan = true
 					if tt.mockRunError != nil {
@@ -793,7 +794,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 				params:              tt.params,
 				emitTaskFrontmatter: tt.emitTaskFrontmatter,
 				output:              &output,
-				logOut:              &logOut,
+				logger:              slog.New(slog.NewTextHandler(&logOut, nil)),
 				includes:            make(selectors),
 			}
 
@@ -1158,7 +1159,7 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 				workDir:  tmpDir,
 				includes: make(selectors),
 				output:   &output,
-				logOut:   &logOut,
+				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
 				},
@@ -1412,7 +1413,7 @@ func TestRuleFileWalker(t *testing.T) {
 			cc := &codingContext{
 				includes: tt.includes,
 				output:   &output,
-				logOut:   &logOut,
+				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
 				},
