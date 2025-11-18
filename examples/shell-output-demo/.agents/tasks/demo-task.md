@@ -1,5 +1,6 @@
 ---
 task_name: demo-shell-output
+resume: false
 ---
 # Demo Task: Shell Output
 
