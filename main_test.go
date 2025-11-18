@@ -38,7 +38,7 @@ func TestRun(t *testing.T) {
 		args        []string
 		workDir     string
 		resume      bool
-		params      paramMap
+		params      Params
 		includes    selectorMap
 		setupFiles  func(t *testing.T, tmpDir string)
 		wantErr     bool
@@ -77,7 +77,7 @@ func TestRun(t *testing.T) {
 		{
 			name: "task with parameters",
 			args: []string{"param_task"},
-			params: paramMap{
+			params: Params{
 				"name": "value",
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
@@ -137,7 +137,7 @@ func TestRun(t *testing.T) {
 			}
 
 			if cc.params == nil {
-				cc.params = make(paramMap)
+				cc.params = make(Params)
 			}
 			if cc.includes == nil {
 				cc.includes = make(selectorMap)
@@ -698,7 +698,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 	tests := []struct {
 		name                string
 		taskFile            string
-		params              paramMap
+		params              Params
 		emitTaskFrontmatter bool
 		setupFiles          func(t *testing.T, tmpDir string) string // returns task file path
 		expectInOutput      string
@@ -707,7 +707,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 		{
 			name:     "simple task",
 			taskFile: "task.md",
-			params:   paramMap{},
+			params:   Params{},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
@@ -721,7 +721,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 		{
 			name:     "task with parameter substitution",
 			taskFile: "task.md",
-			params: paramMap{
+			params: Params{
 				"name":  "Alice",
 				"value": "123",
 			},
@@ -738,7 +738,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 		{
 			name:     "task with missing parameter",
 			taskFile: "task.md",
-			params:   paramMap{},
+			params:   Params{},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
@@ -752,7 +752,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 		{
 			name:     "task with partial parameter substitution",
 			taskFile: "task.md",
-			params: paramMap{
+			params: Params{
 				"name": "Bob",
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
@@ -768,7 +768,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 		{
 			name:                "task with frontmatter emission enabled",
 			taskFile:            "task.md",
-			params:              paramMap{},
+			params:              Params{},
 			emitTaskFrontmatter: true,
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")

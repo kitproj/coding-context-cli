@@ -19,7 +19,7 @@ import (
 type codingContext struct {
 	workDir             string
 	resume              bool
-	params              paramMap
+	params              Params
 	includes            selectorMap
 	remotePaths         []string
 	emitTaskFrontmatter bool
@@ -39,7 +39,7 @@ func main() {
 	defer cancel()
 
 	cc := &codingContext{
-		params:   make(paramMap),
+		params:   make(Params),
 		includes: make(selectorMap),
 		output:   os.Stdout,
 		logOut:   flag.CommandLine.Output(),
