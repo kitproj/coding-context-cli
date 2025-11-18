@@ -178,8 +178,9 @@ func (cc *codingContext) taskFileWalker(taskName string) func(path string, info 
 		}
 
 		// Check if task_name is present in frontmatter
+		// If not present, skip this file (it's not a task file)
 		if _, hasTaskName := frontmatter["task_name"]; !hasTaskName {
-			return fmt.Errorf("task file %s is missing required 'task_name' field in frontmatter", path)
+			return nil
 		}
 
 		// Check if file matches include selectors (task_name is already in includes)

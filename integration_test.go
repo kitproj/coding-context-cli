@@ -487,6 +487,39 @@ This is a test task.
 	}
 }
 
+func TestOpenCodeCommandTaskSupport(t *testing.T) {
+	tmpDir := t.TempDir()
+	openCodeCommandDir := filepath.Join(tmpDir, ".opencode", "command")
+
+	if err := os.MkdirAll(openCodeCommandDir, 0o755); err != nil {
+		t.Fatalf("failed to create opencode command dir: %v", err)
+	}
+
+	// Create a task file in .opencode/command
+	taskFile := filepath.Join(openCodeCommandDir, "fix-bug.md")
+	taskContent := `---
+task_name: fix-bug
+---
+# Fix Bug Command
+
+This is an OpenCode command task for fixing bugs.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the program
+	output := runTool(t, "-C", tmpDir, "fix-bug")
+
+	// Check that task content is present
+	if !strings.Contains(output, "# Fix Bug Command") {
+		t.Errorf("OpenCode command task content not found in stdout")
+	}
+	if !strings.Contains(output, "This is an OpenCode command task for fixing bugs.") {
+		t.Errorf("OpenCode command task description not found in stdout")
+	}
+}
+
 func TestTaskSelectionByFrontmatter(t *testing.T) {
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
@@ -526,28 +559,28 @@ func TestTaskMissingTaskNameError(t *testing.T) {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a task file WITHOUT task_name in frontmatter
-	taskFile := filepath.Join(tasksDir, "bad-task.md")
-	taskContent := `---
-description: A task without task_name
+	// Create a file WITHOUT task_name in frontmatter (this is now skipped)
+	nonTaskFile := filepath.Join(tasksDir, "not-a-task.md")
+	nonTaskContent := `---
+description: A file without task_name
 ---
-# Bad Task
+# Not a Task
 
-This task is missing task_name in frontmatter.
+This file doesn't have task_name, so it will be skipped.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
-		t.Fatalf("failed to write task file: %v", err)
+	if err := os.WriteFile(nonTaskFile, []byte(nonTaskContent), 0o644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
 	}
 
-	// Run the program - should fail with an error
+	// Run the program - should fail because no task with that name exists
 	output, err := runToolWithError("-C", tmpDir, "bad-task")
 	if err == nil {
 		t.Fatalf("expected program to fail, but it succeeded")
 	}
 
-	// Check that error message mentions missing task_name
-	if !strings.Contains(output, "missing required 'task_name' field in frontmatter") {
-		t.Errorf("expected error about missing task_name, got: %s", output)
+	// Check that error message says task not found (because files without task_name are skipped)
+	if !strings.Contains(output, "no task file found") {
+		t.Errorf("expected error about task not found, got: %s", output)
 	}
 }
 

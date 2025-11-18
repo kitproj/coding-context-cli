@@ -6,7 +6,9 @@ func allTaskSearchPaths(homeDir string) []string {
 	return []string{
 		filepath.Join(".agents", "tasks"),
 		filepath.Join(".cursor", "commands"),
+		filepath.Join(".opencode", "command"),
 		filepath.Join(homeDir, ".agents", "tasks"),
+		filepath.Join(homeDir, ".config", "opencode", "command"),
 	}
 }
 
@@ -75,5 +77,6 @@ func downloadedTaskSearchPaths(dir string) []string {
 	return []string{
 		filepath.Join(dir, ".agents", "tasks"),
 		filepath.Join(dir, ".cursor", "commands"),
+		filepath.Join(dir, ".opencode", "command"),
 	}
 }
