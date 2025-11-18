@@ -1,7 +1,7 @@
 package main
 
 import (
-	"context"
+	stdcontext "context"
 	_ "embed"
 	"flag"
 	"fmt"
@@ -13,21 +13,23 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/kitproj/coding-context-cli/pkg/context"
+
 	yaml "github.com/goccy/go-yaml"
 )
 
 type codingContext struct {
 	workDir             string
 	resume              bool
-	params              ParamMap
-	includes            SelectorMap
+	params              context.ParamMap
+	includes            context.SelectorMap
 	remotePaths         []string
 	emitTaskFrontmatter bool
 
 	downloadedDirs   []string
 	matchingTaskFile string
-	taskFrontmatter  FrontMatter // Parsed task frontmatter
-	taskContent      string      // Parsed task content (before parameter expansion)
+	taskFrontmatter  context.FrontMatter // Parsed task frontmatter
+	taskContent      string              // Parsed task content (before parameter expansion)
 	totalTokens      int
 	output           io.Writer
 	logOut           io.Writer
@@ -35,12 +37,12 @@ type codingContext struct {
 }
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(stdcontext.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	cc := &codingContext{
-		params:   make(ParamMap),
-		includes: make(SelectorMap),
+		params:   make(context.ParamMap),
+		includes: make(context.SelectorMap),
 		output:   os.Stdout,
 		logOut:   flag.CommandLine.Output(),
 		cmdRunner: func(cmd *exec.Cmd) error {
@@ -75,7 +77,7 @@ func main() {
 	}
 }
 
-func (cc *codingContext) run(ctx context.Context, args []string) error {
+func (cc *codingContext) run(ctx stdcontext.Context, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("invalid usage")
 	}
@@ -131,11 +133,11 @@ func (cc *codingContext) run(ctx context.Context, args []string) error {
 
 func (cc *codingContext) findTaskFile(homeDir string, taskName string) error {
 	// find the task prompt by searching for a file with matching task_name in frontmatter
-	taskSearchDirs := AllTaskSearchPaths(homeDir)
+	taskSearchDirs := context.AllTaskSearchPaths(homeDir)
 
 	// Add downloaded remote directories to task search paths
 	for _, dir := range cc.downloadedDirs {
-		taskSearchDirs = append(taskSearchDirs, DownloadedTaskSearchPaths(dir)...)
+		taskSearchDirs = append(taskSearchDirs, context.DownloadedTaskSearchPaths(dir)...)
 	}
 
 	for _, dir := range taskSearchDirs {
@@ -171,9 +173,9 @@ func (cc *codingContext) taskFileWalker(taskName string) func(path string, info 
 		}
 
 		// Parse frontmatter to check task_name
-		var frontmatter FrontMatter
+		var frontmatter context.FrontMatter
 
-		if _, err = ParseMarkdownFile(path, &frontmatter); err != nil {
+		if _, err = context.ParseMarkdownFile(path, &frontmatter); err != nil {
 			return fmt.Errorf("failed to parse task file %s: %w", path, err)
 		}
 
@@ -208,18 +210,18 @@ func (cc *codingContext) taskFileWalker(taskName string) func(path string, info 
 	}
 }
 
-func (cc *codingContext) findExecuteRuleFiles(ctx context.Context, homeDir string) error {
+func (cc *codingContext) findExecuteRuleFiles(ctx stdcontext.Context, homeDir string) error {
 	// Skip rule file discovery in resume mode.
 	if cc.resume {
 		return nil
 	}
 
 	// Build the list of rule locations (local and remote)
-	rulePaths := AllRulePaths(homeDir)
+	rulePaths := context.AllRulePaths(homeDir)
 
 	// Append remote directories to rule paths
 	for _, dir := range cc.downloadedDirs {
-		rulePaths = append(rulePaths, DownloadedRulePaths(dir)...)
+		rulePaths = append(rulePaths, context.DownloadedRulePaths(dir)...)
 	}
 
 	for _, rule := range rulePaths {
@@ -238,7 +240,7 @@ func (cc *codingContext) findExecuteRuleFiles(ctx context.Context, homeDir strin
 	return nil
 }
 
-func (cc *codingContext) ruleFileWalker(ctx context.Context) func(path string, info os.FileInfo, err error) error {
+func (cc *codingContext) ruleFileWalker(ctx stdcontext.Context) func(path string, info os.FileInfo, err error) error {
 	return func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -253,8 +255,8 @@ func (cc *codingContext) ruleFileWalker(ctx context.Context) func(path string, i
 		}
 
 		// Parse frontmatter to check selectors
-		var frontmatter FrontMatter
-		content, err := ParseMarkdownFile(path, &frontmatter)
+		var frontmatter context.FrontMatter
+		content, err := context.ParseMarkdownFile(path, &frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to parse markdown file: %w", err)
 		}
@@ -271,7 +273,7 @@ func (cc *codingContext) ruleFileWalker(ctx context.Context) func(path string, i
 		}
 
 		// Estimate tokens for this file
-		tokens := EstimateTokens(content)
+		tokens := context.EstimateTokens(content)
 		cc.totalTokens += tokens
 		fmt.Fprintf(cc.logOut, "⪢ Including rule file: %s (~%d tokens)\n", path, tokens)
 		fmt.Fprintln(cc.output, content)
@@ -280,7 +282,7 @@ func (cc *codingContext) ruleFileWalker(ctx context.Context) func(path string, i
 	}
 }
 
-func (cc *codingContext) runBootstrapScript(ctx context.Context, path, ext string) error {
+func (cc *codingContext) runBootstrapScript(ctx stdcontext.Context, path, ext string) error {
 	// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
 	// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
 	baseNameWithoutExt := strings.TrimSuffix(path, ext)
@@ -315,9 +317,9 @@ func (cc *codingContext) runBootstrapScript(ctx context.Context, path, ext strin
 // The selectors are added to cc.includes for filtering rules and tools.
 // The parsed frontmatter and content are stored in cc.taskFrontmatter and cc.taskContent.
 func (cc *codingContext) parseTaskFile() error {
-	cc.taskFrontmatter = make(FrontMatter)
+	cc.taskFrontmatter = make(context.FrontMatter)
 
-	content, err := ParseMarkdownFile(cc.matchingTaskFile, &cc.taskFrontmatter)
+	content, err := context.ParseMarkdownFile(cc.matchingTaskFile, &cc.taskFrontmatter)
 	if err != nil {
 		return fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, err)
 	}
@@ -392,7 +394,7 @@ func (cc *codingContext) emitTaskFileContent() error {
 	})
 
 	// Estimate tokens for this file
-	tokens := EstimateTokens(expanded)
+	tokens := context.EstimateTokens(expanded)
 	cc.totalTokens += tokens
 	fmt.Fprintf(cc.logOut, "⪢ Including task file: %s (~%d tokens)\n", cc.matchingTaskFile, tokens)
 
