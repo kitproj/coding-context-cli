@@ -1,4 +1,4 @@
-package main
+package codingcontext
 
 import (
 	"os"
@@ -69,26 +69,26 @@ This is the content.
 
 			// Parse the file
 			var frontmatter map[string]string
-			content, err := parseMarkdownFile(tmpFile, &frontmatter)
+			content, err := ParseMarkdownFile(tmpFile, &frontmatter)
 
 			// Check error
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseMarkdownFile() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ParseMarkdownFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			// Check content
 			if content != tt.wantContent {
-				t.Errorf("parseMarkdownFile() content = %q, want %q", content, tt.wantContent)
+				t.Errorf("ParseMarkdownFile() content = %q, want %q", content, tt.wantContent)
 			}
 
 			// Check frontmatter
 			if len(frontmatter) != len(tt.wantFrontmatter) {
-				t.Errorf("parseMarkdownFile() frontmatter length = %d, want %d", len(frontmatter), len(tt.wantFrontmatter))
+				t.Errorf("ParseMarkdownFile() frontmatter length = %d, want %d", len(frontmatter), len(tt.wantFrontmatter))
 			}
 			for k, v := range tt.wantFrontmatter {
 				if frontmatter[k] != v {
-					t.Errorf("parseMarkdownFile() frontmatter[%q] = %q, want %q", k, frontmatter[k], v)
+					t.Errorf("ParseMarkdownFile() frontmatter[%q] = %q, want %q", k, frontmatter[k], v)
 				}
 			}
 		})
@@ -97,8 +97,8 @@ This is the content.
 
 func TestParseMarkdownFile_FileNotFound(t *testing.T) {
 	var frontmatter map[string]string
-	_, err := parseMarkdownFile("/nonexistent/file.md", &frontmatter)
+	_, err := ParseMarkdownFile("/nonexistent/file.md", &frontmatter)
 	if err == nil {
-		t.Error("parseMarkdownFile() expected error for non-existent file, got nil")
+		t.Error("ParseMarkdownFile() expected error for non-existent file, got nil")
 	}
 }

@@ -221,7 +221,7 @@ echo "Running deploy bootstrap"
 func TestSelectorFiltering(t *testing.T) {
 	dirs := setupTestDirs(t)
 
-	// Create rule files with different selectors
+	// Create rule files with different Selectors
 	ruleFile1 := filepath.Join(dirs.rulesDir, "python.md")
 	ruleContent1 := `---
 language: python
