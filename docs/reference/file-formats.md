@@ -156,6 +156,74 @@ coding-context-cli \
   fix-bug
 ```
 
+### File References
+
+Task and rule files can include references to other files using the `@filepath` syntax. When the context is assembled, these file references are automatically expanded to include the file contents.
+
+**Syntax:**
+```markdown
+Review the code in @src/components/Button.tsx.
+```
+
+**Output after expansion:**
+````markdown
+Review the code in ```tsx
+# File: src/components/Button.tsx
+export const Button = () => {
+  return <button>Click me</button>;
+};
+```.
+````
+
+**Features:**
+- File paths are relative to the working directory (or the directory specified with `-C`)
+- Files are formatted as markdown code blocks with syntax highlighting
+- The file path is included as a comment at the top of the code block
+- Multiple file references can be used in the same task or rule
+- Works in both task files and rule files
+
+**Pattern matching:**
+- File references must start with `@` followed by the file path
+- Valid characters: letters, numbers, underscores, hyphens, forward slashes, and dots
+- File references stop at whitespace or punctuation (except in the path)
+- Examples: `@README.md`, `@src/utils/helper.js`, `@config.yaml`
+
+**Examples:**
+
+Single file reference:
+```markdown
+---
+task_name: review-component
+---
+Review the component in @src/components/Button.tsx for performance issues.
+```
+
+Multiple file references:
+```markdown
+---
+task_name: compare-files
+---
+Compare @file1.go and @file2.go for consistency.
+```
+
+File reference in a rule:
+```markdown
+---
+language: Python
+---
+# Database Configuration
+
+Always use the settings in @config/database.yaml for database connections.
+```
+
+**Error handling:**
+If a referenced file is not found, the tool will report an error and exit:
+```
+Error: failed to read referenced file src/missing.tsx: failed to read file: open /path/to/src/missing.tsx: no such file or directory
+```
+
+This ensures you don't accidentally send incomplete context to the AI agent.
+
 ### File Location
 
 Task files must be in one of these directories:

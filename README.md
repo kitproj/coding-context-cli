@@ -11,6 +11,7 @@ This tool collects context from predefined rule files and a task-specific prompt
 - **Dynamic Context Assembly**: Merges context from various source files.
 - **Task-Specific Prompts**: Use different prompts for different tasks (e.g., `feature`, `bugfix`).
 - **Rule-Based Context**: Define reusable context snippets (rules) that can be included or excluded.
+- **File References**: Include file contents directly in your prompts using `@filepath` syntax.
 - **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors (matches top-level YAML fields only).
 - **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically.
 - **Parameter Substitution**: Inject values into your task prompts.
@@ -326,6 +327,61 @@ Selectors from both the task frontmatter and command line are combined (additive
 # Result: includes rules matching language=Go AND priority=high
 coding-context-cli -s priority=high implement-feature
 ```
+
+#### File References
+
+Task and rule files can include references to other files using the `@filepath` syntax. When the context is assembled, these references are automatically replaced with the file contents formatted as code blocks.
+
+**Example task with file reference (`.agents/tasks/review-component.md`):**
+```markdown
+---
+task_name: review-component
+description: Review component
+---
+
+# Component Review Task
+
+Review the component in @src/components/Button.tsx.
+
+Check for performance issues and suggest improvements.
+```
+
+When this task is executed, the file reference `@src/components/Button.tsx` is replaced with:
+
+````markdown
+Review the component in ```tsx
+# File: src/components/Button.tsx
+export const Button = () => {
+  return <button>Click me</button>;
+};
+```.
+
+Check for performance issues and suggest improvements.
+````
+
+**Key features:**
+- File paths are relative to the working directory (or use `-C` to change the working directory)
+- Files are included as markdown code blocks with syntax highlighting based on the file extension
+- The file path is included as a comment in the code block
+- Multiple files can be referenced in the same task or rule
+- Works in both task files and rule files
+
+**Example with multiple file references:**
+```markdown
+Compare @file1.go and @file2.go for consistency.
+```
+
+**Example in rule files:**
+```markdown
+---
+---
+# Configuration Standards
+
+Always refer to @config.yaml for database settings.
+```
+
+**Error handling:**
+If a referenced file is not found, the tool will report an error and exit, ensuring you don't accidentally send incomplete context to the AI.
 
 ### Resume Mode
 
