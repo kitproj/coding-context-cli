@@ -221,7 +221,7 @@ echo "Running deploy bootstrap"
 func TestSelectorFiltering(t *testing.T) {
 	dirs := setupTestDirs(t)
 
-	// Create rule files with different selectors
+	// Create rule files with different Selectors
 	ruleFile1 := filepath.Join(dirs.rulesDir, "python.md")
 	ruleContent1 := `---
 language: python
@@ -845,9 +845,18 @@ This is a test task.
 
 	lines = strings.Split(output, "\n")
 
-	// First line should be frontmatter delimiter
-	if lines[0] != "---" {
-		t.Errorf("expected first line to be '---', got %q", lines[0])
+	// Find the first non-log line (skip lines starting with "time=")
+	var firstContentLine string
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "time=") {
+			firstContentLine = line
+			break
+		}
+	}
+
+	// First content line should be frontmatter delimiter
+	if firstContentLine != "---" {
+		t.Errorf("expected first content line to be '---', got %q", firstContentLine)
 	}
 
 	// Should contain task frontmatter fields

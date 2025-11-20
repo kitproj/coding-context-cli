@@ -1,4 +1,4 @@
-package main
+package codingcontext
 
 import (
 	"unicode/utf8"
