@@ -12,6 +12,7 @@ This tool collects context from predefined rule files and a task-specific prompt
 - **Task-Specific Prompts**: Use different prompts for different tasks (e.g., `feature`, `bugfix`).
 - **Rule-Based Context**: Define reusable context snippets (rules) that can be included or excluded.
 - **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors (matches top-level YAML fields only).
+- **Shell Command Output**: Inject the output of shell commands into your prompts using `!`command`` syntax.
 - **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically.
 - **Parameter Substitution**: Inject values into your task prompts.
 - **Token Estimation**: Get an estimate of the total token count for the generated context.
