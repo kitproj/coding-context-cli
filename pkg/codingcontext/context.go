@@ -329,11 +329,20 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 			return fmt.Errorf("failed to run bootstrap script (path: %s): %w", path, err)
 		}
 
+		// Expand parameters in rule content
+		expanded := os.Expand(content, func(key string) string {
+			if val, ok := cc.params[key]; ok {
+				return val
+			}
+			// this might not exist, in that case, return the original text
+			return fmt.Sprintf("${%s}", key)
+		})
+
 		// Estimate tokens for this file
-		tokens := estimateTokens(content)
+		tokens := estimateTokens(expanded)
 		cc.totalTokens += tokens
 		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
-		fmt.Fprintln(cc.output, content)
+		fmt.Fprintln(cc.output, expanded)
 
 		return nil
 	}
