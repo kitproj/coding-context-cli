@@ -81,13 +81,6 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// WithCmdRunner sets the command runner function
-func WithCmdRunner(runner func(*exec.Cmd) error) Option {
-	return func(c *Context) {
-		c.cmdRunner = runner
-	}
-}
-
 // New creates a new Context with the given options
 func New(opts ...Option) *Context {
 	c := &Context{
@@ -161,7 +154,6 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		Rules:           cc.rules,
 		Task:            expandedTask,
 		TaskFrontmatter: cc.taskFrontmatter,
-		TotalTokens:     cc.totalTokens,
 	}
 
 	return result, nil

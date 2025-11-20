@@ -12,5 +12,4 @@ type Result struct {
 	Rules           []RuleContent // List of included rule files
 	Task            string        // Expanded task content
 	TaskFrontmatter FrontMatter   // Task frontmatter metadata
-	TotalTokens     int           // Total estimated tokens across all content
 }

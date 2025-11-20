@@ -47,7 +47,7 @@ func main() {
         fmt.Println(rule.Content)
     }
     fmt.Println(result.Task)
-    fmt.Printf("Total tokens: %d\n", result.TotalTokens)
+}
 }
 ```
 
@@ -96,7 +96,6 @@ func main() {
     // Process the result
     fmt.Printf("Task: %s\n", result.Task)
     fmt.Printf("Rules found: %d\n", len(result.Rules))
-    fmt.Printf("Total tokens: %d\n", result.TotalTokens)
     
     // Access task metadata
     if taskName, ok := result.TaskFrontmatter["task_name"]; ok {
@@ -119,7 +118,6 @@ Result holds the assembled context from running a task:
 - `Rules []RuleContent` - List of included rule files
 - `Task string` - Expanded task content
 - `TaskFrontmatter FrontMatter` - Task frontmatter metadata
-- `TotalTokens int` - Total estimated tokens across all content
 
 #### `RuleContent`
 
@@ -154,11 +152,10 @@ Creates a new Context with the given options.
 - `WithRemotePaths(paths []string)` - Set remote directories to download
 - `WithEmitTaskFrontmatter(emit bool)` - Enable task frontmatter inclusion in result
 - `WithLogger(logger *slog.Logger)` - Set logger
-- `WithCmdRunner(runner func(*exec.Cmd) error)` - Set custom command runner
 
 #### `(*Context) Run(ctx context.Context, taskName string) (*Result, error)`
 
-Executes the context assembly for the given task name and returns the assembled result structure containing rules, task content, frontmatter, and token counts.
+Executes the context assembly for the given task name and returns the assembled result structure containing rules, task content, and frontmatter.
 
 #### `ParseMarkdownFile(path string, frontmatter any) (string, error)`
 
