@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext"
+	yaml "github.com/goccy/go-yaml"
 )
 
 func main() {
@@ -58,13 +59,31 @@ func main() {
 		codingcontext.WithSelectors(includes),
 		codingcontext.WithRemotePaths(remotePaths),
 		codingcontext.WithEmitTaskFrontmatter(emitTaskFrontmatter),
-		codingcontext.WithOutput(os.Stdout),
 		codingcontext.WithLogger(logger),
 	)
 
-	if err := cc.Run(ctx, args[0]); err != nil {
+	result, err := cc.Run(ctx, args[0])
+	if err != nil {
 		logger.Error("Error", "error", err)
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	// Output task frontmatter if requested
+	if emitTaskFrontmatter && result.TaskFrontmatter != nil {
+		fmt.Println("---")
+		if err := yaml.NewEncoder(os.Stdout).Encode(result.TaskFrontmatter); err != nil {
+			logger.Error("Failed to encode task frontmatter", "error", err)
+			os.Exit(1)
+		}
+		fmt.Println("---")
+	}
+
+	// Output all rules
+	for _, rule := range result.Rules {
+		fmt.Println(rule.Content)
+	}
+
+	// Output task
+	fmt.Println(result.Task)
 }

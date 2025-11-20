@@ -3,14 +3,11 @@ package codingcontext
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	yaml "github.com/goccy/go-yaml"
 )
 
 // Context holds the configuration and state for assembling coding context
@@ -26,8 +23,8 @@ type Context struct {
 	matchingTaskFile string
 	taskFrontmatter  FrontMatter // Parsed task frontmatter
 	taskContent      string      // Parsed task content (before parameter expansion)
+	rules            []RuleContent // Collected rule contents
 	totalTokens      int
-	output           io.Writer
 	logger           *slog.Logger
 	cmdRunner        func(cmd *exec.Cmd) error
 }
@@ -77,13 +74,6 @@ func WithEmitTaskFrontmatter(emit bool) Option {
 	}
 }
 
-// WithOutput sets the output writer
-func WithOutput(w io.Writer) Option {
-	return func(c *Context) {
-		c.output = w
-	}
-}
-
 // WithLogger sets the logger
 func WithLogger(logger *slog.Logger) Option {
 	return func(c *Context) {
@@ -104,7 +94,7 @@ func New(opts ...Option) *Context {
 		workDir:  ".",
 		params:   make(Params),
 		includes: make(Selectors),
-		output:   os.Stdout,
+		rules:    make([]RuleContent, 0),
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
@@ -116,10 +106,10 @@ func New(opts ...Option) *Context {
 	return c
 }
 
-// Run executes the context assembly for the given task name
-func (cc *Context) Run(ctx context.Context, taskName string) error {
+// Run executes the context assembly for the given task name and returns the assembled result
+func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	if err := cc.downloadRemoteDirectories(ctx); err != nil {
-		return fmt.Errorf("failed to download remote directories: %w", err)
+		return nil, fmt.Errorf("failed to download remote directories: %w", err)
 	}
 	defer cc.cleanupDownloadedDirectories()
 
@@ -129,37 +119,52 @@ func (cc *Context) Run(ctx context.Context, taskName string) error {
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %w", err)
+		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
 	if err := cc.findTaskFile(homeDir, taskName); err != nil {
-		return fmt.Errorf("failed to find task file: %w", err)
+		return nil, fmt.Errorf("failed to find task file: %w", err)
 	}
 
 	// Parse task file early to extract selector labels for filtering rules and tools
 	if err := cc.parseTaskFile(); err != nil {
-		return fmt.Errorf("failed to parse task file: %w", err)
-	}
-
-	if err := cc.printTaskFrontmatter(); err != nil {
-		return fmt.Errorf("failed to emit task frontmatter: %w", err)
+		return nil, fmt.Errorf("failed to parse task file: %w", err)
 	}
 
 	if err := cc.findExecuteRuleFiles(ctx, homeDir); err != nil {
-		return fmt.Errorf("failed to find and execute rule files: %w", err)
+		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
 	// Run bootstrap script for the task file if it exists
 	taskExt := filepath.Ext(cc.matchingTaskFile)
 	if err := cc.runBootstrapScript(ctx, cc.matchingTaskFile, taskExt); err != nil {
-		return fmt.Errorf("failed to run task bootstrap script: %w", err)
+		return nil, fmt.Errorf("failed to run task bootstrap script: %w", err)
 	}
 
-	if err := cc.emitTaskFileContent(); err != nil {
-		return fmt.Errorf("failed to emit task file content: %w", err)
+	// Expand parameters in task content
+	expandedTask := os.Expand(cc.taskContent, func(key string) string {
+		if val, ok := cc.params[key]; ok {
+			return val
+		}
+		// this might not exist, in that case, return the original text
+		return fmt.Sprintf("${%s}", key)
+	})
+
+	// Estimate tokens for task file
+	taskTokens := estimateTokens(expandedTask)
+	cc.totalTokens += taskTokens
+	cc.logger.Info("Including task file", "path", cc.matchingTaskFile, "tokens", taskTokens)
+	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
+
+	// Build and return the result
+	result := &Result{
+		Rules:           cc.rules,
+		Task:            expandedTask,
+		TaskFrontmatter: cc.taskFrontmatter,
+		TotalTokens:     cc.totalTokens,
 	}
 
-	return nil
+	return result, nil
 }
 
 func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
@@ -342,7 +347,13 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 		tokens := estimateTokens(expanded)
 		cc.totalTokens += tokens
 		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
-		fmt.Fprintln(cc.output, expanded)
+		
+		// Collect the rule content
+		cc.rules = append(cc.rules, RuleContent{
+			Path:    path,
+			Content: expanded,
+			Tokens:  tokens,
+		})
 
 		return nil
 	}
@@ -433,41 +444,3 @@ func (cc *Context) parseTaskFile() error {
 	return nil
 }
 
-// printTaskFrontmatter emits only the task frontmatter to the output and
-// only if emitTaskFrontmatter is true.
-func (cc *Context) printTaskFrontmatter() error {
-	if !cc.emitTaskFrontmatter {
-		return nil
-	}
-
-	fmt.Fprintln(cc.output, "---")
-	if err := yaml.NewEncoder(cc.output).Encode(cc.taskFrontmatter); err != nil {
-		return fmt.Errorf("failed to encode task frontmatter: %w", err)
-	}
-	fmt.Fprintln(cc.output, "---")
-	return nil
-}
-
-// emitTaskFileContent emits the parsed task content to the output.
-// It expands parameters and estimates tokens.
-func (cc *Context) emitTaskFileContent() error {
-	expanded := os.Expand(cc.taskContent, func(key string) string {
-		if val, ok := cc.params[key]; ok {
-			return val
-		}
-		// this might not exist, in that case, return the original text
-		return fmt.Sprintf("${%s}", key)
-	})
-
-	// Estimate tokens for this file
-	tokens := estimateTokens(expanded)
-	cc.totalTokens += tokens
-	cc.logger.Info("Including task file", "path", cc.matchingTaskFile, "tokens", tokens)
-
-	fmt.Fprintln(cc.output, expanded)
-
-	// Print total token count
-	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
-
-	return nil
-}

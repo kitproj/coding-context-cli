@@ -35,11 +35,19 @@ func main() {
         codingcontext.WithLogger(slog.New(slog.NewTextHandler(os.Stderr, nil))),
     )
 
-    // Run a task
-    if err := ctx.Run(context.Background(), "my-task"); err != nil {
+    // Run a task and get the result
+    result, err := ctx.Run(context.Background(), "my-task")
+    if err != nil {
         fmt.Fprintf(os.Stderr, "Error: %v\n", err)
         os.Exit(1)
     }
+
+    // Access the assembled context
+    for _, rule := range result.Rules {
+        fmt.Println(rule.Content)
+    }
+    fmt.Println(result.Task)
+    fmt.Printf("Total tokens: %d\n", result.TotalTokens)
 }
 ```
 
@@ -49,7 +57,6 @@ func main() {
 package main
 
 import (
-    "bytes"
     "context"
     "fmt"
     "log/slog"
@@ -59,9 +66,6 @@ import (
 )
 
 func main() {
-    // Create a buffer to capture output
-    var output bytes.Buffer
-
     // Create selectors for filtering rules
     selectors := make(codingcontext.Selectors)
     selectors.SetValue("language", "go")
@@ -79,18 +83,25 @@ func main() {
             "https://github.com/org/repo//path/to/rules",
         }),
         codingcontext.WithEmitTaskFrontmatter(true),
-        codingcontext.WithOutput(&output),
         codingcontext.WithLogger(slog.New(slog.NewTextHandler(os.Stderr, nil))),
     )
 
-    // Run the task
-    if err := ctx.Run(context.Background(), "implement-feature"); err != nil {
+    // Run the task and get the result
+    result, err := ctx.Run(context.Background(), "implement-feature")
+    if err != nil {
         fmt.Fprintf(os.Stderr, "Error: %v\n", err)
         os.Exit(1)
     }
 
-    // Use the generated context
-    fmt.Println(output.String())
+    // Process the result
+    fmt.Printf("Task: %s\n", result.Task)
+    fmt.Printf("Rules found: %d\n", len(result.Rules))
+    fmt.Printf("Total tokens: %d\n", result.TotalTokens)
+    
+    // Access task metadata
+    if taskName, ok := result.TaskFrontmatter["task_name"]; ok {
+        fmt.Printf("Task name from frontmatter: %s\n", taskName)
+    }
 }
 ```
 
@@ -101,6 +112,21 @@ func main() {
 #### `Context`
 
 The main type for assembling context.
+
+#### `Result`
+
+Result holds the assembled context from running a task:
+- `Rules []RuleContent` - List of included rule files
+- `Task string` - Expanded task content
+- `TaskFrontmatter FrontMatter` - Task frontmatter metadata
+- `TotalTokens int` - Total estimated tokens across all content
+
+#### `RuleContent`
+
+Represents a single rule file's content:
+- `Path string` - Path to the rule file
+- `Content string` - Expanded content of the rule
+- `Tokens int` - Estimated token count for this rule
 
 #### `Params`
 
@@ -126,14 +152,13 @@ Creates a new Context with the given options.
 - `WithParams(params Params)` - Set parameters
 - `WithSelectors(selectors Selectors)` - Set selectors for filtering
 - `WithRemotePaths(paths []string)` - Set remote directories to download
-- `WithEmitTaskFrontmatter(emit bool)` - Enable task frontmatter emission
-- `WithOutput(w io.Writer)` - Set output writer
+- `WithEmitTaskFrontmatter(emit bool)` - Enable task frontmatter inclusion in result
 - `WithLogger(logger *slog.Logger)` - Set logger
 - `WithCmdRunner(runner func(*exec.Cmd) error)` - Set custom command runner
 
-#### `(*Context) Run(ctx context.Context, taskName string) error`
+#### `(*Context) Run(ctx context.Context, taskName string) (*Result, error)`
 
-Executes the context assembly for the given task name.
+Executes the context assembly for the given task name and returns the assembled result structure containing rules, task content, frontmatter, and token counts.
 
 #### `ParseMarkdownFile(path string, frontmatter any) (string, error)`
 

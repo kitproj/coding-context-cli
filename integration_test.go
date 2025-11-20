@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -844,10 +845,19 @@ This is a test task.
 	output = runTool(t, "-C", dirs.tmpDir, "-t", "test-task")
 
 	lines = strings.Split(output, "\n")
+	
+	// Find the first non-log line (skip lines starting with "time=")
+	var firstContentLine string
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "time=") {
+			firstContentLine = line
+			break
+		}
+	}
 
-	// First line should be frontmatter delimiter
-	if lines[0] != "---" {
-		t.Errorf("expected first line to be '---', got %q", lines[0])
+	// First content line should be frontmatter delimiter
+	if firstContentLine != "---" {
+		t.Errorf("expected first content line to be '---', got %q", firstContentLine)
 	}
 
 	// Should contain task frontmatter fields
