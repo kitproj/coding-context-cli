@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -845,7 +844,7 @@ This is a test task.
 	output = runTool(t, "-C", dirs.tmpDir, "-t", "test-task")
 
 	lines = strings.Split(output, "\n")
-	
+
 	// Find the first non-log line (skip lines starting with "time=")
 	var firstContentLine string
 	for _, line := range lines {

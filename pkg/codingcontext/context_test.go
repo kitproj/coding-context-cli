@@ -610,7 +610,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			for _, rule := range cc.rules {
 				outputStr += rule.Content + "\n"
 			}
-			
+
 			if tt.expectInOutput != "" && !strings.Contains(outputStr, tt.expectInOutput) {
 				t.Errorf("findExecuteRuleFiles() output should contain %q, got:\n%s", tt.expectInOutput, outputStr)
 			}
@@ -832,7 +832,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 					"# Task with Frontmatter\nThis task has frontmatter.")
 				return taskPath
 			},
-			expectInOutput: "# Task with Frontmatter",  // Task content, not frontmatter
+			expectInOutput: "# Task with Frontmatter", // Task content, not frontmatter
 			wantErr:        false,
 		},
 	}

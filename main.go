@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/kitproj/coding-context-cli/pkg/codingcontext"
 	yaml "github.com/goccy/go-yaml"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext"
 )
 
 func main() {

@@ -9,8 +9,8 @@ type RuleContent struct {
 
 // Result holds the assembled context from running a task
 type Result struct {
-	Rules          []RuleContent // List of included rule files
-	Task           string        // Expanded task content
-	TaskFrontmatter FrontMatter    // Task frontmatter metadata
-	TotalTokens    int           // Total estimated tokens across all content
+	Rules           []RuleContent // List of included rule files
+	Task            string        // Expanded task content
+	TaskFrontmatter FrontMatter   // Task frontmatter metadata
+	TotalTokens     int           // Total estimated tokens across all content
 }

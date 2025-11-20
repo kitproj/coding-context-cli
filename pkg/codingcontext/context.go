@@ -21,8 +21,8 @@ type Context struct {
 
 	downloadedDirs   []string
 	matchingTaskFile string
-	taskFrontmatter  FrontMatter // Parsed task frontmatter
-	taskContent      string      // Parsed task content (before parameter expansion)
+	taskFrontmatter  FrontMatter   // Parsed task frontmatter
+	taskContent      string        // Parsed task content (before parameter expansion)
 	rules            []RuleContent // Collected rule contents
 	totalTokens      int
 	logger           *slog.Logger
@@ -347,7 +347,7 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 		tokens := estimateTokens(expanded)
 		cc.totalTokens += tokens
 		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
-		
+
 		// Collect the rule content
 		cc.rules = append(cc.rules, RuleContent{
 			Path:    path,
@@ -443,4 +443,3 @@ func (cc *Context) parseTaskFile() error {
 
 	return nil
 }
-
