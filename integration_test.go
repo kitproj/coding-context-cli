@@ -1052,3 +1052,148 @@ echo "Running task bootstrap"
 		t.Errorf("task bootstrap should run before task content")
 	}
 }
+
+func TestShellCommandInTask(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a task file with shell commands
+	taskFile := filepath.Join(dirs.tasksDir, "test-cmd.md")
+	taskContent := `---
+task_name: test-cmd
+---
+# Test Shell Commands
+
+Directory name:
+!` + "`basename $(pwd)`" + `
+
+All done.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the program
+	output := runTool(t, "-C", dirs.tmpDir, "test-cmd")
+
+	// Check that the command was replaced with output
+	if !strings.Contains(output, "Directory name:") {
+		t.Errorf("task content not found in output")
+	}
+	// The command should be replaced with the basename of tmpDir
+	expectedDir := filepath.Base(dirs.tmpDir)
+	if !strings.Contains(output, expectedDir) {
+		t.Errorf("shell command output not found in output, expected %q, got:\n%s", expectedDir, output)
+	}
+	// The command itself should NOT appear
+	if strings.Contains(output, "!`basename") {
+		t.Errorf("shell command syntax should be replaced, not included in output")
+	}
+}
+
+func TestShellCommandInRule(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a rule file with shell commands
+	ruleFile := filepath.Join(dirs.rulesDir, "git-info.md")
+	ruleContent := `---
+---
+# Git Information
+
+Current directory:
+!` + "`pwd | xargs basename`" + `
+
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	// Create a simple task
+	createStandardTask(t, dirs.tasksDir, "test")
+
+	// Run the program
+	output := runTool(t, "-C", dirs.tmpDir, "test")
+
+	// Check that the command was replaced with output
+	expectedDir := filepath.Base(dirs.tmpDir)
+	if !strings.Contains(output, expectedDir) {
+		t.Errorf("shell command output not found in output, expected %q, got:\n%s", expectedDir, output)
+	}
+	// The command itself should NOT appear
+	if strings.Contains(output, "!`pwd") {
+		t.Errorf("shell command syntax should be replaced, not included in output")
+	}
+}
+
+func TestMultipleShellCommands(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a task file with multiple shell commands
+	taskFile := filepath.Join(dirs.tasksDir, "multi-cmd.md")
+	taskContent := `---
+task_name: multi-cmd
+---
+# Multiple Commands
+
+First:
+!` + "`echo hello`" + `
+
+Second:
+!` + "`echo world`" + `
+
+Third:
+!` + "`printf 'line1\\nline2'`" + `
+
+Done.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the program
+	output := runTool(t, "-C", dirs.tmpDir, "multi-cmd")
+
+	// Check that all commands were replaced with their outputs
+	if !strings.Contains(output, "First:\nhello") {
+		t.Errorf("first command output not found in output")
+	}
+	if !strings.Contains(output, "Second:\nworld") {
+		t.Errorf("second command output not found in output")
+	}
+	if !strings.Contains(output, "line1\nline2") {
+		t.Errorf("multiline command output not found in output")
+	}
+}
+
+func TestShellCommandWithParameters(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a task file with both parameters and shell commands
+	taskFile := filepath.Join(dirs.tasksDir, "param-cmd.md")
+	taskContent := `---
+task_name: param-cmd
+---
+# Parameters and Commands
+
+Parameter value: ${my_param}
+
+Command output:
+!` + "`echo testing`" + `
+
+Done.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the program with parameter
+	output := runTool(t, "-C", dirs.tmpDir, "-p", "my_param=foo", "param-cmd")
+
+	// Check that parameter was substituted
+	if !strings.Contains(output, "Parameter value: foo") {
+		t.Errorf("parameter substitution not found in output")
+	}
+	// Check that shell command was executed
+	if !strings.Contains(output, "Command output:\ntesting") {
+		t.Errorf("shell command output not found in output")
+	}
+}

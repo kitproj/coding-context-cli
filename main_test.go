@@ -815,7 +815,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 			}
 
 			// Then emit the content
-			err := cc.emitTaskFileContent()
+			err := cc.emitTaskFileContent(context.Background())
 
 			if tt.wantErr {
 				if err == nil {

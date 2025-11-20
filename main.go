@@ -124,7 +124,7 @@ func (cc *codingContext) run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to run task bootstrap script: %w", err)
 	}
 
-	if err := cc.emitTaskFileContent(); err != nil {
+	if err := cc.emitTaskFileContent(ctx); err != nil {
 		return fmt.Errorf("failed to emit task file content: %w", err)
 	}
 
@@ -272,6 +272,12 @@ func (cc *codingContext) ruleFileWalker(ctx context.Context) func(path string, i
 			return fmt.Errorf("failed to run bootstrap script (path: %s): %w", path, err)
 		}
 
+		// Process shell commands in the content
+		content, err = processShellCommands(ctx, content)
+		if err != nil {
+			cc.logger.Warn("Failed to process shell commands in rule file", "path", path, "error", err)
+		}
+
 		// Estimate tokens for this file
 		tokens := estimateTokens(content)
 		cc.totalTokens += tokens
@@ -383,8 +389,8 @@ func (cc *codingContext) printTaskFrontmatter() error {
 }
 
 // emitTaskFileContent emits the parsed task content to the output.
-// It expands parameters and estimates tokens.
-func (cc *codingContext) emitTaskFileContent() error {
+// It expands parameters, processes shell commands, and estimates tokens.
+func (cc *codingContext) emitTaskFileContent(ctx context.Context) error {
 	expanded := os.Expand(cc.taskContent, func(key string) string {
 		if val, ok := cc.params[key]; ok {
 			return val
@@ -392,6 +398,12 @@ func (cc *codingContext) emitTaskFileContent() error {
 		// this might not exist, in that case, return the original text
 		return fmt.Sprintf("${%s}", key)
 	})
+
+	// Process shell commands in the content
+	expanded, err := processShellCommands(ctx, expanded)
+	if err != nil {
+		cc.logger.Warn("Failed to process shell commands in task file", "path", cc.matchingTaskFile, "error", err)
+	}
 
 	// Estimate tokens for this file
 	tokens := estimateTokens(expanded)

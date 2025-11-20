@@ -1,3 +1,6 @@
 # Binary output
 coding-context
 coding-context-cli
+
+# Local test files
+.agents/
