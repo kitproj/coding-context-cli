@@ -272,11 +272,17 @@ func (cc *codingContext) ruleFileWalker(ctx context.Context) func(path string, i
 			return fmt.Errorf("failed to run bootstrap script (path: %s): %w", path, err)
 		}
 
+		// Expand file references in content
+		expandedContent, err := expandFileReferences(content, cc.workDir)
+		if err != nil {
+			return fmt.Errorf("failed to expand file references in %s: %w", path, err)
+		}
+
 		// Estimate tokens for this file
-		tokens := estimateTokens(content)
+		tokens := estimateTokens(expandedContent)
 		cc.totalTokens += tokens
 		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
-		fmt.Fprintln(cc.output, content)
+		fmt.Fprintln(cc.output, expandedContent)
 
 		return nil
 	}
@@ -383,8 +389,9 @@ func (cc *codingContext) printTaskFrontmatter() error {
 }
 
 // emitTaskFileContent emits the parsed task content to the output.
-// It expands parameters and estimates tokens.
+// It expands parameters and file references, then estimates tokens.
 func (cc *codingContext) emitTaskFileContent() error {
+	// Expand parameters first
 	expanded := os.Expand(cc.taskContent, func(key string) string {
 		if val, ok := cc.params[key]; ok {
 			return val
@@ -393,12 +400,18 @@ func (cc *codingContext) emitTaskFileContent() error {
 		return fmt.Sprintf("${%s}", key)
 	})
 
+	// Expand file references
+	expandedWithFiles, err := expandFileReferences(expanded, cc.workDir)
+	if err != nil {
+		return fmt.Errorf("failed to expand file references in task file: %w", err)
+	}
+
 	// Estimate tokens for this file
-	tokens := estimateTokens(expanded)
+	tokens := estimateTokens(expandedWithFiles)
 	cc.totalTokens += tokens
 	cc.logger.Info("Including task file", "path", cc.matchingTaskFile, "tokens", tokens)
 
-	fmt.Fprintln(cc.output, expanded)
+	fmt.Fprintln(cc.output, expandedWithFiles)
 
 	// Print total token count
 	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)

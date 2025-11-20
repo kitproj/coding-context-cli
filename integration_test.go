@@ -1052,3 +1052,184 @@ echo "Running task bootstrap"
 		t.Errorf("task bootstrap should run before task content")
 	}
 }
+
+func TestFileReferencesInTask(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a source file to reference
+	srcDir := filepath.Join(dirs.tmpDir, "src")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
+	srcFile := filepath.Join(srcDir, "Button.tsx")
+	srcContent := `export const Button = () => {
+  return <button>Click me</button>;
+};`
+	if err := os.WriteFile(srcFile, []byte(srcContent), 0o644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+
+	// Create a task that references the file
+	taskFile := filepath.Join(dirs.tasksDir, "review.md")
+	taskContent := `---
+task_name: review-component
+---
+# Review Component Task
+
+Review the component in @src/Button.tsx.
+Check for performance issues and suggest improvements.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the tool
+	output := runTool(t, "-C", dirs.tmpDir, "review-component")
+
+	// Verify file reference was expanded
+	if !strings.Contains(output, "Review the component in") {
+		t.Errorf("output missing task text before file reference")
+	}
+	if !strings.Contains(output, "```tsx") {
+		t.Errorf("output missing code block for referenced file")
+	}
+	if !strings.Contains(output, "# File: src/Button.tsx") {
+		t.Errorf("output missing file path comment")
+	}
+	if !strings.Contains(output, "export const Button = () => {") {
+		t.Errorf("output missing file content")
+	}
+	if !strings.Contains(output, "Check for performance issues") {
+		t.Errorf("output missing task text after file reference")
+	}
+	if strings.Contains(output, "@src/Button.tsx") {
+		t.Errorf("output should not contain unexpanded file reference")
+	}
+}
+
+func TestFileReferencesInRule(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a config file to reference
+	configFile := filepath.Join(dirs.tmpDir, "config.yaml")
+	configContent := `database:
+  host: localhost
+  port: 5432`
+	if err := os.WriteFile(configFile, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	// Create a rule that references the config
+	ruleFile := filepath.Join(dirs.rulesDir, "db-config.md")
+	ruleContent := `---
+---
+# Database Configuration
+
+The database configuration is in @config.yaml.
+Always use these settings.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	createStandardTask(t, dirs.tasksDir, "test-task")
+
+	// Run the tool
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
+
+	// Verify file reference in rule was expanded
+	if !strings.Contains(output, "The database configuration is in") {
+		t.Errorf("output missing rule text before file reference")
+	}
+	if !strings.Contains(output, "```yaml") {
+		t.Errorf("output missing code block for referenced config file")
+	}
+	if !strings.Contains(output, "# File: config.yaml") {
+		t.Errorf("output missing file path comment")
+	}
+	if !strings.Contains(output, "database:") {
+		t.Errorf("output missing config content")
+	}
+	if strings.Contains(output, "@config.yaml") {
+		t.Errorf("output should not contain unexpanded file reference")
+	}
+}
+
+func TestMultipleFileReferencesInTask(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create multiple files to reference
+	file1 := filepath.Join(dirs.tmpDir, "file1.go")
+	file1Content := `package main
+
+func hello() string {
+	return "Hello"
+}`
+	if err := os.WriteFile(file1, []byte(file1Content), 0o644); err != nil {
+		t.Fatalf("failed to write file1: %v", err)
+	}
+
+	file2 := filepath.Join(dirs.tmpDir, "file2.go")
+	file2Content := `package main
+
+func world() string {
+	return "World"
+}`
+	if err := os.WriteFile(file2, []byte(file2Content), 0o644); err != nil {
+		t.Fatalf("failed to write file2: %v", err)
+	}
+
+	// Create a task that references both files
+	taskFile := filepath.Join(dirs.tasksDir, "compare.md")
+	taskContent := `---
+task_name: compare-files
+---
+# Compare Files
+
+Compare @file1.go and @file2.go for consistency.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the tool
+	output := runTool(t, "-C", dirs.tmpDir, "compare-files")
+
+	// Verify both file references were expanded
+	if !strings.Contains(output, "# File: file1.go") {
+		t.Errorf("output missing first file reference")
+	}
+	if !strings.Contains(output, "# File: file2.go") {
+		t.Errorf("output missing second file reference")
+	}
+	if !strings.Contains(output, `func hello() string`) {
+		t.Errorf("output missing first file content")
+	}
+	if !strings.Contains(output, `func world() string`) {
+		t.Errorf("output missing second file content")
+	}
+	if strings.Contains(output, "@file1.go") || strings.Contains(output, "@file2.go") {
+		t.Errorf("output should not contain unexpanded file references")
+	}
+}
+
+func TestFileReferenceNotFound(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a task that references a non-existent file
+	taskFile := filepath.Join(dirs.tasksDir, "broken.md")
+	taskContent := `---
+task_name: broken-task
+---
+Review @nonexistent.txt
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the tool and expect an error
+	_, err := runToolWithError("-C", dirs.tmpDir, "broken-task")
+	if err == nil {
+		t.Errorf("expected error for non-existent file reference, got none")
+	}
+}
