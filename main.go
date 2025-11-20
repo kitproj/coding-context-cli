@@ -70,9 +70,9 @@ func main() {
 	}
 
 	// Output task frontmatter if requested
-	if emitTaskFrontmatter && result.TaskFrontmatter != nil {
+	if emitTaskFrontmatter && result.Task.FrontMatter != nil {
 		fmt.Println("---")
-		if err := yaml.NewEncoder(os.Stdout).Encode(result.TaskFrontmatter); err != nil {
+		if err := yaml.NewEncoder(os.Stdout).Encode(result.Task.FrontMatter); err != nil {
 			logger.Error("Failed to encode task frontmatter", "error", err)
 			os.Exit(1)
 		}
@@ -85,5 +85,5 @@ func main() {
 	}
 
 	// Output task
-	fmt.Println(result.Task)
+	fmt.Println(result.Task.Content)
 }

@@ -130,7 +130,7 @@ func TestRun(t *testing.T) {
 				resume:   tt.resume,
 				params:   tt.params,
 				includes: tt.includes,
-				rules:    make([]RuleContent, 0),
+				rules:    make([]Markdown, 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
@@ -568,7 +568,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 				resume:   tt.resume,
 				includes: tt.includes,
 				params:   tt.params,
-				rules:    make([]RuleContent, 0),
+				rules:    make([]Markdown, 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					// Track if bootstrap script was executed
@@ -855,7 +855,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 				matchingTaskFile:    taskPath,
 				params:              tt.params,
 				emitTaskFrontmatter: tt.emitTaskFrontmatter,
-				rules:               make([]RuleContent, 0),
+				rules:               make([]Markdown, 0),
 				logger:              slog.New(slog.NewTextHandler(&logOut, nil)),
 				includes:            make(Selectors),
 				taskFrontmatter:     make(FrontMatter),
@@ -1211,7 +1211,7 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 			cc := &Context{
 				workDir:  tmpDir,
 				includes: make(Selectors),
-				rules:    make([]RuleContent, 0),
+				rules:    make([]Markdown, 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
@@ -1469,7 +1469,7 @@ func TestRuleFileWalker(t *testing.T) {
 			var logOut bytes.Buffer
 			cc := &Context{
 				includes: tt.includes,
-				rules:    make([]RuleContent, 0),
+				rules:    make([]Markdown, 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner

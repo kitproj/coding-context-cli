@@ -21,9 +21,9 @@ type Context struct {
 
 	downloadedDirs   []string
 	matchingTaskFile string
-	taskFrontmatter  FrontMatter   // Parsed task frontmatter
-	taskContent      string        // Parsed task content (before parameter expansion)
-	rules            []RuleContent // Collected rule contents
+	taskFrontmatter  FrontMatter // Parsed task frontmatter
+	taskContent      string      // Parsed task content (before parameter expansion)
+	rules            []Markdown  // Collected rule files
 	totalTokens      int
 	logger           *slog.Logger
 	cmdRunner        func(cmd *exec.Cmd) error
@@ -87,7 +87,7 @@ func New(opts ...Option) *Context {
 		workDir:  ".",
 		params:   make(Params),
 		includes: make(Selectors),
-		rules:    make([]RuleContent, 0),
+		rules:    make([]Markdown, 0),
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
@@ -151,9 +151,13 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 	// Build and return the result
 	result := &Result{
-		Rules:           cc.rules,
-		Task:            expandedTask,
-		TaskFrontmatter: cc.taskFrontmatter,
+		Rules: cc.rules,
+		Task: Markdown{
+			Path:        cc.matchingTaskFile,
+			FrontMatter: cc.taskFrontmatter,
+			Content:     expandedTask,
+			Tokens:      taskTokens,
+		},
 	}
 
 	return result, nil
@@ -340,11 +344,12 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 		cc.totalTokens += tokens
 		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
 
-		// Collect the rule content
-		cc.rules = append(cc.rules, RuleContent{
-			Path:    path,
-			Content: expanded,
-			Tokens:  tokens,
+		// Collect the rule content with frontmatter
+		cc.rules = append(cc.rules, Markdown{
+			Path:        path,
+			FrontMatter: frontmatter,
+			Content:     expanded,
+			Tokens:      tokens,
 		})
 
 		return nil

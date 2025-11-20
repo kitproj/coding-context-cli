@@ -46,7 +46,7 @@ func main() {
     for _, rule := range result.Rules {
         fmt.Println(rule.Content)
     }
-    fmt.Println(result.Task)
+    fmt.Println(result.Task.Content)
 }
 }
 ```
@@ -94,11 +94,11 @@ func main() {
     }
 
     // Process the result
-    fmt.Printf("Task: %s\n", result.Task)
+    fmt.Printf("Task: %s\n", result.Task.Content)
     fmt.Printf("Rules found: %d\n", len(result.Rules))
     
     // Access task metadata
-    if taskName, ok := result.TaskFrontmatter["task_name"]; ok {
+    if taskName, ok := result.Task.FrontMatter["task_name"]; ok {
         fmt.Printf("Task name from frontmatter: %s\n", taskName)
     }
 }
@@ -115,16 +115,16 @@ The main type for assembling context.
 #### `Result`
 
 Result holds the assembled context from running a task:
-- `Rules []RuleContent` - List of included rule files
-- `Task string` - Expanded task content
-- `TaskFrontmatter FrontMatter` - Task frontmatter metadata
+- `Rules []Markdown` - List of included rule files
+- `Task Markdown` - Task file with frontmatter and content
 
-#### `RuleContent`
+#### `Markdown`
 
-Represents a single rule file's content:
-- `Path string` - Path to the rule file
-- `Content string` - Expanded content of the rule
-- `Tokens int` - Estimated token count for this rule
+Represents a markdown file with frontmatter and content:
+- `Path string` - Path to the markdown file
+- `FrontMatter FrontMatter` - Parsed YAML frontmatter
+- `Content string` - Expanded content of the markdown
+- `Tokens int` - Estimated token count
 
 #### `Params`
 
@@ -155,7 +155,7 @@ Creates a new Context with the given options.
 
 #### `(*Context) Run(ctx context.Context, taskName string) (*Result, error)`
 
-Executes the context assembly for the given task name and returns the assembled result structure containing rules, task content, and frontmatter.
+Executes the context assembly for the given task name and returns the assembled result structure with rule and task markdown files (including frontmatter and content).
 
 #### `ParseMarkdownFile(path string, frontmatter any) (string, error)`
 
