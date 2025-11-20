@@ -128,12 +128,6 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
-	// Run bootstrap script for the task file if it exists
-	taskExt := filepath.Ext(cc.matchingTaskFile)
-	if err := cc.runBootstrapScript(ctx, cc.matchingTaskFile, taskExt); err != nil {
-		return nil, fmt.Errorf("failed to run task bootstrap script: %w", err)
-	}
-
 	// Expand parameters in task content
 	expandedTask := os.Expand(cc.taskContent, func(key string) string {
 		if val, ok := cc.params[key]; ok {

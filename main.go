@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -82,6 +83,24 @@ func main() {
 	// Output all rules
 	for _, rule := range result.Rules {
 		fmt.Println(rule.Content)
+	}
+
+	// Run task bootstrap script if it exists
+	if bootstrapPath := result.Task.BootstrapPath(); bootstrapPath != "" {
+		if _, err := os.Stat(bootstrapPath); err == nil {
+			// Make it executable
+			if err := os.Chmod(bootstrapPath, 0o755); err != nil {
+				logger.Error("Failed to chmod task bootstrap file", "path", bootstrapPath, "error", err)
+			} else {
+				logger.Info("Running task bootstrap script", "path", bootstrapPath)
+				cmd := exec.Command(bootstrapPath)
+				cmd.Stdout = os.Stderr
+				cmd.Stderr = os.Stderr
+				if err := cmd.Run(); err != nil {
+					logger.Error("Task bootstrap script failed", "path", bootstrapPath, "error", err)
+				}
+			}
+		}
 	}
 
 	// Output task
