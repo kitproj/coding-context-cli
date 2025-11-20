@@ -27,7 +27,7 @@ Use the `-d` flag to load rules and tasks from remote directories. The CLI downl
 
 ```bash
 # Clone a Git repository containing rules
-coding-context-cli -d git::https://github.com/company/shared-rules.git fix-bug
+coding-context -d git::https://github.com/company/shared-rules.git fix-bug
 ```
 
 This downloads the repository, searches for rules and tasks in standard locations (`.agents/rules/`, `.agents/tasks/`, etc.), and includes them in the context.
@@ -36,13 +36,13 @@ This downloads the repository, searches for rules and tasks in standard location
 
 ```bash
 # Use a specific tag
-coding-context-cli -d 'git::https://github.com/company/rules.git?ref=v1.0.0' fix-bug
+coding-context -d 'git::https://github.com/company/rules.git?ref=v1.0.0' fix-bug
 
 # Use a specific branch
-coding-context-cli -d 'git::https://github.com/company/rules.git?ref=main' fix-bug
+coding-context -d 'git::https://github.com/company/rules.git?ref=main' fix-bug
 
 # Use a specific commit
-coding-context-cli -d 'git::https://github.com/company/rules.git?ref=abc123def' fix-bug
+coding-context -d 'git::https://github.com/company/rules.git?ref=abc123def' fix-bug
 ```
 
 ### Use Subdirectory
@@ -51,7 +51,7 @@ If your rules are in a subdirectory of a repository, use double slashes (`//`):
 
 ```bash
 # Get rules from the 'coding-standards' subdirectory
-coding-context-cli -d 'git::https://github.com/company/mono-repo.git//coding-standards' fix-bug
+coding-context -d 'git::https://github.com/company/mono-repo.git//coding-standards' fix-bug
 ```
 
 ## Supported Protocols
@@ -62,33 +62,33 @@ The `-d` flag uses [go-getter](https://github.com/hashicorp/go-getter), which su
 
 ```bash
 # HTTPS
-coding-context-cli -d git::https://github.com/company/rules.git fix-bug
+coding-context -d git::https://github.com/company/rules.git fix-bug
 
 # SSH (requires SSH keys configured)
-coding-context-cli -d git::git@github.com:company/rules.git fix-bug
+coding-context -d git::git@github.com:company/rules.git fix-bug
 
 # With authentication token
-coding-context-cli -d 'git::https://token@github.com/company/private-rules.git' fix-bug
+coding-context -d 'git::https://token@github.com/company/private-rules.git' fix-bug
 ```
 
 ### HTTP/HTTPS
 
 ```bash
 # Download and extract tar.gz
-coding-context-cli -d https://example.com/rules.tar.gz fix-bug
+coding-context -d https://example.com/rules.tar.gz fix-bug
 
 # Download and extract zip
-coding-context-cli -d https://example.com/rules.zip fix-bug
+coding-context -d https://example.com/rules.zip fix-bug
 ```
 
 ### S3 Buckets
 
 ```bash
 # S3 bucket
-coding-context-cli -d s3::https://s3.amazonaws.com/my-bucket/rules fix-bug
+coding-context -d s3::https://s3.amazonaws.com/my-bucket/rules fix-bug
 
 # With specific region
-coding-context-cli -d s3::https://s3-us-west-2.amazonaws.com/my-bucket/rules fix-bug
+coding-context -d s3::https://s3-us-west-2.amazonaws.com/my-bucket/rules fix-bug
 ```
 
 ### Local Files
@@ -96,7 +96,7 @@ coding-context-cli -d s3::https://s3-us-west-2.amazonaws.com/my-bucket/rules fix
 Useful for testing:
 
 ```bash
-coding-context-cli -d file:///path/to/local/rules fix-bug
+coding-context -d file:///path/to/local/rules fix-bug
 ```
 
 ## Advanced Usage
@@ -106,7 +106,7 @@ coding-context-cli -d file:///path/to/local/rules fix-bug
 Combine rules from multiple locations:
 
 ```bash
-coding-context-cli \
+coding-context \
   -d git::https://github.com/company/org-standards.git \
   -d git::https://github.com/team/team-rules.git \
   -d https://cdn.company.com/archived-rules.tar.gz \
@@ -125,7 +125,7 @@ Combine remote directories with local project rules:
 # 2. Local .agents/rules/ directory (if exists)
 # 3. Local .github/copilot-instructions.md (if exists)
 # etc.
-coding-context-cli \
+coding-context \
   -d git::https://github.com/company/shared-rules.git \
   -s language=Go \
   fix-bug
@@ -138,7 +138,7 @@ Local rules take precedence over remote rules with the same name.
 Use remote directories with all normal CLI features:
 
 ```bash
-coding-context-cli \
+coding-context \
   -d git::https://github.com/company/standards.git \
   -s language=Go \
   -s environment=production \
@@ -247,7 +247,7 @@ git push --tags
 
 ```bash
 # In any project
-coding-context-cli \
+coding-context \
   -d 'git::https://github.com/company/shared-coding-rules.git?ref=v1.0.0' \
   -s language=Go \
   code-review
@@ -281,10 +281,10 @@ Remote directories are **not cached** between runs. Each invocation downloads fr
 
 ```bash
 # Downloads repository
-coding-context-cli -d git::https://github.com/company/rules.git fix-bug
+coding-context -d git::https://github.com/company/rules.git fix-bug
 
 # Downloads again (not cached)
-coding-context-cli -d git::https://github.com/company/rules.git code-review
+coding-context -d git::https://github.com/company/rules.git code-review
 ```
 
 For better performance with frequently-used remote directories, consider:
@@ -301,13 +301,13 @@ Downloaded directories are automatically cleaned up after execution. No manual c
 **Git over HTTPS with token:**
 ```bash
 export GITHUB_TOKEN="ghp_your_token_here"
-coding-context-cli -d "git::https://${GITHUB_TOKEN}@github.com/company/private-rules.git" fix-bug
+coding-context -d "git::https://${GITHUB_TOKEN}@github.com/company/private-rules.git" fix-bug
 ```
 
 **Git over SSH:**
 ```bash
 # Uses your SSH keys from ~/.ssh/
-coding-context-cli -d git::git@github.com:company/private-rules.git fix-bug
+coding-context -d git::git@github.com:company/private-rules.git fix-bug
 ```
 
 **S3 with AWS credentials:**
@@ -315,7 +315,7 @@ coding-context-cli -d git::git@github.com:company/private-rules.git fix-bug
 # Uses AWS credentials from environment or ~/.aws/credentials
 export AWS_ACCESS_KEY_ID="your-key"
 export AWS_SECRET_ACCESS_KEY="your-secret"
-coding-context-cli -d s3::https://s3.amazonaws.com/my-bucket/rules fix-bug
+coding-context -d s3::https://s3.amazonaws.com/my-bucket/rules fix-bug
 ```
 
 ## Troubleshooting

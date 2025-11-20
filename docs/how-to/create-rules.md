@@ -61,10 +61,10 @@ language: Python
 Use with:
 ```bash
 # Include only Go rules
-coding-context-cli -s language=Go fix-bug
+coding-context -s language=Go fix-bug
 
 # Include only Python rules
-coding-context-cli -s language=Python fix-bug
+coding-context -s language=Python fix-bug
 ```
 
 ## Rules with Multiple Selectors
@@ -90,7 +90,7 @@ When writing tests:
 Use with:
 ```bash
 # Include rules for Go testing
-coding-context-cli -s language=Go -s stage=testing implement-feature
+coding-context -s language=Go -s stage=testing implement-feature
 ```
 
 ## Stage-Specific Rules
@@ -128,10 +128,10 @@ stage: implementation
 Use with:
 ```bash
 # Planning phase
-coding-context-cli -s stage=planning plan-feature
+coding-context -s stage=planning plan-feature
 
 # Implementation phase
-coding-context-cli -s stage=implementation implement-feature
+coding-context -s stage=implementation implement-feature
 ```
 
 ## Rules with Bootstrap Scripts
@@ -172,7 +172,7 @@ Use with:
 export JIRA_ISSUE_KEY="PROJ-123"
 export JIRA_API_TOKEN="your-token"
 
-coding-context-cli -s source=jira fix-bug
+coding-context -s source=jira fix-bug
 ```
 
 ## Best Practices

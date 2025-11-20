@@ -14,12 +14,12 @@ This tool collects context from predefined rule files and task-specific prompts,
 
 ```bash
 # Install
-sudo curl -fsL -o /usr/local/bin/coding-context-cli \
-  https://github.com/kitproj/coding-context-cli/releases/latest/download/coding-context-cli_linux_amd64
-sudo chmod +x /usr/local/bin/coding-context-cli
+sudo curl -fsL -o /usr/local/bin/coding-context \
+  https://github.com/kitproj/coding-context-cli/releases/download/v0.0.16/coding-context_v0.0.16_linux_amd64
+sudo chmod +x /usr/local/bin/coding-context
 
 # Use with an AI agent
-coding-context-cli -p issue_key=BUG-123 -s language=Go fix-bug | llm -m claude-3-5-sonnet-20241022
+coding-context -p issue_key=BUG-123 -s language=Go fix-bug | llm -m claude-3-5-sonnet-20241022
 ```
 
 ## Documentation Structure

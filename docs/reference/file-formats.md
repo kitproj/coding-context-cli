@@ -42,7 +42,7 @@ task_name: fix-bug
 
 **Usage:**
 ```bash
-coding-context-cli fix-bug
+coding-context fix-bug
 ```
 
 #### Custom Fields (optional)
@@ -60,7 +60,7 @@ region: us-east-1
 
 **Usage:**
 ```bash
-coding-context-cli -s environment=production -s region=us-east-1 deploy
+coding-context -s environment=production -s region=us-east-1 deploy
 ```
 
 #### `selectors` (optional)
@@ -83,12 +83,12 @@ selectors:
 **Usage:**
 ```bash
 # Automatically includes rules with language=Go AND stage=implementation
-coding-context-cli implement-feature
+coding-context implement-feature
 ```
 
 This is equivalent to:
 ```bash
-coding-context-cli -s language=Go -s stage=implementation implement-feature
+coding-context -s language=Go -s stage=implementation implement-feature
 ```
 
 **OR Logic with Arrays:**
@@ -114,7 +114,7 @@ Selectors from the task frontmatter and command-line `-s` flags are combined (ad
 # Task frontmatter has: selectors.language = Go
 # Command line adds: -s priority=high
 # Result: Rules must match language=Go AND priority=high
-coding-context-cli -s priority=high implement-feature
+coding-context -s priority=high implement-feature
 ```
 
 **Special Selector: `rule_name`**
@@ -149,7 +149,7 @@ Severity: ${severity}
 
 **Usage:**
 ```bash
-coding-context-cli \
+coding-context \
   -p issue_key=BUG-123 \
   -p description="Crashes on startup" \
   -p severity=critical \
@@ -297,10 +297,10 @@ metadata:
 **Selectors match top-level only:**
 ```bash
 # Works with top-level fields
-coding-context-cli -s language=Go fix-bug
+coding-context -s language=Go fix-bug
 
 # Doesn't work with nested fields
-coding-context-cli -s metadata.language=Go fix-bug  # Won't match
+coding-context -s metadata.language=Go fix-bug  # Won't match
 ```
 
 ### Data Types
@@ -317,9 +317,9 @@ language: Go
 
 ```bash
 # All values are matched as strings
-coding-context-cli -s priority=1 task       # Matches priority: 1
-coding-context-cli -s enabled=true task     # Matches enabled: true
-coding-context-cli -s language=Go task      # Matches language: Go
+coding-context -s priority=1 task       # Matches priority: 1
+coding-context -s enabled=true task     # Matches enabled: true
+coding-context -s language=Go task      # Matches language: Go
 ```
 
 ## Special Behaviors
@@ -357,8 +357,8 @@ The `-r` flag:
 **Equivalent commands:**
 ```bash
 # These are NOT exactly equivalent:
-coding-context-cli -r fix-bug                    # Skips rules
-coding-context-cli -s resume=true fix-bug        # Includes rules
+coding-context -r fix-bug                    # Skips rules
+coding-context -s resume=true fix-bug        # Includes rules
 ```
 
 ## Validation

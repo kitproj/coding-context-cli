@@ -15,14 +15,14 @@ When using the `-d` flag, the CLI downloads remote directories to a temporary lo
 
 **Example:**
 ```bash
-coding-context-cli -d git::https://github.com/company/shared-rules.git fix-bug
+coding-context -d git::https://github.com/company/shared-rules.git fix-bug
 ```
 
 The downloaded directory is searched for rules and tasks in all standard locations (`.agents/rules/`, `.agents/tasks/`, `AGENTS.md`, etc.) before being automatically cleaned up.
 
 Multiple remote directories can be specified and are processed in the order given:
 ```bash
-coding-context-cli \
+coding-context \
   -d git::https://github.com/company/org-standards.git \
   -d git::https://github.com/team/team-rules.git \
   fix-bug
@@ -60,13 +60,11 @@ Project structure:
 ~/.agents/tasks/code-review.md        (task_name: code-review)
 
 Commands:
-coding-context-cli fix-bug          → Uses ./.agents/tasks/fix-bug.md
-coding-context-cli review-code      → Uses ./.opencode/command/review-code.md
-coding-context-cli deploy           → Uses ./.opencode/command/deploy.md
-coding-context-cli code-review      → Uses ~/.agents/tasks/code-review.md
-```
-coding-context-cli code-review      → Uses ~/.agents/tasks/code-review.md
-coding-context-cli deploy           → Uses ~/.config/opencode/command/deploy.md
+coding-context fix-bug          → Uses ./.agents/tasks/fix-bug.md
+coding-context review-code      → Uses ./.opencode/command/review-code.md
+coding-context deploy           → Uses ./.opencode/command/deploy.md
+coding-context code-review      → Uses ~/.agents/tasks/code-review.md
+coding-context deploy           → Uses ~/.config/opencode/command/deploy.md
 ```
 
 ## Rule File Search Paths
@@ -78,7 +76,7 @@ Rule files are discovered from multiple locations supporting various AI agent fo
 When using `-d` flag, remote directories are searched first:
 
 ```bash
-coding-context-cli -d git::https://github.com/company/rules.git fix-bug
+coding-context -d git::https://github.com/company/rules.git fix-bug
 ```
 
 The remote directory is searched for all standard file patterns listed below.
@@ -206,10 +204,10 @@ The `-C` option changes the working directory before searching:
 
 ```bash
 # Search from /path/to/project
-coding-context-cli -C /path/to/project fix-bug
+coding-context -C /path/to/project fix-bug
 
 # Equivalent to:
-cd /path/to/project && coding-context-cli fix-bug
+cd /path/to/project && coding-context fix-bug
 ```
 
 This affects:
@@ -246,10 +244,10 @@ Regardless of where rules are found, they can be filtered using selectors:
 
 ```bash
 # Include only Go rules (from any location)
-coding-context-cli -s language=Go fix-bug
+coding-context -s language=Go fix-bug
 
 # Include only planning rules
-coding-context-cli -s stage=planning plan-feature
+coding-context -s stage=planning plan-feature
 ```
 
 ## Examples
@@ -265,10 +263,10 @@ coding-context-cli -s stage=planning plan-feature
     └── javascript-frontend.md      (language: JavaScript)
 
 Commands:
-coding-context-cli -s language=Go fix-bug
+coding-context -s language=Go fix-bug
   → Includes: general-standards.md, go-backend.md
 
-coding-context-cli -s language=Python train-model
+coding-context -s language=Python train-model
   → Includes: general-standards.md, python-ml.md
 ```
 
@@ -282,7 +280,7 @@ coding-context-cli -s language=Python train-model
 └── prod-config.md         (environment: production)
 
 Commands:
-coding-context-cli -s environment=production deploy
+coding-context -s environment=production deploy
   → Includes: security-base.md, prod-config.md
 ```
 
@@ -298,7 +296,7 @@ coding-context-cli -s environment=production deploy
 └── personal-preferences.md
 
 Commands:
-coding-context-cli -s team=backend fix-bug
+coding-context -s team=backend fix-bug
   → Includes: company-wide.md, backend-team.md, personal-preferences.md
 ```
 
