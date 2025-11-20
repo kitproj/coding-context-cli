@@ -64,8 +64,6 @@ coding-context fix-bug          → Uses ./.agents/tasks/fix-bug.md
 coding-context review-code      → Uses ./.opencode/command/review-code.md
 coding-context deploy           → Uses ./.opencode/command/deploy.md
 coding-context code-review      → Uses ~/.agents/tasks/code-review.md
-```
-coding-context code-review      → Uses ~/.agents/tasks/code-review.md
 coding-context deploy           → Uses ~/.config/opencode/command/deploy.md
 ```
 

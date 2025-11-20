@@ -192,7 +192,7 @@ Cache the CLI to speed up workflows:
   uses: actions/cache@v3
   with:
     path: /usr/local/bin/coding-context
-    key: coding-context-v0.0.16
+    key: coding-context-v0.0.16-linux-amd64  # Include architecture to avoid cache collisions
 
 - name: Install CLI
   if: steps.cache-cli.outputs.cache-hit != 'true'
