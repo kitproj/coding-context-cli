@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+// Selectors stores selector key-value pairs where values are stored in inner maps
+// Multiple values for the same key use OR logic (match any value in the inner map)
+// Each value can be represented exactly once per key
+type Selectors map[string]map[string]bool
+
 // String implements the fmt.Stringer interface for Selectors
 func (s *Selectors) String() string {
 	if *s == nil {

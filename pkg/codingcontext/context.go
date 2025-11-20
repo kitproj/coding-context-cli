@@ -13,6 +13,25 @@ import (
 	yaml "github.com/goccy/go-yaml"
 )
 
+// Context holds the configuration and state for assembling coding context
+type Context struct {
+	workDir             string
+	resume              bool
+	params              Params
+	includes            Selectors
+	remotePaths         []string
+	emitTaskFrontmatter bool
+
+	downloadedDirs   []string
+	matchingTaskFile string
+	taskFrontmatter  FrontMatter // Parsed task frontmatter
+	taskContent      string      // Parsed task content (before parameter expansion)
+	totalTokens      int
+	output           io.Writer
+	logger           *slog.Logger
+	cmdRunner        func(cmd *exec.Cmd) error
+}
+
 // Option is a functional option for configuring a Context
 type Option func(*Context)
 
@@ -146,7 +165,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) error {
 func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
 	for _, remotePath := range cc.remotePaths {
 		cc.logger.Info("Downloading remote directory", "path", remotePath)
-		localPath, err := DownloadRemoteDirectory(ctx, remotePath)
+		localPath, err := downloadRemoteDirectory(ctx, remotePath)
 		if err != nil {
 			return fmt.Errorf("failed to download remote directory %s: %w", remotePath, err)
 		}
@@ -311,7 +330,7 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 		}
 
 		// Estimate tokens for this file
-		tokens := EstimateTokens(content)
+		tokens := estimateTokens(content)
 		cc.totalTokens += tokens
 		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
 		fmt.Fprintln(cc.output, content)
@@ -432,7 +451,7 @@ func (cc *Context) emitTaskFileContent() error {
 	})
 
 	// Estimate tokens for this file
-	tokens := EstimateTokens(expanded)
+	tokens := estimateTokens(expanded)
 	cc.totalTokens += tokens
 	cc.logger.Info("Including task file", "path", cc.matchingTaskFile, "tokens", tokens)
 

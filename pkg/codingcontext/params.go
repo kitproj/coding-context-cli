@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+// Params is a map of parameter key-value pairs for template substitution
+type Params map[string]string
+
 // String implements the fmt.Stringer interface for Params
 func (p *Params) String() string {
 	return fmt.Sprint(*p)

@@ -56,9 +56,9 @@ This is content.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := EstimateTokens(tt.text)
+			got := estimateTokens(tt.text)
 			if got != tt.want {
-				t.Errorf("EstimateTokens() = %d, want %d", got, tt.want)
+				t.Errorf("estimateTokens() = %d, want %d", got, tt.want)
 			}
 		})
 	}

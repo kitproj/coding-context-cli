@@ -9,9 +9,9 @@ import (
 	getter "github.com/hashicorp/go-getter/v2"
 )
 
-// DownloadRemoteDirectory downloads a remote directory using go-getter
+// downloadRemoteDirectory downloads a remote directory using go-getter
 // and returns the local path where it was downloaded
-func DownloadRemoteDirectory(ctx context.Context, src string) (string, error) {
+func downloadRemoteDirectory(ctx context.Context, src string) (string, error) {
 	// Create a temporary directory for the download
 	tmpBase, err := os.MkdirTemp("", "coding-context-remote-*")
 	if err != nil {
