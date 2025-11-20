@@ -15,24 +15,24 @@ func ExampleParseSlashCommand() {
 	}
 	fmt.Printf("Task: %s, Params: %v\n", taskName, params)
 
-	// Parse a command with single parameter
-	taskName, params, err = slashcommand.ParseSlashCommand(`/fix-bug issue_number="123"`)
+	// Parse a command with single argument
+	taskName, params, err = slashcommand.ParseSlashCommand("/fix-bug 123")
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
 	}
-	fmt.Printf("Task: %s, Issue: %s\n", taskName, params["issue_number"])
+	fmt.Printf("Task: %s, $1: %s\n", taskName, params["1"])
 
-	// Parse a command with multiple parameters
-	taskName, params, err = slashcommand.ParseSlashCommand(`/implement-feature feature_name="User Login" priority="high"`)
+	// Parse a command with multiple arguments
+	taskName, params, err = slashcommand.ParseSlashCommand(`/implement-feature "User Login" high`)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
 	}
-	fmt.Printf("Task: %s, Feature: %s, Priority: %s\n", taskName, params["feature_name"], params["priority"])
+	fmt.Printf("Task: %s, $1: %s, $2: %s\n", taskName, params["1"], params["2"])
 
 	// Output:
 	// Task: fix-bug, Params: map[]
-	// Task: fix-bug, Issue: 123
-	// Task: implement-feature, Feature: User Login, Priority: high
+	// Task: fix-bug, $1: 123
+	// Task: implement-feature, $1: User Login, $2: high
 }
