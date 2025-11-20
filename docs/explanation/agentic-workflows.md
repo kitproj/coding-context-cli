@@ -91,10 +91,10 @@ Context is assembled at runtime based on the specific task:
 
 ```bash
 # Bug fix: Include only relevant rules
-coding-context-cli -s language=Go -s priority=high fix-bug
+coding-context -s language=Go -s priority=high fix-bug
 
 # Code review: Different context
-coding-context-cli -s stage=review code-review
+coding-context -s stage=review code-review
 ```
 
 ### 3. Parameter Injection
@@ -103,7 +103,7 @@ Runtime information flows into task prompts:
 
 ```bash
 # Each bug gets specific context
-coding-context-cli \
+coding-context \
   -p issue_key=BUG-123 \
   -p description="Crashes on startup" \
   fix-bug
@@ -116,7 +116,7 @@ Scripts fetch current state before agent execution:
 ```bash
 # Fetch JIRA issue details automatically
 export JIRA_ISSUE_KEY="BUG-123"
-coding-context-cli fix-bug  # Bootstrap fetches latest data
+coding-context fix-bug  # Bootstrap fetches latest data
 ```
 
 ## The Agentic Workflow Ecosystem

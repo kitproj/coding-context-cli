@@ -15,7 +15,7 @@ Include only rules matching a specific frontmatter field:
 
 ```bash
 # Include only Go rules
-coding-context-cli -s language=Go fix-bug
+coding-context -s language=Go fix-bug
 ```
 
 This includes only rules with `language: Go` in their frontmatter.
@@ -26,7 +26,7 @@ Combine multiple selectors - all must match:
 
 ```bash
 # Include only Go testing rules
-coding-context-cli -s language=Go -s stage=testing implement-feature
+coding-context -s language=Go -s stage=testing implement-feature
 ```
 
 This includes only rules with BOTH `language: Go` AND `stage: testing`.
@@ -56,10 +56,10 @@ Deploy to production environment.
 **Usage:**
 ```bash
 # Select staging task
-coding-context-cli -s environment=staging deploy
+coding-context -s environment=staging deploy
 
 # Select production task
-coding-context-cli -s environment=production deploy
+coding-context -s environment=production deploy
 ```
 
 ## Common Selector Patterns
@@ -68,47 +68,47 @@ coding-context-cli -s environment=production deploy
 
 ```bash
 # Python project
-coding-context-cli -s language=Python fix-bug
+coding-context -s language=Python fix-bug
 
 # JavaScript project
-coding-context-cli -s language=JavaScript code-review
+coding-context -s language=JavaScript code-review
 
 # Multi-language (run separately)
-coding-context-cli -s language=Go implement-backend
-coding-context-cli -s language=JavaScript implement-frontend
+coding-context -s language=Go implement-backend
+coding-context -s language=JavaScript implement-frontend
 ```
 
 ### By Stage
 
 ```bash
 # Planning phase
-coding-context-cli -s stage=planning plan-feature
+coding-context -s stage=planning plan-feature
 
 # Implementation phase
-coding-context-cli -s stage=implementation implement-feature
+coding-context -s stage=implementation implement-feature
 
 # Testing phase
-coding-context-cli -s stage=testing test-feature
+coding-context -s stage=testing test-feature
 ```
 
 ### By Priority
 
 ```bash
 # High priority rules only
-coding-context-cli -s priority=high fix-critical-bug
+coding-context -s priority=high fix-critical-bug
 
 # Include all priorities (no selector)
-coding-context-cli fix-bug
+coding-context fix-bug
 ```
 
 ### By Source
 
 ```bash
 # Include JIRA context
-coding-context-cli -s source=jira fix-bug
+coding-context -s source=jira fix-bug
 
 # Include GitHub context
-coding-context-cli -s source=github code-review
+coding-context -s source=github code-review
 ```
 
 ## Resume Mode
@@ -117,8 +117,8 @@ The `-r` flag is shorthand for `-s resume=true` plus skipping all rules:
 
 ```bash
 # These are equivalent:
-coding-context-cli -r fix-bug
-coding-context-cli -s resume=true fix-bug  # but also skips rules
+coding-context -r fix-bug
+coding-context -s resume=true fix-bug  # but also skips rules
 ```
 
 Use resume mode when continuing work in a new session to save tokens.
@@ -144,12 +144,12 @@ selectors:
 **Usage:**
 ```bash
 # Automatically applies language=go and stage=implementation
-coding-context-cli implement-feature
+coding-context implement-feature
 ```
 
 This is equivalent to:
 ```bash
-coding-context-cli -s language=go -s stage=implementation implement-feature
+coding-context -s language=go -s stage=implementation implement-feature
 ```
 
 ### Array Selectors (OR Logic)
@@ -169,7 +169,7 @@ selectors:
 **Usage:**
 ```bash
 # Includes rules matching (go OR python OR javascript) AND refactoring
-coding-context-cli refactor-code
+coding-context refactor-code
 ```
 
 ### Combining Command-Line and Task Selectors
@@ -189,7 +189,7 @@ selectors:
 ```bash
 # Combines task selectors with command-line selectors
 # Result: stage=deployment AND environment=production
-coding-context-cli -s environment=production deploy
+coding-context -s environment=production deploy
 ```
 
 ### When to Use Task Frontmatter Selectors
@@ -209,7 +209,7 @@ coding-context-cli -s environment=production deploy
 Use the `-t` flag to see which selectors are embedded in a task:
 
 ```bash
-coding-context-cli -t implement-feature
+coding-context -t implement-feature
 ```
 
 **Output:**
@@ -256,13 +256,13 @@ team: backend
 **Matching selectors:**
 ```bash
 # Matches
-coding-context-cli -s language=Go fix-bug
-coding-context-cli -s language=Go -s stage=testing fix-bug
-coding-context-cli -s priority=high fix-bug
+coding-context -s language=Go fix-bug
+coding-context -s language=Go -s stage=testing fix-bug
+coding-context -s priority=high fix-bug
 
 # Does NOT match
-coding-context-cli -s language=Python fix-bug
-coding-context-cli -s language=Go -s stage=planning fix-bug
+coding-context -s language=Python fix-bug
+coding-context -s language=Go -s stage=planning fix-bug
 ```
 
 ## Debugging Selectors
@@ -271,11 +271,11 @@ Check which rules are included:
 
 ```bash
 # Output to file and review
-coding-context-cli -s language=Go fix-bug > output.txt
+coding-context -s language=Go fix-bug > output.txt
 less output.txt
 
 # Check token count
-coding-context-cli -s language=Go fix-bug 2>&1 | grep -i token
+coding-context -s language=Go fix-bug 2>&1 | grep -i token
 ```
 
 ## Best Practices

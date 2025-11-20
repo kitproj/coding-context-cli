@@ -28,20 +28,20 @@ First, download and install the Coding Context CLI:
 
 ```bash
 # For Linux
-sudo curl -fsL -o /usr/local/bin/coding-context-cli \
-  https://github.com/kitproj/coding-context-cli/releases/download/v0.1.0/coding-context-cli_linux_amd64
-sudo chmod +x /usr/local/bin/coding-context-cli
+sudo curl -fsL -o /usr/local/bin/coding-context \
+  https://github.com/kitproj/coding-context-cli/releases/download/v0.0.16/coding-context_v0.0.16_linux_amd64
+sudo chmod +x /usr/local/bin/coding-context
 
 # For macOS
-sudo curl -fsL -o /usr/local/bin/coding-context-cli \
-  https://github.com/kitproj/coding-context-cli/releases/download/v0.1.0/coding-context-cli_darwin_amd64
-sudo chmod +x /usr/local/bin/coding-context-cli
+sudo curl -fsL -o /usr/local/bin/coding-context \
+  https://github.com/kitproj/coding-context-cli/releases/download/v0.0.16/coding-context_v0.0.16_darwin_amd64
+sudo chmod +x /usr/local/bin/coding-context
 ```
 
 Verify the installation:
 
 ```bash
-coding-context-cli --help
+coding-context --help
 ```
 
 You should see the usage instructions.
@@ -122,7 +122,7 @@ Now let's assemble context for a bug fix:
 cd ..
 
 # Assemble context
-coding-context-cli \
+coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \
   -s language=Go \
@@ -144,7 +144,7 @@ You should see output containing:
 Pipe the output to an AI agent:
 
 ```bash
-coding-context-cli \
+coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \
   -s language=Go \
@@ -159,7 +159,7 @@ You can also load rules and tasks from remote repositories instead of creating l
 
 ```bash
 # Load rules from a Git repository
-coding-context-cli \
+coding-context \
   -d git::https://github.com/company/shared-coding-rules.git \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \

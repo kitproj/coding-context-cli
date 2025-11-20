@@ -51,13 +51,13 @@ You can install the CLI by downloading the latest release from the [releases pag
 
 **AMD64:**
 ```bash
-sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.15/coding-context_v0.0.15_linux_amd64
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.16/coding-context_v0.0.16_linux_amd64
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
 **ARM64:**
 ```bash
-sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.15/coding-context_v0.0.15_linux_arm64
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.16/coding-context_v0.0.16_linux_arm64
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
@@ -65,13 +65,13 @@ sudo chmod +x /usr/local/bin/coding-context
 
 **Intel (AMD64):**
 ```bash
-sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.15/coding-context_v0.0.15_darwin_amd64
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.16/coding-context_v0.0.16_darwin_amd64
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
 **Apple Silicon (ARM64):**
 ```bash
-sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.15/coding-context_v0.0.15_darwin_arm64
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.16/coding-context_v0.0.16_darwin_arm64
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
@@ -79,7 +79,7 @@ sudo chmod +x /usr/local/bin/coding-context
 
 ```
 Usage:
-  coding-context-cli [options] <task-name>
+  coding-context [options] <task-name>
 
 Options:
   -C string
@@ -99,7 +99,7 @@ Options:
 
 **Basic usage with local files:**
 ```bash
-coding-context-cli -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
+coding-context -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
 ```
 
 This command will:
@@ -113,7 +113,7 @@ This command will:
 
 **Using remote directories:**
 ```bash
-coding-context-cli \
+coding-context \
   -d git::https://github.com/company/shared-rules.git \
   -d s3::https://s3.amazonaws.com/my-bucket/coding-standards \
   fix-bug | llm -m gemini-pro
@@ -188,16 +188,16 @@ The tool supports loading rules and tasks from remote locations via HTTP/HTTPS U
 
 ```bash
 # Clone a Git repository containing rules
-coding-context-cli -d git::https://github.com/company/shared-rules.git fix-bug
+coding-context -d git::https://github.com/company/shared-rules.git fix-bug
 
 # Use multiple remote sources
-coding-context-cli \
+coding-context \
   -d git::https://github.com/company/shared-rules.git \
   -d https://cdn.company.com/coding-standards \
   deploy
 
 # Mix local and remote directories
-coding-context-cli \
+coding-context \
   -d git::https://github.com/company/shared-rules.git \
   -s language=Go \
   implement-feature
@@ -220,12 +220,12 @@ coding-context-cli \
 
 ```bash
 # Use a specific branch or tag
-coding-context-cli \
+coding-context \
   -d 'git::https://github.com/company/shared-rules.git?ref=v1.0' \
   fix-bug
 
 # Use a subdirectory within the repo
-coding-context-cli \
+coding-context \
   -d 'git::https://github.com/company/mono-repo.git//coding-standards' \
   implement-feature
 ```
@@ -271,10 +271,10 @@ Deploy the application to production with all safety checks.
 You can then select the appropriate task using:
 ```bash
 # Deploy to staging
-coding-context-cli -s environment=staging deploy
+coding-context -s environment=staging deploy
 
 # Deploy to production
-coding-context-cli -s environment=production deploy
+coding-context -s environment=production deploy
 ```
 
 #### Task Frontmatter Selectors
@@ -297,12 +297,12 @@ Implement the feature following Go best practices and implementation guidelines.
 When you run this task, it automatically applies the selectors:
 ```bash
 # This command automatically includes only rules with language=Go and stage=implementation
-coding-context-cli implement-feature
+coding-context implement-feature
 ```
 
 This is equivalent to:
 ```bash
-coding-context-cli -s language=Go -s stage=implementation implement-feature
+coding-context -s language=Go -s stage=implementation implement-feature
 ```
 
 **Selectors support OR logic for the same key using arrays:**
@@ -324,7 +324,7 @@ Selectors from both the task frontmatter and command line are combined (additive
 # Task has: selectors.language = Go
 # Command adds: -s priority=high
 # Result: includes rules matching language=Go AND priority=high
-coding-context-cli -s priority=high implement-feature
+coding-context -s priority=high implement-feature
 ```
 
 ### Resume Mode
@@ -344,10 +344,10 @@ This is particularly useful in agentic workflows where an AI agent has already b
 
 ```bash
 # Initial task invocation (includes all rules, uses task with resume: false)
-coding-context-cli -s resume=false fix-bug | ai-agent
+coding-context -s resume=false fix-bug | ai-agent
 
 # Resume the task (skips rules, uses task with resume: true)
-coding-context-cli -r fix-bug | ai-agent
+coding-context -r fix-bug | ai-agent
 ```
 
 **Example task files for resume mode:**
@@ -397,7 +397,7 @@ language: Go
 To include this rule only when working on Go code, you would use `-s language=Go`:
 
 ```bash
-coding-context-cli -s language=Go fix-bug
+coding-context -s language=Go fix-bug
 ```
 
 This will include all rules with `language: Go` in their frontmatter, excluding rules for other languages.
@@ -414,10 +414,10 @@ Then select only the relevant rules:
 
 ```bash
 # Work on Python code with Python-specific rules
-coding-context-cli -s language=Python fix-bug
+coding-context -s language=Python fix-bug
 
 # Work on JavaScript code with JavaScript-specific rules
-coding-context-cli -s language=JavaScript enhance-feature
+coding-context -s language=JavaScript enhance-feature
 ```
 
 **Common Linguist Languages**
@@ -496,7 +496,7 @@ The `-t` flag allows you to include the task's YAML frontmatter at the beginning
 
 **Example usage:**
 ```bash
-coding-context-cli -t -p issue_number=123 fix-bug
+coding-context -t -p issue_number=123 fix-bug
 ```
 
 **Output format:**
@@ -517,7 +517,7 @@ This can be useful for:
 
 **Example with selectors in frontmatter:**
 ```bash
-coding-context-cli -t implement-feature
+coding-context -t implement-feature
 ```
 
 If the task has `selectors` in its frontmatter, they will be visible in the output:

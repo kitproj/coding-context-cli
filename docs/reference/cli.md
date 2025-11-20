@@ -7,12 +7,12 @@ nav_order: 1
 
 # CLI Reference
 
-Complete reference for the `coding-context-cli` command-line interface.
+Complete reference for the `coding-context` command-line interface.
 
 ## Synopsis
 
 ```
-coding-context-cli [options] <task-name>
+coding-context [options] <task-name>
 ```
 
 ## Description
@@ -27,7 +27,7 @@ The Coding Context CLI assembles context from rule files and task prompts, perfo
 
 **Example:**
 ```bash
-coding-context-cli fix-bug
+coding-context fix-bug
 ```
 
 ## Options
@@ -41,7 +41,7 @@ Change to the specified directory before processing files.
 
 **Example:**
 ```bash
-coding-context-cli -C /path/to/project fix-bug
+coding-context -C /path/to/project fix-bug
 ```
 
 ### `-d <url>`
@@ -60,25 +60,25 @@ Supports various protocols via [go-getter](https://github.com/hashicorp/go-gette
 **Examples:**
 ```bash
 # Load from Git repository
-coding-context-cli -d git::https://github.com/company/shared-rules.git fix-bug
+coding-context -d git::https://github.com/company/shared-rules.git fix-bug
 
 # Use specific branch or tag
-coding-context-cli -d 'git::https://github.com/company/shared-rules.git?ref=v1.0' fix-bug
+coding-context -d 'git::https://github.com/company/shared-rules.git?ref=v1.0' fix-bug
 
 # Use subdirectory within repository (note the double slash)
-coding-context-cli -d 'git::https://github.com/company/mono-repo.git//standards' fix-bug
+coding-context -d 'git::https://github.com/company/mono-repo.git//standards' fix-bug
 
 # Load from HTTP archive
-coding-context-cli -d https://example.com/coding-rules.tar.gz fix-bug
+coding-context -d https://example.com/coding-rules.tar.gz fix-bug
 
 # Multiple remote sources
-coding-context-cli \
+coding-context \
   -d git::https://github.com/company/shared-rules.git \
   -d https://cdn.example.com/team-rules.zip \
   fix-bug
 
 # Mix local and remote
-coding-context-cli \
+coding-context \
   -d git::https://github.com/company/org-standards.git \
   -s language=Go \
   fix-bug
@@ -96,10 +96,10 @@ Define a parameter for substitution in task prompts. Variables in task files usi
 **Examples:**
 ```bash
 # Single parameter
-coding-context-cli -p issue_key=BUG-123 fix-bug
+coding-context -p issue_key=BUG-123 fix-bug
 
 # Multiple parameters
-coding-context-cli \
+coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes" \
   -p severity=critical \
@@ -120,10 +120,10 @@ Use this when continuing work in a new session where context has already been es
 **Example:**
 ```bash
 # Initial session
-coding-context-cli -s resume=false fix-bug | ai-agent
+coding-context -s resume=false fix-bug | ai-agent
 
 # Resume session
-coding-context-cli -r fix-bug | ai-agent
+coding-context -r fix-bug | ai-agent
 ```
 
 ### `-s <key>=<value>`
@@ -138,13 +138,13 @@ Filter rules and tasks by frontmatter fields. Only rules and tasks where ALL spe
 **Examples:**
 ```bash
 # Single selector
-coding-context-cli -s language=Go fix-bug
+coding-context -s language=Go fix-bug
 
 # Multiple selectors (AND logic)
-coding-context-cli -s language=Go -s priority=high fix-bug
+coding-context -s language=Go -s priority=high fix-bug
 
 # Select specific task variant
-coding-context-cli -s environment=production deploy
+coding-context -s environment=production deploy
 ```
 
 ### `-t`
@@ -159,7 +159,7 @@ Use this when downstream tools or AI agents need access to task metadata for dec
 **Example:**
 ```bash
 # Emit task frontmatter with the assembled context
-coding-context-cli -t fix-bug
+coding-context -t fix-bug
 ```
 
 **Output:**
@@ -174,7 +174,7 @@ resume: false
 
 **Example with selectors:**
 ```bash
-coding-context-cli -t implement-feature
+coding-context -t implement-feature
 ```
 
 If the task includes `selectors` in frontmatter, they appear in the output:
@@ -213,7 +213,7 @@ This output is intended to be piped to an AI agent.
 
 **Example:**
 ```bash
-coding-context-cli fix-bug 2>errors.log | ai-agent
+coding-context fix-bug 2>errors.log | ai-agent
 ```
 
 ## Environment Variables
@@ -225,7 +225,7 @@ The CLI itself doesn't use environment variables, but bootstrap scripts can acce
 export JIRA_API_KEY="your-key"
 export GITHUB_TOKEN="your-token"
 
-coding-context-cli fix-bug  # Bootstrap scripts can use these variables
+coding-context fix-bug  # Bootstrap scripts can use these variables
 ```
 
 ## Examples
@@ -234,16 +234,16 @@ coding-context-cli fix-bug  # Bootstrap scripts can use these variables
 
 ```bash
 # Simple task execution
-coding-context-cli code-review
+coding-context code-review
 
 # With parameters
-coding-context-cli -p pr_number=123 code-review
+coding-context -p pr_number=123 code-review
 
 # With selectors
-coding-context-cli -s language=Python fix-bug
+coding-context -s language=Python fix-bug
 
 # Multiple parameters and selectors
-coding-context-cli \
+coding-context \
   -s language=Go \
   -s stage=implementation \
   -p feature_name="Authentication" \
@@ -254,58 +254,58 @@ coding-context-cli \
 
 ```bash
 # Run from different directory
-coding-context-cli -C /path/to/project fix-bug
+coding-context -C /path/to/project fix-bug
 
 # Run from subdirectory
 cd backend
-coding-context-cli fix-bug  # Uses backend/.agents/ if it exists
+coding-context fix-bug  # Uses backend/.agents/ if it exists
 ```
 
 ### Remote Directories
 
 ```bash
 # Load from Git repository
-coding-context-cli -d git::https://github.com/company/shared-rules.git fix-bug
+coding-context -d git::https://github.com/company/shared-rules.git fix-bug
 
 # Use specific version
-coding-context-cli -d 'git::https://github.com/company/rules.git?ref=v1.0.0' fix-bug
+coding-context -d 'git::https://github.com/company/rules.git?ref=v1.0.0' fix-bug
 
 # Combine multiple sources
-coding-context-cli \
+coding-context \
   -d git::https://github.com/company/org-standards.git \
   -d git::https://github.com/team/project-rules.git \
   -s language=Go \
   implement-feature
 
 # Load from HTTP archive
-coding-context-cli -d https://cdn.company.com/rules.tar.gz code-review
+coding-context -d https://cdn.company.com/rules.tar.gz code-review
 ```
 
 ### Resume Mode
 
 ```bash
 # Initial invocation
-coding-context-cli -s resume=false implement-feature > context.txt
+coding-context -s resume=false implement-feature > context.txt
 cat context.txt | ai-agent > plan.txt
 
 # Continue work (skips rules)
-coding-context-cli -r implement-feature | ai-agent
+coding-context -r implement-feature | ai-agent
 ```
 
 ### Piping to AI Agents
 
 ```bash
 # Claude
-coding-context-cli fix-bug | claude
+coding-context fix-bug | claude
 
 # LLM tool
-coding-context-cli fix-bug | llm -m claude-3-5-sonnet-20241022
+coding-context fix-bug | llm -m claude-3-5-sonnet-20241022
 
 # OpenAI
-coding-context-cli code-review | openai api completions.create -m gpt-4
+coding-context code-review | openai api completions.create -m gpt-4
 
 # Save to file first
-coding-context-cli fix-bug > context.txt
+coding-context fix-bug > context.txt
 cat context.txt | your-ai-agent
 ```
 
@@ -313,10 +313,10 @@ cat context.txt | your-ai-agent
 
 ```bash
 # See token count in stderr
-coding-context-cli fix-bug 2>&1 | grep -i token
+coding-context fix-bug 2>&1 | grep -i token
 
 # Separate stdout and stderr
-coding-context-cli fix-bug 2>tokens.log | ai-agent
+coding-context fix-bug 2>tokens.log | ai-agent
 cat tokens.log  # View token information
 ```
 
@@ -336,7 +336,7 @@ stage: testing
 ---
 ```
 ```bash
-coding-context-cli -s language=Go -s stage=testing fix-bug
+coding-context -s language=Go -s stage=testing fix-bug
 ```
 
 **Doesn't Work:**
@@ -349,7 +349,7 @@ metadata:
 ```
 ```bash
 # This WON'T match nested fields
-coding-context-cli -s metadata.language=Go fix-bug
+coding-context -s metadata.language=Go fix-bug
 ```
 
 ## See Also
