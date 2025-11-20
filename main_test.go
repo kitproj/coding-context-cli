@@ -374,6 +374,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 		name               string
 		resume             bool
 		includes           selectors
+		params             Params // Parameters for template expansion
 		setupFiles         func(t *testing.T, tmpDir string)
 		downloadedDirs     []string // Directories to add to downloadedDirs
 		wantTokens         int
@@ -500,6 +501,37 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			expectBootstrapRun: false,
 			bootstrapPath:      "CLAUDE-bootstrap",
 		},
+		{
+			name:   "rule with parameter substitution",
+			resume: false,
+			params: Params{
+				"issue_key":    "PROJ-123",
+				"project_name": "MyProject",
+			},
+			setupFiles: func(t *testing.T, tmpDir string) {
+				createMarkdownFile(t, filepath.Join(tmpDir, "CLAUDE.md"),
+					"",
+					"# Rule with params\nIssue: ${issue_key}\nProject: ${project_name}")
+			},
+			wantMinTokens:     true,
+			expectInOutput:    "Issue: PROJ-123\nProject: MyProject",
+			expectNotInOutput: "${issue_key}",
+		},
+		{
+			name:   "rule with missing parameter preserved",
+			resume: false,
+			params: Params{
+				"issue_key": "PROJ-456",
+			},
+			setupFiles: func(t *testing.T, tmpDir string) {
+				createMarkdownFile(t, filepath.Join(tmpDir, "CLAUDE.md"),
+					"",
+					"# Rule with partial params\nIssue: ${issue_key}\nProject: ${missing_param}")
+			},
+			wantMinTokens:     true,
+			expectInOutput:    "Issue: PROJ-456\nProject: ${missing_param}",
+			expectNotInOutput: "${issue_key}",
+		},
 	}
 
 	for _, tt := range tests {
@@ -522,6 +554,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			cc := &codingContext{
 				resume:   tt.resume,
 				includes: tt.includes,
+				params:   tt.params,
 				output:   &output,
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
@@ -534,6 +567,9 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			}
 			if cc.includes == nil {
 				cc.includes = make(selectors)
+			}
+			if cc.params == nil {
+				cc.params = make(Params)
 			}
 
 			// Set downloadedDirs if specified in test case
