@@ -99,10 +99,6 @@ func New(opts ...Option) *Context {
 
 // Run executes the context assembly for the given task name
 func (cc *Context) Run(ctx context.Context, taskName string) error {
-	if err := os.Chdir(cc.workDir); err != nil {
-		return fmt.Errorf("failed to chdir to %s: %w", cc.workDir, err)
-	}
-
 	if err := cc.downloadRemoteDirectories(ctx); err != nil {
 		return fmt.Errorf("failed to download remote directories: %w", err)
 	}
@@ -175,7 +171,7 @@ func (cc *Context) cleanupDownloadedDirectories() {
 
 func (cc *Context) findTaskFile(homeDir string, taskName string) error {
 	// find the task prompt by searching for a file with matching task_name in frontmatter
-	taskSearchDirs := AllTaskSearchPaths(homeDir)
+	taskSearchDirs := AllTaskSearchPaths(cc.workDir, homeDir)
 
 	// Add downloaded remote directories to task search paths
 	for _, dir := range cc.downloadedDirs {
@@ -259,7 +255,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 	}
 
 	// Build the list of rule locations (local and remote)
-	rulePaths := AllRulePaths(homeDir)
+	rulePaths := AllRulePaths(cc.workDir, homeDir)
 
 	// Append remote directories to rule paths
 	for _, dir := range cc.downloadedDirs {

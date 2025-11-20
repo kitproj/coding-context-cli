@@ -3,46 +3,48 @@ package codingcontext
 import "path/filepath"
 
 // AllTaskSearchPaths returns the standard search paths for task files
-func AllTaskSearchPaths(homeDir string) []string {
+// baseDir is the working directory to resolve relative paths from
+func AllTaskSearchPaths(baseDir, homeDir string) []string {
 	return []string{
-		filepath.Join(".agents", "tasks"),
-		filepath.Join(".cursor", "commands"),
-		filepath.Join(".opencode", "command"),
+		filepath.Join(baseDir, ".agents", "tasks"),
+		filepath.Join(baseDir, ".cursor", "commands"),
+		filepath.Join(baseDir, ".opencode", "command"),
 		filepath.Join(homeDir, ".agents", "tasks"),
 	}
 }
 
 // AllRulePaths returns the standard search paths for rule files
-func AllRulePaths(homeDir string) []string {
+// baseDir is the working directory to resolve relative paths from
+func AllRulePaths(baseDir, homeDir string) []string {
 	return []string{
-		"CLAUDE.local.md",
+		filepath.Join(baseDir, "CLAUDE.local.md"),
 
-		".agents/rules",
-		".cursor/rules",
-		".augment/rules",
-		".windsurf/rules",
-		".opencode/agent",
+		filepath.Join(baseDir, ".agents", "rules"),
+		filepath.Join(baseDir, ".cursor", "rules"),
+		filepath.Join(baseDir, ".augment", "rules"),
+		filepath.Join(baseDir, ".windsurf", "rules"),
+		filepath.Join(baseDir, ".opencode", "agent"),
 
-		".github/copilot-instructions.md",
-		".gemini/styleguide.md",
-		".github/agents",
-		".augment/guidelines.md",
+		filepath.Join(baseDir, ".github", "copilot-instructions.md"),
+		filepath.Join(baseDir, ".gemini", "styleguide.md"),
+		filepath.Join(baseDir, ".github", "agents"),
+		filepath.Join(baseDir, ".augment", "guidelines.md"),
 
-		"AGENTS.md",
-		"CLAUDE.md",
-		"GEMINI.md",
+		filepath.Join(baseDir, "AGENTS.md"),
+		filepath.Join(baseDir, "CLAUDE.md"),
+		filepath.Join(baseDir, "GEMINI.md"),
 
-		".cursorrules",
-		".windsurfrules",
+		filepath.Join(baseDir, ".cursorrules"),
+		filepath.Join(baseDir, ".windsurfrules"),
 
 		// ancestors
-		"../AGENTS.md",
-		"../CLAUDE.md",
-		"../GEMINI.md",
+		filepath.Join(baseDir, "..", "AGENTS.md"),
+		filepath.Join(baseDir, "..", "CLAUDE.md"),
+		filepath.Join(baseDir, "..", "GEMINI.md"),
 
-		"../../AGENTS.md",
-		"../../CLAUDE.md",
-		"../../GEMINI.md",
+		filepath.Join(baseDir, "..", "..", "AGENTS.md"),
+		filepath.Join(baseDir, "..", "..", "CLAUDE.md"),
+		filepath.Join(baseDir, "..", "..", "GEMINI.md"),
 
 		// user
 		filepath.Join(homeDir, ".agents", "rules"),

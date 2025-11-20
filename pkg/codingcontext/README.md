@@ -143,13 +143,13 @@ Parses a markdown file into frontmatter and content.
 
 Estimates the number of LLM tokens in the given text.
 
-#### `AllTaskSearchPaths(homeDir string) []string`
+#### `AllTaskSearchPaths(baseDir, homeDir string) []string`
 
-Returns the standard search paths for task files.
+Returns the standard search paths for task files. `baseDir` is the working directory to resolve relative paths from.
 
-#### `AllRulePaths(homeDir string) []string`
+#### `AllRulePaths(baseDir, homeDir string) []string`
 
-Returns the standard search paths for rule files.
+Returns the standard search paths for rule files. `baseDir` is the working directory to resolve relative paths from.
 
 #### `DownloadRemoteDirectory(ctx context.Context, src string) (string, error)`
 
