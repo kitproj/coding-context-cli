@@ -32,17 +32,17 @@ func AllAgents() []Agent {
 
 // ParseAgent parses a string into an Agent type
 func ParseAgent(s string) (Agent, error) {
-	normalized := Agent(strings.ToLower(strings.TrimSpace(s)))
+	agent := Agent(s)
 
 	// Check if agent exists in the path patterns map
-	if _, exists := agentPathPatterns[normalized]; exists {
-		return normalized, nil
+	if _, exists := agentPathPatterns[agent]; exists {
+		return agent, nil
 	}
 
 	// Build list of supported agents for error message
 	supported := make([]string, 0, len(agentPathPatterns))
-	for agent := range agentPathPatterns {
-		supported = append(supported, agent.String())
+	for a := range agentPathPatterns {
+		supported = append(supported, a.String())
 	}
 	return "", fmt.Errorf("unknown agent: %s (supported: %s)", s, strings.Join(supported, ", "))
 }
@@ -102,6 +102,7 @@ var agentPathPatterns = map[Agent][]string{
 	},
 	AgentCodex: {
 		".codex/",
+		"AGENTS.md",
 	},
 }
 
