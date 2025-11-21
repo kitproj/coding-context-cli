@@ -144,6 +144,9 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 			// Merge slash command parameters into existing params
 			// Slash command params take precedence
 			for k, v := range slashParams {
+				if existingVal, exists := cc.params[k]; exists {
+					cc.logger.Info("Slash command parameter overrides existing parameter", "key", k, "old", existingVal, "new", v)
+				}
 				cc.params[k] = v
 			}
 
