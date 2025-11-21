@@ -1,4 +1,4 @@
-package config
+package codingcontext
 
 // MCPServerConfig defines the common configuration fields supported by both platforms.
 type MCPServerConfig struct {

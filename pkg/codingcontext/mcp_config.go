@@ -1,4 +1,4 @@
-package config
+package codingcontext
 
 // Config represents the standardized JSON structure for MCP configurations.
 // Compatible with:

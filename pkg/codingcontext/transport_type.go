@@ -1,4 +1,4 @@
-package config
+package codingcontext
 
 // TransportType defines the communication protocol used by the server.
 // Supported by both Claude and Cursor.
