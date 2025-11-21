@@ -459,6 +459,40 @@ func (cc *Context) parseTaskFile() error {
 
 	cc.taskContent = content
 
+	// Extract standard frontmatter fields that act as default selectors
+	// These fields filter rules automatically when present in task frontmatter
+
+	// "agent" field: filters rules by agent
+	if agentRaw, ok := cc.taskFrontmatter["agent"]; ok {
+		agentStr := fmt.Sprint(agentRaw)
+		cc.includes.SetValue("agent", agentStr)
+	}
+
+	// "language" field: filters rules by language
+	// Can be a string or array for OR logic
+	if languageRaw, ok := cc.taskFrontmatter["language"]; ok {
+		switch v := languageRaw.(type) {
+		case []any:
+			// Multiple languages (OR logic)
+			for _, item := range v {
+				cc.includes.SetValue("language", fmt.Sprint(item))
+			}
+		case string:
+			// Single language
+			cc.includes.SetValue("language", v)
+		default:
+			// Convert other types to string
+			cc.includes.SetValue("language", fmt.Sprint(v))
+		}
+	}
+
+	// Note: The following fields are stored in frontmatter but don't act as selectors.
+	// They're simply passed through in the task frontmatter output:
+	// - "model": AI model identifier
+	// - "single_shot": whether task runs once or many times
+	// - "timeout": task timeout duration
+	// - "mcp_servers": list of MCP servers to use
+
 	// Extract selector labels from frontmatter
 	// Look for a "selectors" field that contains a map of key-value pairs
 	// Values can be strings or arrays (for OR logic)
