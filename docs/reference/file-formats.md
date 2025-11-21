@@ -170,7 +170,7 @@ agent: cursor
 ```bash
 # These are equivalent:
 coding-context implement-feature  # (task has agent: cursor)
-coding-context -s agent=cursor implement-feature
+coding-context -a cursor implement-feature
 ```
 
 #### `model` (optional, standard field)
