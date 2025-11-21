@@ -1684,3 +1684,97 @@ func TestSlashCommandSubstitution(t *testing.T) {
 		})
 	}
 }
+func TestTargetAgentIntegration(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create various agent-specific rule files
+	createMarkdownFile(t, filepath.Join(tmpDir, ".cursor", "rules", "cursor-rule.md"),
+		"language: go", "# Cursor-specific rule")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".opencode", "agent", "opencode-rule.md"),
+		"language: go", "# OpenCode-specific rule")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".github", "copilot-instructions.md"),
+		"language: go", "# Copilot-specific rule")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "generic-rule.md"),
+		"language: go", "# Generic rule")
+	// Create a rule that filters by agent selector
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "cursor-only-rule.md"),
+		"agent: cursor", "# Rule only for Cursor agent")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "tasks", "test-task.md"),
+		"task_name: test-task", "# Test task")
+
+	tests := []struct {
+		name             string
+		targetAgent      string
+		expectInRules    []string
+		expectNotInRules []string
+	}{
+		{
+			name:             "no target agent - all agent-specific rules plus generic and cursor-filtered",
+			targetAgent:      "",
+			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Generic", "Rule only for Cursor agent"},
+			expectNotInRules: []string{},
+		},
+		{
+			name:             "target cursor - exclude cursor rules, include others and generic",
+			targetAgent:      "cursor",
+			expectInRules:    []string{"OpenCode-specific", "Copilot-specific", "Generic", "Rule only for Cursor agent"},
+			expectNotInRules: []string{"Cursor-specific"},
+		},
+		{
+			name:             "target opencode - exclude opencode rules, include others and generic",
+			targetAgent:      "opencode",
+			expectInRules:    []string{"Cursor-specific", "Copilot-specific", "Generic"},
+			expectNotInRules: []string{"OpenCode-specific", "Rule only for Cursor agent"},
+		},
+		{
+			name:             "target copilot - exclude copilot rules, include others and generic",
+			targetAgent:      "copilot",
+			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Generic"},
+			expectNotInRules: []string{"Copilot-specific", "Rule only for Cursor agent"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			var ta TargetAgent
+			if tt.targetAgent != "" {
+				if err := ta.Set(tt.targetAgent); err != nil {
+					t.Fatalf("Set target agent failed: %v", err)
+				}
+			}
+
+			cc := New(
+				WithWorkDir(tmpDir),
+				WithAgent(ta),
+			)
+
+			result, err := cc.Run(ctx, "test-task")
+			if err != nil {
+				t.Fatalf("Run() error = %v", err)
+			}
+
+			// Combine all rule content
+			var allRules strings.Builder
+			for _, rule := range result.Rules {
+				allRules.WriteString(rule.Content)
+			}
+			rulesContent := allRules.String()
+
+			// Check expected inclusions
+			for _, expected := range tt.expectInRules {
+				if !strings.Contains(rulesContent, expected) {
+					t.Errorf("Expected rules to contain %q but it was not found", expected)
+				}
+			}
+
+			// Check expected exclusions
+			for _, notExpected := range tt.expectNotInRules {
+				if strings.Contains(rulesContent, notExpected) {
+					t.Errorf("Expected rules to NOT contain %q but it was found", notExpected)
+				}
+			}
+		})
+	}
+}
