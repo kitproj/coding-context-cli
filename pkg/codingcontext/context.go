@@ -152,7 +152,11 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 			// Always find and parse the slash command task file, even if it's the same task name
 			// This ensures fresh parsing with the new parameters
-			cc.logger.Info("Switching to slash command task", "from", taskName, "to", slashTaskName)
+			if slashTaskName == taskName {
+				cc.logger.Info("Reloading slash command task", "task", slashTaskName)
+			} else {
+				cc.logger.Info("Switching to slash command task", "from", taskName, "to", slashTaskName)
+			}
 
 			// Reset task-related state
 			cc.matchingTaskFile = ""
