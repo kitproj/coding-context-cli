@@ -359,9 +359,9 @@ Slash command parsing is **always enabled** in task files. When a task file cont
 1. Extract the task name and arguments from the slash command
 2. Load the referenced task instead of the original task
 3. Pass the slash command arguments as parameters (`$1`, `$2`, `$ARGUMENTS`, etc.)
-4. Slash command parameters override any existing parameters with the same name
+4. **Completely replace** any existing parameters with the slash command parameters
 
-This enables wrapper tasks that can dynamically delegate to other tasks with arguments.
+This enables wrapper tasks that can dynamically delegate to other tasks with arguments. The slash command fully replaces both the task name and all parameters.
 
 ### Slash Command Format
 

@@ -1550,13 +1550,24 @@ func TestSlashCommandSubstitution(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:            "same task with params",
+			name:            "slash command replaces existing parameters completely",
+			initialTaskName: "wrapper-task",
+			taskContent:     "Please /real-task 456",
+			params:          Params{"foo": "bar", "existing": "old"},
+			wantTaskName:    "real-task",
+			wantParams: map[string]string{
+				"ARGUMENTS": "456",
+				"1":         "456",
+			},
+			wantErr: false,
+		},
+		{
+			name:            "same task with params - replaces existing params",
 			initialTaskName: "my-task",
 			taskContent:     "/my-task arg1 arg2",
 			params:          Params{"existing": "value"},
 			wantTaskName:    "my-task",
 			wantParams: map[string]string{
-				"existing":  "value",
 				"ARGUMENTS": "arg1 arg2",
 				"1":         "arg1",
 				"2":         "arg2",

@@ -132,14 +132,9 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	if found {
 		cc.logger.Info("Found slash command in task", "task", slashTaskName, "params", slashParams)
 
-		// Merge slash command parameters into existing params
-		// Slash command params take precedence
-		for k, v := range slashParams {
-			if existingVal, exists := cc.params[k]; exists {
-				cc.logger.Info("Slash command parameter overrides existing parameter", "key", k, "old", existingVal, "new", v)
-			}
-			cc.params[k] = v
-		}
+		// Replace parameters completely with slash command parameters
+		// The slash command fully replaces both task name and parameters
+		cc.params = slashParams
 
 		// Always find and parse the slash command task file, even if it's the same task name
 		// This ensures fresh parsing with the new parameters
