@@ -10,7 +10,7 @@ import (
 // The expected format is: /task-name arg1 "arg 2" arg3
 //
 // The function will find the slash command even if it's embedded in other text. For example:
-//   - "Please /fix-bug 123 today" -> found: true, taskName: "fix-bug", params: {"ARGUMENTS": "123", "1": "123"}
+//   - "Please /fix-bug 123 today" -> found: true, taskName: "fix-bug", params: {"ARGUMENTS": "123 today", "1": "123", "2": "today"}
 //   - "Some text /code-review" -> found: true, taskName: "code-review", params: {}
 //
 // Arguments are parsed like Bash:
