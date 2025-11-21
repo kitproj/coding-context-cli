@@ -930,13 +930,13 @@ func TestParseTaskFile(t *testing.T) {
 			taskFile:        "task.md",
 			initialIncludes: make(Selectors),
 			expectedIncludes: Selectors{
-				"language": map[string]bool{"Go": true},
+				"language": map[string]bool{"go": true},
 				"env":      map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
-					"task_name: test\nselectors:\n  language: Go\n  env: prod",
+					"task_name: test\nselectors:\n  language: go\n  env: prod",
 					"# Task with Selectors")
 				return taskPath
 			},
@@ -948,12 +948,12 @@ func TestParseTaskFile(t *testing.T) {
 			initialIncludes: Selectors{"existing": map[string]bool{"value": true}},
 			expectedIncludes: Selectors{
 				"existing": map[string]bool{"value": true},
-				"language": map[string]bool{"Python": true},
+				"language": map[string]bool{"python": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
-					"task_name: test\nselectors:\n  language: Python",
+					"task_name: test\nselectors:\n  language: python",
 					"# Task with Selectors")
 				return taskPath
 			},
@@ -1022,11 +1022,11 @@ func TestParseTaskFile(t *testing.T) {
 			errContains: "invalid 'selectors' field",
 		},
 		{
-			name:            "task with agent field adds it as selector",
-			taskFile:        "task.md",
-			initialIncludes: make(Selectors),
+			name:             "task with agent field (sets targetAgent, not selector)",
+			taskFile:         "task.md",
+			initialIncludes:  make(Selectors),
 			expectedIncludes: Selectors{
-				"agent": map[string]bool{"cursor": true},
+				// agent field should NOT be added to includes (it sets targetAgent instead)
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
@@ -1054,11 +1054,11 @@ func TestParseTaskFile(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:            "task with both agent and model fields",
-			taskFile:        "task.md",
-			initialIncludes: make(Selectors),
+			name:             "task with both agent and model fields",
+			taskFile:         "task.md",
+			initialIncludes:  make(Selectors),
 			expectedIncludes: Selectors{
-				"agent": map[string]bool{"copilot": true},
+				// Neither agent nor model should be added to includes
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
@@ -1070,17 +1070,17 @@ func TestParseTaskFile(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:            "task with agent field and selectors merges both",
+			name:            "task with agent field and selectors",
 			taskFile:        "task.md",
 			initialIncludes: make(Selectors),
 			expectedIncludes: Selectors{
-				"agent":    map[string]bool{"cursor": true},
-				"language": map[string]bool{"Go": true},
+				// agent is NOT a selector, only language from selectors should be added
+				"language": map[string]bool{"go": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
-					"task_name: test\nagent: cursor\nselectors:\n  language: Go",
+					"task_name: test\nagent: cursor\nselectors:\n  language: go",
 					"# Task with Agent and Selectors")
 				return taskPath
 			},
@@ -1091,12 +1091,12 @@ func TestParseTaskFile(t *testing.T) {
 			taskFile:        "task.md",
 			initialIncludes: make(Selectors),
 			expectedIncludes: Selectors{
-				"language": map[string]bool{"Python": true},
+				"language": map[string]bool{"python": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
-					"task_name: test\nlanguage: Python",
+					"task_name: test\nlanguage: python",
 					"# Task with Language Field")
 				return taskPath
 			},
@@ -1107,12 +1107,12 @@ func TestParseTaskFile(t *testing.T) {
 			taskFile:        "task.md",
 			initialIncludes: make(Selectors),
 			expectedIncludes: Selectors{
-				"language": map[string]bool{"Go": true, "Python": true, "JavaScript": true},
+				"language": map[string]bool{"go": true, "python": true, "javascript": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
-					"task_name: test\nlanguage:\n  - Go\n  - Python\n  - JavaScript",
+					"task_name: test\nlanguage:\n  - go\n  - python\n  - javascript",
 					"# Task with Multiple Languages")
 				return taskPath
 			},
@@ -1139,13 +1139,13 @@ func TestParseTaskFile(t *testing.T) {
 			taskFile:        "task.md",
 			initialIncludes: make(Selectors),
 			expectedIncludes: Selectors{
-				"agent":    map[string]bool{"cursor": true},
-				"language": map[string]bool{"Go": true},
+				// Only language should be in selectors; agent sets targetAgent instead
+				"language": map[string]bool{"go": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
-					"task_name: test\nagent: cursor\nlanguage: Go\nmodel: gpt-4\nsingle_shot: false\ntimeout: 600\nmcp_servers:\n  - filesystem\n  - git",
+					"task_name: test\nagent: cursor\nlanguage: go\nmodel: gpt-4\nsingle_shot: false\ntimeout: 10m\nmcp_servers:\n  - filesystem\n  - git",
 					"# Task with All Standard Fields")
 				return taskPath
 			},
@@ -1830,28 +1830,28 @@ func TestTargetAgentIntegration(t *testing.T) {
 		expectNotInRules []string
 	}{
 		{
-			name:             "no target agent - all agent-specific rules plus generic and cursor-filtered",
+			name:             "no target agent - all agent-specific rules plus generic and cursor-tagged",
 			targetAgent:      "",
 			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Generic", "Rule only for Cursor agent"},
 			expectNotInRules: []string{},
 		},
 		{
-			name:             "target cursor - exclude cursor rules, include others and generic",
+			name:             "target cursor - exclude cursor rules, include others and generic (cursor-tagged stays)",
 			targetAgent:      "cursor",
 			expectInRules:    []string{"OpenCode-specific", "Copilot-specific", "Generic", "Rule only for Cursor agent"},
 			expectNotInRules: []string{"Cursor-specific"},
 		},
 		{
-			name:             "target opencode - exclude opencode rules, include others and generic",
+			name:             "target opencode - exclude opencode rules, include others and generic (cursor-tagged stays)",
 			targetAgent:      "opencode",
-			expectInRules:    []string{"Cursor-specific", "Copilot-specific", "Generic"},
-			expectNotInRules: []string{"OpenCode-specific", "Rule only for Cursor agent"},
+			expectInRules:    []string{"Cursor-specific", "Copilot-specific", "Generic", "Rule only for Cursor agent"},
+			expectNotInRules: []string{"OpenCode-specific"},
 		},
 		{
-			name:             "target copilot - exclude copilot rules, include others and generic",
+			name:             "target copilot - exclude copilot rules, include others and generic (cursor-tagged stays)",
 			targetAgent:      "copilot",
-			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Generic"},
-			expectNotInRules: []string{"Copilot-specific", "Rule only for Cursor agent"},
+			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Generic", "Rule only for Cursor agent"},
+			expectNotInRules: []string{"Copilot-specific"},
 		},
 	}
 
@@ -1903,13 +1903,21 @@ func TestTargetAgentIntegration(t *testing.T) {
 func TestTaskAgentFieldFilteringRules(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create rules with different agent filters
-	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "cursor-rule.md"),
-		"agent: cursor", "# Cursor-specific rule content")
-	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "copilot-rule.md"),
-		"agent: copilot", "# Copilot-specific rule content")
+	// Create rules in .agents/rules directory (generic location)
+	// These should all be included regardless of agent field in task
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "cursor-tagged-rule.md"),
+		"agent: cursor", "# Rule tagged for cursor")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "copilot-tagged-rule.md"),
+		"agent: copilot", "# Rule tagged for copilot")
 	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "generic-rule.md"),
 		"", "# Generic rule content")
+
+	// Create rules in agent-specific directories
+	// These should be EXCLUDED when that agent is the target
+	createMarkdownFile(t, filepath.Join(tmpDir, ".cursor", "rules", "cursor-own-rule.md"),
+		"", "# Cursor's own rule")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".github", "agents", "copilot-own-rule.md"),
+		"", "# Copilot's own rule")
 
 	tests := []struct {
 		name             string
@@ -1918,27 +1926,27 @@ func TestTaskAgentFieldFilteringRules(t *testing.T) {
 		expectNotInRules []string
 	}{
 		{
-			name:             "task with agent: cursor filters rules",
+			name:             "task with agent: cursor excludes cursor's own directories",
 			taskFrontmatter:  "task_name: test-task\nagent: cursor",
-			expectInRules:    []string{"Cursor-specific rule content", "Generic rule content"},
-			expectNotInRules: []string{"Copilot-specific rule content"},
+			expectInRules:    []string{"Rule tagged for cursor", "Rule tagged for copilot", "Generic rule content", "Copilot's own rule"},
+			expectNotInRules: []string{"Cursor's own rule"},
 		},
 		{
-			name:             "task with agent: copilot filters rules",
+			name:             "task with agent: copilot excludes copilot's own directories",
 			taskFrontmatter:  "task_name: test-task\nagent: copilot",
-			expectInRules:    []string{"Copilot-specific rule content", "Generic rule content"},
-			expectNotInRules: []string{"Cursor-specific rule content"},
+			expectInRules:    []string{"Rule tagged for cursor", "Rule tagged for copilot", "Generic rule content", "Cursor's own rule"},
+			expectNotInRules: []string{"Copilot's own rule"},
 		},
 		{
 			name:             "task without agent field includes all rules",
 			taskFrontmatter:  "task_name: test-task",
-			expectInRules:    []string{"Cursor-specific rule content", "Copilot-specific rule content", "Generic rule content"},
+			expectInRules:    []string{"Rule tagged for cursor", "Rule tagged for copilot", "Generic rule content", "Cursor's own rule", "Copilot's own rule"},
 			expectNotInRules: []string{},
 		},
 		{
 			name:             "task with model field (no filtering)",
 			taskFrontmatter:  "task_name: test-task\nmodel: gpt-4",
-			expectInRules:    []string{"Cursor-specific rule content", "Copilot-specific rule content", "Generic rule content"},
+			expectInRules:    []string{"Rule tagged for cursor", "Rule tagged for copilot", "Generic rule content", "Cursor's own rule", "Copilot's own rule"},
 			expectNotInRules: []string{},
 		},
 	}
@@ -2003,11 +2011,11 @@ func TestTaskLanguageFieldFilteringRules(t *testing.T) {
 
 	// Create rules with different language filters
 	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "go-rule.md"),
-		"language: Go", "# Go-specific rule content")
+		"language: go", "# go-specific rule content")
 	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "python-rule.md"),
-		"language: Python", "# Python-specific rule content")
+		"language: python", "# python-specific rule content")
 	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "js-rule.md"),
-		"language: JavaScript", "# JavaScript-specific rule content")
+		"language: javascript", "# javascript-specific rule content")
 	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "generic-rule.md"),
 		"", "# Generic rule content")
 
@@ -2018,27 +2026,27 @@ func TestTaskLanguageFieldFilteringRules(t *testing.T) {
 		expectNotInRules []string
 	}{
 		{
-			name:             "task with language: Go filters rules",
-			taskFrontmatter:  "task_name: test-task\nlanguage: Go",
-			expectInRules:    []string{"Go-specific rule content", "Generic rule content"},
-			expectNotInRules: []string{"Python-specific rule content", "JavaScript-specific rule content"},
+			name:             "task with language: go filters rules",
+			taskFrontmatter:  "task_name: test-task\nlanguage: go",
+			expectInRules:    []string{"go-specific rule content", "Generic rule content"},
+			expectNotInRules: []string{"python-specific rule content", "javascript-specific rule content"},
 		},
 		{
-			name:             "task with language: Python filters rules",
-			taskFrontmatter:  "task_name: test-task\nlanguage: Python",
-			expectInRules:    []string{"Python-specific rule content", "Generic rule content"},
-			expectNotInRules: []string{"Go-specific rule content", "JavaScript-specific rule content"},
+			name:             "task with language: python filters rules",
+			taskFrontmatter:  "task_name: test-task\nlanguage: python",
+			expectInRules:    []string{"python-specific rule content", "Generic rule content"},
+			expectNotInRules: []string{"go-specific rule content", "javascript-specific rule content"},
 		},
 		{
 			name:             "task with language array (OR logic)",
-			taskFrontmatter:  "task_name: test-task\nlanguage:\n  - Go\n  - Python",
-			expectInRules:    []string{"Go-specific rule content", "Python-specific rule content", "Generic rule content"},
-			expectNotInRules: []string{"JavaScript-specific rule content"},
+			taskFrontmatter:  "task_name: test-task\nlanguage:\n  - go\n  - python",
+			expectInRules:    []string{"go-specific rule content", "python-specific rule content", "Generic rule content"},
+			expectNotInRules: []string{"javascript-specific rule content"},
 		},
 		{
 			name:             "task without language field includes all rules",
 			taskFrontmatter:  "task_name: test-task",
-			expectInRules:    []string{"Go-specific rule content", "Python-specific rule content", "JavaScript-specific rule content", "Generic rule content"},
+			expectInRules:    []string{"go-specific rule content", "python-specific rule content", "javascript-specific rule content", "Generic rule content"},
 			expectNotInRules: []string{},
 		},
 	}
@@ -2100,10 +2108,10 @@ func TestTaskStandardFieldsPreservedInFrontmatter(t *testing.T) {
 
 	taskFrontmatter := `task_name: test-task
 agent: cursor
-language: Go
+language: go
 model: anthropic.claude-sonnet-4-20250514-v1-0
 single_shot: true
-timeout: 300
+timeout: 5m
 mcp_servers:
   - filesystem
   - git`
@@ -2121,10 +2129,10 @@ mcp_servers:
 	expectedFields := map[string]any{
 		"task_name":   "test-task",
 		"agent":       "cursor",
-		"language":    "Go",
+		"language":    "go",
 		"model":       "anthropic.claude-sonnet-4-20250514-v1-0",
 		"single_shot": true,
-		"timeout":     300,
+		"timeout":     "5m",
 		"mcp_servers": []any{"filesystem", "git"},
 	}
 

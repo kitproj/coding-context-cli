@@ -121,11 +121,6 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	cc.includes.SetValue("task_name", taskName)
 	cc.includes.SetValue("resume", fmt.Sprint(cc.resume))
 
-	// Add target agent to includes as a selector
-	if cc.targetAgent.IsSet() {
-		cc.includes.SetValue("agent", cc.targetAgent.String())
-	}
-
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
@@ -459,19 +454,23 @@ func (cc *Context) parseTaskFile() error {
 
 	cc.taskContent = content
 
-	// Extract standard frontmatter fields that act as default selectors
-	// These fields filter rules automatically when present in task frontmatter
+	// Extract standard frontmatter fields
 
-	// "agent" field: filters rules by agent
-	// Can be a string (most common case)
-	if agentRaw, ok := cc.taskFrontmatter["agent"]; ok {
+	// "agent" field: when specified, treat it as the target agent
+	// This excludes the agent's own rules (same behavior as -a flag)
+	// Only use the task's agent field if -a flag was not provided
+	if agentRaw, ok := cc.taskFrontmatter["agent"]; ok && !cc.targetAgent.IsSet() {
+		agentStr := ""
 		switch v := agentRaw.(type) {
 		case string:
-			// Single agent (most common)
-			cc.includes.SetValue("agent", v)
+			agentStr = v
 		default:
-			// Convert other types to string
-			cc.includes.SetValue("agent", fmt.Sprint(v))
+			agentStr = fmt.Sprint(v)
+		}
+
+		// Parse and set as target agent
+		if agent, err := ParseAgent(agentStr); err == nil {
+			cc.targetAgent = TargetAgent(agent)
 		}
 	}
 

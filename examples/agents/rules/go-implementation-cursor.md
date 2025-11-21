@@ -1,6 +1,6 @@
 ---
 task_name: implement-feature
-language: Go
+language: go
 agent: cursor
 ---
 
@@ -9,14 +9,14 @@ agent: cursor
 This rule demonstrates standard frontmatter fields for rules:
 
 - **task_name**: `implement-feature` - This rule only applies to the `implement-feature` task
-- **language**: `Go` - This rule only applies when the language is Go
+- **language**: `go` - This rule only applies when the language is go
 - **agent**: `cursor` - This rule is optimized for the Cursor AI agent
 
 ## When This Rule Is Included
 
 This rule will be included when:
 1. The task being run is `implement-feature` (or has `task_name: implement-feature` selector)
-2. AND the task has `language: Go` (or `-s language=Go` is specified)
+2. AND the task has `language: go` (or `-s language=go` is specified)
 3. AND the task has `agent: cursor` (or `-a cursor` is specified)
 
 ## Go-Specific Implementation Guidelines
