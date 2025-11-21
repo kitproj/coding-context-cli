@@ -12,13 +12,12 @@ import (
 
 // Context holds the configuration and state for assembling coding context
 type Context struct {
-	workDir             string
-	resume              bool
-	params              Params
-	includes            Selectors
-	targetAgent         TargetAgent
-	remotePaths         []string
-	emitTaskFrontmatter bool
+	workDir     string
+	resume      bool
+	params      Params
+	includes    Selectors
+	targetAgent TargetAgent
+	remotePaths []string
 
 	downloadedDirs   []string
 	matchingTaskFile string
@@ -65,13 +64,6 @@ func WithSelectors(selectors Selectors) Option {
 func WithRemotePaths(paths []string) Option {
 	return func(c *Context) {
 		c.remotePaths = paths
-	}
-}
-
-// WithEmitTaskFrontmatter enables task frontmatter emission
-func WithEmitTaskFrontmatter(emit bool) Option {
-	return func(c *Context) {
-		c.emitTaskFrontmatter = emit
 	}
 }
 

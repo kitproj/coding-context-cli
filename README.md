@@ -92,7 +92,6 @@ Options:
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
-  -t	Print task frontmatter at the beginning of output.
   -a value
     	Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
 ```
@@ -538,13 +537,13 @@ echo "Fetching issue information..." >&2
 # Fetch and prepare issue data
 ```
 
-### Emitting Task Frontmatter
+### Task Frontmatter
 
-The `-t` flag allows you to include the task's YAML frontmatter at the beginning of the output. This is useful when the AI agent or downstream tool needs access to metadata about the task being executed.
+Task frontmatter is automatically included at the beginning of the output. This allows the AI agent or downstream tool to access metadata about the task being executed.
 
 **Example usage:**
 ```bash
-coding-context -t -p issue_number=123 fix-bug
+coding-context -p issue_number=123 fix-bug
 ```
 
 **Output format:**
@@ -565,7 +564,7 @@ This can be useful for:
 
 **Example with selectors in frontmatter:**
 ```bash
-coding-context -t implement-feature
+coding-context implement-feature
 ```
 
 If the task has `selectors` in its frontmatter, they will be visible in the output:

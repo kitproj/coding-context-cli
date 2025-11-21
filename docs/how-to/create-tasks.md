@@ -179,13 +179,13 @@ This matches rules where `(language=Go OR language=Python) AND stage=testing`.
 coding-context -s priority=high implement-feature
 ```
 
-## Emitting Task Frontmatter
+## Task Frontmatter
 
-Use the `-t` flag to include the task frontmatter in the output. This is useful when downstream tools need access to task metadata.
+Task frontmatter is automatically included in the output. This is useful when downstream tools need access to task metadata.
 
 **Example:**
 ```bash
-coding-context -t implement-feature
+coding-context implement-feature
 ```
 
 **Output:**
