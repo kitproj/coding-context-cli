@@ -124,8 +124,17 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to parse task file: %w", err)
 	}
 
-	// Check if the task contains a slash command
-	slashTaskName, slashParams, found, err := parseSlashCommand(cc.taskContent)
+	// Expand parameters in task content to allow slash commands in parameters
+	expandedContent := os.Expand(cc.taskContent, func(key string) string {
+		if val, ok := cc.params[key]; ok {
+			return val
+		}
+		// this might not exist, in that case, return the original text
+		return fmt.Sprintf("${%s}", key)
+	})
+
+	// Check if the task contains a slash command (after parameter expansion)
+	slashTaskName, slashParams, found, err := parseSlashCommand(expandedContent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse slash command in task: %w", err)
 	}

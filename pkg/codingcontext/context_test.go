@@ -1575,6 +1575,18 @@ func TestSlashCommandSubstitution(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:            "slash command in parameter value (free-text use case)",
+			initialTaskName: "free-text-task",
+			taskContent:     "${text}",
+			params:          Params{"text": "/real-task PROJ-123"},
+			wantTaskName:    "real-task",
+			wantParams: map[string]string{
+				"ARGUMENTS": "PROJ-123",
+				"1":         "PROJ-123",
+			},
+			wantErr: false,
+		},
+		{
 			name:            "no slash command in task",
 			initialTaskName: "simple-task",
 			taskContent:     "Just a simple task with no slash command",
@@ -1606,6 +1618,14 @@ func TestSlashCommandSubstitution(t *testing.T) {
 				"Just a simple task with no slash command")
 
 			// Create my-task file
+			createMarkdownFile(t, filepath.Join(taskDir, "my-task.md"),
+				"task_name: my-task",
+				"/my-task arg1 arg2")
+
+			// Create free-text-task file
+			createMarkdownFile(t, filepath.Join(taskDir, "free-text-task.md"),
+				"task_name: free-text-task",
+				"${text}")
 			createMarkdownFile(t, filepath.Join(taskDir, "my-task.md"),
 				"task_name: my-task",
 				"/my-task arg1 arg2")
