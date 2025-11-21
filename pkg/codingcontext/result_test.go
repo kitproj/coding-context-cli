@@ -136,6 +136,14 @@ func TestResult_ParseTaskFrontmatter(t *testing.T) {
 			}{},
 			wantErr: true,
 		},
+		{
+			name: "nil target returns error",
+			frontmatter: FrontMatter{
+				"task_name": "test",
+			},
+			target:  nil,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

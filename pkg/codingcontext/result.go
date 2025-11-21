@@ -50,11 +50,16 @@ type Result struct {
 //	    // handle error
 //	}
 func (r *Result) ParseTaskFrontmatter(target any) error {
+	if target == nil {
+		return fmt.Errorf("target cannot be nil")
+	}
+
 	if r.Task.FrontMatter == nil {
 		return fmt.Errorf("task frontmatter is nil")
 	}
 
-	// Marshal the frontmatter map to YAML bytes
+	// Marshal the frontmatter map to YAML bytes, then unmarshal into target
+	// This approach leverages the existing YAML library without adding new dependencies
 	yamlBytes, err := yaml.Marshal(r.Task.FrontMatter)
 	if err != nil {
 		return fmt.Errorf("failed to marshal frontmatter: %w", err)
