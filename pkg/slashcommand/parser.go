@@ -10,8 +10,8 @@ import (
 // The expected format is: /task-name arg1 "arg 2" arg3
 //
 // The function will find the slash command even if it's embedded in other text. For example:
-//   - "Please /fix-bug 123 today" -> found: true, taskName: "fix-bug", params: {"ARGUMENTS": "123 today", "1": "123", "2": "today"}
-//   - "Some text /code-review" -> found: true, taskName: "code-review", params: {}
+//   - "Please /fix-bug 123 today" -> taskName: "fix-bug", params: {"ARGUMENTS": "123 today", "1": "123", "2": "today"}, found: true
+//   - "Some text /code-review" -> taskName: "code-review", params: {}, found: true
 //
 // Arguments are parsed like Bash:
 //   - Quoted arguments can contain spaces
@@ -20,29 +20,29 @@ import (
 //   - Arguments are extracted until end of line
 //
 // Examples:
-//   - "/fix-bug 123" -> found: true, taskName: "fix-bug", params: {"ARGUMENTS": "123", "1": "123"}
-//   - "/code-review \"PR #42\" high" -> found: true, taskName: "code-review", params: {"ARGUMENTS": "\"PR #42\" high", "1": "PR #42", "2": "high"}
-//   - "no command here" -> found: false, taskName: "", params: nil
+//   - "/fix-bug 123" -> taskName: "fix-bug", params: {"ARGUMENTS": "123", "1": "123"}, found: true
+//   - "/code-review \"PR #42\" high" -> taskName: "code-review", params: {"ARGUMENTS": "\"PR #42\" high", "1": "PR #42", "2": "high"}, found: true
+//   - "no command here" -> taskName: "", params: nil, found: false
 //
 // Returns:
-//   - found: true if a slash command was found, false otherwise
 //   - taskName: the task name (without the leading slash)
 //   - params: a map containing:
 //   - "ARGUMENTS": the full argument string (with quotes preserved)
 //   - "1", "2", "3", etc.: positional arguments (with quotes removed)
+//   - found: true if a slash command was found, false otherwise
 //   - err: an error if the command format is invalid (e.g., unclosed quotes)
-func ParseSlashCommand(command string) (found bool, taskName string, params map[string]string, err error) {
+func ParseSlashCommand(command string) (taskName string, params map[string]string, found bool, err error) {
 	// Find the slash command anywhere in the string
 	slashIdx := strings.Index(command, "/")
 	if slashIdx == -1 {
-		return false, "", nil, nil
+		return "", nil, false, nil
 	}
 
 	// Extract from the slash onwards
 	command = command[slashIdx+1:]
 
 	if command == "" {
-		return false, "", nil, nil
+		return "", nil, false, nil
 	}
 
 	// Find the task name (first word after the slash)
@@ -50,7 +50,7 @@ func ParseSlashCommand(command string) (found bool, taskName string, params map[
 	endIdx := strings.IndexAny(command, " \t\n\r")
 	if endIdx == -1 {
 		// No arguments, just the task name (rest of the string)
-		return true, command, make(map[string]string), nil
+		return command, make(map[string]string), true, nil
 	}
 
 	taskName = command[:endIdx]
@@ -76,13 +76,13 @@ func ParseSlashCommand(command string) (found bool, taskName string, params map[
 
 	// If there are no arguments, return early
 	if argsString == "" {
-		return true, taskName, params, nil
+		return taskName, params, true, nil
 	}
 
 	// Parse positional arguments using bash-like parsing
 	args, err := parseBashArgs(argsString)
 	if err != nil {
-		return false, "", nil, err
+		return "", nil, false, err
 	}
 
 	// Add positional arguments as $1, $2, $3, etc.
@@ -90,7 +90,7 @@ func ParseSlashCommand(command string) (found bool, taskName string, params map[
 		params[fmt.Sprintf("%d", i+1)] = arg
 	}
 
-	return true, taskName, params, nil
+	return taskName, params, true, nil
 }
 
 // parseBashArgs parses a string into arguments like bash does, respecting quoted values

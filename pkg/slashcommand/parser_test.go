@@ -293,7 +293,7 @@ func TestParseSlashCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotFound, gotTask, gotParams, err := ParseSlashCommand(tt.command)
+			gotTask, gotParams, gotFound, err := ParseSlashCommand(tt.command)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseSlashCommand() error = %v, wantErr %v", err, tt.wantErr)

@@ -32,34 +32,34 @@ go get github.com/kitproj/coding-context-cli/pkg/slashcommand
 import "github.com/kitproj/coding-context-cli/pkg/slashcommand"
 
 // Parse a simple command
-found, taskName, params, err := slashcommand.ParseSlashCommand("/fix-bug")
-// found: true
+taskName, params, found, err := slashcommand.ParseSlashCommand("/fix-bug")
 // taskName: "fix-bug"
 // params: map[]
+// found: true
 
 // Parse a command with arguments
-found, taskName, params, err := slashcommand.ParseSlashCommand("/fix-bug 123")
-// found: true
+taskName, params, found, err := slashcommand.ParseSlashCommand("/fix-bug 123")
 // taskName: "fix-bug"
 // params: map["ARGUMENTS": "123", "1": "123"]
+// found: true
 
 // Parse a command with quoted arguments
-found, taskName, params, err := slashcommand.ParseSlashCommand(`/code-review "Fix login bug" high`)
-// found: true
+taskName, params, found, err := slashcommand.ParseSlashCommand(`/code-review "Fix login bug" high`)
 // taskName: "code-review"
 // params: map["ARGUMENTS": "\"Fix login bug\" high", "1": "Fix login bug", "2": "high"]
+// found: true
 
 // Command found in middle of text
-found, taskName, params, err := slashcommand.ParseSlashCommand("Please /deploy production now")
-// found: true
+taskName, params, found, err := slashcommand.ParseSlashCommand("Please /deploy production now")
 // taskName: "deploy"
 // params: map["ARGUMENTS": "production now", "1": "production", "2": "now"]
+// found: true
 
 // No command found
-found, taskName, params, err := slashcommand.ParseSlashCommand("No command here")
-// found: false
+taskName, params, found, err := slashcommand.ParseSlashCommand("No command here")
 // taskName: ""
 // params: nil
+// found: false
 ```
 
 ## Command Format
@@ -110,11 +110,11 @@ The parser returns errors only for malformed commands (e.g., unclosed quotes). I
 
 ```go
 // No command found - not an error
-found, _, _, err := slashcommand.ParseSlashCommand("No command here")
+_, _, found, err := slashcommand.ParseSlashCommand("No command here")
 // found: false, err: nil
 
 // Unclosed quote - returns error
-found, _, _, err := slashcommand.ParseSlashCommand(`/fix-bug "unclosed`)
+_, _, found, err := slashcommand.ParseSlashCommand(`/fix-bug "unclosed`)
 // found: false, err: "unclosed quote in arguments"
 ```
 
@@ -123,7 +123,7 @@ found, _, _, err := slashcommand.ParseSlashCommand(`/fix-bug "unclosed`)
 ### ParseSlashCommand
 
 ```go
-func ParseSlashCommand(command string) (found bool, taskName string, params map[string]string, err error)
+func ParseSlashCommand(command string) (taskName string, params map[string]string, found bool, err error)
 ```
 
 Parses a slash command string and extracts the task name and arguments. The function searches for a slash command anywhere in the input text.
@@ -132,9 +132,9 @@ Parses a slash command string and extracts the task name and arguments. The func
 - `command` (string): The text that may contain a slash command
 
 **Returns:**
-- `found` (bool): True if a slash command was found, false otherwise
 - `taskName` (string): The task name without the leading `/`
 - `params` (map[string]string): Contains `ARGUMENTS` (full arg string) and `1`, `2`, `3`, etc. (positional args)
+- `found` (bool): True if a slash command was found, false otherwise
 - `err` (error): Error if the command format is invalid (e.g., unclosed quotes)
 
 ## Testing

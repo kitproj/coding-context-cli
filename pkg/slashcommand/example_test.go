@@ -8,7 +8,7 @@ import (
 
 func ExampleParseSlashCommand() {
 	// Parse a simple command without parameters
-	found, taskName, params, err := slashcommand.ParseSlashCommand("/fix-bug")
+	taskName, params, found, err := slashcommand.ParseSlashCommand("/fix-bug")
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
@@ -18,7 +18,7 @@ func ExampleParseSlashCommand() {
 	}
 
 	// Parse a command with single argument
-	found, taskName, params, err = slashcommand.ParseSlashCommand("/fix-bug 123")
+	taskName, params, found, err = slashcommand.ParseSlashCommand("/fix-bug 123")
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
@@ -28,7 +28,7 @@ func ExampleParseSlashCommand() {
 	}
 
 	// Parse a command with multiple arguments
-	found, taskName, params, err = slashcommand.ParseSlashCommand(`/implement-feature "User Login" high`)
+	taskName, params, found, err = slashcommand.ParseSlashCommand(`/implement-feature "User Login" high`)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
