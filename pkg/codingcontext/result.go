@@ -1,8 +1,11 @@
 package codingcontext
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
+
+	yaml "github.com/goccy/go-yaml"
 )
 
 // Markdown represents a markdown file with frontmatter and content
@@ -28,4 +31,39 @@ func (m *Markdown) BootstrapPath() string {
 type Result struct {
 	Rules []Markdown // List of included rule files
 	Task  Markdown   // Task file with frontmatter and content
+}
+
+// ParseTaskFrontmatter unmarshals the task frontmatter into the provided struct.
+// The target parameter should be a pointer to a struct with yaml tags.
+// Returns an error if the frontmatter cannot be unmarshaled into the target.
+//
+// Example:
+//
+//	type TaskMeta struct {
+//	    TaskName string   `yaml:"task_name"`
+//	    Resume   bool     `yaml:"resume"`
+//	    Priority string   `yaml:"priority"`
+//	}
+//
+//	var meta TaskMeta
+//	if err := result.ParseTaskFrontmatter(&meta); err != nil {
+//	    // handle error
+//	}
+func (r *Result) ParseTaskFrontmatter(target any) error {
+	if r.Task.FrontMatter == nil {
+		return fmt.Errorf("task frontmatter is nil")
+	}
+
+	// Marshal the frontmatter map to YAML bytes
+	yamlBytes, err := yaml.Marshal(r.Task.FrontMatter)
+	if err != nil {
+		return fmt.Errorf("failed to marshal frontmatter: %w", err)
+	}
+
+	// Unmarshal the YAML bytes into the target struct
+	if err := yaml.Unmarshal(yamlBytes, target); err != nil {
+		return fmt.Errorf("failed to unmarshal frontmatter into target: %w", err)
+	}
+
+	return nil
 }

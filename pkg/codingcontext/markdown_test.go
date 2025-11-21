@@ -102,3 +102,121 @@ func TestParseMarkdownFile_FileNotFound(t *testing.T) {
 		t.Error("ParseMarkdownFile() expected error for non-existent file, got nil")
 	}
 }
+
+func TestParseMarkdownFile_CustomStruct(t *testing.T) {
+	// Define a custom struct for task frontmatter
+	type TaskFrontmatter struct {
+		TaskName string   `yaml:"task_name"`
+		Resume   bool     `yaml:"resume"`
+		Priority string   `yaml:"priority"`
+		Tags     []string `yaml:"tags"`
+	}
+
+	tests := []struct {
+		name         string
+		content      string
+		wantContent  string
+		wantTaskName string
+		wantResume   bool
+		wantPriority string
+		wantTags     []string
+		wantErr      bool
+	}{
+		{
+			name: "parse task with all fields",
+			content: `---
+task_name: fix-bug
+resume: false
+priority: high
+tags:
+  - backend
+  - urgent
+---
+# Fix Bug
+
+Please fix the bug in the backend service.
+`,
+			wantContent:  "# Fix Bug\n\nPlease fix the bug in the backend service.\n",
+			wantTaskName: "fix-bug",
+			wantResume:   false,
+			wantPriority: "high",
+			wantTags:     []string{"backend", "urgent"},
+			wantErr:      false,
+		},
+		{
+			name: "parse task with partial fields",
+			content: `---
+task_name: deploy
+resume: true
+---
+# Deploy Application
+
+Deploy the application to staging.
+`,
+			wantContent:  "# Deploy Application\n\nDeploy the application to staging.\n",
+			wantTaskName: "deploy",
+			wantResume:   true,
+			wantPriority: "", // zero value for missing field
+			wantTags:     nil,
+			wantErr:      false,
+		},
+		{
+			name: "parse without frontmatter",
+			content: `# Simple Task
+
+This task has no frontmatter.
+`,
+			wantContent:  "# Simple Task\n\nThis task has no frontmatter.\n",
+			wantTaskName: "", // zero value
+			wantResume:   false,
+			wantPriority: "",
+			wantTags:     nil,
+			wantErr:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary file
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "test.md")
+			if err := os.WriteFile(tmpFile, []byte(tt.content), 0644); err != nil {
+				t.Fatalf("failed to create temp file: %v", err)
+			}
+
+			// Parse the file into custom struct
+			var frontmatter TaskFrontmatter
+			content, err := ParseMarkdownFile(tmpFile, &frontmatter)
+
+			// Check error
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMarkdownFile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			// Check content
+			if content != tt.wantContent {
+				t.Errorf("ParseMarkdownFile() content = %q, want %q", content, tt.wantContent)
+			}
+
+			// Check frontmatter fields
+			if frontmatter.TaskName != tt.wantTaskName {
+				t.Errorf("frontmatter.TaskName = %q, want %q", frontmatter.TaskName, tt.wantTaskName)
+			}
+			if frontmatter.Resume != tt.wantResume {
+				t.Errorf("frontmatter.Resume = %v, want %v", frontmatter.Resume, tt.wantResume)
+			}
+			if frontmatter.Priority != tt.wantPriority {
+				t.Errorf("frontmatter.Priority = %q, want %q", frontmatter.Priority, tt.wantPriority)
+			}
+			if len(frontmatter.Tags) != len(tt.wantTags) {
+				t.Errorf("frontmatter.Tags length = %d, want %d", len(frontmatter.Tags), len(tt.wantTags))
+			}
+			for i, tag := range tt.wantTags {
+				if i < len(frontmatter.Tags) && frontmatter.Tags[i] != tag {
+					t.Errorf("frontmatter.Tags[%d] = %q, want %q", i, frontmatter.Tags[i], tag)
+				}
+			}
+		})
+	}
+}
