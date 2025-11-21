@@ -130,7 +130,7 @@ func TestRun(t *testing.T) {
 				resume:   tt.resume,
 				params:   tt.params,
 				includes: tt.includes,
-				rules:    make([]Markdown[FrontMatter], 0),
+				rules:    make([]Markdown[RuleFrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
@@ -568,7 +568,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 				resume:   tt.resume,
 				includes: tt.includes,
 				params:   tt.params,
-				rules:    make([]Markdown[FrontMatter], 0),
+				rules:    make([]Markdown[RuleFrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					// Track if bootstrap script was executed
@@ -841,7 +841,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 			taskPath := tt.setupFiles(t, tmpDir)
 
 			// Need to extract task name from file (even though we don't use it directly in this test)
-			var frontmatter FrontMatter
+			var frontmatter BaseFrontMatter
 			_, err := ParseMarkdownFile(taskPath, &frontmatter)
 			if err != nil {
 				t.Fatalf("failed to parse task file: %v", err)
@@ -852,10 +852,10 @@ func TestWriteTaskFileContent(t *testing.T) {
 				workDir:          tmpDir,
 				matchingTaskFile: taskPath,
 				params:           tt.params,
-				rules:            make([]Markdown[FrontMatter], 0),
+				rules:            make([]Markdown[RuleFrontMatter], 0),
 				logger:           slog.New(slog.NewTextHandler(&logOut, nil)),
 				includes:         make(Selectors),
-				taskFrontmatter:  FrontMatter{Content: make(map[string]any)},
+				task:             Markdown[TaskFrontMatter]{FrontMatter: TaskFrontMatter{BaseFrontMatter: BaseFrontMatter{Content: make(map[string]any)}}},
 			}
 
 			// Parse task file first
@@ -867,7 +867,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 			}
 
 			// Expand parameters in task content (mimics what Run does)
-			expandedTask := os.Expand(cc.taskContent, func(key string) string {
+			expandedTask := os.Expand(cc.task.Content, func(key string) string {
 				if val, ok := cc.params[key]; ok {
 					return val
 				}
@@ -889,9 +889,9 @@ func TestWriteTaskFileContent(t *testing.T) {
 			}
 
 			// Verify frontmatter is always parsed when present
-			if cc.taskFrontmatter.Content != nil && len(cc.taskFrontmatter.Content) > 0 {
+			if cc.task.FrontMatter.Content != nil && len(cc.task.FrontMatter.Content) > 0 {
 				// Just verify frontmatter was parsed - the Context doesn't emit it, main.go does
-				if _, ok := cc.taskFrontmatter.Content["task_name"]; !ok {
+				if _, ok := cc.task.FrontMatter.Content["task_name"]; !ok {
 					// This is OK - not all tasks have task_name in frontmatter
 				}
 			}
@@ -1203,13 +1203,13 @@ func TestParseTaskFile(t *testing.T) {
 				}
 
 				// Verify task content was stored
-				if cc.taskContent == "" {
-					t.Errorf("parseTaskFile() expected taskContent to be set, got empty string")
+				if cc.task.Content == "" {
+					t.Errorf("parseTaskFile() expected task.Content to be set, got empty string")
 				}
 
 				// Verify task frontmatter was stored
-				if cc.taskFrontmatter.Content == nil {
-					t.Errorf("parseTaskFile() expected taskFrontmatter to be set, got nil")
+				if cc.task.FrontMatter.Content == nil {
+					t.Errorf("parseTaskFile() expected task.FrontMatter to be set, got nil")
 				}
 			}
 		})
@@ -1332,7 +1332,7 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 			cc := &Context{
 				workDir:  tmpDir,
 				includes: make(Selectors),
-				rules:    make([]Markdown[FrontMatter], 0),
+				rules:    make([]Markdown[RuleFrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
@@ -1590,7 +1590,7 @@ func TestRuleFileWalker(t *testing.T) {
 			var logOut bytes.Buffer
 			cc := &Context{
 				includes: tt.includes,
-				rules:    make([]Markdown[FrontMatter], 0),
+				rules:    make([]Markdown[RuleFrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
@@ -1753,7 +1753,7 @@ func TestSlashCommandSubstitution(t *testing.T) {
 				workDir:  tmpDir,
 				params:   tt.params,
 				includes: make(Selectors),
-				rules:    make([]Markdown[FrontMatter], 0),
+				rules:    make([]Markdown[RuleFrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil
@@ -2108,13 +2108,16 @@ func TestTaskStandardFieldsPreservedInFrontmatter(t *testing.T) {
 
 	taskFrontmatter := `task_name: test-task
 agent: cursor
-language: go
+languages:
+  - go
 model: anthropic.claude-sonnet-4-20250514-v1-0
 single_shot: true
 timeout: 5m
 mcp_servers:
-  - filesystem
-  - git`
+  - type: stdio
+    command: filesystem-server
+  - type: stdio
+    command: git-server`
 
 	taskPath := filepath.Join(tmpDir, ".agents", "tasks", "test-task.md")
 	createMarkdownFile(t, taskPath, taskFrontmatter, "# Test Task")

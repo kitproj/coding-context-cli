@@ -268,7 +268,7 @@ func (cc *Context) taskFileWalker(taskName string) func(path string, info os.Fil
 		}
 
 		// Parse frontmatter to check task_name
-		var frontmatter FrontMatter
+		var frontmatter BaseFrontMatter
 
 		if _, err = ParseMarkdownFile(path, &frontmatter); err != nil {
 			return fmt.Errorf("failed to parse task file %s: %w", path, err)
@@ -375,7 +375,7 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 
 		// Check if file matches include selectors BEFORE running bootstrap script.
 		// Note: Files with duplicate basenames will both be included.
-		if !cc.includes.MatchesIncludes(frontmatter.FrontMatter) {
+		if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
 			cc.logger.Info("Excluding rule file (does not match include selectors)", "path", path)
 			return nil
 		}
@@ -472,7 +472,7 @@ func (cc *Context) parseTaskFile() error {
 		if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
 			cc.targetAgent = TargetAgent(agent)
 		} else {
-			// Log warning for invalid agent name to help users identify configuration issues
+			// Log warning for invalid agent name in task frontmatter to help users identify configuration issues
 			cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", cc.task.FrontMatter.Agent, "error", err)
 		}
 	}
@@ -504,20 +504,6 @@ func (cc *Context) parseTaskFile() error {
 			cc.includes.SetValue(key, v)
 		default:
 			cc.includes.SetValue(key, fmt.Sprint(v))
-		}
-	}
-
-	return nil
-}
-			case string:
-				// Convert string to single value in map
-				cc.includes.SetValue(key, v)
-			case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
-				// Convert scalar numeric or boolean to string
-				cc.includes.SetValue(key, fmt.Sprint(v))
-			default:
-				return fmt.Errorf("task file %s has invalid selector value for key %q: expected string or array, got %T", cc.matchingTaskFile, key, value)
-			}
 		}
 	}
 

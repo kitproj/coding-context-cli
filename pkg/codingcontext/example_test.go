@@ -60,8 +60,8 @@ func ExampleParseMarkdownFile() {
 		Tags     []string `yaml:"tags"`
 	}
 
-	// Parse the markdown file into a FrontMatter
-	var frontmatterMap codingcontext.FrontMatter
+	// Parse the markdown file into a BaseFrontMatter
+	var frontmatterMap codingcontext.BaseFrontMatter
 	content, err := codingcontext.ParseMarkdownFile("path/to/task.md", &frontmatterMap)
 	if err != nil {
 		log.Fatal(err)

@@ -24,14 +24,12 @@ func main() {
 	var resume bool
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
-	var targetAgent codingcontext.TargetAgent
 	var remotePaths []string
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.Var(&targetAgent, "a", "Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.Func("d", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
 		remotePaths = append(remotePaths, s)
 		return nil
@@ -58,7 +56,6 @@ func main() {
 		codingcontext.WithResume(resume),
 		codingcontext.WithParams(params),
 		codingcontext.WithSelectors(includes),
-		codingcontext.WithAgent(targetAgent),
 		codingcontext.WithRemotePaths(remotePaths),
 		codingcontext.WithLogger(logger),
 	)
@@ -71,9 +68,9 @@ func main() {
 	}
 
 	// Output task frontmatter (always enabled)
-	if result.Task.FrontMatter.Content != nil {
+	if taskContent := result.Task.FrontMatter.Content; taskContent != nil {
 		fmt.Println("---")
-		if err := yaml.NewEncoder(os.Stdout).Encode(result.Task.FrontMatter.Content); err != nil {
+		if err := yaml.NewEncoder(os.Stdout).Encode(taskContent); err != nil {
 			logger.Error("Failed to encode task frontmatter", "error", err)
 			os.Exit(1)
 		}

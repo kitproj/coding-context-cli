@@ -6,7 +6,7 @@ import (
 )
 
 // Markdown represents a markdown file with frontmatter and content
-type Markdown[T FrontMatter] struct {
+type Markdown[T any] struct {
 	Path        string // Path to the markdown file
 	FrontMatter T      // Parsed YAML frontmatter
 	Content     string // Expanded content of the markdown
@@ -14,7 +14,7 @@ type Markdown[T FrontMatter] struct {
 }
 
 // NewMarkdown creates a new Markdown with the given frontmatter
-func NewMarkdown[T FrontMatter](t T) Markdown[T] {
+func NewMarkdown[T any](t T) Markdown[T] {
 	return Markdown[T]{
 		FrontMatter: t,
 	}
