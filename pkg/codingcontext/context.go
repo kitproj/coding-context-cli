@@ -18,7 +18,6 @@ type Context struct {
 	includes            Selectors
 	remotePaths         []string
 	emitTaskFrontmatter bool
-	slashCommand        bool
 
 	downloadedDirs   []string
 	matchingTaskFile string
@@ -82,13 +81,6 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// WithSlashCommand enables slash command parsing in task content
-func WithSlashCommand(enable bool) Option {
-	return func(c *Context) {
-		c.slashCommand = enable
-	}
-}
-
 // New creates a new Context with the given options
 func New(opts ...Option) *Context {
 	c := &Context{
@@ -132,49 +124,47 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to parse task file: %w", err)
 	}
 
-	// If slash command parsing is enabled, check if the task contains a slash command
-	if cc.slashCommand {
-		slashTaskName, slashParams, found, err := parseSlashCommand(cc.taskContent)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse slash command in task: %w", err)
+	// Check if the task contains a slash command
+	slashTaskName, slashParams, found, err := parseSlashCommand(cc.taskContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse slash command in task: %w", err)
+	}
+	if found {
+		cc.logger.Info("Found slash command in task", "task", slashTaskName, "params", slashParams)
+
+		// Merge slash command parameters into existing params
+		// Slash command params take precedence
+		for k, v := range slashParams {
+			if existingVal, exists := cc.params[k]; exists {
+				cc.logger.Info("Slash command parameter overrides existing parameter", "key", k, "old", existingVal, "new", v)
+			}
+			cc.params[k] = v
 		}
-		if found {
-			cc.logger.Info("Found slash command in task", "task", slashTaskName, "params", slashParams)
 
-			// Merge slash command parameters into existing params
-			// Slash command params take precedence
-			for k, v := range slashParams {
-				if existingVal, exists := cc.params[k]; exists {
-					cc.logger.Info("Slash command parameter overrides existing parameter", "key", k, "old", existingVal, "new", v)
-				}
-				cc.params[k] = v
-			}
+		// Always find and parse the slash command task file, even if it's the same task name
+		// This ensures fresh parsing with the new parameters
+		if slashTaskName == taskName {
+			cc.logger.Info("Reloading slash command task", "task", slashTaskName)
+		} else {
+			cc.logger.Info("Switching to slash command task", "from", taskName, "to", slashTaskName)
+		}
 
-			// Always find and parse the slash command task file, even if it's the same task name
-			// This ensures fresh parsing with the new parameters
-			if slashTaskName == taskName {
-				cc.logger.Info("Reloading slash command task", "task", slashTaskName)
-			} else {
-				cc.logger.Info("Switching to slash command task", "from", taskName, "to", slashTaskName)
-			}
+		// Reset task-related state
+		cc.matchingTaskFile = ""
+		cc.taskFrontmatter = nil
+		cc.taskContent = ""
 
-			// Reset task-related state
-			cc.matchingTaskFile = ""
-			cc.taskFrontmatter = nil
-			cc.taskContent = ""
+		// Update task_name in includes
+		cc.includes.SetValue("task_name", slashTaskName)
 
-			// Update task_name in includes
-			cc.includes.SetValue("task_name", slashTaskName)
+		// Find the new task file
+		if err := cc.findTaskFile(homeDir, slashTaskName); err != nil {
+			return nil, fmt.Errorf("failed to find slash command task file: %w", err)
+		}
 
-			// Find the new task file
-			if err := cc.findTaskFile(homeDir, slashTaskName); err != nil {
-				return nil, fmt.Errorf("failed to find slash command task file: %w", err)
-			}
-
-			// Parse the new task file
-			if err := cc.parseTaskFile(); err != nil {
-				return nil, fmt.Errorf("failed to parse slash command task file: %w", err)
-			}
+		// Parse the new task file
+		if err := cc.parseTaskFile(); err != nil {
+			return nil, fmt.Errorf("failed to parse slash command task file: %w", err)
 		}
 	}
 

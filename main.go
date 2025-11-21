@@ -23,13 +23,11 @@ func main() {
 	var workDir string
 	var resume bool
 	var emitTaskFrontmatter bool
-	var slashCommand bool
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
 	var remotePaths []string
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
-	flag.BoolVar(&slashCommand, "l", false, "Enable slash command parsing in task content. If a task contains a slash command (e.g., /task-name args), use that task and parameters instead.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
@@ -62,7 +60,6 @@ func main() {
 		codingcontext.WithSelectors(includes),
 		codingcontext.WithRemotePaths(remotePaths),
 		codingcontext.WithEmitTaskFrontmatter(emitTaskFrontmatter),
-		codingcontext.WithSlashCommand(slashCommand),
 		codingcontext.WithLogger(logger),
 	)
 

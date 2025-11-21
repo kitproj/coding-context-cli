@@ -1528,33 +1528,21 @@ func (f *fileInfoMock) Sys() any           { return nil }
 
 func TestSlashCommandSubstitution(t *testing.T) {
 	tests := []struct {
-		name                string
-		initialTaskName     string
-		slashCommandEnabled bool
-		taskContent         string
-		params              Params
-		wantTaskName        string
-		wantParams          map[string]string
-		wantErr             bool
-		errContains         string
+		name            string
+		initialTaskName string
+		taskContent     string
+		params          Params
+		wantTaskName    string
+		wantParams      map[string]string
+		wantErr         bool
+		errContains     string
 	}{
 		{
-			name:                "slash command disabled - no substitution",
-			initialTaskName:     "wrapper-task",
-			slashCommandEnabled: false,
-			taskContent:         "Please /real-task 123",
-			params:              Params{},
-			wantTaskName:        "wrapper-task",
-			wantParams:          map[string]string{},
-			wantErr:             false,
-		},
-		{
-			name:                "slash command enabled - substitution to different task",
-			initialTaskName:     "wrapper-task",
-			slashCommandEnabled: true,
-			taskContent:         "Please /real-task 123",
-			params:              Params{},
-			wantTaskName:        "real-task",
+			name:            "substitution to different task",
+			initialTaskName: "wrapper-task",
+			taskContent:     "Please /real-task 123",
+			params:          Params{},
+			wantTaskName:    "real-task",
 			wantParams: map[string]string{
 				"ARGUMENTS": "123",
 				"1":         "123",
@@ -1562,12 +1550,11 @@ func TestSlashCommandSubstitution(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:                "slash command enabled - same task with params",
-			initialTaskName:     "my-task",
-			slashCommandEnabled: true,
-			taskContent:         "/my-task arg1 arg2",
-			params:              Params{"existing": "value"},
-			wantTaskName:        "my-task",
+			name:            "same task with params",
+			initialTaskName: "my-task",
+			taskContent:     "/my-task arg1 arg2",
+			params:          Params{"existing": "value"},
+			wantTaskName:    "my-task",
 			wantParams: map[string]string{
 				"existing":  "value",
 				"ARGUMENTS": "arg1 arg2",
@@ -1577,14 +1564,13 @@ func TestSlashCommandSubstitution(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:                "slash command enabled - no slash command in task",
-			initialTaskName:     "simple-task",
-			slashCommandEnabled: true,
-			taskContent:         "Just a simple task with no slash command",
-			params:              Params{},
-			wantTaskName:        "simple-task",
-			wantParams:          map[string]string{},
-			wantErr:             false,
+			name:            "no slash command in task",
+			initialTaskName: "simple-task",
+			taskContent:     "Just a simple task with no slash command",
+			params:          Params{},
+			wantTaskName:    "simple-task",
+			wantParams:      map[string]string{},
+			wantErr:         false,
 		},
 	}
 
@@ -1615,12 +1601,11 @@ func TestSlashCommandSubstitution(t *testing.T) {
 
 			var logOut bytes.Buffer
 			cc := &Context{
-				workDir:      tmpDir,
-				slashCommand: tt.slashCommandEnabled,
-				params:       tt.params,
-				includes:     make(Selectors),
-				rules:        make([]Markdown, 0),
-				logger:       slog.New(slog.NewTextHandler(&logOut, nil)),
+				workDir:  tmpDir,
+				params:   tt.params,
+				includes: make(Selectors),
+				rules:    make([]Markdown, 0),
+				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil
 				},
