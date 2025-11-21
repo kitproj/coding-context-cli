@@ -147,6 +147,58 @@ coding-context -s language=Go -s priority=high fix-bug
 coding-context -s environment=production deploy
 ```
 
+### `--slash-command`
+
+**Type:** Boolean flag  
+**Default:** False
+
+Enable slash command parsing in task content. When enabled, if the task contains a slash command (e.g., `/task-name arg1 "arg 2"`), the CLI will:
+1. Extract the task name and arguments from the slash command
+2. Load the referenced task instead of the original task
+3. Pass the slash command arguments as parameters (`$1`, `$2`, `$ARGUMENTS`, etc.)
+
+This enables wrapper tasks that can dynamically delegate to other tasks with arguments.
+
+**Slash Command Format:**
+```
+/task-name arg1 "arg with spaces" arg3
+```
+
+**Examples:**
+```bash
+# Wrapper task that contains: /fix-bug 123 "critical issue"
+coding-context --slash-command wrapper-task
+
+# Equivalent to manually running:
+coding-context -p 1=123 -p 2="critical issue" fix-bug
+```
+
+**Use Case Example:**
+
+Create a wrapper task (`wrapper.md`):
+```yaml
+---
+task_name: wrapper
+---
+Please execute: /implement-feature login "Add OAuth support"
+```
+
+The target task (`implement-feature.md`):
+```yaml
+---
+task_name: implement-feature
+---
+# Feature: ${1}
+
+Description: ${2}
+...
+```
+
+When run with `coding-context --slash-command wrapper`, it will:
+1. Parse the slash command `/implement-feature login "Add OAuth support"`
+2. Load `implement-feature` task
+3. Substitute `$1` with `login` and `$2` with `Add OAuth support`
+
 ### `-t`
 
 **Type:** Boolean flag  
