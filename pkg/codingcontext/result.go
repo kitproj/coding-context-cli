@@ -48,13 +48,13 @@ func (m *Markdown) ParseFrontmatter(target any) error {
 		return fmt.Errorf("target cannot be nil")
 	}
 
-	if m.FrontMatter == nil {
+	if m.FrontMatter.Content == nil {
 		return fmt.Errorf("frontmatter is nil")
 	}
 
 	// Marshal the frontmatter map to YAML bytes, then unmarshal into target
 	// This approach leverages the existing YAML library without adding new dependencies
-	yamlBytes, err := yaml.Marshal(m.FrontMatter)
+	yamlBytes, err := yaml.Marshal(m.FrontMatter.Content)
 	if err != nil {
 		return fmt.Errorf("failed to marshal frontmatter: %w", err)
 	}

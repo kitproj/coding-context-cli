@@ -14,11 +14,11 @@ func TestMarkdown_ParseFrontmatter(t *testing.T) {
 	}{
 		{
 			name: "parse into struct with basic fields",
-			frontmatter: FrontMatter{
+			frontmatter: FrontMatter{Content: map[string]any{
 				"task_name": "fix-bug",
 				"resume":    false,
 				"priority":  "high",
-			},
+			}},
 			target: &struct {
 				TaskName string `yaml:"task_name"`
 				Resume   bool   `yaml:"resume"`
@@ -44,13 +44,13 @@ func TestMarkdown_ParseFrontmatter(t *testing.T) {
 		},
 		{
 			name: "parse with nested selectors",
-			frontmatter: FrontMatter{
+			frontmatter: FrontMatter{Content: map[string]any{
 				"task_name": "implement-feature",
 				"selectors": map[string]any{
 					"language": "Go",
 					"stage":    "implementation",
 				},
-			},
+			}},
 			target: &struct {
 				TaskName  string         `yaml:"task_name"`
 				Selectors map[string]any `yaml:"selectors"`
@@ -74,10 +74,10 @@ func TestMarkdown_ParseFrontmatter(t *testing.T) {
 		},
 		{
 			name: "parse with array values",
-			frontmatter: FrontMatter{
+			frontmatter: FrontMatter{Content: map[string]any{
 				"task_name": "test-code",
 				"languages": []any{"Go", "Python", "JavaScript"},
-			},
+			}},
 			target: &struct {
 				TaskName  string   `yaml:"task_name"`
 				Languages []string `yaml:"languages"`
@@ -101,9 +101,9 @@ func TestMarkdown_ParseFrontmatter(t *testing.T) {
 		},
 		{
 			name: "parse with optional fields",
-			frontmatter: FrontMatter{
+			frontmatter: FrontMatter{Content: map[string]any{
 				"task_name": "deploy",
-			},
+			}},
 			target: &struct {
 				TaskName    string `yaml:"task_name"`
 				Environment string `yaml:"environment"`
@@ -130,7 +130,7 @@ func TestMarkdown_ParseFrontmatter(t *testing.T) {
 		},
 		{
 			name:        "nil frontmatter returns error",
-			frontmatter: nil,
+			frontmatter: FrontMatter{Content: nil},
 			target: &struct {
 				TaskName string `yaml:"task_name"`
 			}{},
@@ -138,9 +138,9 @@ func TestMarkdown_ParseFrontmatter(t *testing.T) {
 		},
 		{
 			name: "nil target returns error",
-			frontmatter: FrontMatter{
+			frontmatter: FrontMatter{Content: map[string]any{
 				"task_name": "test",
-			},
+			}},
 			target:  nil,
 			wantErr: true,
 		},

@@ -855,7 +855,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 				rules:            make([]Markdown, 0),
 				logger:           slog.New(slog.NewTextHandler(&logOut, nil)),
 				includes:         make(Selectors),
-				taskFrontmatter:  make(FrontMatter),
+				taskFrontmatter:  FrontMatter{Content: make(map[string]any)},
 			}
 
 			// Parse task file first
@@ -889,9 +889,9 @@ func TestWriteTaskFileContent(t *testing.T) {
 			}
 
 			// Verify frontmatter is always parsed when present
-			if cc.taskFrontmatter != nil && len(cc.taskFrontmatter) > 0 {
+			if cc.taskFrontmatter.Content != nil && len(cc.taskFrontmatter.Content) > 0 {
 				// Just verify frontmatter was parsed - the Context doesn't emit it, main.go does
-				if _, ok := cc.taskFrontmatter["task_name"]; !ok {
+				if _, ok := cc.taskFrontmatter.Content["task_name"]; !ok {
 					// This is OK - not all tasks have task_name in frontmatter
 				}
 			}
@@ -1208,7 +1208,7 @@ func TestParseTaskFile(t *testing.T) {
 				}
 
 				// Verify task frontmatter was stored
-				if cc.taskFrontmatter == nil {
+				if cc.taskFrontmatter.Content == nil {
 					t.Errorf("parseTaskFile() expected taskFrontmatter to be set, got nil")
 				}
 			}
@@ -1992,12 +1992,12 @@ func TestTaskAgentFieldFilteringRules(t *testing.T) {
 			// Verify task frontmatter contains the original fields
 			if tt.taskFrontmatter != "" {
 				if strings.Contains(tt.taskFrontmatter, "agent:") {
-					if _, ok := result.Task.FrontMatter["agent"]; !ok {
+					if _, ok := result.Task.FrontMatter.Content["agent"]; !ok {
 						t.Errorf("Expected task frontmatter to contain 'agent' field")
 					}
 				}
 				if strings.Contains(tt.taskFrontmatter, "model:") {
-					if _, ok := result.Task.FrontMatter["model"]; !ok {
+					if _, ok := result.Task.FrontMatter.Content["model"]; !ok {
 						t.Errorf("Expected task frontmatter to contain 'model' field")
 					}
 				}
@@ -2091,7 +2091,7 @@ func TestTaskLanguageFieldFilteringRules(t *testing.T) {
 
 			// Verify task frontmatter contains the language field
 			if strings.Contains(tt.taskFrontmatter, "language:") {
-				if _, ok := result.Task.FrontMatter["language"]; !ok {
+				if _, ok := result.Task.FrontMatter.Content["language"]; !ok {
 					t.Errorf("Expected task frontmatter to contain 'language' field")
 				}
 			}
@@ -2137,7 +2137,7 @@ mcp_servers:
 	}
 
 	for field, expectedValue := range expectedFields {
-		actualValue, ok := result.Task.FrontMatter[field]
+		actualValue, ok := result.Task.FrontMatter.Content[field]
 		if !ok {
 			t.Errorf("Expected task frontmatter to contain %q field", field)
 			continue

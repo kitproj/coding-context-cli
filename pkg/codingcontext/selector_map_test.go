@@ -86,55 +86,55 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "single selector - match",
 			selectors:   []string{"env=production"},
-			frontmatter: FrontMatter{"env": "production"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "production"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "single selector - no match",
 			selectors:   []string{"env=production"},
-			frontmatter: FrontMatter{"env": "development"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "development"}},
 			wantMatch:   false,
 		},
 		{
 			name:        "single selector - key missing (allowed)",
 			selectors:   []string{"env=production"},
-			frontmatter: FrontMatter{"language": "go"},
+			frontmatter: FrontMatter{Content: map[string]any{"language": "go"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "multiple selectors - all match",
 			selectors:   []string{"env=production", "language=go"},
-			frontmatter: FrontMatter{"env": "production", "language": "go"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "production", "language": "go"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "multiple selectors - one doesn't match",
 			selectors:   []string{"env=production", "language=go"},
-			frontmatter: FrontMatter{"env": "production", "language": "python"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "production", "language": "python"}},
 			wantMatch:   false,
 		},
 		{
 			name:        "multiple selectors - one key missing (allowed)",
 			selectors:   []string{"env=production", "language=go"},
-			frontmatter: FrontMatter{"env": "production"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "production"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "empty selectors - always match",
 			selectors:   []string{},
-			frontmatter: FrontMatter{"env": "production"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "production"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "boolean value conversion - match",
 			selectors:   []string{"is_active=true"},
-			frontmatter: FrontMatter{"is_active": true},
+			frontmatter: FrontMatter{Content: map[string]any{"is_active": true}},
 			wantMatch:   true,
 		},
 		{
 			name:        "array selector - match",
 			selectors:   []string{},
-			frontmatter: FrontMatter{"rule_name": "rule2"},
+			frontmatter: FrontMatter{Content: map[string]any{"rule_name": "rule2"}},
 			wantMatch:   true,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -145,7 +145,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "array selector - no match",
 			selectors:   []string{},
-			frontmatter: FrontMatter{"rule_name": "rule4"},
+			frontmatter: FrontMatter{Content: map[string]any{"rule_name": "rule4"}},
 			wantMatch:   false,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -156,7 +156,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "array selector - key missing (allowed)",
 			selectors:   []string{},
-			frontmatter: FrontMatter{"env": "prod"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "prod"}},
 			wantMatch:   true,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -166,7 +166,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "mixed selectors - array and string both match",
 			selectors:   []string{"env=prod"},
-			frontmatter: FrontMatter{"env": "prod", "rule_name": "rule1"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "prod", "rule_name": "rule1"}},
 			wantMatch:   true,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -176,7 +176,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "mixed selectors - string doesn't match",
 			selectors:   []string{"env=dev"},
-			frontmatter: FrontMatter{"env": "prod", "rule_name": "rule1"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "prod", "rule_name": "rule1"}},
 			wantMatch:   false,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -186,7 +186,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "multiple array selectors - both match",
 			selectors:   []string{},
-			frontmatter: FrontMatter{"rule_name": "rule1", "language": "go"},
+			frontmatter: FrontMatter{Content: map[string]any{"rule_name": "rule1", "language": "go"}},
 			wantMatch:   true,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -198,7 +198,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "multiple array selectors - one doesn't match",
 			selectors:   []string{},
-			frontmatter: FrontMatter{"rule_name": "rule1", "language": "java"},
+			frontmatter: FrontMatter{Content: map[string]any{"rule_name": "rule1", "language": "java"}},
 			wantMatch:   false,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -210,25 +210,25 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "OR logic - same key multiple values matches",
 			selectors:   []string{"env=prod", "env=dev"},
-			frontmatter: FrontMatter{"env": "dev"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "dev"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "OR logic - same key multiple values no match",
 			selectors:   []string{"env=prod", "env=dev"},
-			frontmatter: FrontMatter{"env": "staging"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "staging"}},
 			wantMatch:   false,
 		},
 		{
 			name:        "empty value selector - key exists in frontmatter (no match)",
 			selectors:   []string{"env="},
-			frontmatter: FrontMatter{"env": "production"},
+			frontmatter: FrontMatter{Content: map[string]any{"env": "production"}},
 			wantMatch:   false,
 		},
 		{
 			name:        "empty value selector - key missing in frontmatter (match)",
 			selectors:   []string{"env="},
-			frontmatter: FrontMatter{"language": "go"},
+			frontmatter: FrontMatter{Content: map[string]any{"language": "go"}},
 			wantMatch:   true,
 		},
 	}

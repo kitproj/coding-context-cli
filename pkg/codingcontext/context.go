@@ -160,7 +160,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 		// Reset task-related state
 		cc.matchingTaskFile = ""
-		cc.taskFrontmatter = nil
+		cc.taskFrontmatter = FrontMatter{Content: make(map[string]any)}
 		cc.taskContent = ""
 
 		// Update task_name in includes
@@ -280,7 +280,7 @@ func (cc *Context) taskFileWalker(taskName string) func(path string, info os.Fil
 		}
 
 		// Get task_name from frontmatter, or use filename without .md extension
-		fileTaskName, hasTaskName := frontmatter["task_name"]
+		fileTaskName, hasTaskName := frontmatter.Content["task_name"]
 		var taskNameStr string
 		if hasTaskName {
 			taskNameStr = fmt.Sprint(fileTaskName)
@@ -445,7 +445,7 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path, ext string) err
 // The selectors are added to cc.includes for filtering rules and tools.
 // The parsed frontmatter and content are stored in cc.taskFrontmatter and cc.taskContent.
 func (cc *Context) parseTaskFile() error {
-	cc.taskFrontmatter = make(FrontMatter)
+	cc.taskFrontmatter = FrontMatter{Content: make(map[string]any)}
 
 	content, err := ParseMarkdownFile(cc.matchingTaskFile, &cc.taskFrontmatter)
 	if err != nil {
@@ -459,7 +459,7 @@ func (cc *Context) parseTaskFile() error {
 	// "agent" field: when specified, treat it as the target agent
 	// This excludes the agent's own rules (same behavior as -a flag)
 	// Only use the task's agent field if -a flag was not provided
-	if agentRaw, ok := cc.taskFrontmatter["agent"]; ok && !cc.targetAgent.IsSet() {
+	if agentRaw, ok := cc.taskFrontmatter.Content["agent"]; ok && !cc.targetAgent.IsSet() {
 		agentStr := ""
 		switch v := agentRaw.(type) {
 		case string:
@@ -479,7 +479,7 @@ func (cc *Context) parseTaskFile() error {
 
 	// "language" field: filters rules by language
 	// Can be a string or array for OR logic
-	if languageRaw, ok := cc.taskFrontmatter["language"]; ok {
+	if languageRaw, ok := cc.taskFrontmatter.Content["language"]; ok {
 		switch v := languageRaw.(type) {
 		case []any:
 			// Multiple languages (OR logic)
@@ -505,7 +505,7 @@ func (cc *Context) parseTaskFile() error {
 	// Extract selector labels from frontmatter
 	// Look for a "selectors" field that contains a map of key-value pairs
 	// Values can be strings or arrays (for OR logic)
-	if selectorsRaw, ok := cc.taskFrontmatter["selectors"]; ok {
+	if selectorsRaw, ok := cc.taskFrontmatter.Content["selectors"]; ok {
 		selectorsMap, ok := selectorsRaw.(map[string]any)
 		if !ok {
 			// Try to handle it as a map[interface{}]interface{} (common YAML unmarshal result)
