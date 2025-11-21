@@ -21,9 +21,8 @@ type Context struct {
 
 	downloadedDirs   []string
 	matchingTaskFile string
-	taskFrontmatter  FrontMatter             // Parsed task frontmatter
-	taskContent      string                  // Parsed task content (before parameter expansion)
-	rules            []Markdown[FrontMatter] // Collected rule files
+	task             Markdown[TaskFrontMatter] // Parsed task
+	rules            []Markdown[RuleFrontMatter] // Collected rule files
 	totalTokens      int
 	logger           *slog.Logger
 	cmdRunner        func(cmd *exec.Cmd) error
@@ -87,7 +86,7 @@ func New(opts ...Option) *Context {
 		workDir:  ".",
 		params:   make(Params),
 		includes: make(Selectors),
-		rules:    make([]Markdown[FrontMatter], 0),
+		rules:    make([]Markdown[RuleFrontMatter], 0),
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
@@ -136,7 +135,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	}
 
 	// Expand parameters in task content to allow slash commands in parameters
-	expandedContent := cc.expandParams(cc.taskContent)
+	expandedContent := cc.expandParams(cc.task.Content)
 
 	// Check if the task contains a slash command (after parameter expansion)
 	slashTaskName, slashParams, found, err := parseSlashCommand(expandedContent)
@@ -160,8 +159,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 		// Reset task-related state
 		cc.matchingTaskFile = ""
-		cc.taskFrontmatter = NewFrontMatter()
-		cc.taskContent = ""
+		cc.task = Markdown[TaskFrontMatter]{}
 
 		// Update task_name in includes
 		cc.includes.SetValue("task_name", slashTaskName)
@@ -183,7 +181,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 	// Expand parameters in task content (note: this may be a different task than initially loaded
 	// if a slash command was found above, which loaded a new task with new parameters)
-	expandedTask := cc.expandParams(cc.taskContent)
+	expandedTask := cc.expandParams(cc.task.Content)
 
 	// Estimate tokens for task file
 	taskTokens := estimateTokens(expandedTask)
@@ -192,14 +190,11 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
 
 	// Build and return the result
+	cc.task.Content = expandedTask
+	cc.task.Tokens = taskTokens
 	result := &Result{
 		Rules: cc.rules,
-		Task: Markdown[FrontMatter]{
-			Path:        cc.matchingTaskFile,
-			FrontMatter: cc.taskFrontmatter,
-			Content:     expandedTask,
-			Tokens:      taskTokens,
-		},
+		Task:  cc.task,
 	}
 
 	return result, nil
@@ -367,15 +362,20 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 		}
 
 		// Parse frontmatter to check selectors
-		var frontmatter FrontMatter
+		var frontmatter RuleFrontMatter
 		content, err := ParseMarkdownFile(path, &frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to parse markdown file: %w", err)
 		}
 
+		// Ensure all typed fields are in Content map
+		if err := frontmatter.SyncToContent(); err != nil {
+			return fmt.Errorf("failed to sync frontmatter to content: %w", err)
+		}
+
 		// Check if file matches include selectors BEFORE running bootstrap script.
 		// Note: Files with duplicate basenames will both be included.
-		if !cc.includes.MatchesIncludes(frontmatter) {
+		if !cc.includes.MatchesIncludes(frontmatter.FrontMatter) {
 			cc.logger.Info("Excluding rule file (does not match include selectors)", "path", path)
 			return nil
 		}
@@ -399,7 +399,7 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
 
 		// Collect the rule content with frontmatter
-		cc.rules = append(cc.rules, Markdown[FrontMatter]{
+		cc.rules = append(cc.rules, Markdown[RuleFrontMatter]{
 			Path:        path,
 			FrontMatter: frontmatter,
 			Content:     expanded,
@@ -443,56 +443,44 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path, ext string) err
 
 // parseTaskFile parses the task file and extracts selector labels from frontmatter.
 // The selectors are added to cc.includes for filtering rules and tools.
-// The parsed frontmatter and content are stored in cc.taskFrontmatter and cc.taskContent.
+// The parsed task is stored in cc.task.
 func (cc *Context) parseTaskFile() error {
-	cc.taskFrontmatter = NewFrontMatter()
-
-	content, err := ParseMarkdownFile(cc.matchingTaskFile, &cc.taskFrontmatter)
+	var taskFM TaskFrontMatter
+	
+	content, err := ParseMarkdownFile(cc.matchingTaskFile, &taskFM)
 	if err != nil {
 		return fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, err)
 	}
 
-	cc.taskContent = content
+	// Ensure all typed fields are in Content map
+	if err := taskFM.SyncToContent(); err != nil {
+		return fmt.Errorf("failed to sync frontmatter to content: %w", err)
+	}
+
+	cc.task = Markdown[TaskFrontMatter]{
+		Path:        cc.matchingTaskFile,
+		FrontMatter: taskFM,
+		Content:     content,
+	}
 
 	// Extract standard frontmatter fields
 
-	// "agent" field: when specified, treat it as the target agent
-	// This excludes the agent's own rules (same behavior as -a flag)
-	// Only use the task's agent field if -a flag was not provided
-	if agentRaw, ok := cc.taskFrontmatter.Content["agent"]; ok && !cc.targetAgent.IsSet() {
-		agentStr := ""
-		switch v := agentRaw.(type) {
-		case string:
-			agentStr = v
-		default:
-			agentStr = fmt.Sprint(v)
-		}
-
-		// Parse and set as target agent
-		if agent, err := ParseAgent(agentStr); err == nil {
+	// "agent" field: use as default agent if -a flag was not provided
+	// This is not used for selecting tasks or rules, only as a default
+	if cc.task.FrontMatter.Agent != "" && !cc.targetAgent.IsSet() {
+		// Parse and set as target agent (as default)
+		if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
 			cc.targetAgent = TargetAgent(agent)
 		} else {
 			// Log warning for invalid agent name to help users identify configuration issues
-			cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", agentStr, "error", err)
+			cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", cc.task.FrontMatter.Agent, "error", err)
 		}
 	}
 
-	// "language" field: filters rules by language
-	// Can be a string or array for OR logic
-	if languageRaw, ok := cc.taskFrontmatter.Content["language"]; ok {
-		switch v := languageRaw.(type) {
-		case []any:
-			// Multiple languages (OR logic)
-			for _, item := range v {
-				cc.includes.SetValue("language", fmt.Sprint(item))
-			}
-		case string:
-			// Single language
-			cc.includes.SetValue("language", v)
-		default:
-			// Convert other types to string
-			cc.includes.SetValue("language", fmt.Sprint(v))
-		}
+	// "languages" field: filters rules by language
+	// Array for OR logic
+	for _, lang := range cc.task.FrontMatter.Languages {
+		cc.includes.SetValue("languages", lang)
 	}
 
 	// Note: The following fields are stored in frontmatter but don't act as selectors.
@@ -505,29 +493,22 @@ func (cc *Context) parseTaskFile() error {
 	// Extract selector labels from frontmatter
 	// Look for a "selectors" field that contains a map of key-value pairs
 	// Values can be strings or arrays (for OR logic)
-	if selectorsRaw, ok := cc.taskFrontmatter.Content["selectors"]; ok {
-		selectorsMap, ok := selectorsRaw.(map[string]any)
-		if !ok {
-			// Try to handle it as a map[interface{}]interface{} (common YAML unmarshal result)
-			if selectorsMapAny, ok := selectorsRaw.(map[any]any); ok {
-				selectorsMap = make(map[string]any)
-				for k, v := range selectorsMapAny {
-					selectorsMap[fmt.Sprint(k)] = v
-				}
-			} else {
-				return fmt.Errorf("task file %s has invalid 'selectors' field: expected map, got %T", cc.matchingTaskFile, selectorsRaw)
+	for key, value := range cc.task.FrontMatter.Selectors {
+		switch v := value.(type) {
+		case []any:
+			// Convert []any to multiple selector values for OR logic
+			for _, item := range v {
+				cc.includes.SetValue(key, fmt.Sprint(item))
 			}
+		case string:
+			cc.includes.SetValue(key, v)
+		default:
+			cc.includes.SetValue(key, fmt.Sprint(v))
 		}
+	}
 
-		// Add selectors to includes
-		// Convert all values to map[string]bool for OR logic
-		for key, value := range selectorsMap {
-			switch v := value.(type) {
-			case []any:
-				// Convert []any to map[string]bool
-				for _, item := range v {
-					cc.includes.SetValue(key, fmt.Sprint(item))
-				}
+	return nil
+}
 			case string:
 				// Convert string to single value in map
 				cc.includes.SetValue(key, v)

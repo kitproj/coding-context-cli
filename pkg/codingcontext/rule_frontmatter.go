@@ -1,5 +1,7 @@
 package codingcontext
 
+import "github.com/goccy/go-yaml"
+
 // RuleFrontMatter represents the standard frontmatter fields for rule files
 type RuleFrontMatter struct {
 	FrontMatter `yaml:",inline"`
@@ -21,4 +23,14 @@ type RuleFrontMatter struct {
 
 	// RuleName is an optional identifier for the rule file
 	RuleName string `yaml:"rule_name,omitempty"`
+}
+
+// SyncToContent ensures all typed fields are also present in the Content map
+func (r *RuleFrontMatter) SyncToContent() error {
+	// Marshal the whole struct to YAML, then unmarshal back to get the Content map
+	yamlBytes, err := yaml.Marshal(r)
+	if err != nil {
+		return err
+	}
+	return yaml.Unmarshal(yamlBytes, &r.FrontMatter)
 }

@@ -6,11 +6,18 @@ import (
 )
 
 // Markdown represents a markdown file with frontmatter and content
-type Markdown[T any] struct {
+type Markdown[T FrontMatter] struct {
 	Path        string // Path to the markdown file
 	FrontMatter T      // Parsed YAML frontmatter
 	Content     string // Expanded content of the markdown
 	Tokens      int    // Estimated token count
+}
+
+// NewMarkdown creates a new Markdown with the given frontmatter
+func NewMarkdown[T FrontMatter](t T) Markdown[T] {
+	return Markdown[T]{
+		FrontMatter: t,
+	}
 }
 
 // TaskMarkdown is a Markdown with TaskFrontMatter
@@ -32,6 +39,6 @@ func (m *Markdown[T]) BootstrapPath() string {
 
 // Result holds the assembled context from running a task
 type Result struct {
-	Rules []Markdown[FrontMatter] // List of included rule files
-	Task  Markdown[FrontMatter]   // Task file with frontmatter and content
+	Rules []Markdown[RuleFrontMatter] // List of included rule files
+	Task  Markdown[TaskFrontMatter]   // Task file with frontmatter and content
 }

@@ -1,5 +1,7 @@
 package codingcontext
 
+import "github.com/goccy/go-yaml"
+
 // TaskFrontMatter represents the standard frontmatter fields for task files
 type TaskFrontMatter struct {
 	FrontMatter `yaml:",inline"`
@@ -7,8 +9,8 @@ type TaskFrontMatter struct {
 	// TaskName is the unique identifier for the task (required)
 	TaskName string `yaml:"task_name"`
 
-	// Agent specifies the target agent (e.g., "cursor", "copilot")
-	// When set, excludes the agent's own rules (same as -a flag)
+	// Agent specifies the default agent if not specified via -a flag
+	// This is not used for selecting tasks or rules, only as a default
 	Agent string `yaml:"agent,omitempty"`
 
 	// Languages specifies the programming language(s) for filtering rules
@@ -38,9 +40,12 @@ type TaskFrontMatter struct {
 	Selectors map[string]any `yaml:"selectors,omitempty"`
 }
 
-// NewTaskFrontMatter creates a new TaskFrontMatter with initialized fields
-func NewTaskFrontMatter() TaskFrontMatter {
-	return TaskFrontMatter{
-		FrontMatter: NewFrontMatter(),
+// SyncToContent ensures all typed fields are also present in the Content map
+func (t *TaskFrontMatter) SyncToContent() error {
+	// Marshal the whole struct to YAML, then unmarshal back to get the Content map
+	yamlBytes, err := yaml.Marshal(t)
+	if err != nil {
+		return err
 	}
+	return yaml.Unmarshal(yamlBytes, &t.FrontMatter)
 }
