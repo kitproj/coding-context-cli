@@ -293,10 +293,8 @@ func TestTargetAgent_Set(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				if ta.Agent() == nil {
-					t.Errorf("Set() agent is nil, want %v", tt.wantAgent)
-				} else if *ta.Agent() != tt.wantAgent {
-					t.Errorf("Set() agent = %v, want %v", *ta.Agent(), tt.wantAgent)
+				if ta != TargetAgent(tt.wantAgent) {
+					t.Errorf("Set() agent = %v, want %v", ta, tt.wantAgent)
 				}
 			}
 		})
@@ -382,7 +380,7 @@ func TestTargetAgent_String(t *testing.T) {
 		t.Errorf("String() = %q, want %q", str, "cursor")
 	}
 
-	// Test nil agent
+	// Test empty agent
 	var emptyTA TargetAgent
 	if emptyTA.String() != "" {
 		t.Errorf("String() on empty agent = %q, want empty string", emptyTA.String())

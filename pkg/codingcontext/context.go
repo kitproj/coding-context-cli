@@ -119,8 +119,8 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	cc.includes.SetValue("resume", fmt.Sprint(cc.resume))
 
 	// Add target agent to includes as a selector
-	if cc.targetAgent.Agent() != nil {
-		cc.includes.SetValue("agent", cc.targetAgent.Agent().String())
+	if cc.targetAgent.IsSet() {
+		cc.includes.SetValue("agent", cc.targetAgent.String())
 	}
 
 	homeDir, err := os.UserHomeDir()
