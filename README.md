@@ -461,36 +461,45 @@ If you need to filter on nested data, flatten your frontmatter structure to use 
 
 ### Targeting a Specific Agent
 
-When working with a specific AI coding agent, you may want to exclude rules intended for other agents to keep your context focused and reduce token usage. The `-a` flag lets you specify which agent you're using, automatically excluding rules from all other agents while including rules specific to your target agent.
+When working with a specific AI coding agent, you want to use generic rules (not agent-specific ones), since the agent itself handles its own context. The `-a` flag lets you specify which agent you're using, automatically excluding ALL agent-specific rule paths (including the target agent's own paths) while allowing generic rules to be filtered by agent selector.
 
 **Supported agents:**
-- `cursor` - Includes `.cursor/rules`, `.cursorrules`; excludes all other agent-specific rules
-- `opencode` - Includes `.opencode/agent`, `.opencode/command`; excludes all other agent-specific rules
-- `copilot` - Includes `.github/copilot-instructions.md`, `.github/agents`; excludes all other agent-specific rules
-- `claude` - Includes `.claude/`, `CLAUDE.md`, `CLAUDE.local.md`; excludes all other agent-specific rules
-- `gemini` - Includes `.gemini/`, `GEMINI.md`; excludes all other agent-specific rules
-- `augment` - Includes `.augment/`; excludes all other agent-specific rules
-- `windsurf` - Includes `.windsurf/`, `.windsurfrules`; excludes all other agent-specific rules
-- `codex` - Includes `.codex/`, `AGENTS.md`; excludes all other agent-specific rules
+- `cursor` - Excludes `.cursor/rules`, `.cursorrules` and all other agent paths
+- `opencode` - Excludes `.opencode/agent`, `.opencode/command` and all other agent paths
+- `copilot` - Excludes `.github/copilot-instructions.md`, `.github/agents` and all other agent paths
+- `claude` - Excludes `.claude/`, `CLAUDE.md`, `CLAUDE.local.md` and all other agent paths
+- `gemini` - Excludes `.gemini/`, `GEMINI.md` and all other agent paths
+- `augment` - Excludes `.augment/` and all other agent paths
+- `windsurf` - Excludes `.windsurf/`, `.windsurfrules` and all other agent paths
+- `codex` - Excludes `.codex/`, `AGENTS.md` and all other agent paths
 
 **Example: Using Cursor:**
 
 ```bash
-# When using Cursor, automatically exclude rules for all other agents
+# When using Cursor, exclude all agent-specific paths and use generic rules
 coding-context -a cursor fix-bug
 ```
 
 **How it works:**
 - The `-a` flag sets the target agent
-- Rules specific to the target agent are included
-- Rules from all other agents are automatically excluded
+- **ALL agent-specific rule paths are excluded** (including the target agent's paths)
 - Generic rules (from `.agents/rules`) are always included
-- The agent name is automatically added as a selector, so rules can filter themselves with `agent: cursor` in frontmatter
+- The agent name is automatically added as a selector, so generic rules can filter themselves with `agent: cursor` in frontmatter
+
+**Example generic rule with agent filtering:**
+
+```markdown
+---
+agent: cursor
+---
+# This rule only applies when using Cursor
+Use Cursor-specific features...
+```
 
 **Use cases:**
-- **Token optimization**: Reduce context size by excluding irrelevant agent-specific guidelines
-- **Agent focus**: Include only rules relevant to your current agent
-- **Testing**: Test with specific agent configurations
+- **Token optimization**: Reduce context size by excluding all agent-specific paths
+- **Agent focus**: Let the agent use its own built-in rules while using your generic rules
+- **Selective filtering**: Generic rules can self-select for specific agents using frontmatter
 
 The exclusion happens before rule processing, so excluded paths are never loaded or counted toward token estimates.
 

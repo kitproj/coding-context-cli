@@ -323,10 +323,10 @@ func TestTargetAgent_ShouldExcludePath(t *testing.T) {
 			wantExclude: true,
 		},
 		{
-			name:        "target cursor - do not exclude cursor rules",
+			name:        "target cursor - also exclude cursor rules (target agent uses generic rules)",
 			targetAgent: "cursor",
 			path:        ".cursor/rules/example.md",
-			wantExclude: false,
+			wantExclude: true,
 		},
 		{
 			name:        "target cursor - do not exclude generic rules",
@@ -341,10 +341,10 @@ func TestTargetAgent_ShouldExcludePath(t *testing.T) {
 			wantExclude: true,
 		},
 		{
-			name:        "target opencode - do not exclude opencode rules",
+			name:        "target opencode - also exclude opencode rules (target agent uses generic rules)",
 			targetAgent: "opencode",
 			path:        ".opencode/agent/rule.md",
-			wantExclude: false,
+			wantExclude: true,
 		},
 		{
 			name:        "no target agent - do not exclude anything",

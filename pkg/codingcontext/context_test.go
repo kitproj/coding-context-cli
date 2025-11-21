@@ -1538,6 +1538,9 @@ func TestTargetAgentIntegration(t *testing.T) {
 		"language: go", "# Copilot-specific rule")
 	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "generic-rule.md"),
 		"language: go", "# Generic rule")
+	// Create a rule that filters by agent selector
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "cursor-only-rule.md"),
+		"agent: cursor", "# Rule only for Cursor agent")
 	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "tasks", "test-task.md"),
 		"task_name: test-task", "# Test task")
 
@@ -1548,28 +1551,28 @@ func TestTargetAgentIntegration(t *testing.T) {
 		expectNotInRules []string
 	}{
 		{
-			name:             "no target agent - all rules included",
+			name:             "no target agent - all agent-specific rules plus generic and cursor-filtered",
 			targetAgent:      "",
-			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Generic"},
+			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Generic", "Rule only for Cursor agent"},
 			expectNotInRules: []string{},
 		},
 		{
-			name:             "target cursor - only cursor and generic rules",
+			name:             "target cursor - only generic rules plus cursor-filtered rule",
 			targetAgent:      "cursor",
-			expectInRules:    []string{"Cursor-specific", "Generic"},
-			expectNotInRules: []string{"OpenCode-specific", "Copilot-specific"},
+			expectInRules:    []string{"Generic", "Rule only for Cursor agent"},
+			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific"},
 		},
 		{
-			name:             "target opencode - only opencode and generic rules",
+			name:             "target opencode - only generic rules (cursor-filtered rule excluded)",
 			targetAgent:      "opencode",
-			expectInRules:    []string{"OpenCode-specific", "Generic"},
-			expectNotInRules: []string{"Cursor-specific", "Copilot-specific"},
+			expectInRules:    []string{"Generic"},
+			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Rule only for Cursor agent"},
 		},
 		{
-			name:             "target copilot - only copilot and generic rules",
+			name:             "target copilot - only generic rules (cursor-filtered rule excluded)",
 			targetAgent:      "copilot",
-			expectInRules:    []string{"Copilot-specific", "Generic"},
-			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific"},
+			expectInRules:    []string{"Generic"},
+			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Rule only for Cursor agent"},
 		},
 	}
 

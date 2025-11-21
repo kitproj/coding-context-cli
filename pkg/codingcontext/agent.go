@@ -136,9 +136,11 @@ func (t *TargetAgent) ShouldExcludePath(path string) bool {
 		return false
 	}
 
-	// Exclude paths from all other agents
+	// Exclude paths from ALL agents (including the target agent)
+	// The target agent will use generic rules, which can filter themselves
+	// with the agent selector in frontmatter
 	for agent := range agentPathPatterns {
-		if agent != *t.agent && agent.MatchesPath(path) {
+		if agent.MatchesPath(path) {
 			return true
 		}
 	}
