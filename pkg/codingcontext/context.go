@@ -150,28 +150,26 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 				cc.params[k] = v
 			}
 
-			// If the slash command task name is different from the current task name,
-			// we need to find and parse the new task file
-			if slashTaskName != taskName {
-				cc.logger.Info("Switching to slash command task", "from", taskName, "to", slashTaskName)
+			// Always find and parse the slash command task file, even if it's the same task name
+			// This ensures fresh parsing with the new parameters
+			cc.logger.Info("Switching to slash command task", "from", taskName, "to", slashTaskName)
 
-				// Reset task-related state
-				cc.matchingTaskFile = ""
-				cc.taskFrontmatter = nil
-				cc.taskContent = ""
+			// Reset task-related state
+			cc.matchingTaskFile = ""
+			cc.taskFrontmatter = nil
+			cc.taskContent = ""
 
-				// Update task_name in includes
-				cc.includes.SetValue("task_name", slashTaskName)
+			// Update task_name in includes
+			cc.includes.SetValue("task_name", slashTaskName)
 
-				// Find the new task file
-				if err := cc.findTaskFile(homeDir, slashTaskName); err != nil {
-					return nil, fmt.Errorf("failed to find slash command task file: %w", err)
-				}
+			// Find the new task file
+			if err := cc.findTaskFile(homeDir, slashTaskName); err != nil {
+				return nil, fmt.Errorf("failed to find slash command task file: %w", err)
+			}
 
-				// Parse the new task file
-				if err := cc.parseTaskFile(); err != nil {
-					return nil, fmt.Errorf("failed to parse slash command task file: %w", err)
-				}
+			// Parse the new task file
+			if err := cc.parseTaskFile(); err != nil {
+				return nil, fmt.Errorf("failed to parse slash command task file: %w", err)
 			}
 		}
 	}

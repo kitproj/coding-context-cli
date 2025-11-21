@@ -147,7 +147,7 @@ coding-context -s language=Go -s priority=high fix-bug
 coding-context -s environment=production deploy
 ```
 
-### `--slash-command`
+### `-l`
 
 **Type:** Boolean flag  
 **Default:** False
@@ -156,6 +156,7 @@ Enable slash command parsing in task content. When enabled, if the task contains
 1. Extract the task name and arguments from the slash command
 2. Load the referenced task instead of the original task
 3. Pass the slash command arguments as parameters (`$1`, `$2`, `$ARGUMENTS`, etc.)
+4. Slash command parameters override any existing parameters with the same name
 
 This enables wrapper tasks that can dynamically delegate to other tasks with arguments.
 
@@ -167,7 +168,7 @@ This enables wrapper tasks that can dynamically delegate to other tasks with arg
 **Examples:**
 ```bash
 # Wrapper task that contains: /fix-bug 123 "critical issue"
-coding-context --slash-command wrapper-task
+coding-context -l wrapper-task
 
 # Equivalent to manually running:
 coding-context -p 1=123 -p 2="critical issue" fix-bug
@@ -194,7 +195,7 @@ Description: ${2}
 ...
 ```
 
-When run with `coding-context --slash-command wrapper`, it will:
+When run with `coding-context -l wrapper`, it will:
 1. Parse the slash command `/implement-feature login "Add OAuth support"`
 2. Load `implement-feature` task
 3. Substitute `$1` with `login` and `$2` with `Add OAuth support`
