@@ -6,62 +6,83 @@ import (
 )
 
 // ParseSlashCommand parses a slash command string and extracts the task name and parameters.
+// It searches for a slash command anywhere in the input string, not just at the beginning.
 // The expected format is: /task-name arg1 "arg 2" arg3
+//
+// The function will find the slash command even if it's embedded in other text. For example:
+//   - "Please /fix-bug 123 today" -> found: true, taskName: "fix-bug", params: {"ARGUMENTS": "123", "1": "123"}
+//   - "Some text /code-review" -> found: true, taskName: "code-review", params: {}
 //
 // Arguments are parsed like Bash:
 //   - Quoted arguments can contain spaces
 //   - Both single and double quotes are supported
 //   - Quotes are removed from the parsed arguments
+//   - Arguments are extracted until end of line
 //
 // Examples:
-//   - "/fix-bug 123" -> taskName: "fix-bug", params: {"ARGUMENTS": "123", "1": "123"}
-//   - "/code-review \"PR #42\" high" -> taskName: "code-review", params: {"ARGUMENTS": "\"PR #42\" high", "1": "PR #42", "2": "high"}
+//   - "/fix-bug 123" -> found: true, taskName: "fix-bug", params: {"ARGUMENTS": "123", "1": "123"}
+//   - "/code-review \"PR #42\" high" -> found: true, taskName: "code-review", params: {"ARGUMENTS": "\"PR #42\" high", "1": "PR #42", "2": "high"}
+//   - "no command here" -> found: false, taskName: "", params: nil
 //
 // Returns:
+//   - found: true if a slash command was found, false otherwise
 //   - taskName: the task name (without the leading slash)
 //   - params: a map containing:
 //   - "ARGUMENTS": the full argument string (with quotes preserved)
 //   - "1", "2", "3", etc.: positional arguments (with quotes removed)
-//   - err: an error if the command format is invalid
-func ParseSlashCommand(command string) (taskName string, params map[string]string, err error) {
-	command = strings.TrimSpace(command)
-
-	// Check if command starts with '/'
-	if !strings.HasPrefix(command, "/") {
-		return "", nil, fmt.Errorf("slash command must start with '/'")
+//   - err: an error if the command format is invalid (e.g., unclosed quotes)
+func ParseSlashCommand(command string) (found bool, taskName string, params map[string]string, err error) {
+	// Find the slash command anywhere in the string
+	slashIdx := strings.Index(command, "/")
+	if slashIdx == -1 {
+		return false, "", nil, nil
 	}
 
-	// Remove leading slash
-	command = command[1:]
+	// Extract from the slash onwards
+	command = command[slashIdx+1:]
 
 	if command == "" {
-		return "", nil, fmt.Errorf("slash command cannot be empty")
+		return false, "", nil, nil
 	}
 
-	// Find the task name (first word)
-	spaceIdx := strings.IndexAny(command, " \t")
-	if spaceIdx == -1 {
-		// No arguments, just the task name
-		return command, make(map[string]string), nil
+	// Find the task name (first word after the slash)
+	// Task name ends at first whitespace or newline
+	endIdx := strings.IndexAny(command, " \t\n\r")
+	if endIdx == -1 {
+		// No arguments, just the task name (rest of the string)
+		return true, command, make(map[string]string), nil
 	}
 
-	taskName = command[:spaceIdx]
-	argsString := strings.TrimSpace(command[spaceIdx:])
+	taskName = command[:endIdx]
+
+	// Extract arguments until end of line
+	restOfString := command[endIdx:]
+	newlineIdx := strings.IndexAny(restOfString, "\n\r")
+	var argsString string
+	if newlineIdx == -1 {
+		// No newline, use everything
+		argsString = strings.TrimSpace(restOfString)
+	} else {
+		// Only use up to the newline
+		argsString = strings.TrimSpace(restOfString[:newlineIdx])
+	}
 
 	params = make(map[string]string)
 
 	// Store the full argument string (with quotes preserved)
-	params["ARGUMENTS"] = argsString
+	if argsString != "" {
+		params["ARGUMENTS"] = argsString
+	}
 
 	// If there are no arguments, return early
 	if argsString == "" {
-		return taskName, params, nil
+		return true, taskName, params, nil
 	}
 
 	// Parse positional arguments using bash-like parsing
 	args, err := parseBashArgs(argsString)
 	if err != nil {
-		return "", nil, err
+		return false, "", nil, err
 	}
 
 	// Add positional arguments as $1, $2, $3, etc.
@@ -69,7 +90,7 @@ func ParseSlashCommand(command string) (taskName string, params map[string]strin
 		params[fmt.Sprintf("%d", i+1)] = arg
 	}
 
-	return taskName, params, nil
+	return true, taskName, params, nil
 }
 
 // parseBashArgs parses a string into arguments like bash does, respecting quoted values
