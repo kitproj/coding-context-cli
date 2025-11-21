@@ -16,6 +16,7 @@ type Context struct {
 	resume              bool
 	params              Params
 	includes            Selectors
+	excludes            CLIExcludes
 	remotePaths         []string
 	emitTaskFrontmatter bool
 
@@ -81,12 +82,20 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
+// WithExcludes sets the CLI excludes
+func WithExcludes(excludes CLIExcludes) Option {
+	return func(c *Context) {
+		c.excludes = excludes
+	}
+}
+
 // New creates a new Context with the given options
 func New(opts ...Option) *Context {
 	c := &Context{
 		workDir:  ".",
 		params:   make(Params),
 		includes: make(Selectors),
+		excludes: make(CLIExcludes),
 		rules:    make([]Markdown, 0),
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
@@ -277,6 +286,12 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 	}
 
 	for _, rule := range rulePaths {
+		// Skip if this path should be excluded based on CLI exclusions
+		if cc.excludes.ShouldExcludePath(rule) {
+			cc.logger.Info("Excluding rule path based on CLI exclusion", "path", rule)
+			continue
+		}
+
 		// Skip if the path doesn't exist
 		if _, err := os.Stat(rule); os.IsNotExist(err) {
 			continue
@@ -303,6 +318,12 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 		// Only process .md and .mdc files as rule files
 		ext := filepath.Ext(path)
 		if ext != ".md" && ext != ".mdc" {
+			return nil
+		}
+
+		// Skip if this file path should be excluded based on CLI exclusions
+		if cc.excludes.ShouldExcludePath(path) {
+			cc.logger.Info("Excluding rule file based on CLI exclusion", "path", path)
 			return nil
 		}
 

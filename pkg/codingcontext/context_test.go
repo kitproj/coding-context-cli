@@ -1525,3 +1525,99 @@ func (f *fileInfoMock) Mode() os.FileMode  { return 0o644 }
 func (f *fileInfoMock) ModTime() time.Time { return time.Time{} }
 func (f *fileInfoMock) IsDir() bool        { return f.isDir }
 func (f *fileInfoMock) Sys() any           { return nil }
+
+func TestCLIExclusionIntegration(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create various CLI-specific rule files
+	createMarkdownFile(t, filepath.Join(tmpDir, ".cursor", "rules", "cursor-rule.md"),
+		"language: go", "# Cursor-specific rule")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".opencode", "agent", "opencode-rule.md"),
+		"language: go", "# OpenCode-specific rule")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".github", "copilot-instructions.md"),
+		"language: go", "# Copilot-specific rule")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "generic-rule.md"),
+		"language: go", "# Generic rule")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "tasks", "test-task.md"),
+		"task_name: test-task", "# Test task")
+
+	tests := []struct {
+		name             string
+		excludes         CLIExcludes
+		expectInRules    []string
+		expectNotInRules []string
+	}{
+		{
+			name:             "no exclusions - all rules included",
+			excludes:         CLIExcludes{},
+			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Generic"},
+			expectNotInRules: []string{},
+		},
+		{
+			name:             "exclude cursor - cursor rules excluded",
+			excludes:         CLIExcludes{"cursor": true},
+			expectInRules:    []string{"OpenCode-specific", "Copilot-specific", "Generic"},
+			expectNotInRules: []string{"Cursor-specific"},
+		},
+		{
+			name:             "exclude opencode - opencode rules excluded",
+			excludes:         CLIExcludes{"opencode": true},
+			expectInRules:    []string{"Cursor-specific", "Copilot-specific", "Generic"},
+			expectNotInRules: []string{"OpenCode-specific"},
+		},
+		{
+			name:             "exclude copilot - copilot rules excluded",
+			excludes:         CLIExcludes{"copilot": true},
+			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Generic"},
+			expectNotInRules: []string{"Copilot-specific"},
+		},
+		{
+			name:             "exclude multiple CLIs",
+			excludes:         CLIExcludes{"cursor": true, "opencode": true},
+			expectInRules:    []string{"Copilot-specific", "Generic"},
+			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific"},
+		},
+		{
+			name:             "exclude all specific CLIs - only generic remains",
+			excludes:         CLIExcludes{"cursor": true, "opencode": true, "copilot": true},
+			expectInRules:    []string{"Generic"},
+			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			cc := New(
+				WithWorkDir(tmpDir),
+				WithExcludes(tt.excludes),
+			)
+
+			result, err := cc.Run(ctx, "test-task")
+			if err != nil {
+				t.Fatalf("Run() error = %v", err)
+			}
+
+			// Combine all rule content
+			var allRules strings.Builder
+			for _, rule := range result.Rules {
+				allRules.WriteString(rule.Content)
+			}
+			rulesContent := allRules.String()
+
+			// Check expected inclusions
+			for _, expected := range tt.expectInRules {
+				if !strings.Contains(rulesContent, expected) {
+					t.Errorf("Expected rules to contain %q but it was not found", expected)
+				}
+			}
+
+			// Check expected exclusions
+			for _, notExpected := range tt.expectNotInRules {
+				if strings.Contains(rulesContent, notExpected) {
+					t.Errorf("Expected rules to NOT contain %q but it was found", notExpected)
+				}
+			}
+		})
+	}
+}
