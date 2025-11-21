@@ -23,30 +23,28 @@ const (
 
 // AllAgents returns all supported agents
 func AllAgents() []Agent {
-	return []Agent{
-		AgentCursor,
-		AgentOpenCode,
-		AgentCopilot,
-		AgentClaude,
-		AgentGemini,
-		AgentAugment,
-		AgentWindsurf,
-		AgentCodex,
+	agents := make([]Agent, 0, len(agentPathPatterns))
+	for agent := range agentPathPatterns {
+		agents = append(agents, agent)
 	}
+	return agents
 }
 
 // ParseAgent parses a string into an Agent type
 func ParseAgent(s string) (Agent, error) {
 	normalized := Agent(strings.ToLower(strings.TrimSpace(s)))
 
-	// Validate against known agents
-	switch normalized {
-	case AgentCursor, AgentOpenCode, AgentCopilot, AgentClaude,
-		AgentGemini, AgentAugment, AgentWindsurf, AgentCodex:
+	// Check if agent exists in the path patterns map
+	if _, exists := agentPathPatterns[normalized]; exists {
 		return normalized, nil
-	default:
-		return "", fmt.Errorf("unknown agent: %s (supported: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex)", s)
 	}
+
+	// Build list of supported agents for error message
+	supported := make([]string, 0, len(agentPathPatterns))
+	for agent := range agentPathPatterns {
+		supported = append(supported, agent.String())
+	}
+	return "", fmt.Errorf("unknown agent: %s (supported: %s)", s, strings.Join(supported, ", "))
 }
 
 // String returns the string representation of the agent
