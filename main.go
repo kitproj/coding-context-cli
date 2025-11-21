@@ -33,7 +33,7 @@ func main() {
 	flag.BoolVar(&emitTaskFrontmatter, "t", false, "Print task frontmatter at the beginning of output.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.Var(&agentExcludes, "x", "Exclude rules from specific agents. Can be specified multiple times with agent names (cursor, opencode, copilot, claude, gemini, augment, windsurf, codex).")
+	flag.Var(&agentExcludes, "a", "Exclude rules from specific agents. Can be specified multiple times with agent names (cursor, opencode, copilot, claude, gemini, augment, windsurf, codex).")
 	flag.Func("d", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
 		remotePaths = append(remotePaths, s)
 		return nil

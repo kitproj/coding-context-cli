@@ -93,7 +93,7 @@ Options:
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
   -t	Print task frontmatter at the beginning of output.
-  -x value
+  -a value
     	Exclude rules from specific agents. Can be specified multiple times with agent names (cursor, opencode, copilot, claude, gemini, augment, windsurf, codex).
 ```
 
@@ -461,7 +461,7 @@ If you need to filter on nested data, flatten your frontmatter structure to use 
 
 ### Excluding Rules by Agent
 
-When working with a specific AI coding agent, you may want to exclude rules intended for other agents to keep your context focused and reduce token usage. The `-x` flag allows you to exclude rules from specific agents.
+When working with a specific AI coding agent, you may want to exclude rules intended for other agents to keep your context focused and reduce token usage. The `-a` flag allows you to exclude rules from specific agents.
 
 **Supported agents:**
 - `cursor` - Excludes `.cursor/rules`, `.cursorrules`
@@ -477,14 +477,14 @@ When working with a specific AI coding agent, you may want to exclude rules inte
 
 ```bash
 # When using Cursor, exclude rules for OpenCode and Copilot
-coding-context -x opencode -x copilot fix-bug
+coding-context -a opencode -a copilot fix-bug
 ```
 
 **Example: Focus on generic rules only:**
 
 ```bash
 # Exclude all agent-specific rules, keeping only generic .agents/rules
-coding-context -x cursor -x opencode -x copilot -x claude -x gemini implement-feature
+coding-context -a cursor -a opencode -a copilot -a claude -a gemini implement-feature
 ```
 
 **Use cases:**
