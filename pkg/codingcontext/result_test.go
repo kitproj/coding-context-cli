@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestResult_ParseTaskFrontmatter(t *testing.T) {
+func TestMarkdown_ParseFrontmatter(t *testing.T) {
 	tests := []struct {
 		name        string
 		frontmatter FrontMatter
@@ -148,18 +148,16 @@ func TestResult_ParseTaskFrontmatter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := &Result{
-				Task: Markdown{
-					Path:        "/test/task.md",
-					FrontMatter: tt.frontmatter,
-					Content:     "Test content",
-				},
+			markdown := &Markdown{
+				Path:        "/test/task.md",
+				FrontMatter: tt.frontmatter,
+				Content:     "Test content",
 			}
 
-			err := result.ParseTaskFrontmatter(tt.target)
+			err := markdown.ParseFrontmatter(tt.target)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseTaskFrontmatter() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ParseFrontmatter() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 

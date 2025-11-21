@@ -17,9 +17,9 @@ type TaskMetadata struct {
 	Selectors   map[string]any `yaml:"selectors"`
 }
 
-// ExampleResult_ParseTaskFrontmatter demonstrates how to parse task frontmatter
+// ExampleMarkdown_ParseFrontmatter demonstrates how to parse task frontmatter
 // into a custom struct when using the coding-context library.
-func ExampleResult_ParseTaskFrontmatter() {
+func ExampleMarkdown_ParseFrontmatter() {
 	// Create a context and run it to get a result
 	// In a real application, you would configure this properly
 	cc := codingcontext.New(
@@ -39,7 +39,7 @@ func ExampleResult_ParseTaskFrontmatter() {
 
 	// Parse the task frontmatter into your custom struct
 	var taskMeta TaskMetadata
-	if err := result.ParseTaskFrontmatter(&taskMeta); err != nil {
+	if err := result.Task.ParseFrontmatter(&taskMeta); err != nil {
 		log.Fatal(err)
 	}
 
@@ -48,9 +48,15 @@ func ExampleResult_ParseTaskFrontmatter() {
 	fmt.Printf("Priority: %s\n", taskMeta.Priority)
 	fmt.Printf("Environment: %s\n", taskMeta.Environment)
 
-	// You can also access the generic frontmatter map directly
-	if priority, ok := result.Task.FrontMatter["priority"]; ok {
-		fmt.Printf("Priority from map: %v\n", priority)
+	// You can also parse rule frontmatter the same way
+	for _, rule := range result.Rules {
+		var ruleMeta struct {
+			Language string `yaml:"language"`
+			Stage    string `yaml:"stage"`
+		}
+		if err := rule.ParseFrontmatter(&ruleMeta); err == nil {
+			fmt.Printf("Rule: language=%s, stage=%s\n", ruleMeta.Language, ruleMeta.Stage)
+		}
 	}
 }
 
