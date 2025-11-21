@@ -1626,9 +1626,6 @@ func TestSlashCommandSubstitution(t *testing.T) {
 			createMarkdownFile(t, filepath.Join(taskDir, "free-text-task.md"),
 				"task_name: free-text-task",
 				"${text}")
-			createMarkdownFile(t, filepath.Join(taskDir, "my-task.md"),
-				"task_name: my-task",
-				"/my-task arg1 arg2")
 
 			var logOut bytes.Buffer
 			cc := &Context{

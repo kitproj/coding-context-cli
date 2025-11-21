@@ -99,6 +99,17 @@ func New(opts ...Option) *Context {
 	return c
 }
 
+// expandParams expands parameter placeholders in the given content
+func (cc *Context) expandParams(content string) string {
+	return os.Expand(content, func(key string) string {
+		if val, ok := cc.params[key]; ok {
+			return val
+		}
+		// this might not exist, in that case, return the original text
+		return fmt.Sprintf("${%s}", key)
+	})
+}
+
 // Run executes the context assembly for the given task name and returns the assembled result
 func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	if err := cc.downloadRemoteDirectories(ctx); err != nil {
@@ -125,13 +136,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	}
 
 	// Expand parameters in task content to allow slash commands in parameters
-	expandedContent := os.Expand(cc.taskContent, func(key string) string {
-		if val, ok := cc.params[key]; ok {
-			return val
-		}
-		// this might not exist, in that case, return the original text
-		return fmt.Sprintf("${%s}", key)
-	})
+	expandedContent := cc.expandParams(cc.taskContent)
 
 	// Check if the task contains a slash command (after parameter expansion)
 	slashTaskName, slashParams, found, err := parseSlashCommand(expandedContent)
@@ -177,13 +182,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	}
 
 	// Expand parameters in task content
-	expandedTask := os.Expand(cc.taskContent, func(key string) string {
-		if val, ok := cc.params[key]; ok {
-			return val
-		}
-		// this might not exist, in that case, return the original text
-		return fmt.Sprintf("${%s}", key)
-	})
+	expandedTask := cc.expandParams(cc.taskContent)
 
 	// Estimate tokens for task file
 	taskTokens := estimateTokens(expandedTask)
