@@ -94,7 +94,7 @@ Options:
     	Note: Only matches top-level YAML fields in frontmatter.
   -t	Print task frontmatter at the beginning of output.
   -x value
-    	Exclude rules from specific CLI agents. Can be specified multiple times with CLI names (cursor, opencode, copilot, claude, gemini, augment, windsurf, codex).
+    	Exclude rules from specific agents. Can be specified multiple times with agent names (cursor, opencode, copilot, claude, gemini, augment, windsurf, codex).
 ```
 
 ### Examples
@@ -459,11 +459,11 @@ Note the capitalization - for example, use `Go` not `go`, `JavaScript` not `java
 
 If you need to filter on nested data, flatten your frontmatter structure to use top-level fields only.
 
-### Excluding Rules by CLI Name
+### Excluding Rules by Agent
 
-When working with a specific AI coding agent, you may want to exclude rules intended for other agents to keep your context focused and reduce token usage. The `-x` flag allows you to exclude rules from specific CLI agents.
+When working with a specific AI coding agent, you may want to exclude rules intended for other agents to keep your context focused and reduce token usage. The `-x` flag allows you to exclude rules from specific agents.
 
-**Supported CLI names:**
+**Supported agents:**
 - `cursor` - Excludes `.cursor/rules`, `.cursorrules`
 - `opencode` - Excludes `.opencode/agent`, `.opencode/command`
 - `copilot` - Excludes `.github/copilot-instructions.md`, `.github/agents`

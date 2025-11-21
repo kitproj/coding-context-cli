@@ -1526,10 +1526,10 @@ func (f *fileInfoMock) ModTime() time.Time { return time.Time{} }
 func (f *fileInfoMock) IsDir() bool        { return f.isDir }
 func (f *fileInfoMock) Sys() any           { return nil }
 
-func TestCLIExclusionIntegration(t *testing.T) {
+func TestAgentExclusionIntegration(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create various CLI-specific rule files
+	// Create various agent-specific rule files
 	createMarkdownFile(t, filepath.Join(tmpDir, ".cursor", "rules", "cursor-rule.md"),
 		"language: go", "# Cursor-specific rule")
 	createMarkdownFile(t, filepath.Join(tmpDir, ".opencode", "agent", "opencode-rule.md"),
@@ -1543,43 +1543,43 @@ func TestCLIExclusionIntegration(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		excludes         CLIExcludes
+		agentExcludes    AgentExcludes
 		expectInRules    []string
 		expectNotInRules []string
 	}{
 		{
 			name:             "no exclusions - all rules included",
-			excludes:         CLIExcludes{},
+			agentExcludes:    AgentExcludes{},
 			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Generic"},
 			expectNotInRules: []string{},
 		},
 		{
 			name:             "exclude cursor - cursor rules excluded",
-			excludes:         CLIExcludes{"cursor": true},
+			agentExcludes:    AgentExcludes{AgentCursor: true},
 			expectInRules:    []string{"OpenCode-specific", "Copilot-specific", "Generic"},
 			expectNotInRules: []string{"Cursor-specific"},
 		},
 		{
 			name:             "exclude opencode - opencode rules excluded",
-			excludes:         CLIExcludes{"opencode": true},
+			agentExcludes:    AgentExcludes{AgentOpenCode: true},
 			expectInRules:    []string{"Cursor-specific", "Copilot-specific", "Generic"},
 			expectNotInRules: []string{"OpenCode-specific"},
 		},
 		{
 			name:             "exclude copilot - copilot rules excluded",
-			excludes:         CLIExcludes{"copilot": true},
+			agentExcludes:    AgentExcludes{AgentCopilot: true},
 			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Generic"},
 			expectNotInRules: []string{"Copilot-specific"},
 		},
 		{
-			name:             "exclude multiple CLIs",
-			excludes:         CLIExcludes{"cursor": true, "opencode": true},
+			name:             "exclude multiple agents",
+			agentExcludes:    AgentExcludes{AgentCursor: true, AgentOpenCode: true},
 			expectInRules:    []string{"Copilot-specific", "Generic"},
 			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific"},
 		},
 		{
-			name:             "exclude all specific CLIs - only generic remains",
-			excludes:         CLIExcludes{"cursor": true, "opencode": true, "copilot": true},
+			name:             "exclude all specific agents - only generic remains",
+			agentExcludes:    AgentExcludes{AgentCursor: true, AgentOpenCode: true, AgentCopilot: true},
 			expectInRules:    []string{"Generic"},
 			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific"},
 		},
@@ -1590,7 +1590,7 @@ func TestCLIExclusionIntegration(t *testing.T) {
 			ctx := context.Background()
 			cc := New(
 				WithWorkDir(tmpDir),
-				WithExcludes(tt.excludes),
+				WithAgent(tt.agentExcludes),
 			)
 
 			result, err := cc.Run(ctx, "test-task")

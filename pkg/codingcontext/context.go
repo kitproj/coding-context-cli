@@ -16,7 +16,7 @@ type Context struct {
 	resume              bool
 	params              Params
 	includes            Selectors
-	excludes            CLIExcludes
+	agentExcludes       AgentExcludes
 	remotePaths         []string
 	emitTaskFrontmatter bool
 
@@ -82,22 +82,22 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// WithExcludes sets the CLI excludes
-func WithExcludes(excludes CLIExcludes) Option {
+// WithAgent sets which agents to exclude rules from
+func WithAgent(excludes AgentExcludes) Option {
 	return func(c *Context) {
-		c.excludes = excludes
+		c.agentExcludes = excludes
 	}
 }
 
 // New creates a new Context with the given options
 func New(opts ...Option) *Context {
 	c := &Context{
-		workDir:  ".",
-		params:   make(Params),
-		includes: make(Selectors),
-		excludes: make(CLIExcludes),
-		rules:    make([]Markdown, 0),
-		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
+		workDir:       ".",
+		params:        make(Params),
+		includes:      make(Selectors),
+		agentExcludes: make(AgentExcludes),
+		rules:         make([]Markdown, 0),
+		logger:        slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
 		},
@@ -286,9 +286,9 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 	}
 
 	for _, rule := range rulePaths {
-		// Skip if this path should be excluded based on CLI exclusions
-		if cc.excludes.ShouldExcludePath(rule) {
-			cc.logger.Info("Excluding rule path based on CLI exclusion", "path", rule)
+		// Skip if this path should be excluded based on agent exclusions
+		if cc.agentExcludes.ShouldExcludePath(rule) {
+			cc.logger.Info("Excluding rule path based on agent exclusion", "path", rule)
 			continue
 		}
 
@@ -321,9 +321,9 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 			return nil
 		}
 
-		// Skip if this file path should be excluded based on CLI exclusions
-		if cc.excludes.ShouldExcludePath(path) {
-			cc.logger.Info("Excluding rule file based on CLI exclusion", "path", path)
+		// Skip if this file path should be excluded based on agent exclusions
+		if cc.agentExcludes.ShouldExcludePath(path) {
+			cc.logger.Info("Excluding rule file based on agent exclusion", "path", path)
 			return nil
 		}
 

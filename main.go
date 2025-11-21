@@ -25,7 +25,7 @@ func main() {
 	var emitTaskFrontmatter bool
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
-	excludes := make(codingcontext.CLIExcludes)
+	agentExcludes := make(codingcontext.AgentExcludes)
 	var remotePaths []string
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
@@ -33,7 +33,7 @@ func main() {
 	flag.BoolVar(&emitTaskFrontmatter, "t", false, "Print task frontmatter at the beginning of output.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.Var(&excludes, "x", "Exclude rules from specific CLI agents. Can be specified multiple times with CLI names (cursor, opencode, copilot, claude, gemini, augment, windsurf, codex).")
+	flag.Var(&agentExcludes, "x", "Exclude rules from specific agents. Can be specified multiple times with agent names (cursor, opencode, copilot, claude, gemini, augment, windsurf, codex).")
 	flag.Func("d", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
 		remotePaths = append(remotePaths, s)
 		return nil
@@ -60,7 +60,7 @@ func main() {
 		codingcontext.WithResume(resume),
 		codingcontext.WithParams(params),
 		codingcontext.WithSelectors(includes),
-		codingcontext.WithExcludes(excludes),
+		codingcontext.WithAgent(agentExcludes),
 		codingcontext.WithRemotePaths(remotePaths),
 		codingcontext.WithEmitTaskFrontmatter(emitTaskFrontmatter),
 		codingcontext.WithLogger(logger),
