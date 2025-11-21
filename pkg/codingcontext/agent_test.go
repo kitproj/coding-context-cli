@@ -311,19 +311,19 @@ func TestTargetAgent_ShouldExcludePath(t *testing.T) {
 		wantExclude bool
 	}{
 		{
-			name:        "target cursor - exclude opencode rules",
+			name:        "target cursor - do not exclude opencode rules",
 			targetAgent: "cursor",
 			path:        ".opencode/agent/rule.md",
-			wantExclude: true,
+			wantExclude: false,
 		},
 		{
-			name:        "target cursor - exclude copilot rules",
+			name:        "target cursor - do not exclude copilot rules",
 			targetAgent: "cursor",
 			path:        ".github/copilot-instructions.md",
-			wantExclude: true,
+			wantExclude: false,
 		},
 		{
-			name:        "target cursor - also exclude cursor rules (target agent uses generic rules)",
+			name:        "target cursor - exclude cursor rules (cursor will read its own)",
 			targetAgent: "cursor",
 			path:        ".cursor/rules/example.md",
 			wantExclude: true,
@@ -335,13 +335,13 @@ func TestTargetAgent_ShouldExcludePath(t *testing.T) {
 			wantExclude: false,
 		},
 		{
-			name:        "target opencode - exclude cursor rules",
+			name:        "target opencode - do not exclude cursor rules",
 			targetAgent: "opencode",
 			path:        ".cursor/rules/example.md",
-			wantExclude: true,
+			wantExclude: false,
 		},
 		{
-			name:        "target opencode - also exclude opencode rules (target agent uses generic rules)",
+			name:        "target opencode - exclude opencode rules (opencode will read its own)",
 			targetAgent: "opencode",
 			path:        ".opencode/agent/rule.md",
 			wantExclude: true,

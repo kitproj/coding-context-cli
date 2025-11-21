@@ -1557,22 +1557,22 @@ func TestTargetAgentIntegration(t *testing.T) {
 			expectNotInRules: []string{},
 		},
 		{
-			name:             "target cursor - only generic rules plus cursor-filtered rule",
+			name:             "target cursor - exclude cursor rules, include others and generic",
 			targetAgent:      "cursor",
-			expectInRules:    []string{"Generic", "Rule only for Cursor agent"},
-			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific"},
+			expectInRules:    []string{"OpenCode-specific", "Copilot-specific", "Generic", "Rule only for Cursor agent"},
+			expectNotInRules: []string{"Cursor-specific"},
 		},
 		{
-			name:             "target opencode - only generic rules (cursor-filtered rule excluded)",
+			name:             "target opencode - exclude opencode rules, include others and generic",
 			targetAgent:      "opencode",
-			expectInRules:    []string{"Generic"},
-			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Rule only for Cursor agent"},
+			expectInRules:    []string{"Cursor-specific", "Copilot-specific", "Generic"},
+			expectNotInRules: []string{"OpenCode-specific", "Rule only for Cursor agent"},
 		},
 		{
-			name:             "target copilot - only generic rules (cursor-filtered rule excluded)",
+			name:             "target copilot - exclude copilot rules, include others and generic",
 			targetAgent:      "copilot",
-			expectInRules:    []string{"Generic"},
-			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Rule only for Cursor agent"},
+			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Generic"},
+			expectNotInRules: []string{"Copilot-specific", "Rule only for Cursor agent"},
 		},
 	}
 
