@@ -106,48 +106,47 @@ var agentPathPatterns = map[Agent][]string{
 	},
 }
 
-// AgentExcludes stores which agents to exclude rules from
-type AgentExcludes map[Agent]bool
-
-// String implements the fmt.Stringer interface for AgentExcludes
-func (e *AgentExcludes) String() string {
-	if *e == nil {
-		return ""
-	}
-	var names []string
-	for agent := range *e {
-		names = append(names, agent.String())
-	}
-	return strings.Join(names, ",")
+// TargetAgent represents the agent being used, which excludes other agents' rules
+type TargetAgent struct {
+	agent *Agent
 }
 
-// Set implements the flag.Value interface for AgentExcludes
-func (e *AgentExcludes) Set(value string) error {
-	if *e == nil {
-		*e = make(AgentExcludes)
+// String implements the fmt.Stringer interface for TargetAgent
+func (t *TargetAgent) String() string {
+	if t.agent == nil {
+		return ""
 	}
+	return t.agent.String()
+}
 
+// Set implements the flag.Value interface for TargetAgent
+func (t *TargetAgent) Set(value string) error {
 	agent, err := ParseAgent(value)
 	if err != nil {
 		return err
 	}
 
-	(*e)[agent] = true
+	t.agent = &agent
 	return nil
 }
 
-// ShouldExcludePath returns true if the given path should be excluded
-func (e *AgentExcludes) ShouldExcludePath(path string) bool {
-	if *e == nil || len(*e) == 0 {
+// ShouldExcludePath returns true if the given path should be excluded based on target agent
+func (t *TargetAgent) ShouldExcludePath(path string) bool {
+	if t.agent == nil {
 		return false
 	}
 
-	// Check if any excluded agent matches this path
-	for agent := range *e {
-		if agent.MatchesPath(path) {
+	// Exclude paths from all other agents
+	for agent := range agentPathPatterns {
+		if agent != *t.agent && agent.MatchesPath(path) {
 			return true
 		}
 	}
 
 	return false
+}
+
+// Agent returns the target agent, or nil if not set
+func (t *TargetAgent) Agent() *Agent {
+	return t.agent
 }

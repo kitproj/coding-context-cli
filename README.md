@@ -94,7 +94,7 @@ Options:
     	Note: Only matches top-level YAML fields in frontmatter.
   -t	Print task frontmatter at the beginning of output.
   -a value
-    	Exclude rules from specific agents. Can be specified multiple times with agent names (cursor, opencode, copilot, claude, gemini, augment, windsurf, codex).
+    	Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
 ```
 
 ### Examples
@@ -459,38 +459,38 @@ Note the capitalization - for example, use `Go` not `go`, `JavaScript` not `java
 
 If you need to filter on nested data, flatten your frontmatter structure to use top-level fields only.
 
-### Excluding Rules by Agent
+### Targeting a Specific Agent
 
-When working with a specific AI coding agent, you may want to exclude rules intended for other agents to keep your context focused and reduce token usage. The `-a` flag allows you to exclude rules from specific agents.
+When working with a specific AI coding agent, you may want to exclude rules intended for other agents to keep your context focused and reduce token usage. The `-a` flag lets you specify which agent you're using, automatically excluding rules from all other agents while including rules specific to your target agent.
 
 **Supported agents:**
-- `cursor` - Excludes `.cursor/rules`, `.cursorrules`
-- `opencode` - Excludes `.opencode/agent`, `.opencode/command`
-- `copilot` - Excludes `.github/copilot-instructions.md`, `.github/agents`
-- `claude` - Excludes `.claude/`, `CLAUDE.md`, `CLAUDE.local.md`
-- `gemini` - Excludes `.gemini/`, `GEMINI.md`
-- `augment` - Excludes `.augment/`
-- `windsurf` - Excludes `.windsurf/`, `.windsurfrules`
-- `codex` - Excludes `.codex/`
+- `cursor` - Includes `.cursor/rules`, `.cursorrules`; excludes all other agent-specific rules
+- `opencode` - Includes `.opencode/agent`, `.opencode/command`; excludes all other agent-specific rules
+- `copilot` - Includes `.github/copilot-instructions.md`, `.github/agents`; excludes all other agent-specific rules
+- `claude` - Includes `.claude/`, `CLAUDE.md`, `CLAUDE.local.md`; excludes all other agent-specific rules
+- `gemini` - Includes `.gemini/`, `GEMINI.md`; excludes all other agent-specific rules
+- `augment` - Includes `.augment/`; excludes all other agent-specific rules
+- `windsurf` - Includes `.windsurf/`, `.windsurfrules`; excludes all other agent-specific rules
+- `codex` - Includes `.codex/`, `AGENTS.md`; excludes all other agent-specific rules
 
-**Example: Using Cursor and excluding other agents:**
-
-```bash
-# When using Cursor, exclude rules for OpenCode and Copilot
-coding-context -a opencode -a copilot fix-bug
-```
-
-**Example: Focus on generic rules only:**
+**Example: Using Cursor:**
 
 ```bash
-# Exclude all agent-specific rules, keeping only generic .agents/rules
-coding-context -a cursor -a opencode -a copilot -a claude -a gemini implement-feature
+# When using Cursor, automatically exclude rules for all other agents
+coding-context -a cursor fix-bug
 ```
+
+**How it works:**
+- The `-a` flag sets the target agent
+- Rules specific to the target agent are included
+- Rules from all other agents are automatically excluded
+- Generic rules (from `.agents/rules`) are always included
+- The agent name is automatically added as a selector, so rules can filter themselves with `agent: cursor` in frontmatter
 
 **Use cases:**
 - **Token optimization**: Reduce context size by excluding irrelevant agent-specific guidelines
-- **Agent focus**: When using a specific agent, include only rules relevant to that agent
-- **Testing**: Test generic rules without agent-specific customizations
+- **Agent focus**: Include only rules relevant to your current agent
+- **Testing**: Test with specific agent configurations
 
 The exclusion happens before rule processing, so excluded paths are never loaded or counted toward token estimates.
 

@@ -16,7 +16,7 @@ type Context struct {
 	resume              bool
 	params              Params
 	includes            Selectors
-	agentExcludes       AgentExcludes
+	targetAgent         TargetAgent
 	remotePaths         []string
 	emitTaskFrontmatter bool
 
@@ -82,22 +82,21 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// WithAgent sets which agents to exclude rules from
-func WithAgent(excludes AgentExcludes) Option {
+// WithAgent sets the target agent (which excludes other agents' rules)
+func WithAgent(agent TargetAgent) Option {
 	return func(c *Context) {
-		c.agentExcludes = excludes
+		c.targetAgent = agent
 	}
 }
 
 // New creates a new Context with the given options
 func New(opts ...Option) *Context {
 	c := &Context{
-		workDir:       ".",
-		params:        make(Params),
-		includes:      make(Selectors),
-		agentExcludes: make(AgentExcludes),
-		rules:         make([]Markdown, 0),
-		logger:        slog.New(slog.NewTextHandler(os.Stderr, nil)),
+		workDir:  ".",
+		params:   make(Params),
+		includes: make(Selectors),
+		rules:    make([]Markdown, 0),
+		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
 		},
@@ -118,6 +117,11 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	// Add task name to includes so rules can be filtered by task
 	cc.includes.SetValue("task_name", taskName)
 	cc.includes.SetValue("resume", fmt.Sprint(cc.resume))
+
+	// Add target agent to includes as a selector
+	if cc.targetAgent.Agent() != nil {
+		cc.includes.SetValue("agent", cc.targetAgent.Agent().String())
+	}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -286,9 +290,9 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 	}
 
 	for _, rule := range rulePaths {
-		// Skip if this path should be excluded based on agent exclusions
-		if cc.agentExcludes.ShouldExcludePath(rule) {
-			cc.logger.Info("Excluding rule path based on agent exclusion", "path", rule)
+		// Skip if this path should be excluded based on target agent
+		if cc.targetAgent.ShouldExcludePath(rule) {
+			cc.logger.Info("Excluding rule path (target agent filtering)", "path", rule)
 			continue
 		}
 
@@ -321,9 +325,9 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 			return nil
 		}
 
-		// Skip if this file path should be excluded based on agent exclusions
-		if cc.agentExcludes.ShouldExcludePath(path) {
-			cc.logger.Info("Excluding rule file based on agent exclusion", "path", path)
+		// Skip if this file path should be excluded based on target agent
+		if cc.targetAgent.ShouldExcludePath(path) {
+			cc.logger.Info("Excluding rule file (target agent filtering)", "path", path)
 			return nil
 		}
 

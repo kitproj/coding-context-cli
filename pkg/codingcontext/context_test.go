@@ -1526,7 +1526,7 @@ func (f *fileInfoMock) ModTime() time.Time { return time.Time{} }
 func (f *fileInfoMock) IsDir() bool        { return f.isDir }
 func (f *fileInfoMock) Sys() any           { return nil }
 
-func TestAgentExclusionIntegration(t *testing.T) {
+func TestTargetAgentIntegration(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create various agent-specific rule files
@@ -1543,54 +1543,50 @@ func TestAgentExclusionIntegration(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		agentExcludes    AgentExcludes
+		targetAgent      string
 		expectInRules    []string
 		expectNotInRules []string
 	}{
 		{
-			name:             "no exclusions - all rules included",
-			agentExcludes:    AgentExcludes{},
+			name:             "no target agent - all rules included",
+			targetAgent:      "",
 			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Generic"},
 			expectNotInRules: []string{},
 		},
 		{
-			name:             "exclude cursor - cursor rules excluded",
-			agentExcludes:    AgentExcludes{AgentCursor: true},
-			expectInRules:    []string{"OpenCode-specific", "Copilot-specific", "Generic"},
-			expectNotInRules: []string{"Cursor-specific"},
+			name:             "target cursor - only cursor and generic rules",
+			targetAgent:      "cursor",
+			expectInRules:    []string{"Cursor-specific", "Generic"},
+			expectNotInRules: []string{"OpenCode-specific", "Copilot-specific"},
 		},
 		{
-			name:             "exclude opencode - opencode rules excluded",
-			agentExcludes:    AgentExcludes{AgentOpenCode: true},
-			expectInRules:    []string{"Cursor-specific", "Copilot-specific", "Generic"},
-			expectNotInRules: []string{"OpenCode-specific"},
+			name:             "target opencode - only opencode and generic rules",
+			targetAgent:      "opencode",
+			expectInRules:    []string{"OpenCode-specific", "Generic"},
+			expectNotInRules: []string{"Cursor-specific", "Copilot-specific"},
 		},
 		{
-			name:             "exclude copilot - copilot rules excluded",
-			agentExcludes:    AgentExcludes{AgentCopilot: true},
-			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Generic"},
-			expectNotInRules: []string{"Copilot-specific"},
-		},
-		{
-			name:             "exclude multiple agents",
-			agentExcludes:    AgentExcludes{AgentCursor: true, AgentOpenCode: true},
+			name:             "target copilot - only copilot and generic rules",
+			targetAgent:      "copilot",
 			expectInRules:    []string{"Copilot-specific", "Generic"},
 			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific"},
-		},
-		{
-			name:             "exclude all specific agents - only generic remains",
-			agentExcludes:    AgentExcludes{AgentCursor: true, AgentOpenCode: true, AgentCopilot: true},
-			expectInRules:    []string{"Generic"},
-			expectNotInRules: []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
+
+			var ta TargetAgent
+			if tt.targetAgent != "" {
+				if err := ta.Set(tt.targetAgent); err != nil {
+					t.Fatalf("Set target agent failed: %v", err)
+				}
+			}
+
 			cc := New(
 				WithWorkDir(tmpDir),
-				WithAgent(tt.agentExcludes),
+				WithAgent(ta),
 			)
 
 			result, err := cc.Run(ctx, "test-task")

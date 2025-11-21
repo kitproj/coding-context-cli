@@ -2,7 +2,6 @@ package codingcontext
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -236,7 +235,7 @@ func TestAgent_MatchesPath(t *testing.T) {
 	}
 }
 
-func TestAgentExcludes_Set(t *testing.T) {
+func TestTargetAgent_Set(t *testing.T) {
 	tests := []struct {
 		name      string
 		value     string
@@ -285,8 +284,8 @@ func TestAgentExcludes_Set(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := make(AgentExcludes)
-			err := e.Set(tt.value)
+			var ta TargetAgent
+			err := ta.Set(tt.value)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Set() error = %v, wantErr %v", err, tt.wantErr)
@@ -294,110 +293,62 @@ func TestAgentExcludes_Set(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				if !e[tt.wantAgent] {
-					t.Errorf("Set() did not add agent %v to exclusions", tt.wantAgent)
+				if ta.Agent() == nil {
+					t.Errorf("Set() agent is nil, want %v", tt.wantAgent)
+				} else if *ta.Agent() != tt.wantAgent {
+					t.Errorf("Set() agent = %v, want %v", *ta.Agent(), tt.wantAgent)
 				}
 			}
 		})
 	}
 }
 
-func TestAgentExcludes_SetMultiple(t *testing.T) {
-	e := make(AgentExcludes)
-	if err := e.Set("cursor"); err != nil {
-		t.Fatalf("Set() error = %v", err)
-	}
-	if err := e.Set("opencode"); err != nil {
-		t.Fatalf("Set() error = %v", err)
-	}
-
-	if len(e) != 2 {
-		t.Errorf("Set() resulted in %d exclusions, want 2", len(e))
-	}
-	if !e[AgentCursor] {
-		t.Error("cursor should be excluded")
-	}
-	if !e[AgentOpenCode] {
-		t.Error("opencode should be excluded")
-	}
-}
-
-func TestAgentExcludes_ShouldExcludePath(t *testing.T) {
+func TestTargetAgent_ShouldExcludePath(t *testing.T) {
 	tests := []struct {
 		name        string
-		excludes    []string
+		targetAgent string
 		path        string
 		wantExclude bool
 	}{
 		{
-			name:        "exclude cursor rules",
-			excludes:    []string{"cursor"},
-			path:        ".cursor/rules/example.md",
-			wantExclude: true,
-		},
-		{
-			name:        "exclude cursorrules file",
-			excludes:    []string{"cursor"},
-			path:        ".cursorrules",
-			wantExclude: true,
-		},
-		{
-			name:        "exclude opencode agent",
-			excludes:    []string{"opencode"},
+			name:        "target cursor - exclude opencode rules",
+			targetAgent: "cursor",
 			path:        ".opencode/agent/rule.md",
 			wantExclude: true,
 		},
 		{
-			name:        "exclude copilot instructions",
-			excludes:    []string{"copilot"},
+			name:        "target cursor - exclude copilot rules",
+			targetAgent: "cursor",
 			path:        ".github/copilot-instructions.md",
 			wantExclude: true,
 		},
 		{
-			name:        "exclude copilot agents directory",
-			excludes:    []string{"copilot"},
-			path:        ".github/agents/rule.md",
-			wantExclude: true,
+			name:        "target cursor - do not exclude cursor rules",
+			targetAgent: "cursor",
+			path:        ".cursor/rules/example.md",
+			wantExclude: false,
 		},
 		{
-			name:        "do not exclude agents rules when excluding cursor",
-			excludes:    []string{"cursor"},
+			name:        "target cursor - do not exclude generic rules",
+			targetAgent: "cursor",
 			path:        ".agents/rules/example.md",
 			wantExclude: false,
 		},
 		{
-			name:        "do not exclude AGENTS.md when excluding cursor",
-			excludes:    []string{"cursor"},
-			path:        "AGENTS.md",
-			wantExclude: false,
-		},
-		{
-			name:        "exclude with absolute path",
-			excludes:    []string{"cursor"},
-			path:        "/home/user/project/.cursor/rules/example.md",
-			wantExclude: true,
-		},
-		{
-			name:        "multiple exclusions - match first",
-			excludes:    []string{"cursor", "opencode"},
+			name:        "target opencode - exclude cursor rules",
+			targetAgent: "opencode",
 			path:        ".cursor/rules/example.md",
 			wantExclude: true,
 		},
 		{
-			name:        "multiple exclusions - match second",
-			excludes:    []string{"cursor", "opencode"},
+			name:        "target opencode - do not exclude opencode rules",
+			targetAgent: "opencode",
 			path:        ".opencode/agent/rule.md",
-			wantExclude: true,
-		},
-		{
-			name:        "multiple exclusions - match none",
-			excludes:    []string{"cursor", "opencode"},
-			path:        ".agents/rules/example.md",
 			wantExclude: false,
 		},
 		{
-			name:        "no exclusions - do not exclude",
-			excludes:    []string{},
+			name:        "no target agent - do not exclude anything",
+			targetAgent: "",
 			path:        ".cursor/rules/example.md",
 			wantExclude: false,
 		},
@@ -405,9 +356,9 @@ func TestAgentExcludes_ShouldExcludePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := make(AgentExcludes)
-			for _, exclude := range tt.excludes {
-				if err := e.Set(exclude); err != nil {
+			var ta TargetAgent
+			if tt.targetAgent != "" {
+				if err := ta.Set(tt.targetAgent); err != nil {
 					t.Fatalf("Set() error = %v", err)
 				}
 			}
@@ -415,25 +366,26 @@ func TestAgentExcludes_ShouldExcludePath(t *testing.T) {
 			// Normalize the path for testing
 			normalizedPath := filepath.FromSlash(tt.path)
 
-			if got := e.ShouldExcludePath(normalizedPath); got != tt.wantExclude {
+			if got := ta.ShouldExcludePath(normalizedPath); got != tt.wantExclude {
 				t.Errorf("ShouldExcludePath(%q) = %v, want %v", tt.path, got, tt.wantExclude)
 			}
 		})
 	}
 }
 
-func TestAgentExcludes_String(t *testing.T) {
-	e := make(AgentExcludes)
-	e.Set("cursor")
-	e.Set("opencode")
+func TestTargetAgent_String(t *testing.T) {
+	var ta TargetAgent
+	ta.Set("cursor")
 
-	str := e.String()
-	if str == "" {
-		t.Error("String() returned empty string")
+	str := ta.String()
+	if str != "cursor" {
+		t.Errorf("String() = %q, want %q", str, "cursor")
 	}
-	// Should contain both agent names (order might vary)
-	if !strings.Contains(str, "cursor") || !strings.Contains(str, "opencode") {
-		t.Errorf("String() = %q, want to contain both 'cursor' and 'opencode'", str)
+
+	// Test nil agent
+	var emptyTA TargetAgent
+	if emptyTA.String() != "" {
+		t.Errorf("String() on empty agent = %q, want empty string", emptyTA.String())
 	}
 }
 
