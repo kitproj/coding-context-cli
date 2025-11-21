@@ -206,10 +206,10 @@ coding-context -s environment=production deploy
 
 ### Viewing Task Frontmatter
 
-Use the `-t` flag to see which selectors are embedded in a task:
+Task frontmatter (including selectors) is automatically included in the output:
 
 ```bash
-coding-context -t implement-feature
+coding-context implement-feature
 ```
 
 **Output:**

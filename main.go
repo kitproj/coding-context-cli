@@ -22,7 +22,6 @@ func main() {
 
 	var workDir string
 	var resume bool
-	var emitTaskFrontmatter bool
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
 	var targetAgent codingcontext.TargetAgent
@@ -33,7 +32,6 @@ func main() {
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Var(&targetAgent, "a", "Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
-	flag.BoolVar(&emitTaskFrontmatter, "t", false, "Print task frontmatter at the beginning of output.")
 	flag.Func("d", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
 		remotePaths = append(remotePaths, s)
 		return nil
@@ -62,7 +60,6 @@ func main() {
 		codingcontext.WithSelectors(includes),
 		codingcontext.WithAgent(targetAgent),
 		codingcontext.WithRemotePaths(remotePaths),
-		codingcontext.WithEmitTaskFrontmatter(emitTaskFrontmatter),
 		codingcontext.WithLogger(logger),
 	)
 
@@ -73,8 +70,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Output task frontmatter if requested
-	if emitTaskFrontmatter && result.Task.FrontMatter != nil {
+	// Output task frontmatter (always enabled)
+	if result.Task.FrontMatter != nil {
 		fmt.Println("---")
 		if err := yaml.NewEncoder(os.Stdout).Encode(result.Task.FrontMatter); err != nil {
 			logger.Error("Failed to encode task frontmatter", "error", err)

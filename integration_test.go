@@ -823,27 +823,10 @@ This is a test task.
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
-	// Test without -t flag (should not print frontmatter)
+	// Test that frontmatter is always printed
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
-	// Should not contain frontmatter delimiters in the main output
 	lines := strings.Split(output, "\n")
-	if len(lines) > 0 && lines[0] == "---" {
-		t.Errorf("frontmatter should not be printed without -t flag")
-	}
-	// Task content should be present
-	if !strings.Contains(output, "# Test Task") {
-		t.Errorf("task content not found in output without -t flag")
-	}
-	// Rule content should be present
-	if !strings.Contains(output, "# Test Rule") {
-		t.Errorf("rule content not found in output without -t flag")
-	}
-
-	// Test with -t flag (should print frontmatter)
-	output = runTool(t, "-C", dirs.tmpDir, "-t", "test-task")
-
-	lines = strings.Split(output, "\n")
 
 	// Find the first non-log line (skip lines starting with "time=")
 	var firstContentLine string
@@ -884,12 +867,12 @@ This is a test task.
 
 	// Rule content should appear after frontmatter
 	if !strings.Contains(output, "# Test Rule") {
-		t.Errorf("rule content not found in output with -t flag")
+		t.Errorf("rule content not found in output")
 	}
 
 	// Task content should appear after rules
 	if !strings.Contains(output, "# Test Task") {
-		t.Errorf("task content not found in output with -t flag")
+		t.Errorf("task content not found in output")
 	}
 
 	// Verify order: frontmatter should come before rules, rules before task content
