@@ -69,7 +69,7 @@ var cliPathPatterns = map[string][]string{
 	},
 	"copilot": {
 		".github/copilot-instructions.md",
-		".github/agents",
+		".github/agents/",
 	},
 	"claude": {
 		".claude/",
