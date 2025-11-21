@@ -1525,3 +1525,149 @@ func (f *fileInfoMock) Mode() os.FileMode  { return 0o644 }
 func (f *fileInfoMock) ModTime() time.Time { return time.Time{} }
 func (f *fileInfoMock) IsDir() bool        { return f.isDir }
 func (f *fileInfoMock) Sys() any           { return nil }
+
+func TestSlashCommandSubstitution(t *testing.T) {
+	tests := []struct {
+		name                string
+		initialTaskName     string
+		slashCommandEnabled bool
+		taskContent         string
+		params              Params
+		wantTaskName        string
+		wantParams          map[string]string
+		wantErr             bool
+		errContains         string
+	}{
+		{
+			name:                "slash command disabled - no substitution",
+			initialTaskName:     "wrapper-task",
+			slashCommandEnabled: false,
+			taskContent:         "Please /real-task 123",
+			params:              Params{},
+			wantTaskName:        "wrapper-task",
+			wantParams:          map[string]string{},
+			wantErr:             false,
+		},
+		{
+			name:                "slash command enabled - substitution to different task",
+			initialTaskName:     "wrapper-task",
+			slashCommandEnabled: true,
+			taskContent:         "Please /real-task 123",
+			params:              Params{},
+			wantTaskName:        "real-task",
+			wantParams: map[string]string{
+				"ARGUMENTS": "123",
+				"1":         "123",
+			},
+			wantErr: false,
+		},
+		{
+			name:                "slash command enabled - same task with params",
+			initialTaskName:     "my-task",
+			slashCommandEnabled: true,
+			taskContent:         "/my-task arg1 arg2",
+			params:              Params{"existing": "value"},
+			wantTaskName:        "my-task",
+			wantParams: map[string]string{
+				"existing":  "value",
+				"ARGUMENTS": "arg1 arg2",
+				"1":         "arg1",
+				"2":         "arg2",
+			},
+			wantErr: false,
+		},
+		{
+			name:                "slash command enabled - no slash command in task",
+			initialTaskName:     "simple-task",
+			slashCommandEnabled: true,
+			taskContent:         "Just a simple task with no slash command",
+			params:              Params{},
+			wantTaskName:        "simple-task",
+			wantParams:          map[string]string{},
+			wantErr:             false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			// Create the initial task file
+			taskDir := filepath.Join(tmpDir, ".agents", "tasks")
+			createMarkdownFile(t, filepath.Join(taskDir, "wrapper-task.md"),
+				"task_name: wrapper-task",
+				tt.taskContent)
+
+			// Create the real-task file if needed
+			createMarkdownFile(t, filepath.Join(taskDir, "real-task.md"),
+				"task_name: real-task",
+				"# Real Task Content for issue ${1}")
+
+			// Create a simple-task file
+			createMarkdownFile(t, filepath.Join(taskDir, "simple-task.md"),
+				"task_name: simple-task",
+				"Just a simple task with no slash command")
+
+			// Create my-task file
+			createMarkdownFile(t, filepath.Join(taskDir, "my-task.md"),
+				"task_name: my-task",
+				"/my-task arg1 arg2")
+
+			var logOut bytes.Buffer
+			cc := &Context{
+				workDir:      tmpDir,
+				slashCommand: tt.slashCommandEnabled,
+				params:       tt.params,
+				includes:     make(Selectors),
+				rules:        make([]Markdown, 0),
+				logger:       slog.New(slog.NewTextHandler(&logOut, nil)),
+				cmdRunner: func(cmd *exec.Cmd) error {
+					return nil
+				},
+			}
+
+			if cc.params == nil {
+				cc.params = make(Params)
+			}
+
+			result, err := cc.Run(context.Background(), tt.initialTaskName)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("Run() expected error, got nil")
+				} else if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("Run() error = %v, should contain %q", err, tt.errContains)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
+				return
+			}
+
+			if result == nil {
+				t.Errorf("Run() returned nil result")
+				return
+			}
+
+			// Verify the task name by checking the task path
+			expectedTaskPath := filepath.Join(taskDir, tt.wantTaskName+".md")
+			if result.Task.Path != expectedTaskPath {
+				t.Errorf("Task path = %v, want %v", result.Task.Path, expectedTaskPath)
+			}
+
+			// Verify parameters
+			for k, v := range tt.wantParams {
+				if cc.params[k] != v {
+					t.Errorf("Param[%q] = %q, want %q", k, cc.params[k], v)
+				}
+			}
+
+			// Verify param count
+			if len(cc.params) != len(tt.wantParams) {
+				t.Errorf("Param count = %d, want %d. Params: %v", len(cc.params), len(tt.wantParams), cc.params)
+			}
+		})
+	}
+}
