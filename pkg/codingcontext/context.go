@@ -463,9 +463,16 @@ func (cc *Context) parseTaskFile() error {
 	// These fields filter rules automatically when present in task frontmatter
 
 	// "agent" field: filters rules by agent
+	// Can be a string (most common case)
 	if agentRaw, ok := cc.taskFrontmatter["agent"]; ok {
-		agentStr := fmt.Sprint(agentRaw)
-		cc.includes.SetValue("agent", agentStr)
+		switch v := agentRaw.(type) {
+		case string:
+			// Single agent (most common)
+			cc.includes.SetValue("agent", v)
+		default:
+			// Convert other types to string
+			cc.includes.SetValue("agent", fmt.Sprint(v))
+		}
 	}
 
 	// "language" field: filters rules by language
