@@ -181,7 +181,8 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
-	// Expand parameters in task content
+	// Expand parameters in task content (note: this may be a different task than initially loaded
+	// if a slash command was found above, which loaded a new task with new parameters)
 	expandedTask := cc.expandParams(cc.taskContent)
 
 	// Estimate tokens for task file
