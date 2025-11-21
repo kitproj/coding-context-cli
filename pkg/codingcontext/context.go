@@ -471,6 +471,9 @@ func (cc *Context) parseTaskFile() error {
 		// Parse and set as target agent
 		if agent, err := ParseAgent(agentStr); err == nil {
 			cc.targetAgent = TargetAgent(agent)
+		} else {
+			// Log warning for invalid agent name to help users identify configuration issues
+			cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", agentStr, "error", err)
 		}
 	}
 
