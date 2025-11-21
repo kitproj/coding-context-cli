@@ -115,6 +115,41 @@ func TestParseSlashCommand(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:       "command with leading period and spaces",
+			command:    ".   /taskname",
+			wantFound:  true,
+			wantTask:   "taskname",
+			wantParams: map[string]string{},
+			wantErr:    false,
+		},
+		{
+			name:       "command with leading period and more spaces",
+			command:    ".    /taskname",
+			wantFound:  true,
+			wantTask:   "taskname",
+			wantParams: map[string]string{},
+			wantErr:    false,
+		},
+		{
+			name:      "command with leading period, spaces and arguments",
+			command:   ".   /fix-bug PROJ-123",
+			wantFound: true,
+			wantTask:  "fix-bug",
+			wantParams: map[string]string{
+				"ARGUMENTS": "PROJ-123",
+				"1":         "PROJ-123",
+			},
+			wantErr: false,
+		},
+		{
+			name:       "command with leading period, spaces, and newline",
+			command:    ".    /taskname\n",
+			wantFound:  true,
+			wantTask:   "taskname",
+			wantParams: map[string]string{},
+			wantErr:    false,
+		},
 	}
 
 	for _, tt := range tests {
