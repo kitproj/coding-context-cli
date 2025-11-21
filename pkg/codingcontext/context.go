@@ -107,6 +107,17 @@ func New(opts ...Option) *Context {
 	return c
 }
 
+// expandParams expands parameter placeholders in the given content
+func (cc *Context) expandParams(content string) string {
+	return os.Expand(content, func(key string) string {
+		if val, ok := cc.params[key]; ok {
+			return val
+		}
+		// this might not exist, in that case, return the original text
+		return fmt.Sprintf("${%s}", key)
+	})
+}
+
 // Run executes the context assembly for the given task name and returns the assembled result
 func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	if err := cc.downloadRemoteDirectories(ctx); err != nil {
@@ -137,18 +148,55 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to parse task file: %w", err)
 	}
 
+	// Expand parameters in task content to allow slash commands in parameters
+	expandedContent := cc.expandParams(cc.taskContent)
+
+	// Check if the task contains a slash command (after parameter expansion)
+	slashTaskName, slashParams, found, err := parseSlashCommand(expandedContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse slash command in task: %w", err)
+	}
+	if found {
+		cc.logger.Info("Found slash command in task", "task", slashTaskName, "params", slashParams)
+
+		// Replace parameters completely with slash command parameters
+		// The slash command fully replaces both task name and parameters
+		cc.params = slashParams
+
+		// Always find and parse the slash command task file, even if it's the same task name
+		// This ensures fresh parsing with the new parameters
+		if slashTaskName == taskName {
+			cc.logger.Info("Reloading slash command task", "task", slashTaskName)
+		} else {
+			cc.logger.Info("Switching to slash command task", "from", taskName, "to", slashTaskName)
+		}
+
+		// Reset task-related state
+		cc.matchingTaskFile = ""
+		cc.taskFrontmatter = nil
+		cc.taskContent = ""
+
+		// Update task_name in includes
+		cc.includes.SetValue("task_name", slashTaskName)
+
+		// Find the new task file
+		if err := cc.findTaskFile(homeDir, slashTaskName); err != nil {
+			return nil, fmt.Errorf("failed to find slash command task file: %w", err)
+		}
+
+		// Parse the new task file
+		if err := cc.parseTaskFile(); err != nil {
+			return nil, fmt.Errorf("failed to parse slash command task file: %w", err)
+		}
+	}
+
 	if err := cc.findExecuteRuleFiles(ctx, homeDir); err != nil {
 		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
-	// Expand parameters in task content
-	expandedTask := os.Expand(cc.taskContent, func(key string) string {
-		if val, ok := cc.params[key]; ok {
-			return val
-		}
-		// this might not exist, in that case, return the original text
-		return fmt.Sprintf("${%s}", key)
-	})
+	// Expand parameters in task content (note: this may be a different task than initially loaded
+	// if a slash command was found above, which loaded a new task with new parameters)
+	expandedTask := cc.expandParams(cc.taskContent)
 
 	// Estimate tokens for task file
 	taskTokens := estimateTokens(expandedTask)

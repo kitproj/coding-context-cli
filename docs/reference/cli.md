@@ -352,6 +352,65 @@ metadata:
 coding-context -s metadata.language=Go fix-bug
 ```
 
+## Slash Commands
+
+Slash command parsing is **always enabled** in task files. When a task file contains a slash command (e.g., `/task-name arg1 "arg 2"`), the CLI will automatically:
+
+1. Extract the task name and arguments from the slash command
+2. Load the referenced task instead of the original task
+3. Pass the slash command arguments as parameters (`$1`, `$2`, `$ARGUMENTS`, etc.)
+4. **Completely replace** any existing parameters with the slash command parameters
+
+This enables wrapper tasks that can dynamically delegate to other tasks with arguments. The slash command fully replaces both the task name and all parameters.
+
+### Slash Command Format
+
+```
+/task-name arg1 "arg with spaces" arg3
+```
+
+### Example
+
+Create a wrapper task (`wrapper.md`):
+```yaml
+---
+task_name: wrapper
+---
+Please execute: /implement-feature login "Add OAuth support"
+```
+
+The target task (`implement-feature.md`):
+```yaml
+---
+task_name: implement-feature
+---
+# Feature: ${1}
+
+Description: ${2}
+```
+
+When you run:
+```bash
+coding-context wrapper
+```
+
+It will:
+1. Parse the slash command `/implement-feature login "Add OAuth support"`
+2. Load the `implement-feature` task
+3. Substitute `$1` with `login` and `$2` with `Add OAuth support`
+
+The output will be:
+```
+# Feature: login
+
+Description: Add OAuth support
+```
+
+This is equivalent to manually running:
+```bash
+coding-context -p 1=login -p 2="Add OAuth support" implement-feature
+```
+
 ## See Also
 
 - [File Formats Reference](./file-formats) - Task and rule file specifications
