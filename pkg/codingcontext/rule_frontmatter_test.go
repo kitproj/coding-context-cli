@@ -18,45 +18,55 @@ func TestRuleFrontMatter_Marshal(t *testing.T) {
 			want: "{}\n",
 		},
 		{
-			name: "rule with string task_name",
+			name: "rule with task_names",
 			rule: RuleFrontMatter{
-				TaskName: "implement-feature",
-				Language: "go",
+				TaskNames: []string{"implement-feature"},
+				Languages: []string{"go"},
 			},
-			want: `task_name: implement-feature
-language: go
+			want: `task_names:
+- implement-feature
+languages:
+- go
 `,
 		},
 		{
-			name: "rule with array task_name",
+			name: "rule with multiple task_names",
 			rule: RuleFrontMatter{
-				TaskName: []string{"fix-bug", "implement-feature"},
-				Language: "go",
-				Agent:    "cursor",
+				TaskNames: []string{"fix-bug", "implement-feature"},
+				Languages: []string{"go"},
+				Agent:     "cursor",
 			},
-			want: `task_name:
+			want: `task_names:
 - fix-bug
 - implement-feature
-language: go
+languages:
+- go
 agent: cursor
 `,
 		},
 		{
 			name: "rule with all fields",
 			rule: RuleFrontMatter{
-				TaskName:   "test-task",
-				Language:   []string{"go", "python"},
-				Agent:      "copilot",
-				MCPServers: []string{"database"},
-				RuleName:   "test-rule",
+				TaskNames: []string{"test-task"},
+				Languages: []string{"go", "python"},
+				Agent:     "copilot",
+				MCPServers: []MCPServerConfig{
+					{
+						Type:    TransportTypeStdio,
+						Command: "database-server",
+					},
+				},
+				RuleName: "test-rule",
 			},
-			want: `task_name: test-task
-language:
+			want: `task_names:
+- test-task
+languages:
 - go
 - python
 agent: copilot
 mcp_servers:
-- database
+- type: stdio
+  command: database-server
 rule_name: test-rule
 `,
 		},
@@ -83,38 +93,41 @@ func TestRuleFrontMatter_Unmarshal(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "rule with string task_name and language",
-			yaml: `task_name: implement-feature
-language: go
+			name: "rule with task_names and languages",
+			yaml: `task_names:
+  - implement-feature
+languages:
+  - go
 agent: cursor
 `,
 			want: RuleFrontMatter{
-				TaskName: "implement-feature",
-				Language: "go",
-				Agent:    "cursor",
+				TaskNames: []string{"implement-feature"},
+				Languages: []string{"go"},
+				Agent:     "cursor",
 			},
 		},
 		{
-			name: "rule with array task_name",
-			yaml: `task_name:
+			name: "rule with multiple task_names",
+			yaml: `task_names:
   - fix-bug
   - implement-feature
-language: go
+languages:
+  - go
 `,
 			want: RuleFrontMatter{
-				TaskName: []any{"fix-bug", "implement-feature"},
-				Language: "go",
+				TaskNames: []string{"fix-bug", "implement-feature"},
+				Languages: []string{"go"},
 			},
 		},
 		{
-			name: "rule with array language",
-			yaml: `language:
+			name: "rule with multiple languages",
+			yaml: `languages:
   - go
   - python
   - javascript
 `,
 			want: RuleFrontMatter{
-				Language: []any{"go", "python", "javascript"},
+				Languages: []string{"go", "python", "javascript"},
 			},
 		},
 	}

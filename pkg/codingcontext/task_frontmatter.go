@@ -11,9 +11,9 @@ type TaskFrontMatter struct {
 	// When set, excludes the agent's own rules (same as -a flag)
 	Agent string `yaml:"agent,omitempty"`
 
-	// Language specifies the programming language(s) for filtering rules
-	// Can be a string or array for OR logic (e.g., "go" or ["go", "python"])
-	Language any `yaml:"language,omitempty"`
+	// Languages specifies the programming language(s) for filtering rules
+	// Array of languages for OR logic (e.g., ["go", "python"])
+	Languages []string `yaml:"languages,omitempty"`
 
 	// Model specifies the AI model identifier
 	// Does not filter rules, metadata only
@@ -29,11 +29,18 @@ type TaskFrontMatter struct {
 
 	// MCPServers lists the MCP servers required for this task
 	// Does not filter rules, metadata only
-	MCPServers []string `yaml:"mcp_servers,omitempty"`
+	MCPServers []MCPServerConfig `yaml:"mcp_servers,omitempty"`
 
 	// Resume indicates if this task should be resumed
 	Resume bool `yaml:"resume,omitempty"`
 
 	// Selectors contains additional custom selectors for filtering rules
 	Selectors map[string]any `yaml:"selectors,omitempty"`
+}
+
+// NewTaskFrontMatter creates a new TaskFrontMatter with initialized fields
+func NewTaskFrontMatter() TaskFrontMatter {
+	return TaskFrontMatter{
+		FrontMatter: NewFrontMatter(),
+	}
 }

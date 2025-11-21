@@ -21,9 +21,9 @@ type Context struct {
 
 	downloadedDirs   []string
 	matchingTaskFile string
-	taskFrontmatter  FrontMatter // Parsed task frontmatter
-	taskContent      string      // Parsed task content (before parameter expansion)
-	rules            []Markdown  // Collected rule files
+	taskFrontmatter  FrontMatter             // Parsed task frontmatter
+	taskContent      string                  // Parsed task content (before parameter expansion)
+	rules            []Markdown[FrontMatter] // Collected rule files
 	totalTokens      int
 	logger           *slog.Logger
 	cmdRunner        func(cmd *exec.Cmd) error
@@ -87,7 +87,7 @@ func New(opts ...Option) *Context {
 		workDir:  ".",
 		params:   make(Params),
 		includes: make(Selectors),
-		rules:    make([]Markdown, 0),
+		rules:    make([]Markdown[FrontMatter], 0),
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
@@ -160,7 +160,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 		// Reset task-related state
 		cc.matchingTaskFile = ""
-		cc.taskFrontmatter = FrontMatter{Content: make(map[string]any)}
+		cc.taskFrontmatter = NewFrontMatter()
 		cc.taskContent = ""
 
 		// Update task_name in includes
@@ -194,7 +194,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	// Build and return the result
 	result := &Result{
 		Rules: cc.rules,
-		Task: Markdown{
+		Task: Markdown[FrontMatter]{
 			Path:        cc.matchingTaskFile,
 			FrontMatter: cc.taskFrontmatter,
 			Content:     expandedTask,
@@ -399,7 +399,7 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
 
 		// Collect the rule content with frontmatter
-		cc.rules = append(cc.rules, Markdown{
+		cc.rules = append(cc.rules, Markdown[FrontMatter]{
 			Path:        path,
 			FrontMatter: frontmatter,
 			Content:     expanded,
@@ -445,7 +445,7 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path, ext string) err
 // The selectors are added to cc.includes for filtering rules and tools.
 // The parsed frontmatter and content are stored in cc.taskFrontmatter and cc.taskContent.
 func (cc *Context) parseTaskFile() error {
-	cc.taskFrontmatter = FrontMatter{Content: make(map[string]any)}
+	cc.taskFrontmatter = NewFrontMatter()
 
 	content, err := ParseMarkdownFile(cc.matchingTaskFile, &cc.taskFrontmatter)
 	if err != nil {

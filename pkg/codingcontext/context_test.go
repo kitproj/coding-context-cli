@@ -130,7 +130,7 @@ func TestRun(t *testing.T) {
 				resume:   tt.resume,
 				params:   tt.params,
 				includes: tt.includes,
-				rules:    make([]Markdown, 0),
+				rules:    make([]Markdown[FrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
@@ -568,7 +568,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 				resume:   tt.resume,
 				includes: tt.includes,
 				params:   tt.params,
-				rules:    make([]Markdown, 0),
+				rules:    make([]Markdown[FrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					// Track if bootstrap script was executed
@@ -852,7 +852,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 				workDir:          tmpDir,
 				matchingTaskFile: taskPath,
 				params:           tt.params,
-				rules:            make([]Markdown, 0),
+				rules:            make([]Markdown[FrontMatter], 0),
 				logger:           slog.New(slog.NewTextHandler(&logOut, nil)),
 				includes:         make(Selectors),
 				taskFrontmatter:  FrontMatter{Content: make(map[string]any)},
@@ -1332,7 +1332,7 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 			cc := &Context{
 				workDir:  tmpDir,
 				includes: make(Selectors),
-				rules:    make([]Markdown, 0),
+				rules:    make([]Markdown[FrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
@@ -1590,7 +1590,7 @@ func TestRuleFileWalker(t *testing.T) {
 			var logOut bytes.Buffer
 			cc := &Context{
 				includes: tt.includes,
-				rules:    make([]Markdown, 0),
+				rules:    make([]Markdown[FrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
@@ -1753,7 +1753,7 @@ func TestSlashCommandSubstitution(t *testing.T) {
 				workDir:  tmpDir,
 				params:   tt.params,
 				includes: make(Selectors),
-				rules:    make([]Markdown, 0),
+				rules:    make([]Markdown[FrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil

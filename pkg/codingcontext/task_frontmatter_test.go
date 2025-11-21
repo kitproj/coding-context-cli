@@ -24,37 +24,43 @@ func TestTaskFrontMatter_Marshal(t *testing.T) {
 			task: TaskFrontMatter{
 				TaskName:   "full-task",
 				Agent:      "cursor",
-				Language:   "go",
+				Languages:  []string{"go"},
 				Model:      "gpt-4",
 				SingleShot: true,
 				Timeout:    "10m",
-				MCPServers: []string{"filesystem", "git"},
-				Resume:     false,
+				MCPServers: []MCPServerConfig{
+					{Type: TransportTypeStdio, Command: "filesystem-server"},
+					{Type: TransportTypeStdio, Command: "git-server"},
+				},
+				Resume: false,
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},
 			},
 			want: `task_name: full-task
 agent: cursor
-language: go
+languages:
+- go
 model: gpt-4
 single_shot: true
 timeout: 10m
 mcp_servers:
-- filesystem
-- git
+- type: stdio
+  command: filesystem-server
+- type: stdio
+  command: git-server
 selectors:
   stage: implementation
 `,
 		},
 		{
-			name: "task with language array",
+			name: "task with multiple languages",
 			task: TaskFrontMatter{
-				TaskName: "polyglot-task",
-				Language: []string{"go", "python", "javascript"},
+				TaskName:  "polyglot-task",
+				Languages: []string{"go", "python", "javascript"},
 			},
 			want: `task_name: polyglot-task
-language:
+languages:
 - go
 - python
 - javascript
@@ -90,49 +96,56 @@ func TestTaskFrontMatter_Unmarshal(t *testing.T) {
 			},
 		},
 		{
-			name: "task with string language",
+			name: "task with single language",
 			yaml: `task_name: test-task
-language: go
+languages:
+  - go
 `,
 			want: TaskFrontMatter{
-				TaskName: "test-task",
-				Language: "go",
+				TaskName:  "test-task",
+				Languages: []string{"go"},
 			},
 		},
 		{
-			name: "task with language array",
+			name: "task with multiple languages",
 			yaml: `task_name: test-task
-language:
+languages:
   - go
   - python
 `,
 			want: TaskFrontMatter{
-				TaskName: "test-task",
-				Language: []any{"go", "python"},
+				TaskName:  "test-task",
+				Languages: []string{"go", "python"},
 			},
 		},
 		{
 			name: "full task",
 			yaml: `task_name: full-task
 agent: cursor
-language: go
+languages:
+  - go
 model: gpt-4
 single_shot: true
 timeout: 10m
 mcp_servers:
-  - filesystem
-  - git
+  - type: stdio
+    command: filesystem-server
+  - type: stdio
+    command: git-server
 selectors:
   stage: implementation
 `,
 			want: TaskFrontMatter{
 				TaskName:   "full-task",
 				Agent:      "cursor",
-				Language:   "go",
+				Languages:  []string{"go"},
 				Model:      "gpt-4",
 				SingleShot: true,
 				Timeout:    "10m",
-				MCPServers: []string{"filesystem", "git"},
+				MCPServers: []MCPServerConfig{
+					{Type: TransportTypeStdio, Command: "filesystem-server"},
+					{Type: TransportTypeStdio, Command: "git-server"},
+				},
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},
