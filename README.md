@@ -93,6 +93,8 @@ Options:
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
   -t	Print task frontmatter at the beginning of output.
+  -x value
+    	Exclude rules from specific CLI agents. Can be specified multiple times with CLI names (cursor, opencode, copilot, claude, gemini, augment, windsurf, codex).
 ```
 
 ### Examples
@@ -456,6 +458,41 @@ Note the capitalization - for example, use `Go` not `go`, `JavaScript` not `java
 - ❌ Doesn't work: Nested fields like `metadata.version: 1.0` cannot be matched with `-s metadata.version=1.0`
 
 If you need to filter on nested data, flatten your frontmatter structure to use top-level fields only.
+
+### Excluding Rules by CLI Name
+
+When working with a specific AI coding agent, you may want to exclude rules intended for other agents to keep your context focused and reduce token usage. The `-x` flag allows you to exclude rules from specific CLI agents.
+
+**Supported CLI names:**
+- `cursor` - Excludes `.cursor/rules`, `.cursorrules`
+- `opencode` - Excludes `.opencode/agent`, `.opencode/command`
+- `copilot` - Excludes `.github/copilot-instructions.md`, `.github/agents`
+- `claude` - Excludes `.claude/`, `CLAUDE.md`, `CLAUDE.local.md`
+- `gemini` - Excludes `.gemini/`, `GEMINI.md`
+- `augment` - Excludes `.augment/`
+- `windsurf` - Excludes `.windsurf/`, `.windsurfrules`
+- `codex` - Excludes `.codex/`
+
+**Example: Using Cursor and excluding other agents:**
+
+```bash
+# When using Cursor, exclude rules for OpenCode and Copilot
+coding-context -x opencode -x copilot fix-bug
+```
+
+**Example: Focus on generic rules only:**
+
+```bash
+# Exclude all agent-specific rules, keeping only generic .agents/rules
+coding-context -x cursor -x opencode -x copilot -x claude -x gemini implement-feature
+```
+
+**Use cases:**
+- **Token optimization**: Reduce context size by excluding irrelevant agent-specific guidelines
+- **Agent focus**: When using a specific agent, include only rules relevant to that agent
+- **Testing**: Test generic rules without agent-specific customizations
+
+The exclusion happens before rule processing, so excluded paths are never loaded or counted toward token estimates.
 
 ### Bootstrap Scripts
 
