@@ -27,15 +27,16 @@ func (p *Params) Set(value string) error {
 }
 
 // ParseParams parses a string containing key=value pairs separated by spaces.
-// Values can be quoted with double quotes, and quotes can be escaped.
+// Values must be quoted with double quotes, and quotes can be escaped.
+// Unquoted values are treated as an error.
 // Examples:
-//   - "key1=value1 key2=value2"
-//   - `key1="value with spaces" key2=value2`
+//   - `key1="value1" key2="value2"`
+//   - `key1="value with spaces" key2="value2"`
 //   - `key1="value with \"escaped\" quotes"`
-func ParseParams(s string) Params {
+func ParseParams(s string) (Params, error) {
 	params := make(Params)
 	if s == "" {
-		return params
+		return params, nil
 	}
 
 	s = strings.TrimSpace(s)
@@ -71,52 +72,38 @@ func ParseParams(s string) Params {
 			i++
 		}
 		if i >= len(s) {
-			params[key] = ""
-			break
+			return nil, fmt.Errorf("missing quoted value for key %q", key)
 		}
 
-		// Parse the value
+		// Values must be quoted
+		if s[i] != '"' {
+			return nil, fmt.Errorf("unquoted value for key %q: values must be double-quoted", key)
+		}
+
+		// Parse the double-quoted value
 		var value strings.Builder
-		if s[i] == '"' {
-			// Double-quoted value
-			i++ // skip opening quote
-			for i < len(s) {
-				if s[i] == '\\' && i+1 < len(s) && s[i+1] == '"' {
-					value.WriteByte('"')
-					i += 2
-				} else if s[i] == '"' {
-					i++ // skip closing quote
-					break
-				} else {
-					value.WriteByte(s[i])
-					i++
-				}
-			}
-		} else {
-			// Check if we're at the start of a new key-value pair (look for '=' ahead)
-			// This handles cases like "key1= key2=value2"
-			j := i
-			for j < len(s) && s[j] != '=' && s[j] != ' ' && s[j] != '\t' {
-				j++
-			}
-			isNewKeyValuePair := j < len(s) && s[j] == '=' && j > i
-
-			if isNewKeyValuePair {
-				// Empty value, next token is a new key-value pair
-				params[key] = ""
-				continue
-			}
-
-			// Unquoted value (until space or end of string)
-			valueStart := i
-			for i < len(s) && s[i] != ' ' && s[i] != '\t' {
+		i++ // skip opening quote
+		quoted := false
+		for i < len(s) {
+			if s[i] == '\\' && i+1 < len(s) && s[i+1] == '"' {
+				value.WriteByte('"')
+				i += 2
+			} else if s[i] == '"' {
+				i++ // skip closing quote
+				quoted = true
+				break
+			} else {
+				value.WriteByte(s[i])
 				i++
 			}
-			value.WriteString(s[valueStart:i])
+		}
+
+		if !quoted {
+			return nil, fmt.Errorf("unclosed quote for key %q", key)
 		}
 
 		params[key] = value.String()
 	}
 
-	return params
+	return params, nil
 }

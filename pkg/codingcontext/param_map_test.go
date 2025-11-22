@@ -1,6 +1,7 @@
 package codingcontext
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -98,75 +99,115 @@ func TestParams_SetMultiple(t *testing.T) {
 
 func TestParseParams(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected Params
+		name      string
+		input     string
+		expected  Params
+		wantError bool
+		errorMsg  string
 	}{
 		{
-			name:     "empty string",
-			input:    "",
-			expected: Params{},
+			name:      "empty string",
+			input:     "",
+			expected:  Params{},
+			wantError: false,
 		},
 		{
-			name:     "single key=value",
-			input:    "key=value",
-			expected: Params{"key": "value"},
+			name:      "single quoted key=value",
+			input:     `key="value"`,
+			expected:  Params{"key": "value"},
+			wantError: false,
 		},
 		{
-			name:     "multiple key=value pairs",
-			input:    "key1=value1 key2=value2 key3=value3",
-			expected: Params{"key1": "value1", "key2": "value2", "key3": "value3"},
+			name:      "multiple quoted key=value pairs",
+			input:     `key1="value1" key2="value2" key3="value3"`,
+			expected:  Params{"key1": "value1", "key2": "value2", "key3": "value3"},
+			wantError: false,
 		},
 		{
-			name:     "double-quoted value with spaces",
-			input:    `key1="value with spaces" key2=value2`,
-			expected: Params{"key1": "value with spaces", "key2": "value2"},
+			name:      "double-quoted value with spaces",
+			input:     `key1="value with spaces" key2="value2"`,
+			expected:  Params{"key1": "value with spaces", "key2": "value2"},
+			wantError: false,
 		},
 		{
-			name:     "escaped double quotes",
-			input:    `key1="value with \"escaped\" quotes"`,
-			expected: Params{"key1": `value with "escaped" quotes`},
+			name:      "escaped double quotes",
+			input:     `key1="value with \"escaped\" quotes"`,
+			expected:  Params{"key1": `value with "escaped" quotes`},
+			wantError: false,
 		},
 		{
-			name:     "mixed quoted and unquoted",
-			input:    `key1="quoted value" key2=unquoted`,
-			expected: Params{"key1": "quoted value", "key2": "unquoted"},
+			name:      "value with equals sign in quotes",
+			input:     `key1="value=with=equals" key2="normal"`,
+			expected:  Params{"key1": "value=with=equals", "key2": "normal"},
+			wantError: false,
 		},
 		{
-			name:     "single quote treated as unquoted",
-			input:    `key1='value' key2=value2`,
-			expected: Params{"key1": "'value'", "key2": "value2"},
+			name:      "empty quoted value",
+			input:     `key1="" key2="value2"`,
+			expected:  Params{"key1": "", "key2": "value2"},
+			wantError: false,
 		},
 		{
-			name:     "value with equals sign in quotes",
-			input:    `key1="value=with=equals" key2=normal`,
-			expected: Params{"key1": "value=with=equals", "key2": "normal"},
+			name:      "whitespace around equals",
+			input:     `key1 = "value1" key2="value2"`,
+			expected:  Params{"key1": "value1", "key2": "value2"},
+			wantError: false,
 		},
 		{
-			name:     "empty quoted value",
-			input:    `key1="" key2=value2`,
-			expected: Params{"key1": "", "key2": "value2"},
+			name:      "quoted value with spaces and equals",
+			input:     `key1="value with spaces and = signs"`,
+			expected:  Params{"key1": "value with spaces and = signs"},
+			wantError: false,
 		},
 		{
-			name:     "whitespace around equals",
-			input:    "key1 = value1 key2=value2",
-			expected: Params{"key1": "value1", "key2": "value2"},
+			name:      "unquoted value - error",
+			input:     `key1=value1`,
+			wantError: true,
+			errorMsg:  "unquoted value",
 		},
 		{
-			name:     "quoted value with spaces and equals",
-			input:    `key1="value with spaces and = signs"`,
-			expected: Params{"key1": "value with spaces and = signs"},
+			name:      "mixed quoted and unquoted - error",
+			input:     `key1="quoted value" key2=unquoted`,
+			wantError: true,
+			errorMsg:  "unquoted value",
 		},
 		{
-			name:     "key with trailing equals and empty value",
-			input:    "key1= key2=value2",
-			expected: Params{"key1": "", "key2": "value2"},
+			name:      "unclosed quote - error",
+			input:     `key1="value with spaces`,
+			wantError: true,
+			errorMsg:  "unclosed quote",
+		},
+		{
+			name:      "missing value after equals - error",
+			input:     `key1= key2="value2"`,
+			wantError: true,
+			errorMsg:  "unquoted value",
+		},
+		{
+			name:      "single quote not supported - error",
+			input:     `key1='value'`,
+			wantError: true,
+			errorMsg:  "unquoted value",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ParseParams(tt.input)
+			result, err := ParseParams(tt.input)
+
+			if (err != nil) != tt.wantError {
+				t.Errorf("ParseParams() error = %v, wantError %v", err, tt.wantError)
+				return
+			}
+
+			if tt.wantError {
+				if err != nil && tt.errorMsg != "" {
+					if !strings.Contains(err.Error(), tt.errorMsg) {
+						t.Errorf("ParseParams() error = %v, want error containing %q", err, tt.errorMsg)
+					}
+				}
+				return
+			}
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("ParseParams() length = %d, want %d", len(result), len(tt.expected))
