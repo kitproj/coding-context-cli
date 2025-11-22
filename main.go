@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -21,14 +20,12 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 	var workDir string
-	var resume bool
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
 	var remotePaths []string
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
-	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Func("d", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
 		remotePaths = append(remotePaths, s)
@@ -53,7 +50,6 @@ func main() {
 
 	cc := codingcontext.New(
 		codingcontext.WithWorkDir(workDir),
-		codingcontext.WithResume(resume),
 		codingcontext.WithParams(params),
 		codingcontext.WithSelectors(includes),
 		codingcontext.WithRemotePaths(remotePaths),
@@ -80,24 +76,6 @@ func main() {
 	// Output all rules
 	for _, rule := range result.Rules {
 		fmt.Println(rule.Content)
-	}
-
-	// Run task bootstrap script if it exists
-	if bootstrapPath := result.Task.BootstrapPath(); bootstrapPath != "" {
-		if _, err := os.Stat(bootstrapPath); err == nil {
-			// Make it executable
-			if err := os.Chmod(bootstrapPath, 0o755); err != nil {
-				logger.Error("Failed to chmod task bootstrap file", "path", bootstrapPath, "error", err)
-			} else {
-				logger.Info("Running task bootstrap script", "path", bootstrapPath)
-				cmd := exec.Command(bootstrapPath)
-				cmd.Stdout = os.Stderr
-				cmd.Stderr = os.Stderr
-				if err := cmd.Run(); err != nil {
-					logger.Error("Task bootstrap script failed", "path", bootstrapPath, "error", err)
-				}
-			}
-		}
 	}
 
 	// Output task

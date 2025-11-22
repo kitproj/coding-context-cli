@@ -12,16 +12,13 @@ import (
 
 // Context holds the configuration and state for assembling coding context
 type Context struct {
-	workDir     string
-	resume      bool
-	params      Params
-	includes    Selectors
-	targetAgent TargetAgent
-	remotePaths []string
-
+	workDir          string
+	params           Params
+	includes         Selectors
+	remotePaths      []string
 	downloadedDirs   []string
 	matchingTaskFile string
-	task             Markdown[TaskFrontMatter] // Parsed task
+	task             Markdown[TaskFrontMatter]   // Parsed task
 	rules            []Markdown[RuleFrontMatter] // Collected rule files
 	totalTokens      int
 	logger           *slog.Logger
@@ -35,13 +32,6 @@ type Option func(*Context)
 func WithWorkDir(dir string) Option {
 	return func(c *Context) {
 		c.workDir = dir
-	}
-}
-
-// WithResume enables resume mode
-func WithResume(resume bool) Option {
-	return func(c *Context) {
-		c.resume = resume
 	}
 }
 
@@ -70,13 +60,6 @@ func WithRemotePaths(paths []string) Option {
 func WithLogger(logger *slog.Logger) Option {
 	return func(c *Context) {
 		c.logger = logger
-	}
-}
-
-// WithAgent sets the target agent (which excludes other agents' rules)
-func WithAgent(agent TargetAgent) Option {
-	return func(c *Context) {
-		c.targetAgent = agent
 	}
 }
 
@@ -118,14 +101,14 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 	// Add task name to includes so rules can be filtered by task
 	cc.includes.SetValue("task_name", taskName)
-	cc.includes.SetValue("resume", fmt.Sprint(cc.resume))
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	if err := cc.findTaskFile(homeDir, taskName); err != nil {
+	err = cc.findTaskFile(homeDir, taskName)
+	if err != nil {
 		return nil, fmt.Errorf("failed to find task file: %w", err)
 	}
 
@@ -161,7 +144,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		cc.matchingTaskFile = ""
 		cc.task = Markdown[TaskFrontMatter]{}
 
-		// Update task_name in includes
+		// Update task_name in includes for rule filtering
 		cc.includes.SetValue("task_name", slashTaskName)
 
 		// Find the new task file
@@ -227,7 +210,7 @@ func (cc *Context) cleanupDownloadedDirectories() {
 }
 
 func (cc *Context) findTaskFile(homeDir string, taskName string) error {
-	// find the task prompt by searching for a file with matching task_name in frontmatter
+	// find the task file by matching filename (without .md extension)
 	taskSearchDirs := AllTaskSearchPaths(cc.workDir, homeDir)
 
 	// Add downloaded remote directories to task search paths
@@ -248,7 +231,7 @@ func (cc *Context) findTaskFile(homeDir string, taskName string) error {
 	}
 
 	if cc.matchingTaskFile == "" {
-		return fmt.Errorf("no task file found with task_name=%s matching selectors in frontmatter (searched in %v)", taskName, taskSearchDirs)
+		return fmt.Errorf("no task file found with filename=%s.md matching selectors in frontmatter (searched in %v)", taskName, taskSearchDirs)
 	}
 
 	return nil
@@ -267,36 +250,26 @@ func (cc *Context) taskFileWalker(taskName string) func(path string, info os.Fil
 			return nil
 		}
 
-		// Parse frontmatter to check task_name
-		var frontmatter BaseFrontMatter
+		// Match by filename (without .md extension)
+		baseName := strings.TrimSuffix(filepath.Base(path), ".md")
+		if baseName != taskName {
+			return nil
+		}
 
+		// Parse frontmatter to check selectors
+		var frontmatter TaskFrontMatter
 		if _, err = ParseMarkdownFile(path, &frontmatter); err != nil {
 			return fmt.Errorf("failed to parse task file %s: %w", path, err)
 		}
 
-		// Get task_name from frontmatter, or use filename without .md extension
-		fileTaskName, hasTaskName := frontmatter.Content["task_name"]
-		var taskNameStr string
-		if hasTaskName {
-			taskNameStr = fmt.Sprint(fileTaskName)
-		} else {
-			// Use filename without .md extension as task name
-			taskNameStr = strings.TrimSuffix(filepath.Base(path), ".md")
-		}
-
-		// Check if this file's task name matches the requested task name
-		if taskNameStr != taskName {
-			return nil
-		}
-
-		// Check if file matches include selectors (task_name is already in includes)
-		if !cc.includes.MatchesIncludes(frontmatter) {
+		// Check if file matches include selectors
+		if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
 			return nil
 		}
 
 		// If we already found a matching task, error on duplicate
 		if cc.matchingTaskFile != "" {
-			return fmt.Errorf("multiple task files found with task_name=%s: %s and %s", taskName, cc.matchingTaskFile, path)
+			return fmt.Errorf("multiple task files found with filename=%s.md: %s and %s", taskName, cc.matchingTaskFile, path)
 		}
 
 		cc.matchingTaskFile = path
@@ -306,8 +279,8 @@ func (cc *Context) taskFileWalker(taskName string) func(path string, info os.Fil
 }
 
 func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) error {
-	// Skip rule file discovery in resume mode.
-	if cc.resume {
+	// Skip rule file discovery if resume selector is set to true
+	if cc.includes != nil && cc.includes.GetValue("resume", "true") {
 		return nil
 	}
 
@@ -320,12 +293,6 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 	}
 
 	for _, rule := range rulePaths {
-		// Skip if this path should be excluded based on target agent
-		if cc.targetAgent.ShouldExcludePath(rule) {
-			cc.logger.Info("Excluding rule path (target agent filtering)", "path", rule)
-			continue
-		}
-
 		// Skip if the path doesn't exist
 		if _, err := os.Stat(rule); os.IsNotExist(err) {
 			continue
@@ -355,12 +322,6 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 			return nil
 		}
 
-		// Skip if this file path should be excluded based on target agent
-		if cc.targetAgent.ShouldExcludePath(path) {
-			cc.logger.Info("Excluding rule file (target agent filtering)", "path", path)
-			return nil
-		}
-
 		// Parse frontmatter to check selectors
 		var frontmatter RuleFrontMatter
 		content, err := ParseMarkdownFile(path, &frontmatter)
@@ -380,7 +341,7 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 		}
 
 		// Expand parameters in rule content
-		expanded := os.Expand(content, func(key string) string {
+		expanded := os.Expand(content.Content, func(key string) string {
 			if val, ok := cc.params[key]; ok {
 				return val
 			}
@@ -395,7 +356,6 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 
 		// Collect the rule content with frontmatter
 		cc.rules = append(cc.rules, Markdown[RuleFrontMatter]{
-			Path:        path,
 			FrontMatter: frontmatter,
 			Content:     expanded,
 			Tokens:      tokens,
@@ -429,8 +389,14 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path, ext string) err
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 
-	if err := cc.cmdRunner(cmd); err != nil {
-		return err
+	if cc.cmdRunner != nil {
+		if err := cc.cmdRunner(cmd); err != nil {
+			return err
+		}
+	} else {
+		if err := cmd.Run(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -440,40 +406,14 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path, ext string) err
 // The selectors are added to cc.includes for filtering rules and tools.
 // The parsed task is stored in cc.task.
 func (cc *Context) parseTaskFile() error {
-	var taskFM TaskFrontMatter
-	
-	content, err := ParseMarkdownFile(cc.matchingTaskFile, &taskFM)
+	var frontMatter TaskFrontMatter
+
+	task, err := ParseMarkdownFile(cc.matchingTaskFile, &frontMatter)
 	if err != nil {
 		return fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, err)
 	}
 
-	cc.task = Markdown[TaskFrontMatter]{
-		Path:        cc.matchingTaskFile,
-		FrontMatter: taskFM,
-		Content:     content,
-	}
-
-	// Extract standard frontmatter fields
-
-	// "agent" field: sets the target agent (excludes agent-specific directories)
-	// This is not used for selecting tasks or rules by frontmatter tags
-	if cc.task.FrontMatter.Agent != "" {
-		// Parse and set as target agent
-		if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
-			cc.targetAgent = TargetAgent(agent)
-		} else {
-			// Log warning for invalid agent name in task frontmatter to help users identify configuration issues
-			cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", cc.task.FrontMatter.Agent, "error", err)
-		}
-	}
-
-	// Note: The following fields are stored in frontmatter but don't act as selectors.
-	// They're simply passed through in the task frontmatter output:
-	// - "languages": programming languages (metadata only - use selectors to filter by language)
-	// - "model": AI model identifier
-	// - "single_shot": whether task runs once or many times
-	// - "timeout": task timeout duration
-	// - "mcp_servers": list of MCP servers to use
+	cc.task = task
 
 	// Extract selector labels from frontmatter
 	// Look for a "selectors" field that contains a map of key-value pairs
@@ -485,8 +425,6 @@ func (cc *Context) parseTaskFile() error {
 			for _, item := range v {
 				cc.includes.SetValue(key, fmt.Sprint(item))
 			}
-		case string:
-			cc.includes.SetValue(key, v)
 		default:
 			cc.includes.SetValue(key, fmt.Sprint(v))
 		}

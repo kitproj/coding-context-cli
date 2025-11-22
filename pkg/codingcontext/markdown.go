@@ -10,10 +10,10 @@ import (
 )
 
 // ParseMarkdownFile parses a markdown file into frontmatter and content
-func ParseMarkdownFile(path string, frontmatter any) (string, error) {
+func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) {
 	fh, err := os.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
+		return Markdown[T]{}, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer fh.Close()
 
@@ -35,7 +35,7 @@ func ParseMarkdownFile(path string, frontmatter any) (string, error) {
 			} else {
 				state = 2 // No frontmatter, start scanning content
 				if _, err := content.WriteString(line + "\n"); err != nil {
-					return "", fmt.Errorf("failed to write content: %w", err)
+					return Markdown[T]{}, fmt.Errorf("failed to write content: %w", err)
 				}
 			}
 		case 1: // Scanning frontmatter
@@ -43,26 +43,29 @@ func ParseMarkdownFile(path string, frontmatter any) (string, error) {
 				state = 2 // End of frontmatter, start scanning content
 			} else {
 				if _, err := frontMatterBytes.WriteString(line + "\n"); err != nil {
-					return "", fmt.Errorf("failed to write frontmatter: %w", err)
+					return Markdown[T]{}, fmt.Errorf("failed to write frontmatter: %w", err)
 				}
 			}
 		case 2: // Scanning content
 			if _, err := content.WriteString(line + "\n"); err != nil {
-				return "", fmt.Errorf("failed to write content: %w", err)
+				return Markdown[T]{}, fmt.Errorf("failed to write content: %w", err)
 			}
 		}
 	}
 
 	if err := s.Err(); err != nil {
-		return "", fmt.Errorf("failed to scan file: %w", err)
+		return Markdown[T]{}, fmt.Errorf("failed to scan file: %w", err)
 	}
 
 	// Parse frontmatter if we collected any
 	if frontMatterBytes.Len() > 0 {
-		if err := yaml.Unmarshal(frontMatterBytes.Bytes(), frontmatter); err != nil {
-			return "", fmt.Errorf("failed to unmarshal frontmatter: %w", err)
+		if err := yaml.Unmarshal(frontMatterBytes.Bytes(), frontMatter); err != nil {
+			return Markdown[T]{}, fmt.Errorf("failed to unmarshal frontmatter: %w", err)
 		}
 	}
 
-	return content.String(), nil
+	return Markdown[T]{
+		FrontMatter: *frontMatter,
+		Content:     content.String(),
+	}, nil
 }

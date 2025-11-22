@@ -15,14 +15,18 @@ func TestTaskFrontMatter_Marshal(t *testing.T) {
 		{
 			name: "minimal task",
 			task: TaskFrontMatter{
-				TaskName: "test-task",
+				BaseFrontMatter: BaseFrontMatter{
+					Content: map[string]any{"task_name": "test-task"},
+				},
 			},
 			want: "task_name: test-task\n",
 		},
 		{
 			name: "task with all fields",
 			task: TaskFrontMatter{
-				TaskName:   "full-task",
+				BaseFrontMatter: BaseFrontMatter{
+					Content: map[string]any{"task_name": "full-task"},
+				},
 				Agent:      "cursor",
 				Languages:  []string{"go"},
 				Model:      "gpt-4",
@@ -56,7 +60,9 @@ selectors:
 		{
 			name: "task with multiple languages",
 			task: TaskFrontMatter{
-				TaskName:  "polyglot-task",
+				BaseFrontMatter: BaseFrontMatter{
+					Content: map[string]any{"task_name": "polyglot-task"},
+				},
 				Languages: []string{"go", "python", "javascript"},
 			},
 			want: `task_name: polyglot-task
@@ -92,7 +98,9 @@ func TestTaskFrontMatter_Unmarshal(t *testing.T) {
 			name: "minimal task",
 			yaml: "task_name: test-task\n",
 			want: TaskFrontMatter{
-				TaskName: "test-task",
+				BaseFrontMatter: BaseFrontMatter{
+					Content: map[string]any{"task_name": "test-task"},
+				},
 			},
 		},
 		{
@@ -102,7 +110,9 @@ languages:
   - go
 `,
 			want: TaskFrontMatter{
-				TaskName:  "test-task",
+				BaseFrontMatter: BaseFrontMatter{
+					Content: map[string]any{"task_name": "test-task"},
+				},
 				Languages: []string{"go"},
 			},
 		},
@@ -114,7 +124,9 @@ languages:
   - python
 `,
 			want: TaskFrontMatter{
-				TaskName:  "test-task",
+				BaseFrontMatter: BaseFrontMatter{
+					Content: map[string]any{"task_name": "test-task"},
+				},
 				Languages: []string{"go", "python"},
 			},
 		},
@@ -136,7 +148,9 @@ selectors:
   stage: implementation
 `,
 			want: TaskFrontMatter{
-				TaskName:   "full-task",
+				BaseFrontMatter: BaseFrontMatter{
+					Content: map[string]any{"task_name": "full-task"},
+				},
 				Agent:      "cursor",
 				Languages:  []string{"go"},
 				Model:      "gpt-4",
@@ -165,8 +179,10 @@ selectors:
 			}
 
 			// Compare fields individually for better error messages
-			if got.TaskName != tt.want.TaskName {
-				t.Errorf("TaskName = %q, want %q", got.TaskName, tt.want.TaskName)
+			gotTaskName, _ := got.Content["task_name"].(string)
+			wantTaskName, _ := tt.want.Content["task_name"].(string)
+			if gotTaskName != wantTaskName {
+				t.Errorf("TaskName = %q, want %q", gotTaskName, wantTaskName)
 			}
 			if got.Agent != tt.want.Agent {
 				t.Errorf("Agent = %q, want %q", got.Agent, tt.want.Agent)

@@ -74,7 +74,6 @@ func main() {
     // Create context with all options
     ctx := codingcontext.New(
         codingcontext.WithWorkDir("."),
-        codingcontext.WithResume(false),
         codingcontext.WithParams(codingcontext.Params{
             "issue_number": "123",
         }),
@@ -146,7 +145,6 @@ Creates a new Context with the given options.
 
 **Options:**
 - `WithWorkDir(dir string)` - Set the working directory
-- `WithResume(resume bool)` - Enable resume mode
 - `WithParams(params Params)` - Set parameters
 - `WithSelectors(selectors Selectors)` - Set selectors for filtering
 - `WithRemotePaths(paths []string)` - Set remote directories to download

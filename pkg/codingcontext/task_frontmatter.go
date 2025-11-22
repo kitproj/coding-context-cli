@@ -8,9 +8,6 @@ import (
 type TaskFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
 
-	// TaskName is the unique identifier for the task (required)
-	TaskName string `yaml:"task_name" json:"task_name"`
-
 	// Agent specifies the default agent if not specified via -a flag
 	// This is not used for selecting tasks or rules, only as a default
 	Agent string `yaml:"agent,omitempty" json:"agent,omitempty"`
@@ -51,15 +48,15 @@ func (t *TaskFrontMatter) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(t),
 	}
-	
+
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
-	
+
 	// Also unmarshal into Content map
 	if err := json.Unmarshal(data, &t.BaseFrontMatter.Content); err != nil {
 		return err
 	}
-	
+
 	return nil
 }

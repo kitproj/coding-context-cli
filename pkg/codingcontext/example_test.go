@@ -62,7 +62,7 @@ func ExampleParseMarkdownFile() {
 
 	// Parse the markdown file into a BaseFrontMatter
 	var frontmatterMap codingcontext.BaseFrontMatter
-	content, err := codingcontext.ParseMarkdownFile("path/to/task.md", &frontmatterMap)
+	md, err := codingcontext.ParseMarkdownFile("path/to/task.md", &frontmatterMap)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -79,5 +79,5 @@ func ExampleParseMarkdownFile() {
 	fmt.Printf("Tags: %v\n", frontmatter.Tags)
 
 	// Access the content
-	fmt.Printf("Content length: %d\n", len(content))
+	fmt.Printf("Content length: %d\n", len(md.Content))
 }
