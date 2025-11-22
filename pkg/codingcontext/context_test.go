@@ -1961,3 +1961,78 @@ mcp_servers:
 		}
 	}
 }
+
+func TestWithResume(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, ".agents", "tasks")
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+
+	if err := os.MkdirAll(taskDir, 0o755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
+	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+
+	// Create a resume task file
+	createMarkdownFile(t, filepath.Join(taskDir, "resume_task.md"),
+		"resume: true",
+		"# Resume Task")
+
+	// Create a rule file that should be skipped in resume mode
+	createMarkdownFile(t, filepath.Join(rulesDir, "test-rule.md"),
+		"",
+		"# Test Rule")
+
+	// Change to temp dir
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	var logOut bytes.Buffer
+	cc := New(
+		WithWorkDir(tmpDir),
+		WithResume(true),
+		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
+	)
+
+	result, err := cc.Run(context.Background(), "resume_task")
+	if err != nil {
+		t.Fatalf("Run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
+	}
+
+	// In resume mode, rules should NOT be included
+	if len(result.Rules) != 0 {
+		t.Errorf("WithResume(true): expected 0 rules, got %d", len(result.Rules))
+	}
+
+	// Task should be included
+	if result.Task.Content == "" {
+		t.Errorf("WithResume(true): expected task content, got empty")
+	}
+	if !strings.Contains(result.Task.Content, "# Resume Task") {
+		t.Errorf("WithResume(true): expected task content to contain '# Resume Task', got: %s", result.Task.Content)
+	}
+
+	// Test that WithResume(false) includes rules
+	cc2 := New(
+		WithWorkDir(tmpDir),
+		WithResume(false),
+		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
+	)
+
+	result2, err := cc2.Run(context.Background(), "resume_task")
+	if err != nil {
+		t.Fatalf("Run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
+	}
+
+	// Without resume mode, rules should be included
+	if len(result2.Rules) == 0 {
+		t.Errorf("WithResume(false): expected rules to be included, got 0")
+	}
+}

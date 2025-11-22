@@ -23,6 +23,7 @@ type Context struct {
 	totalTokens      int
 	logger           *slog.Logger
 	cmdRunner        func(cmd *exec.Cmd) error
+	resume           bool
 }
 
 // Option is a functional option for configuring a Context
@@ -60,6 +61,13 @@ func WithRemotePaths(paths []string) Option {
 func WithLogger(logger *slog.Logger) Option {
 	return func(c *Context) {
 		c.logger = logger
+	}
+}
+
+// WithResume enables resume mode, which skips rule discovery and bootstrap scripts
+func WithResume(resume bool) Option {
+	return func(c *Context) {
+		c.resume = resume
 	}
 }
 
@@ -101,6 +109,11 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 	// Add task name to includes so rules can be filtered by task
 	cc.includes.SetValue("task_name", taskName)
+
+	// If resume mode is enabled, add resume=true as a selector
+	if cc.resume {
+		cc.includes.SetValue("resume", "true")
+	}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -279,8 +292,9 @@ func (cc *Context) taskFileWalker(taskName string) func(path string, info os.Fil
 }
 
 func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) error {
-	// Skip rule file discovery if resume selector is set to true
-	if cc.includes != nil && cc.includes.GetValue("resume", "true") {
+	// Skip rule file discovery if resume mode is enabled
+	// Check cc.resume directly first, then fall back to selector check for backward compatibility
+	if cc.resume || (cc.includes != nil && cc.includes.GetValue("resume", "true")) {
 		return nil
 	}
 

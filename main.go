@@ -20,11 +20,13 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 	var workDir string
+	var resume bool
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
 	var remotePaths []string
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
+	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Func("d", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
@@ -54,6 +56,7 @@ func main() {
 		codingcontext.WithSelectors(includes),
 		codingcontext.WithRemotePaths(remotePaths),
 		codingcontext.WithLogger(logger),
+		codingcontext.WithResume(resume),
 	)
 
 	result, err := cc.Run(ctx, args[0])
