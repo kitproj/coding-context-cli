@@ -2036,3 +2036,94 @@ func TestWithResume(t *testing.T) {
 		t.Errorf("WithResume(false): expected rules to be included, got 0")
 	}
 }
+
+func TestWithAgent(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, ".agents", "tasks")
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+
+	if err := os.MkdirAll(taskDir, 0o755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
+	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+
+	// Create a task file
+	createMarkdownFile(t, filepath.Join(taskDir, "test-task.md"),
+		"",
+		"# Test Task")
+
+	// Create CLAUDE.md in root (should be excluded when agent=claude)
+	createMarkdownFile(t, filepath.Join(tmpDir, "CLAUDE.md"),
+		"",
+		"# Claude Rule")
+
+	// Create a rule in .agents/rules with agent: claude (should be excluded when agent=claude)
+	createMarkdownFile(t, filepath.Join(rulesDir, "claude-specific.md"),
+		"agent: claude",
+		"# Claude Specific Rule")
+
+	// Create a rule in .agents/rules with agent: cursor (should be included when agent=claude)
+	createMarkdownFile(t, filepath.Join(rulesDir, "cursor-specific.md"),
+		"agent: cursor",
+		"# Cursor Specific Rule")
+
+	// Create a rule in .agents/rules without agent field (should be included)
+	createMarkdownFile(t, filepath.Join(rulesDir, "generic.md"),
+		"",
+		"# Generic Rule")
+
+	// Change to temp dir
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	var logOut bytes.Buffer
+	var agent Agent
+	if err := agent.Set("claude"); err != nil {
+		t.Fatalf("failed to set target agent: %v", err)
+	}
+
+	cc := New(
+		WithWorkDir(tmpDir),
+		WithAgent(agent),
+		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
+	)
+
+	result, err := cc.Run(context.Background(), "test-task")
+	if err != nil {
+		t.Fatalf("Run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
+	}
+
+	// CLAUDE.md should NOT be included (path matches target agent)
+	// claude-specific.md should NOT be included (agent field matches target agent)
+	// cursor-specific.md should be included (different agent)
+	// generic.md should be included (no agent field)
+
+	var ruleContents string
+	for _, rule := range result.Rules {
+		ruleContents += rule.Content + "\n"
+	}
+
+	if strings.Contains(ruleContents, "# Claude Rule") {
+		t.Errorf("WithAgent(claude): CLAUDE.md should be excluded, but was included")
+	}
+
+	if strings.Contains(ruleContents, "# Claude Specific Rule") {
+		t.Errorf("WithAgent(claude): rule with agent: claude should be excluded, but was included")
+	}
+
+	if !strings.Contains(ruleContents, "# Cursor Specific Rule") {
+		t.Errorf("WithAgent(claude): rule with agent: cursor should be included, but was excluded")
+	}
+
+	if !strings.Contains(ruleContents, "# Generic Rule") {
+		t.Errorf("WithAgent(claude): rule without agent field should be included, but was excluded")
+	}
+}

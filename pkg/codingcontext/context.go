@@ -24,6 +24,7 @@ type Context struct {
 	logger           *slog.Logger
 	cmdRunner        func(cmd *exec.Cmd) error
 	resume           bool
+	agent            Agent
 }
 
 // Option is a functional option for configuring a Context
@@ -68,6 +69,13 @@ func WithLogger(logger *slog.Logger) Option {
 func WithResume(resume bool) Option {
 	return func(c *Context) {
 		c.resume = resume
+	}
+}
+
+// WithAgent sets the target agent, which excludes that agent's own rules
+func WithAgent(agent Agent) Option {
+	return func(c *Context) {
+		c.agent = agent
 	}
 }
 
@@ -128,6 +136,15 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	// Parse task file early to extract selector labels for filtering rules and tools
 	if err := cc.parseTaskFile(); err != nil {
 		return nil, fmt.Errorf("failed to parse task file: %w", err)
+	}
+
+	// Task frontmatter agent field overrides -a flag if -a was not set
+	if cc.task.FrontMatter.Agent != "" && !cc.agent.IsSet() {
+		if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
+			cc.agent = agent
+		} else {
+			cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", cc.task.FrontMatter.Agent, "error", err)
+		}
 	}
 
 	// Expand parameters in task content to allow slash commands in parameters
@@ -307,6 +324,12 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 	}
 
 	for _, rule := range rulePaths {
+		// Skip if this path should be excluded based on target agent
+		if cc.agent.ShouldExcludePath(rule) {
+			cc.logger.Info("Excluding rule path (target agent filtering)", "path", rule)
+			continue
+		}
+
 		// Skip if the path doesn't exist
 		if _, err := os.Stat(rule); os.IsNotExist(err) {
 			continue
@@ -336,11 +359,25 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 			return nil
 		}
 
+		// Skip if this file path should be excluded based on target agent
+		if cc.agent.ShouldExcludePath(path) {
+			cc.logger.Info("Excluding rule file (target agent filtering)", "path", path)
+			return nil
+		}
+
 		// Parse frontmatter to check selectors
 		var frontmatter RuleFrontMatter
 		content, err := ParseMarkdownFile(path, &frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to parse markdown file: %w", err)
+		}
+
+		// Exclude rules whose frontmatter agent field matches the target agent
+		if cc.agent != "" && frontmatter.Agent != "" {
+			if string(cc.agent) == frontmatter.Agent {
+				cc.logger.Info("Excluding rule file (agent field matches target agent)", "path", path, "agent", frontmatter.Agent)
+				return nil
+			}
 		}
 
 		// Check if file matches include selectors BEFORE running bootstrap script.
