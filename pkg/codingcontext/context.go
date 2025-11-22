@@ -455,10 +455,10 @@ func (cc *Context) parseTaskFile() error {
 
 	// Extract standard frontmatter fields
 
-	// "agent" field: use as default agent if -a flag was not provided
-	// This is not used for selecting tasks or rules, only as a default
-	if cc.task.FrontMatter.Agent != "" && !cc.targetAgent.IsSet() {
-		// Parse and set as target agent (as default)
+	// "agent" field: sets the target agent (excludes agent-specific directories)
+	// This is not used for selecting tasks or rules by frontmatter tags
+	if cc.task.FrontMatter.Agent != "" {
+		// Parse and set as target agent
 		if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
 			cc.targetAgent = TargetAgent(agent)
 		} else {
