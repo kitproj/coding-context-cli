@@ -95,3 +95,94 @@ func TestParams_SetMultiple(t *testing.T) {
 		t.Errorf("Params[key2] = %q, want %q", p["key2"], "value2")
 	}
 }
+
+func TestParseParams(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected Params
+	}{
+		{
+			name:     "empty string",
+			input:    "",
+			expected: Params{},
+		},
+		{
+			name:     "single key=value",
+			input:    "key=value",
+			expected: Params{"key": "value"},
+		},
+		{
+			name:     "multiple key=value pairs",
+			input:    "key1=value1 key2=value2 key3=value3",
+			expected: Params{"key1": "value1", "key2": "value2", "key3": "value3"},
+		},
+		{
+			name:     "double-quoted value with spaces",
+			input:    `key1="value with spaces" key2=value2`,
+			expected: Params{"key1": "value with spaces", "key2": "value2"},
+		},
+		{
+			name:     "single-quoted value with spaces",
+			input:    `key1='value with spaces' key2=value2`,
+			expected: Params{"key1": "value with spaces", "key2": "value2"},
+		},
+		{
+			name:     "escaped double quotes",
+			input:    `key1="value with \"escaped\" quotes"`,
+			expected: Params{"key1": `value with "escaped" quotes`},
+		},
+		{
+			name:     "escaped single quotes",
+			input:    `key1='value with \'escaped\' quotes'`,
+			expected: Params{"key1": `value with 'escaped' quotes`},
+		},
+		{
+			name:     "mixed quoted and unquoted",
+			input:    `key1="quoted value" key2=unquoted key3='single quoted'`,
+			expected: Params{"key1": "quoted value", "key2": "unquoted", "key3": "single quoted"},
+		},
+		{
+			name:     "value with equals sign in quotes",
+			input:    `key1="value=with=equals" key2=normal`,
+			expected: Params{"key1": "value=with=equals", "key2": "normal"},
+		},
+		{
+			name:     "empty quoted value",
+			input:    `key1="" key2=value2`,
+			expected: Params{"key1": "", "key2": "value2"},
+		},
+		{
+			name:     "whitespace around equals",
+			input:    "key1 = value1 key2=value2",
+			expected: Params{"key1": "value1", "key2": "value2"},
+		},
+		{
+			name:     "quoted value with spaces and equals",
+			input:    `key1="value with spaces and = signs"`,
+			expected: Params{"key1": "value with spaces and = signs"},
+		},
+		{
+			name:     "key with trailing equals and empty value",
+			input:    "key1= key2=value2",
+			expected: Params{"key1": "", "key2": "value2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseParams(tt.input)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("ParseParams() length = %d, want %d", len(result), len(tt.expected))
+				return
+			}
+
+			for k, v := range tt.expected {
+				if result[k] != v {
+					t.Errorf("ParseParams()[%q] = %q, want %q", k, result[k], v)
+				}
+			}
+		})
+	}
+}
