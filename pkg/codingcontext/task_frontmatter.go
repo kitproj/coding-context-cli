@@ -2,8 +2,6 @@ package codingcontext
 
 import (
 	"encoding/json"
-
-	"github.com/goccy/go-yaml"
 )
 
 // TaskFrontMatter represents the standard frontmatter fields for task files
@@ -64,14 +62,4 @@ func (t *TaskFrontMatter) UnmarshalJSON(data []byte) error {
 	}
 	
 	return nil
-}
-
-// SyncToContent ensures all typed fields are also present in the Content map
-func (t *TaskFrontMatter) SyncToContent() error {
-	// Marshal the whole struct to YAML, then unmarshal back to get the Content map
-	yamlBytes, err := yaml.Marshal(t)
-	if err != nil {
-		return err
-	}
-	return yaml.Unmarshal(yamlBytes, &t.BaseFrontMatter)
 }

@@ -2,8 +2,6 @@ package codingcontext
 
 import (
 	"encoding/json"
-
-	"github.com/goccy/go-yaml"
 )
 
 // RuleFrontMatter represents the standard frontmatter fields for rule files
@@ -49,14 +47,4 @@ func (r *RuleFrontMatter) UnmarshalJSON(data []byte) error {
 	}
 	
 	return nil
-}
-
-// SyncToContent ensures all typed fields are also present in the Content map
-func (r *RuleFrontMatter) SyncToContent() error {
-	// Marshal the whole struct to YAML, then unmarshal back to get the Content map
-	yamlBytes, err := yaml.Marshal(r)
-	if err != nil {
-		return err
-	}
-	return yaml.Unmarshal(yamlBytes, &r.BaseFrontMatter)
 }

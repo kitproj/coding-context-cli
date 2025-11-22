@@ -368,11 +368,6 @@ func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os
 			return fmt.Errorf("failed to parse markdown file: %w", err)
 		}
 
-		// Ensure all typed fields are in Content map
-		if err := frontmatter.SyncToContent(); err != nil {
-			return fmt.Errorf("failed to sync frontmatter to content: %w", err)
-		}
-
 		// Check if file matches include selectors BEFORE running bootstrap script.
 		// Note: Files with duplicate basenames will both be included.
 		if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
@@ -450,11 +445,6 @@ func (cc *Context) parseTaskFile() error {
 	content, err := ParseMarkdownFile(cc.matchingTaskFile, &taskFM)
 	if err != nil {
 		return fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, err)
-	}
-
-	// Ensure all typed fields are in Content map
-	if err := taskFM.SyncToContent(); err != nil {
-		return fmt.Errorf("failed to sync frontmatter to content: %w", err)
 	}
 
 	cc.task = Markdown[TaskFrontMatter]{
