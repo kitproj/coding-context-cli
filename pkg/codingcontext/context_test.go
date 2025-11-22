@@ -38,7 +38,6 @@ func TestRun(t *testing.T) {
 		name        string
 		args        []string
 		workDir     string
-		resume      bool
 		params      Params
 		includes    Selectors
 		setupFiles  func(t *testing.T, tmpDir string)
@@ -69,8 +68,8 @@ func TestRun(t *testing.T) {
 			setupFiles: func(t *testing.T, tmpDir string) {
 				// Create task file
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
-				createMarkdownFile(t, filepath.Join(taskDir, "test.md"),
-					"task_name: test_task",
+				createMarkdownFile(t, filepath.Join(taskDir, "test_task.md"),
+					"",
 					"# Test Task\nThis is a test task.")
 			},
 			wantErr: false,
@@ -83,20 +82,22 @@ func TestRun(t *testing.T) {
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
-				createMarkdownFile(t, filepath.Join(taskDir, "param.md"),
-					"task_name: param_task",
+				createMarkdownFile(t, filepath.Join(taskDir, "param_task.md"),
+					"",
 					"# Test ${name}")
 			},
 			wantErr: false,
 		},
 		{
-			name:   "resume mode skips rules",
-			args:   []string{"resume_task"},
-			resume: true,
+			name: "resume mode skips rules",
+			args: []string{"resume_task"},
+			includes: Selectors{
+				"resume": map[string]bool{"true": true},
+			},
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
-				createMarkdownFile(t, filepath.Join(taskDir, "resume.md"),
-					"task_name: resume_task\nresume: true",
+				createMarkdownFile(t, filepath.Join(taskDir, "resume_task.md"),
+					"resume: true",
 					"# Resume Task")
 
 				// Create a rule file that should be skipped
@@ -127,10 +128,9 @@ func TestRun(t *testing.T) {
 			var logOut bytes.Buffer
 			cc := &Context{
 				workDir:  tmpDir,
-				resume:   tt.resume,
 				params:   tt.params,
 				includes: tt.includes,
-				rules:    make([]Markdown, 0),
+				rules:    make([]Markdown[RuleFrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
@@ -198,8 +198,8 @@ func TestFindTaskFile(t *testing.T) {
 			taskName: "my_task",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
-				createMarkdownFile(t, filepath.Join(taskDir, "task.md"),
-					"task_name: my_task",
+				createMarkdownFile(t, filepath.Join(taskDir, "my_task.md"),
+					"",
 					"# My Task")
 			},
 			wantErr: false,
@@ -209,11 +209,13 @@ func TestFindTaskFile(t *testing.T) {
 			taskName: "duplicate",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
-				createMarkdownFile(t, filepath.Join(taskDir, "task1.md"),
-					"task_name: duplicate",
+				createMarkdownFile(t, filepath.Join(taskDir, "duplicate.md"),
+					"",
 					"# Task 1")
-				createMarkdownFile(t, filepath.Join(taskDir, "task2.md"),
-					"task_name: duplicate",
+				// Create another file with same name in different directory to trigger duplicate
+				otherDir := filepath.Join(tmpDir, ".cursor", "commands")
+				createMarkdownFile(t, filepath.Join(otherDir, "duplicate.md"),
+					"",
 					"# Task 2")
 			},
 			wantErr:     true,
@@ -227,8 +229,8 @@ func TestFindTaskFile(t *testing.T) {
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
-				createMarkdownFile(t, filepath.Join(taskDir, "task.md"),
-					"task_name: filtered_task\nenv: prod",
+				createMarkdownFile(t, filepath.Join(taskDir, "filtered_task.md"),
+					"env: prod",
 					"# Filtered Task")
 			},
 			wantErr: false,
@@ -241,19 +243,18 @@ func TestFindTaskFile(t *testing.T) {
 			},
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
-				createMarkdownFile(t, filepath.Join(taskDir, "task.md"),
-					"task_name: filtered_task\nenv: prod",
+				createMarkdownFile(t, filepath.Join(taskDir, "filtered_task.md"),
+					"env: prod",
 					"# Filtered Task")
 			},
 			wantErr:     true,
 			errContains: "no task file found",
 		},
 		{
-			name:     "task without task_name uses filename",
+			name:     "task file found by filename",
 			taskName: "not-a-task",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
-				// Create a file without task_name - should use filename as task name
 				createMarkdownFile(t, filepath.Join(taskDir, "not-a-task.md"),
 					"env: prod",
 					"# Task using filename")
@@ -267,8 +268,8 @@ func TestFindTaskFile(t *testing.T) {
 				// Create task file in downloaded directory
 				downloadedDir := filepath.Join(tmpDir, "downloaded")
 				taskDir := filepath.Join(downloadedDir, ".agents", "tasks")
-				createMarkdownFile(t, filepath.Join(taskDir, "task.md"),
-					"task_name: downloaded_task",
+				createMarkdownFile(t, filepath.Join(taskDir, "downloaded_task.md"),
+					"",
 					"# Downloaded Task")
 			},
 			downloadedDirs: []string{"downloaded"}, // Relative path, will be joined with tmpDir
@@ -279,8 +280,8 @@ func TestFindTaskFile(t *testing.T) {
 			taskName: "cursor_task",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".cursor", "commands")
-				createMarkdownFile(t, filepath.Join(taskDir, "cursor-task.md"),
-					"task_name: cursor_task",
+				createMarkdownFile(t, filepath.Join(taskDir, "cursor_task.md"),
+					"",
 					"# Cursor Task")
 			},
 			wantErr: false,
@@ -292,8 +293,8 @@ func TestFindTaskFile(t *testing.T) {
 				// Create task file in downloaded directory's .cursor/commands
 				downloadedDir := filepath.Join(tmpDir, "downloaded")
 				taskDir := filepath.Join(downloadedDir, ".cursor", "commands")
-				createMarkdownFile(t, filepath.Join(taskDir, "remote.md"),
-					"task_name: cursor_remote_task",
+				createMarkdownFile(t, filepath.Join(taskDir, "cursor_remote_task.md"),
+					"",
 					"# Cursor Remote Task")
 			},
 			downloadedDirs: []string{"downloaded"}, // Relative path, will be joined with tmpDir
@@ -304,8 +305,8 @@ func TestFindTaskFile(t *testing.T) {
 			taskName: "opencode_task",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				taskDir := filepath.Join(tmpDir, ".opencode", "command")
-				createMarkdownFile(t, filepath.Join(taskDir, "opencode-task.md"),
-					"task_name: opencode_task",
+				createMarkdownFile(t, filepath.Join(taskDir, "opencode_task.md"),
+					"",
 					"# OpenCode Task")
 			},
 			wantErr: false,
@@ -317,8 +318,8 @@ func TestFindTaskFile(t *testing.T) {
 				// Create task file in downloaded directory's .opencode/command
 				downloadedDir := filepath.Join(tmpDir, "downloaded")
 				taskDir := filepath.Join(downloadedDir, ".opencode", "command")
-				createMarkdownFile(t, filepath.Join(taskDir, "remote.md"),
-					"task_name: opencode_remote_task",
+				createMarkdownFile(t, filepath.Join(taskDir, "opencode_remote_task.md"),
+					"",
 					"# OpenCode Remote Task")
 			},
 			downloadedDirs: []string{"downloaded"}, // Relative path, will be joined with tmpDir
@@ -385,7 +386,6 @@ func TestFindTaskFile(t *testing.T) {
 func TestFindExecuteRuleFiles(t *testing.T) {
 	tests := []struct {
 		name               string
-		resume             bool
 		includes           Selectors
 		params             Params // Parameters for template expansion
 		setupFiles         func(t *testing.T, tmpDir string)
@@ -398,8 +398,10 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 		bootstrapPath      string // Path to bootstrap script to check
 	}{
 		{
-			name:   "resume mode skips rules",
-			resume: true,
+			name: "resume mode skips rules",
+			includes: Selectors{
+				"resume": map[string]bool{"true": true},
+			},
 			setupFiles: func(t *testing.T, tmpDir string) {
 				createMarkdownFile(t, filepath.Join(tmpDir, "CLAUDE.md"),
 					"",
@@ -408,8 +410,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			wantTokens: 0,
 		},
 		{
-			name:   "include rule file",
-			resume: false,
+			name: "include rule file",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				createMarkdownFile(t, filepath.Join(tmpDir, "CLAUDE.md"),
 					"",
@@ -419,8 +420,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			expectInOutput: "# Rule File",
 		},
 		{
-			name:   "exclude rule with non-matching selector",
-			resume: false,
+			name: "exclude rule with non-matching selector",
 			includes: Selectors{
 				"env": map[string]bool{"prod": true},
 			},
@@ -432,8 +432,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			expectNotInOutput: "# Dev Rule",
 		},
 		{
-			name:   "include rule with matching selector",
-			resume: false,
+			name: "include rule with matching selector",
 			includes: Selectors{
 				"env": map[string]bool{"prod": true},
 			},
@@ -446,8 +445,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			expectInOutput: "# Prod Rule",
 		},
 		{
-			name:   "include multiple rules",
-			resume: false,
+			name: "include multiple rules",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				createMarkdownFile(t, filepath.Join(tmpDir, "CLAUDE.md"),
 					"",
@@ -460,8 +458,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			expectInOutput: "# Rule 1",
 		},
 		{
-			name:   "include .mdc files",
-			resume: false,
+			name: "include .mdc files",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				// .mdc files need to be in a rules directory
 				rulesDir := filepath.Join(tmpDir, ".agents", "rules")
@@ -473,8 +470,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			expectInOutput: "# MDC Rule",
 		},
 		{
-			name:   "include rules from downloaded directories",
-			resume: false,
+			name: "include rules from downloaded directories",
 			setupFiles: func(t *testing.T, tmpDir string) {
 				// Create a downloaded directory with rules
 				downloadedDir := filepath.Join(tmpDir, "downloaded")
@@ -492,8 +488,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			expectInOutput: "Downloaded Rule",
 		},
 		{
-			name:   "bootstrap script should not run on excluded files",
-			resume: false,
+			name: "bootstrap script should not run on excluded files",
 			includes: Selectors{
 				"env": map[string]bool{"prod": true},
 			},
@@ -515,8 +510,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			bootstrapPath:      "CLAUDE-bootstrap",
 		},
 		{
-			name:   "rule with parameter substitution",
-			resume: false,
+			name: "rule with parameter substitution",
 			params: Params{
 				"issue_key":    "PROJ-123",
 				"project_name": "MyProject",
@@ -531,8 +525,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			expectNotInOutput: "${issue_key}",
 		},
 		{
-			name:   "rule with missing parameter preserved",
-			resume: false,
+			name: "rule with missing parameter preserved",
 			params: Params{
 				"issue_key": "PROJ-456",
 			},
@@ -565,10 +558,9 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			var logOut bytes.Buffer
 			bootstrapRan := false
 			cc := &Context{
-				resume:   tt.resume,
 				includes: tt.includes,
 				params:   tt.params,
-				rules:    make([]Markdown, 0),
+				rules:    make([]Markdown[RuleFrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					// Track if bootstrap script was executed
@@ -841,7 +833,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 			taskPath := tt.setupFiles(t, tmpDir)
 
 			// Need to extract task name from file (even though we don't use it directly in this test)
-			var frontmatter FrontMatter
+			var frontmatter BaseFrontMatter
 			_, err := ParseMarkdownFile(taskPath, &frontmatter)
 			if err != nil {
 				t.Fatalf("failed to parse task file: %v", err)
@@ -852,10 +844,10 @@ func TestWriteTaskFileContent(t *testing.T) {
 				workDir:          tmpDir,
 				matchingTaskFile: taskPath,
 				params:           tt.params,
-				rules:            make([]Markdown, 0),
+				rules:            make([]Markdown[RuleFrontMatter], 0),
 				logger:           slog.New(slog.NewTextHandler(&logOut, nil)),
 				includes:         make(Selectors),
-				taskFrontmatter:  make(FrontMatter),
+				task:             Markdown[TaskFrontMatter]{FrontMatter: TaskFrontMatter{BaseFrontMatter: BaseFrontMatter{Content: make(map[string]any)}}},
 			}
 
 			// Parse task file first
@@ -867,7 +859,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 			}
 
 			// Expand parameters in task content (mimics what Run does)
-			expandedTask := os.Expand(cc.taskContent, func(key string) string {
+			expandedTask := os.Expand(cc.task.Content, func(key string) string {
 				if val, ok := cc.params[key]; ok {
 					return val
 				}
@@ -889,9 +881,9 @@ func TestWriteTaskFileContent(t *testing.T) {
 			}
 
 			// Verify frontmatter is always parsed when present
-			if cc.taskFrontmatter != nil && len(cc.taskFrontmatter) > 0 {
+			if cc.task.FrontMatter.Content != nil && len(cc.task.FrontMatter.Content) > 0 {
 				// Just verify frontmatter was parsed - the Context doesn't emit it, main.go does
-				if _, ok := cc.taskFrontmatter["task_name"]; !ok {
+				if _, ok := cc.task.FrontMatter.Content["task_name"]; !ok {
 					// This is OK - not all tasks have task_name in frontmatter
 				}
 			}
@@ -930,13 +922,13 @@ func TestParseTaskFile(t *testing.T) {
 			taskFile:        "task.md",
 			initialIncludes: make(Selectors),
 			expectedIncludes: Selectors{
-				"language": map[string]bool{"Go": true},
+				"language": map[string]bool{"go": true},
 				"env":      map[string]bool{"prod": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
-					"task_name: test\nselectors:\n  language: Go\n  env: prod",
+					"task_name: test\nselectors:\n  language: go\n  env: prod",
 					"# Task with Selectors")
 				return taskPath
 			},
@@ -948,12 +940,12 @@ func TestParseTaskFile(t *testing.T) {
 			initialIncludes: Selectors{"existing": map[string]bool{"value": true}},
 			expectedIncludes: Selectors{
 				"existing": map[string]bool{"value": true},
-				"language": map[string]bool{"Python": true},
+				"language": map[string]bool{"python": true},
 			},
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
-					"task_name: test\nselectors:\n  language: Python",
+					"task_name: test\nselectors:\n  language: python",
 					"# Task with Selectors")
 				return taskPath
 			},
@@ -1019,7 +1011,136 @@ func TestParseTaskFile(t *testing.T) {
 				return taskPath
 			},
 			wantErr:     true,
-			errContains: "invalid 'selectors' field",
+			errContains: "failed to unmarshal frontmatter",
+		},
+		{
+			name:             "task with agent field (sets targetAgent, not selector)",
+			taskFile:         "task.md",
+			initialIncludes:  make(Selectors),
+			expectedIncludes: Selectors{
+				// agent field should NOT be added to includes (it sets targetAgent instead)
+			},
+			setupFiles: func(t *testing.T, tmpDir string) string {
+				taskPath := filepath.Join(tmpDir, "task.md")
+				createMarkdownFile(t, taskPath,
+					"task_name: test\nagent: cursor",
+					"# Task with Agent Field")
+				return taskPath
+			},
+			wantErr: false,
+		},
+		{
+			name:             "task with model field (no selector added)",
+			taskFile:         "task.md",
+			initialIncludes:  make(Selectors),
+			expectedIncludes: Selectors{
+				// model field should NOT be added to includes
+			},
+			setupFiles: func(t *testing.T, tmpDir string) string {
+				taskPath := filepath.Join(tmpDir, "task.md")
+				createMarkdownFile(t, taskPath,
+					"task_name: test\nmodel: anthropic.claude-sonnet-4-20250514-v1-0",
+					"# Task with Model Field")
+				return taskPath
+			},
+			wantErr: false,
+		},
+		{
+			name:             "task with both agent and model fields",
+			taskFile:         "task.md",
+			initialIncludes:  make(Selectors),
+			expectedIncludes: Selectors{
+				// Neither agent nor model should be added to includes
+			},
+			setupFiles: func(t *testing.T, tmpDir string) string {
+				taskPath := filepath.Join(tmpDir, "task.md")
+				createMarkdownFile(t, taskPath,
+					"task_name: test\nagent: copilot\nmodel: gpt-4",
+					"# Task with Agent and Model Fields")
+				return taskPath
+			},
+			wantErr: false,
+		},
+		{
+			name:            "task with agent field and selectors",
+			taskFile:        "task.md",
+			initialIncludes: make(Selectors),
+			expectedIncludes: Selectors{
+				// agent is NOT a selector, only selectors field values are added
+				"language": map[string]bool{"go": true},
+			},
+			setupFiles: func(t *testing.T, tmpDir string) string {
+				taskPath := filepath.Join(tmpDir, "task.md")
+				createMarkdownFile(t, taskPath,
+					"task_name: test\nagent: cursor\nselectors:\n  language: go",
+					"# Task with Agent and Selectors")
+				return taskPath
+			},
+			wantErr: false,
+		},
+		{
+			name:             "task with language field does not add it as selector",
+			taskFile:         "task.md",
+			initialIncludes:  make(Selectors),
+			expectedIncludes: Selectors{
+				// Language is metadata only, not a selector
+			},
+			setupFiles: func(t *testing.T, tmpDir string) string {
+				taskPath := filepath.Join(tmpDir, "task.md")
+				createMarkdownFile(t, taskPath,
+					"task_name: test\nlanguage: python",
+					"# Task with Language Field")
+				return taskPath
+			},
+			wantErr: false,
+		},
+		{
+			name:             "task with language array does not add it as selector",
+			taskFile:         "task.md",
+			initialIncludes:  make(Selectors),
+			expectedIncludes: Selectors{
+				// Language is metadata only, not a selector
+			},
+			setupFiles: func(t *testing.T, tmpDir string) string {
+				taskPath := filepath.Join(tmpDir, "task.md")
+				createMarkdownFile(t, taskPath,
+					"task_name: test\nlanguage:\n  - go\n  - python\n  - javascript",
+					"# Task with Multiple Languages")
+				return taskPath
+			},
+			wantErr: false,
+		},
+		{
+			name:             "task with non-selector standard fields (metadata only)",
+			taskFile:         "task.md",
+			initialIncludes:  make(Selectors),
+			expectedIncludes: Selectors{
+				// single_shot, timeout, model, mcp_servers should NOT be added to includes
+			},
+			setupFiles: func(t *testing.T, tmpDir string) string {
+				taskPath := filepath.Join(tmpDir, "task.md")
+				createMarkdownFile(t, taskPath,
+					"task_name: test\nsingle_shot: true\ntimeout: 300\nmodel: gpt-4\nmcp_servers:\n  - type: stdio\n    command: server1\n  - type: stdio\n    command: server2",
+					"# Task with Metadata Fields")
+				return taskPath
+			},
+			wantErr: false,
+		},
+		{
+			name:             "task with all standard fields combined",
+			taskFile:         "task.md",
+			initialIncludes:  make(Selectors),
+			expectedIncludes: Selectors{
+				// Language, agent, model, etc. are metadata only, not selectors
+			},
+			setupFiles: func(t *testing.T, tmpDir string) string {
+				taskPath := filepath.Join(tmpDir, "task.md")
+				createMarkdownFile(t, taskPath,
+					"task_name: test\nagent: cursor\nlanguage: go\nmodel: gpt-4\nsingle_shot: false\ntimeout: 10m\nmcp_servers:\n  - type: stdio\n    command: filesystem\n  - type: stdio\n    command: git",
+					"# Task with All Standard Fields")
+				return taskPath
+			},
+			wantErr: false,
 		},
 	}
 
@@ -1073,13 +1194,13 @@ func TestParseTaskFile(t *testing.T) {
 				}
 
 				// Verify task content was stored
-				if cc.taskContent == "" {
-					t.Errorf("parseTaskFile() expected taskContent to be set, got empty string")
+				if cc.task.Content == "" {
+					t.Errorf("parseTaskFile() expected task.Content to be set, got empty string")
 				}
 
 				// Verify task frontmatter was stored
-				if cc.taskFrontmatter == nil {
-					t.Errorf("parseTaskFile() expected taskFrontmatter to be set, got nil")
+				if cc.task.FrontMatter.Content == nil {
+					t.Errorf("parseTaskFile() expected task.FrontMatter to be set, got nil")
 				}
 			}
 		})
@@ -1202,7 +1323,7 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 			cc := &Context{
 				workDir:  tmpDir,
 				includes: make(Selectors),
-				rules:    make([]Markdown, 0),
+				rules:    make([]Markdown[RuleFrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
@@ -1211,7 +1332,6 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 
 			// Set up task name in includes (as done in run())
 			cc.includes.SetValue("task_name", "test-task")
-			cc.includes.SetValue("resume", "false")
 
 			// Find and parse task file
 			homeDir, err := os.UserHomeDir()
@@ -1295,33 +1415,33 @@ func TestTaskFileWalker(t *testing.T) {
 		{
 			name:        "matching task file",
 			taskName:    "my_task",
-			fileInfo:    fileInfoMock{isDir: false, name: "task.md"},
-			filePath:    "task.md",
-			fileContent: "---\ntask_name: my_task\n---\n# Task",
+			fileInfo:    fileInfoMock{isDir: false, name: "my_task.md"},
+			filePath:    "my_task.md",
+			fileContent: "---\n---\n# Task",
 			expectMatch: true,
 			wantErr:     false,
 		},
 		{
 			name:        "non-matching task name",
 			taskName:    "other_task",
-			fileInfo:    fileInfoMock{isDir: false, name: "task.md"},
-			filePath:    "task.md",
-			fileContent: "---\ntask_name: my_task\n---\n# Task",
+			fileInfo:    fileInfoMock{isDir: false, name: "my_task.md"},
+			filePath:    "my_task.md",
+			fileContent: "---\n---\n# Task",
 			expectMatch: false,
 			wantErr:     false,
 		},
 		{
 			name:          "duplicate task file",
 			taskName:      "my_task",
-			fileInfo:      fileInfoMock{isDir: false, name: "task2.md"},
-			filePath:      "task2.md",
-			fileContent:   "---\ntask_name: my_task\n---\n# Task",
-			existingMatch: "task1.md",
+			fileInfo:      fileInfoMock{isDir: false, name: "my_task.md"},
+			filePath:      "my_task.md",
+			fileContent:   "---\n---\n# Task",
+			existingMatch: "/other/path/my_task.md", // Different path but same filename
 			wantErr:       true,
 			errContains:   "multiple task files found",
 		},
 		{
-			name:        "task without task_name uses filename",
+			name:        "task matched by filename",
 			taskName:    "task",
 			fileInfo:    fileInfoMock{isDir: false, name: "task.md"},
 			filePath:    "task.md",
@@ -1460,7 +1580,7 @@ func TestRuleFileWalker(t *testing.T) {
 			var logOut bytes.Buffer
 			cc := &Context{
 				includes: tt.includes,
-				rules:    make([]Markdown, 0),
+				rules:    make([]Markdown[RuleFrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
@@ -1623,7 +1743,7 @@ func TestSlashCommandSubstitution(t *testing.T) {
 				workDir:  tmpDir,
 				params:   tt.params,
 				includes: make(Selectors),
-				rules:    make([]Markdown, 0),
+				rules:    make([]Markdown[RuleFrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil
@@ -1655,10 +1775,13 @@ func TestSlashCommandSubstitution(t *testing.T) {
 				return
 			}
 
-			// Verify the task name by checking the task path
-			expectedTaskPath := filepath.Join(taskDir, tt.wantTaskName+".md")
-			if result.Task.Path != expectedTaskPath {
-				t.Errorf("Task path = %v, want %v", result.Task.Path, expectedTaskPath)
+			// Verify the task name by checking the task_name in frontmatter
+			if taskName, ok := result.Task.FrontMatter.Content["task_name"].(string); ok {
+				if taskName != tt.wantTaskName {
+					t.Errorf("Task name = %v, want %v", taskName, tt.wantTaskName)
+				}
+			} else {
+				t.Errorf("Task name not found in frontmatter")
 			}
 
 			// Verify parameters
@@ -1675,53 +1798,48 @@ func TestSlashCommandSubstitution(t *testing.T) {
 		})
 	}
 }
-func TestTargetAgentIntegration(t *testing.T) {
+func TestTaskLanguageFieldFilteringRules(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create various agent-specific rule files
-	createMarkdownFile(t, filepath.Join(tmpDir, ".cursor", "rules", "cursor-rule.md"),
-		"language: go", "# Cursor-specific rule")
-	createMarkdownFile(t, filepath.Join(tmpDir, ".opencode", "agent", "opencode-rule.md"),
-		"language: go", "# OpenCode-specific rule")
-	createMarkdownFile(t, filepath.Join(tmpDir, ".github", "copilot-instructions.md"),
-		"language: go", "# Copilot-specific rule")
+	// Create rules with different language filters
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "go-rule.md"),
+		"language: go", "# go-specific rule content")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "python-rule.md"),
+		"language: python", "# python-specific rule content")
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "js-rule.md"),
+		"language: javascript", "# javascript-specific rule content")
 	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "generic-rule.md"),
-		"language: go", "# Generic rule")
-	// Create a rule that filters by agent selector
-	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "cursor-only-rule.md"),
-		"agent: cursor", "# Rule only for Cursor agent")
-	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "tasks", "test-task.md"),
-		"task_name: test-task", "# Test task")
+		"", "# Generic rule content")
 
 	tests := []struct {
 		name             string
-		targetAgent      string
+		taskFrontmatter  string
 		expectInRules    []string
 		expectNotInRules []string
 	}{
 		{
-			name:             "no target agent - all agent-specific rules plus generic and cursor-filtered",
-			targetAgent:      "",
-			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Copilot-specific", "Generic", "Rule only for Cursor agent"},
+			name:             "task with language: go does not filter rules (language is metadata only)",
+			taskFrontmatter:  "task_name: test-task\nlanguage: go",
+			expectInRules:    []string{"go-specific rule content", "python-specific rule content", "javascript-specific rule content", "Generic rule content"},
 			expectNotInRules: []string{},
 		},
 		{
-			name:             "target cursor - exclude cursor rules, include others and generic",
-			targetAgent:      "cursor",
-			expectInRules:    []string{"OpenCode-specific", "Copilot-specific", "Generic", "Rule only for Cursor agent"},
-			expectNotInRules: []string{"Cursor-specific"},
+			name:             "task with language: python does not filter rules (language is metadata only)",
+			taskFrontmatter:  "task_name: test-task\nlanguage: python",
+			expectInRules:    []string{"go-specific rule content", "python-specific rule content", "javascript-specific rule content", "Generic rule content"},
+			expectNotInRules: []string{},
 		},
 		{
-			name:             "target opencode - exclude opencode rules, include others and generic",
-			targetAgent:      "opencode",
-			expectInRules:    []string{"Cursor-specific", "Copilot-specific", "Generic"},
-			expectNotInRules: []string{"OpenCode-specific", "Rule only for Cursor agent"},
+			name:             "task with language array does not filter rules (language is metadata only)",
+			taskFrontmatter:  "task_name: test-task\nlanguage:\n  - go\n  - python",
+			expectInRules:    []string{"go-specific rule content", "python-specific rule content", "javascript-specific rule content", "Generic rule content"},
+			expectNotInRules: []string{},
 		},
 		{
-			name:             "target copilot - exclude copilot rules, include others and generic",
-			targetAgent:      "copilot",
-			expectInRules:    []string{"Cursor-specific", "OpenCode-specific", "Generic"},
-			expectNotInRules: []string{"Copilot-specific", "Rule only for Cursor agent"},
+			name:             "task without language field includes all rules",
+			taskFrontmatter:  "task_name: test-task",
+			expectInRules:    []string{"go-specific rule content", "python-specific rule content", "javascript-specific rule content", "Generic rule content"},
+			expectNotInRules: []string{},
 		},
 	}
 
@@ -1729,16 +1847,12 @@ func TestTargetAgentIntegration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			var ta TargetAgent
-			if tt.targetAgent != "" {
-				if err := ta.Set(tt.targetAgent); err != nil {
-					t.Fatalf("Set target agent failed: %v", err)
-				}
-			}
+			// Create task file for this test
+			taskPath := filepath.Join(tmpDir, ".agents", "tasks", "test-task.md")
+			createMarkdownFile(t, taskPath, tt.taskFrontmatter, "# Test Task Content")
 
 			cc := New(
 				WithWorkDir(tmpDir),
-				WithAgent(ta),
 			)
 
 			result, err := cc.Run(ctx, "test-task")
@@ -1766,6 +1880,250 @@ func TestTargetAgentIntegration(t *testing.T) {
 					t.Errorf("Expected rules to NOT contain %q but it was found", notExpected)
 				}
 			}
+
+			// Verify task frontmatter contains the language field
+			if strings.Contains(tt.taskFrontmatter, "language:") {
+				if _, ok := result.Task.FrontMatter.Content["language"]; !ok {
+					t.Errorf("Expected task frontmatter to contain 'language' field")
+				}
+			}
 		})
+	}
+}
+
+func TestTaskStandardFieldsPreservedInFrontmatter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a simple rule to ensure the task runs
+	createMarkdownFile(t, filepath.Join(tmpDir, ".agents", "rules", "generic.md"),
+		"", "# Generic rule")
+
+	taskFrontmatter := `task_name: test-task
+agent: cursor
+languages:
+  - go
+model: anthropic.claude-sonnet-4-20250514-v1-0
+single_shot: true
+timeout: 5m
+mcp_servers:
+  - type: stdio
+    command: filesystem-server
+  - type: stdio
+    command: git-server`
+
+	taskPath := filepath.Join(tmpDir, ".agents", "tasks", "test-task.md")
+	createMarkdownFile(t, taskPath, taskFrontmatter, "# Test Task")
+
+	cc := New(WithWorkDir(tmpDir))
+	result, err := cc.Run(context.Background(), "test-task")
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	// Verify all standard fields are preserved in task frontmatter
+	expectedFields := map[string]any{
+		"task_name":   "test-task",
+		"agent":       "cursor",
+		"languages":   []any{"go"},
+		"model":       "anthropic.claude-sonnet-4-20250514-v1-0",
+		"single_shot": true,
+		"timeout":     "5m",
+		"mcp_servers": []any{
+			map[string]any{"type": "stdio", "command": "filesystem-server"},
+			map[string]any{"type": "stdio", "command": "git-server"},
+		},
+	}
+
+	for field, expectedValue := range expectedFields {
+		actualValue, ok := result.Task.FrontMatter.Content[field]
+		if !ok {
+			t.Errorf("Expected task frontmatter to contain %q field", field)
+			continue
+		}
+
+		// Special handling for arrays
+		if field == "mcp_servers" || field == "languages" {
+			actualArray, ok := actualValue.([]any)
+			if !ok {
+				t.Errorf("Expected %q to be []any, got %T", field, actualValue)
+				continue
+			}
+			expectedArray := expectedValue.([]any)
+			if len(actualArray) != len(expectedArray) {
+				t.Errorf("Expected %q length %d, got %d", field, len(expectedArray), len(actualArray))
+			}
+		} else {
+			// For simple values, just check they exist
+			// (exact comparison would require type matching which is complex with YAML)
+			if actualValue == nil {
+				t.Errorf("Expected %q to have a value, got nil", field)
+			}
+		}
+	}
+}
+
+func TestWithResume(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, ".agents", "tasks")
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+
+	if err := os.MkdirAll(taskDir, 0o755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
+	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+
+	// Create a resume task file
+	createMarkdownFile(t, filepath.Join(taskDir, "resume_task.md"),
+		"resume: true",
+		"# Resume Task")
+
+	// Create a rule file that should be skipped in resume mode
+	createMarkdownFile(t, filepath.Join(rulesDir, "test-rule.md"),
+		"",
+		"# Test Rule")
+
+	// Change to temp dir
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	var logOut bytes.Buffer
+	cc := New(
+		WithWorkDir(tmpDir),
+		WithResume(true),
+		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
+	)
+
+	result, err := cc.Run(context.Background(), "resume_task")
+	if err != nil {
+		t.Fatalf("Run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
+	}
+
+	// In resume mode, rules should NOT be included
+	if len(result.Rules) != 0 {
+		t.Errorf("WithResume(true): expected 0 rules, got %d", len(result.Rules))
+	}
+
+	// Task should be included
+	if result.Task.Content == "" {
+		t.Errorf("WithResume(true): expected task content, got empty")
+	}
+	if !strings.Contains(result.Task.Content, "# Resume Task") {
+		t.Errorf("WithResume(true): expected task content to contain '# Resume Task', got: %s", result.Task.Content)
+	}
+
+	// Test that WithResume(false) includes rules
+	cc2 := New(
+		WithWorkDir(tmpDir),
+		WithResume(false),
+		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
+	)
+
+	result2, err := cc2.Run(context.Background(), "resume_task")
+	if err != nil {
+		t.Fatalf("Run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
+	}
+
+	// Without resume mode, rules should be included
+	if len(result2.Rules) == 0 {
+		t.Errorf("WithResume(false): expected rules to be included, got 0")
+	}
+}
+
+func TestWithAgent(t *testing.T) {
+	tmpDir := t.TempDir()
+	taskDir := filepath.Join(tmpDir, ".agents", "tasks")
+	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
+
+	if err := os.MkdirAll(taskDir, 0o755); err != nil {
+		t.Fatalf("failed to create task dir: %v", err)
+	}
+	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+
+	// Create a task file
+	createMarkdownFile(t, filepath.Join(taskDir, "test-task.md"),
+		"",
+		"# Test Task")
+
+	// Create CLAUDE.md in root (should be excluded when agent=claude)
+	createMarkdownFile(t, filepath.Join(tmpDir, "CLAUDE.md"),
+		"",
+		"# Claude Rule")
+
+	// Create a rule in .agents/rules with agent: claude (should be excluded when agent=claude)
+	createMarkdownFile(t, filepath.Join(rulesDir, "claude-specific.md"),
+		"agent: claude",
+		"# Claude Specific Rule")
+
+	// Create a rule in .agents/rules with agent: cursor (should be included when agent=claude)
+	createMarkdownFile(t, filepath.Join(rulesDir, "cursor-specific.md"),
+		"agent: cursor",
+		"# Cursor Specific Rule")
+
+	// Create a rule in .agents/rules without agent field (should be included)
+	createMarkdownFile(t, filepath.Join(rulesDir, "generic.md"),
+		"",
+		"# Generic Rule")
+
+	// Change to temp dir
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	var logOut bytes.Buffer
+	var agent Agent
+	if err := agent.Set("claude"); err != nil {
+		t.Fatalf("failed to set target agent: %v", err)
+	}
+
+	cc := New(
+		WithWorkDir(tmpDir),
+		WithAgent(agent),
+		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
+	)
+
+	result, err := cc.Run(context.Background(), "test-task")
+	if err != nil {
+		t.Fatalf("Run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
+	}
+
+	// CLAUDE.md should NOT be included (path matches target agent)
+	// claude-specific.md should NOT be included (agent field matches target agent)
+	// cursor-specific.md should be included (different agent)
+	// generic.md should be included (no agent field)
+
+	var ruleContents string
+	for _, rule := range result.Rules {
+		ruleContents += rule.Content + "\n"
+	}
+
+	if strings.Contains(ruleContents, "# Claude Rule") {
+		t.Errorf("WithAgent(claude): CLAUDE.md should be excluded, but was included")
+	}
+
+	if strings.Contains(ruleContents, "# Claude Specific Rule") {
+		t.Errorf("WithAgent(claude): rule with agent: claude should be excluded, but was included")
+	}
+
+	if !strings.Contains(ruleContents, "# Cursor Specific Rule") {
+		t.Errorf("WithAgent(claude): rule with agent: cursor should be included, but was excluded")
+	}
+
+	if !strings.Contains(ruleContents, "# Generic Rule") {
+		t.Errorf("WithAgent(claude): rule without agent field should be included, but was excluded")
 	}
 }

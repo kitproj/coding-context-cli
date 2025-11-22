@@ -106,39 +106,31 @@ var agentPathPatterns = map[Agent][]string{
 	},
 }
 
-// TargetAgent represents the agent being used, which excludes that agent's own rules
-// Empty string means no agent specified
-type TargetAgent string
-
-// String implements the fmt.Stringer interface for TargetAgent
-func (t TargetAgent) String() string {
-	return string(t)
-}
-
-// Set implements the flag.Value interface for TargetAgent
-func (t *TargetAgent) Set(value string) error {
+// Set implements the flag.Value interface for Agent
+func (a *Agent) Set(value string) error {
 	agent, err := ParseAgent(value)
 	if err != nil {
 		return err
 	}
 
-	*t = TargetAgent(agent)
+	*a = agent
 	return nil
 }
 
-// ShouldExcludePath returns true if the given path should be excluded based on target agent
-func (t TargetAgent) ShouldExcludePath(path string) bool {
-	if t == "" {
+// ShouldExcludePath returns true if the given path should be excluded based on this agent
+// Empty agent means no exclusion
+func (a Agent) ShouldExcludePath(path string) bool {
+	if a == "" {
 		return false
 	}
 
-	// Exclude paths from ONLY the target agent
-	// The target agent will read its own rules, so we don't need to include them
+	// Exclude paths from ONLY this agent
+	// The agent will read its own rules, so we don't need to include them
 	// But we might want rules from other agents or generic rules
-	return Agent(t).MatchesPath(path)
+	return a.MatchesPath(path)
 }
 
-// IsSet returns true if a target agent has been specified
-func (t TargetAgent) IsSet() bool {
-	return t != ""
+// IsSet returns true if an agent has been specified (non-empty)
+func (a Agent) IsSet() bool {
+	return a != ""
 }

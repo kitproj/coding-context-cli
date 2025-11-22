@@ -235,7 +235,7 @@ func TestAgent_MatchesPath(t *testing.T) {
 	}
 }
 
-func TestTargetAgent_Set(t *testing.T) {
+func TestAgent_Set(t *testing.T) {
 	tests := []struct {
 		name      string
 		value     string
@@ -284,8 +284,8 @@ func TestTargetAgent_Set(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var ta TargetAgent
-			err := ta.Set(tt.value)
+			var a Agent
+			err := a.Set(tt.value)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Set() error = %v, wantErr %v", err, tt.wantErr)
@@ -293,15 +293,15 @@ func TestTargetAgent_Set(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				if ta != TargetAgent(tt.wantAgent) {
-					t.Errorf("Set() agent = %v, want %v", ta, tt.wantAgent)
+				if a != tt.wantAgent {
+					t.Errorf("Set() agent = %v, want %v", a, tt.wantAgent)
 				}
 			}
 		})
 	}
 }
 
-func TestTargetAgent_ShouldExcludePath(t *testing.T) {
+func TestAgent_ShouldExcludePath(t *testing.T) {
 	tests := []struct {
 		name        string
 		targetAgent string
@@ -354,9 +354,9 @@ func TestTargetAgent_ShouldExcludePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var ta TargetAgent
+			var a Agent
 			if tt.targetAgent != "" {
-				if err := ta.Set(tt.targetAgent); err != nil {
+				if err := a.Set(tt.targetAgent); err != nil {
 					t.Fatalf("Set() error = %v", err)
 				}
 			}
@@ -364,26 +364,22 @@ func TestTargetAgent_ShouldExcludePath(t *testing.T) {
 			// Normalize the path for testing
 			normalizedPath := filepath.FromSlash(tt.path)
 
-			if got := ta.ShouldExcludePath(normalizedPath); got != tt.wantExclude {
+			if got := a.ShouldExcludePath(normalizedPath); got != tt.wantExclude {
 				t.Errorf("ShouldExcludePath(%q) = %v, want %v", tt.path, got, tt.wantExclude)
 			}
 		})
 	}
 }
 
-func TestTargetAgent_String(t *testing.T) {
-	var ta TargetAgent
-	ta.Set("cursor")
-
-	str := ta.String()
-	if str != "cursor" {
-		t.Errorf("String() = %q, want %q", str, "cursor")
+func TestAgent_IsSet(t *testing.T) {
+	var a Agent
+	if a.IsSet() {
+		t.Errorf("IsSet() on empty agent = true, want false")
 	}
 
-	// Test empty agent
-	var emptyTA TargetAgent
-	if emptyTA.String() != "" {
-		t.Errorf("String() on empty agent = %q, want empty string", emptyTA.String())
+	a.Set("cursor")
+	if !a.IsSet() {
+		t.Errorf("IsSet() on set agent = false, want true")
 	}
 }
 

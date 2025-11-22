@@ -4,199 +4,156 @@ import (
 	"testing"
 )
 
-func TestMarkdown_ParseFrontmatter(t *testing.T) {
+func TestResult_MCPServers(t *testing.T) {
 	tests := []struct {
-		name        string
-		frontmatter FrontMatter
-		target      any
-		wantErr     bool
-		validate    func(t *testing.T, target any)
+		name   string
+		result Result
+		want   []MCPServerConfig
 	}{
 		{
-			name: "parse into struct with basic fields",
-			frontmatter: FrontMatter{
-				"task_name": "fix-bug",
-				"resume":    false,
-				"priority":  "high",
-			},
-			target: &struct {
-				TaskName string `yaml:"task_name"`
-				Resume   bool   `yaml:"resume"`
-				Priority string `yaml:"priority"`
-			}{},
-			wantErr: false,
-			validate: func(t *testing.T, target any) {
-				meta := target.(*struct {
-					TaskName string `yaml:"task_name"`
-					Resume   bool   `yaml:"resume"`
-					Priority string `yaml:"priority"`
-				})
-				if meta.TaskName != "fix-bug" {
-					t.Errorf("TaskName = %q, want %q", meta.TaskName, "fix-bug")
-				}
-				if meta.Resume != false {
-					t.Errorf("Resume = %v, want %v", meta.Resume, false)
-				}
-				if meta.Priority != "high" {
-					t.Errorf("Priority = %q, want %q", meta.Priority, "high")
-				}
-			},
-		},
-		{
-			name: "parse with nested selectors",
-			frontmatter: FrontMatter{
-				"task_name": "implement-feature",
-				"selectors": map[string]any{
-					"language": "Go",
-					"stage":    "implementation",
+			name: "no MCP servers",
+			result: Result{
+				Rules: []Markdown[RuleFrontMatter]{},
+				Task: Markdown[TaskFrontMatter]{
+					FrontMatter: TaskFrontMatter{},
 				},
 			},
-			target: &struct {
-				TaskName  string         `yaml:"task_name"`
-				Selectors map[string]any `yaml:"selectors"`
-			}{},
-			wantErr: false,
-			validate: func(t *testing.T, target any) {
-				meta := target.(*struct {
-					TaskName  string         `yaml:"task_name"`
-					Selectors map[string]any `yaml:"selectors"`
-				})
-				if meta.TaskName != "implement-feature" {
-					t.Errorf("TaskName = %q, want %q", meta.TaskName, "implement-feature")
-				}
-				if len(meta.Selectors) != 2 {
-					t.Errorf("Selectors length = %d, want 2", len(meta.Selectors))
-				}
-				if meta.Selectors["language"] != "Go" {
-					t.Errorf("Selectors[language] = %v, want Go", meta.Selectors["language"])
-				}
+			want: []MCPServerConfig{},
+		},
+		{
+			name: "MCP servers from task only",
+			result: Result{
+				Rules: []Markdown[RuleFrontMatter]{},
+				Task: Markdown[TaskFrontMatter]{
+					FrontMatter: TaskFrontMatter{
+						MCPServers: []MCPServerConfig{
+							{Type: TransportTypeStdio, Command: "filesystem"},
+							{Type: TransportTypeStdio, Command: "git"},
+						},
+					},
+				},
+			},
+			want: []MCPServerConfig{
+				{Type: TransportTypeStdio, Command: "filesystem"},
+				{Type: TransportTypeStdio, Command: "git"},
 			},
 		},
 		{
-			name: "parse with array values",
-			frontmatter: FrontMatter{
-				"task_name": "test-code",
-				"languages": []any{"Go", "Python", "JavaScript"},
+			name: "MCP servers from rules only",
+			result: Result{
+				Rules: []Markdown[RuleFrontMatter]{
+					{
+						FrontMatter: RuleFrontMatter{
+							MCPServers: []MCPServerConfig{
+								{Type: TransportTypeStdio, Command: "jira"},
+							},
+						},
+					},
+					{
+						FrontMatter: RuleFrontMatter{
+							MCPServers: []MCPServerConfig{
+								{Type: TransportTypeHTTP, URL: "https://api.example.com"},
+							},
+						},
+					},
+				},
+				Task: Markdown[TaskFrontMatter]{
+					FrontMatter: TaskFrontMatter{},
+				},
 			},
-			target: &struct {
-				TaskName  string   `yaml:"task_name"`
-				Languages []string `yaml:"languages"`
-			}{},
-			wantErr: false,
-			validate: func(t *testing.T, target any) {
-				meta := target.(*struct {
-					TaskName  string   `yaml:"task_name"`
-					Languages []string `yaml:"languages"`
-				})
-				if meta.TaskName != "test-code" {
-					t.Errorf("TaskName = %q, want %q", meta.TaskName, "test-code")
-				}
-				if len(meta.Languages) != 3 {
-					t.Errorf("Languages length = %d, want 3", len(meta.Languages))
-				}
-				if meta.Languages[0] != "Go" {
-					t.Errorf("Languages[0] = %q, want Go", meta.Languages[0])
-				}
-			},
-		},
-		{
-			name: "parse with optional fields",
-			frontmatter: FrontMatter{
-				"task_name": "deploy",
-			},
-			target: &struct {
-				TaskName    string `yaml:"task_name"`
-				Environment string `yaml:"environment"`
-				Priority    string `yaml:"priority"`
-			}{},
-			wantErr: false,
-			validate: func(t *testing.T, target any) {
-				meta := target.(*struct {
-					TaskName    string `yaml:"task_name"`
-					Environment string `yaml:"environment"`
-					Priority    string `yaml:"priority"`
-				})
-				if meta.TaskName != "deploy" {
-					t.Errorf("TaskName = %q, want %q", meta.TaskName, "deploy")
-				}
-				// Optional fields should be zero values
-				if meta.Environment != "" {
-					t.Errorf("Environment = %q, want empty string", meta.Environment)
-				}
-				if meta.Priority != "" {
-					t.Errorf("Priority = %q, want empty string", meta.Priority)
-				}
+			want: []MCPServerConfig{
+				{Type: TransportTypeStdio, Command: "jira"},
+				{Type: TransportTypeHTTP, URL: "https://api.example.com"},
 			},
 		},
 		{
-			name:        "nil frontmatter returns error",
-			frontmatter: nil,
-			target: &struct {
-				TaskName string `yaml:"task_name"`
-			}{},
-			wantErr: true,
+			name: "MCP servers from both task and rules",
+			result: Result{
+				Rules: []Markdown[RuleFrontMatter]{
+					{
+						FrontMatter: RuleFrontMatter{
+							MCPServers: []MCPServerConfig{
+								{Type: TransportTypeStdio, Command: "jira"},
+							},
+						},
+					},
+				},
+				Task: Markdown[TaskFrontMatter]{
+					FrontMatter: TaskFrontMatter{
+						MCPServers: []MCPServerConfig{
+							{Type: TransportTypeStdio, Command: "filesystem"},
+						},
+					},
+				},
+			},
+			want: []MCPServerConfig{
+				{Type: TransportTypeStdio, Command: "filesystem"},
+				{Type: TransportTypeStdio, Command: "jira"},
+			},
 		},
 		{
-			name: "nil target returns error",
-			frontmatter: FrontMatter{
-				"task_name": "test",
+			name: "multiple rules with MCP servers",
+			result: Result{
+				Rules: []Markdown[RuleFrontMatter]{
+					{
+						FrontMatter: RuleFrontMatter{
+							MCPServers: []MCPServerConfig{
+								{Type: TransportTypeStdio, Command: "server1"},
+							},
+						},
+					},
+					{
+						FrontMatter: RuleFrontMatter{
+							MCPServers: []MCPServerConfig{
+								{Type: TransportTypeStdio, Command: "server2"},
+							},
+						},
+					},
+					{
+						FrontMatter: RuleFrontMatter{},
+					},
+				},
+				Task: Markdown[TaskFrontMatter]{
+					FrontMatter: TaskFrontMatter{
+						MCPServers: []MCPServerConfig{
+							{Type: TransportTypeStdio, Command: "task-server"},
+						},
+					},
+				},
 			},
-			target:  nil,
-			wantErr: true,
+			want: []MCPServerConfig{
+				{Type: TransportTypeStdio, Command: "task-server"},
+				{Type: TransportTypeStdio, Command: "server1"},
+				{Type: TransportTypeStdio, Command: "server2"},
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			markdown := &Markdown{
-				Path:        "/test/task.md",
-				FrontMatter: tt.frontmatter,
-				Content:     "Test content",
-			}
+			got := tt.result.MCPServers()
 
-			err := markdown.ParseFrontmatter(tt.target)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseFrontmatter() error = %v, wantErr %v", err, tt.wantErr)
+			if len(got) != len(tt.want) {
+				t.Errorf("MCPServers() returned %d servers, want %d", len(got), len(tt.want))
 				return
 			}
 
-			if !tt.wantErr && tt.validate != nil {
-				tt.validate(t, tt.target)
-			}
-		})
-	}
-}
+			for i, wantServer := range tt.want {
+				if i >= len(got) {
+					t.Errorf("MCPServers() missing server at index %d", i)
+					continue
+				}
 
-func TestMarkdown_BootstrapPath(t *testing.T) {
-	tests := []struct {
-		name string
-		path string
-		want string
-	}{
-		{
-			name: "md file",
-			path: "/path/to/task.md",
-			want: "/path/to/task-bootstrap",
-		},
-		{
-			name: "mdc file",
-			path: "/path/to/rule.mdc",
-			want: "/path/to/rule-bootstrap",
-		},
-		{
-			name: "empty path",
-			path: "",
-			want: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := &Markdown{Path: tt.path}
-			got := m.BootstrapPath()
-			if got != tt.want {
-				t.Errorf("BootstrapPath() = %q, want %q", got, tt.want)
+				gotServer := got[i]
+				if gotServer.Type != wantServer.Type {
+					t.Errorf("MCPServers()[%d].Type = %v, want %v", i, gotServer.Type, wantServer.Type)
+				}
+				if gotServer.Command != wantServer.Command {
+					t.Errorf("MCPServers()[%d].Command = %q, want %q", i, gotServer.Command, wantServer.Command)
+				}
+				if gotServer.URL != wantServer.URL {
+					t.Errorf("MCPServers()[%d].URL = %q, want %q", i, gotServer.URL, wantServer.URL)
+				}
 			}
 		})
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -509,21 +510,19 @@ func TestTaskSelectionByFrontmatter(t *testing.T) {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a task file with a different filename than task_name
-	// This tests that filename doesn't matter, only task_name matters
-	taskFile := filepath.Join(tasksDir, "arbitrary-filename.md")
+	// Create a task file - task name is based on filename now
+	taskFile := filepath.Join(tasksDir, "my-special-task.md")
 	taskContent := `---
-task_name: my-special-task
 ---
 # My Special Task
 
-This task has a different filename than task_name.
+This task name is based on the filename.
 `
 	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
-	// Run the program with task name matching the task_name frontmatter, not filename
+	// Run the program with task name matching the filename
 	output := runTool(t, "-C", tmpDir, "my-special-task")
 
 	// Check that task content is present
@@ -573,10 +572,9 @@ func TestMultipleTasksWithSameNameError(t *testing.T) {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create two task files with the SAME task_name
-	taskFile1 := filepath.Join(tasksDir, "file1.md")
+	// Create two task files with the SAME filename in different directories
+	taskFile1 := filepath.Join(tasksDir, "duplicate-task.md")
 	taskContent1 := `---
-task_name: duplicate-task
 ---
 # Task File 1
 
@@ -586,9 +584,13 @@ This is the first file.
 		t.Fatalf("failed to write task file 1: %v", err)
 	}
 
-	taskFile2 := filepath.Join(tasksDir, "file2.md")
+	// Create another file with same name in a different search directory
+	cursorDir := filepath.Join(tmpDir, ".cursor", "commands")
+	if err := os.MkdirAll(cursorDir, 0o755); err != nil {
+		t.Fatalf("failed to create cursor dir: %v", err)
+	}
+	taskFile2 := filepath.Join(cursorDir, "duplicate-task.md")
 	taskContent2 := `---
-task_name: duplicate-task
 ---
 # Task File 2
 
@@ -618,10 +620,9 @@ func TestTaskSelectionWithSelectors(t *testing.T) {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create two task files with the same task_name but different environments
+	// Create two task files with different filenames but same base name and different environments
 	taskFile1 := filepath.Join(tasksDir, "deploy-staging.md")
 	taskContent1 := `---
-task_name: deploy
 environment: staging
 ---
 # Deploy to Staging
@@ -634,7 +635,6 @@ Deploy to the staging environment.
 
 	taskFile2 := filepath.Join(tasksDir, "deploy-production.md")
 	taskContent2 := `---
-task_name: deploy
 environment: production
 ---
 # Deploy to Production
@@ -645,8 +645,8 @@ Deploy to the production environment.
 		t.Fatalf("failed to write production task file: %v", err)
 	}
 
-	// Run the program with selector for staging
-	output := runTool(t, "-C", tmpDir, "-s", "environment=staging", "deploy")
+	// Run the program with selector for staging - use the staging task filename
+	output := runTool(t, "-C", tmpDir, "-s", "environment=staging", "deploy-staging")
 
 	// Check that staging task content is present
 	if !strings.Contains(output, "# Deploy to Staging") {
@@ -656,8 +656,8 @@ Deploy to the production environment.
 		t.Errorf("production task content should not be in stdout when selecting staging")
 	}
 
-	// Run the program with selector for production
-	output = runTool(t, "-C", tmpDir, "-s", "environment=production", "deploy")
+	// Run the program with selector for production - use the production task filename
+	output = runTool(t, "-C", tmpDir, "-s", "environment=production", "deploy-production")
 
 	// Check that production task content is present
 	if !strings.Contains(output, "# Deploy to Production") {
@@ -683,11 +683,18 @@ These are the coding standards for the project.
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
-	// Create a normal task file (with resume: false)
-	normalTaskFile := filepath.Join(dirs.tasksDir, "fix-bug-initial.md")
+	// Create a bootstrap script for the rule file to verify it doesn't run in resume mode
+	ruleBootstrapFile := filepath.Join(dirs.rulesDir, "coding-standards-bootstrap")
+	ruleBootstrapContent := `#!/bin/bash
+echo "RULE_BOOTSTRAP_RAN" >&2
+`
+	if err := os.WriteFile(ruleBootstrapFile, []byte(ruleBootstrapContent), 0o755); err != nil {
+		t.Fatalf("failed to write rule bootstrap file: %v", err)
+	}
+
+	// Create a normal task file (without resume field)
+	normalTaskFile := filepath.Join(dirs.tasksDir, "fix-bug.md")
 	normalTaskContent := `---
-task_name: fix-bug
-resume: false
 ---
 # Fix Bug (Initial)
 
@@ -700,7 +707,6 @@ This is the initial task prompt for fixing a bug.
 	// Create a resume task file (with resume: true)
 	resumeTaskFile := filepath.Join(dirs.tasksDir, "fix-bug-resume.md")
 	resumeTaskContent := `---
-task_name: fix-bug
 resume: true
 ---
 # Fix Bug (Resume)
@@ -711,12 +717,30 @@ This is the resume task prompt for continuing the bug fix.
 		t.Fatalf("failed to write resume task file: %v", err)
 	}
 
-	// Test 1: Run in normal mode (with -s resume=false to select non-resume task)
-	output := runTool(t, "-C", dirs.tmpDir, "-s", "resume=false", "fix-bug")
+	// Test 1: Run in normal mode (without resume selector, or with -s resume=false)
+	// Capture stderr to verify bootstrap scripts DO run in normal mode
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	cmd := exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-s", "resume=false", "fix-bug")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to run binary in normal mode: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
+	}
+	output := stdout.String()
+	stderrOutput := stderr.String()
 
 	// In normal mode, rules should be included
 	if !strings.Contains(output, "# Coding Standards") {
 		t.Errorf("normal mode: rule content not found in stdout")
+	}
+
+	// In normal mode, bootstrap scripts SHOULD run
+	if !strings.Contains(stderrOutput, "RULE_BOOTSTRAP_RAN") {
+		t.Errorf("normal mode: rule bootstrap script should run (stderr: %s)", stderrOutput)
 	}
 
 	// In normal mode, should use the normal task (not resume task)
@@ -727,12 +751,27 @@ This is the resume task prompt for continuing the bug fix.
 		t.Errorf("normal mode: resume task content should not be in stdout")
 	}
 
-	// Test 2: Run in resume mode (with -r flag)
-	output = runTool(t, "-C", dirs.tmpDir, "-r", "fix-bug")
+	// Test 2: Run in resume mode (with -s resume=true selector)
+	// Capture stdout and stderr separately to verify bootstrap scripts don't run
+	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-s", "resume=true", "fix-bug-resume")
+	stdout.Reset()
+	stderr.Reset()
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err = cmd.Run(); err != nil {
+		t.Fatalf("failed to run binary in resume mode: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
+	}
+	output = stdout.String()
+	stderrOutput = stderr.String()
 
 	// In resume mode, rules should NOT be included
 	if strings.Contains(output, "# Coding Standards") {
 		t.Errorf("resume mode: rule content should not be in stdout")
+	}
+
+	// In resume mode, bootstrap scripts should NOT run
+	if strings.Contains(stderrOutput, "RULE_BOOTSTRAP_RAN") {
+		t.Errorf("resume mode: rule bootstrap script should not run (found in stderr: %s)", stderrOutput)
 	}
 
 	// In resume mode, should use the resume task
@@ -741,6 +780,36 @@ This is the resume task prompt for continuing the bug fix.
 	}
 	if strings.Contains(output, "# Fix Bug (Initial)") {
 		t.Errorf("resume mode: normal task content should not be in stdout")
+	}
+
+	// Test 3: Run in resume mode (with -r flag)
+	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-r", "fix-bug-resume")
+	stdout.Reset()
+	stderr.Reset()
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err = cmd.Run(); err != nil {
+		t.Fatalf("failed to run binary in resume mode with -r flag: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
+	}
+	output = stdout.String()
+	stderrOutput = stderr.String()
+
+	// In resume mode with -r flag, rules should NOT be included
+	if strings.Contains(output, "# Coding Standards") {
+		t.Errorf("resume mode (-r flag): rule content should not be in stdout")
+	}
+
+	// In resume mode with -r flag, bootstrap scripts should NOT run
+	if strings.Contains(stderrOutput, "RULE_BOOTSTRAP_RAN") {
+		t.Errorf("resume mode (-r flag): rule bootstrap script should not run (found in stderr: %s)", stderrOutput)
+	}
+
+	// In resume mode with -r flag, should use the resume task
+	if !strings.Contains(output, "# Fix Bug (Resume)") {
+		t.Errorf("resume mode (-r flag): resume task content not found in stdout")
+	}
+	if strings.Contains(output, "# Fix Bug (Initial)") {
+		t.Errorf("resume mode (-r flag): normal task content should not be in stdout")
 	}
 }
 
@@ -913,30 +982,14 @@ This is a test task.
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
-	// Create a bootstrap file for the task (test-task.md -> test-task-bootstrap)
-	bootstrapFile := filepath.Join(dirs.tasksDir, "test-task-bootstrap")
-	bootstrapContent := `#!/bin/bash
-echo "Running task bootstrap"
-`
-	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0o755); err != nil {
-		t.Fatalf("failed to write task bootstrap file: %v", err)
-	}
+	// Note: Tasks no longer have bootstrap scripts - only rules do
 
 	// Run the program
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
-	// Check that bootstrap output appears before task content
-	bootstrapIdx := strings.Index(output, "Running task bootstrap")
-	taskIdx := strings.Index(output, "# Test Task")
-
-	if bootstrapIdx == -1 {
-		t.Errorf("task bootstrap output not found in stdout")
-	}
-	if taskIdx == -1 {
+	// Check that task content is present
+	if !strings.Contains(output, "# Test Task") {
 		t.Errorf("task content not found in stdout")
-	}
-	if bootstrapIdx != -1 && taskIdx != -1 && bootstrapIdx > taskIdx {
-		t.Errorf("task bootstrap output should appear before task content")
 	}
 }
 
@@ -988,7 +1041,7 @@ echo "Running rule bootstrap"
 		t.Fatalf("failed to write rule bootstrap file: %v", err)
 	}
 
-	// Create a task file with bootstrap
+	// Create a task file (tasks no longer have bootstrap scripts)
 	taskFile := filepath.Join(dirs.tasksDir, "deploy-task.md")
 	taskContent := `---
 task_name: deploy-task
@@ -1001,23 +1054,12 @@ Deploy instructions.
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
-	taskBootstrapFile := filepath.Join(dirs.tasksDir, "deploy-task-bootstrap")
-	taskBootstrapContent := `#!/bin/bash
-echo "Running task bootstrap"
-`
-	if err := os.WriteFile(taskBootstrapFile, []byte(taskBootstrapContent), 0o755); err != nil {
-		t.Fatalf("failed to write task bootstrap file: %v", err)
-	}
-
 	// Run the program
 	output := runTool(t, "-C", dirs.tmpDir, "deploy-task")
 
-	// Check that both bootstrap scripts ran
+	// Check that rule bootstrap ran (rules still have bootstrap scripts)
 	if !strings.Contains(output, "Running rule bootstrap") {
 		t.Errorf("rule bootstrap output not found in stdout")
-	}
-	if !strings.Contains(output, "Running task bootstrap") {
-		t.Errorf("task bootstrap output not found in stdout")
 	}
 
 	// Check that both rule and task contents are present
@@ -1028,19 +1070,15 @@ echo "Running task bootstrap"
 		t.Errorf("task content not found in stdout")
 	}
 
-	// Verify the order: rule bootstrap -> rule content -> task bootstrap -> task content
+	// Verify the order: rule bootstrap -> rule content -> task content
 	ruleBootstrapIdx := strings.Index(output, "Running rule bootstrap")
 	ruleContentIdx := strings.Index(output, "# Setup Rule")
-	taskBootstrapIdx := strings.Index(output, "Running task bootstrap")
 	taskContentIdx := strings.Index(output, "# Deploy Task")
 
 	if ruleBootstrapIdx > ruleContentIdx {
 		t.Errorf("rule bootstrap should run before rule content")
 	}
-	if ruleContentIdx > taskBootstrapIdx {
-		t.Errorf("rule content should appear before task bootstrap")
-	}
-	if taskBootstrapIdx > taskContentIdx {
-		t.Errorf("task bootstrap should run before task content")
+	if ruleContentIdx > taskContentIdx {
+		t.Errorf("rule content should appear before task content")
 	}
 }

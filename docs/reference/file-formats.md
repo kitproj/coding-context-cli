@@ -45,6 +45,158 @@ task_name: fix-bug
 coding-context fix-bug
 ```
 
+#### `language` (optional, standard field)
+
+**Type:** String or Array  
+**Purpose:** Specifies the programming language(s) and automatically filters rules with matching language selector
+
+The `language` field is a **standard frontmatter field** that acts as a default selector. When a task specifies a language, only rules with that same language value (or no language field) will be included in the context.
+
+**Example (single language):**
+```yaml
+---
+task_name: implement-feature
+language: go
+---
+```
+
+**Example (multiple languages with OR logic):**
+```yaml
+---
+task_name: polyglot-task
+language:
+  - go
+  - python
+  - javascript
+---
+```
+
+**Behavior:**
+- Rules with `language: go` are included (when task has `language: go`)
+- Rules without a `language` field are included (generic rules)
+- Rules with different language values are excluded
+- When multiple languages are specified, rules matching ANY of them are included (OR logic)
+
+**Equivalent command-line usage:**
+```bash
+# These are equivalent:
+coding-context implement-feature  # (task has language: go)
+coding-context -s language=go implement-feature
+```
+
+#### `single_shot` (optional, standard field)
+
+**Type:** Boolean  
+**Purpose:** Indicates whether the task should be run once or many times; stored in frontmatter output but does not filter rules
+
+The `single_shot` field is a **standard frontmatter field** that provides metadata about task execution. It does not act as a selector.
+
+**Example:**
+```yaml
+---
+task_name: deploy
+single_shot: true
+---
+```
+
+**Common values:**
+- `true` - Task runs once
+- `false` - Task can run multiple times
+
+#### `timeout` (optional, standard field)
+
+**Type:** String (time.Duration format)  
+**Purpose:** Specifies the timeout duration for the task using Go's time.Duration format; stored in frontmatter output but does not filter rules
+
+The `timeout` field is a **standard frontmatter field** that provides metadata about task execution limits. It does not act as a selector.
+
+**Example:**
+```yaml
+---
+task_name: long-running-analysis
+timeout: 10m
+---
+```
+
+**Common time.Duration formats:**
+- `30s` - 30 seconds
+- `5m` - 5 minutes
+- `1h` - 1 hour
+- `1h30m` - 1 hour 30 minutes
+
+#### `mcp_servers` (optional, standard field)
+
+**Type:** Array  
+**Purpose:** Specifies the list of MCP (Model Context Protocol) servers that the task should use; stored in frontmatter output but does not filter rules
+
+The `mcp_servers` field is a **standard frontmatter field** following the industry standard for MCP server definition. It does not act as a selector.
+
+**Example:**
+```yaml
+---
+task_name: file-operations
+mcp_servers:
+  - filesystem
+  - git
+  - database
+---
+```
+
+**Note:** The format follows the MCP specification for server identification.
+
+#### `agent` (optional, standard field)
+
+**Type:** String  
+**Purpose:** Specifies the target agent and automatically filters rules with matching agent selector
+
+The `agent` field is a **standard frontmatter field** that acts as a default selector. When a task specifies an agent, only rules with that same agent value (or no agent field) will be included in the context.
+
+**Example:**
+```yaml
+---
+task_name: implement-feature
+agent: cursor
+---
+```
+
+**Supported agents:** `cursor`, `copilot`, `claude`, `gemini`, `opencode`, `augment`, `windsurf`, `codex`
+
+**Behavior:**
+- Rules with `agent: cursor` are included
+- Rules without an `agent` field are included (generic rules)
+- Rules with different agent values (e.g., `agent: copilot`) are excluded
+
+**Equivalent command-line usage:**
+```bash
+# These are equivalent:
+coding-context implement-feature  # (task has agent: cursor)
+coding-context -a cursor implement-feature
+```
+
+#### `model` (optional, standard field)
+
+**Type:** String  
+**Purpose:** Specifies the AI model to use; stored in frontmatter output but does not filter rules
+
+The `model` field is a **standard frontmatter field** that provides metadata about which AI model should be used for the task. Unlike the `agent` field, the `model` field does not act as a selector and does not filter rules.
+
+**Example:**
+```yaml
+---
+task_name: code-review
+agent: copilot
+model: anthropic.claude-sonnet-4-20250514-v1-0
+---
+```
+
+**Common model values:**
+- `anthropic.claude-sonnet-4-20250514-v1-0`
+- `gpt-4`
+- `gpt-4-turbo`
+- `gemini-pro`
+
+**Note:** The model field is purely informational and appears in the task frontmatter output for the AI agent to use as configuration.
+
 #### Custom Fields (optional)
 
 Any additional YAML fields can be used for selector-based filtering.
@@ -75,20 +227,20 @@ The `selectors` field allows a task to specify which rules should be included wh
 ---
 task_name: implement-feature
 selectors:
-  language: Go
+  language: go
   stage: implementation
 ---
 ```
 
 **Usage:**
 ```bash
-# Automatically includes rules with language=Go AND stage=implementation
+# Automatically includes rules with language=go AND stage=implementation
 coding-context implement-feature
 ```
 
 This is equivalent to:
 ```bash
-coding-context -s language=Go -s stage=implementation implement-feature
+coding-context -s language=go -s stage=implementation implement-feature
 ```
 
 **OR Logic with Arrays:**
@@ -104,7 +256,7 @@ selectors:
 ---
 ```
 
-This matches rules where `(language=Go OR language=Python OR language=JavaScript) AND stage=testing`.
+This matches rules where `(language=go OR language=python OR language=javascript) AND stage=testing`.
 
 **Combining with Command-Line Selectors:**
 
@@ -113,7 +265,7 @@ Selectors from the task frontmatter and command-line `-s` flags are combined (ad
 ```bash
 # Task frontmatter has: selectors.language = Go
 # Command line adds: -s priority=high
-# Result: Rules must match language=Go AND priority=high
+# Result: Rules must match language=go AND priority=high
 coding-context -s priority=high implement-feature
 ```
 
@@ -186,14 +338,101 @@ Guidelines, standards, or context for AI agents.
 
 All frontmatter fields are optional and used for filtering.
 
-**Common fields:**
+**Standard fields for rules:**
+
+#### `task_name` (rule selector)
+
+Specifies which task(s) this rule applies to. Can be a string or array.
+
 ```yaml
 ---
-language: Go
+task_name: fix-bug
+---
+# This rule only applies to the 'fix-bug' task
+```
+
+**Multiple tasks (OR logic):**
+```yaml
+---
+task_name:
+  - fix-bug
+  - implement-feature
+  - refactor
+---
+# This rule applies to any of these three tasks
+```
+
+**Behavior:**
+- When a task is run, rules with matching `task_name` are included
+- Rules without `task_name` are included for all tasks (generic rules)
+- The task's own `task_name` is automatically added as a selector
+
+#### `language` (rule selector)
+
+Specifies which programming language(s) this rule applies to. Can be a string or array.
+
+```yaml
+---
+language: go
+---
+# This rule only applies when language=go is selected
+```
+
+**Multiple languages (OR logic):**
+```yaml
+---
+language:
+  - Go
+  - Python
+  - JavaScript
+---
+# This rule applies to any of these languages
+```
+
+**Behavior:**
+- When a task has `language: go`, rules with `language: go` are included
+- Rules without `language` are included (generic rules)
+- Can also be filtered via `-s language=go` command-line flag
+
+#### `agent` (rule selector)
+
+Specifies which AI agent this rule is intended for.
+
+```yaml
+---
+agent: cursor
+---
+# Rule specific to Cursor AI agent
+```
+
+**Behavior:**
+- If task/CLI specifies `agent: cursor`, only rules with `agent: cursor` or no agent field are included
+- Rules without an agent field are considered generic and always included (unless other selectors exclude them)
+
+#### `mcp_servers` (rule metadata)
+
+Specifies MCP servers that need to be running for this rule. Does not filter rules.
+
+```yaml
+---
+mcp_servers:
+  - filesystem
+  - database
+---
+# Metadata indicating required MCP servers
+```
+
+**Note:** This field is informational and does not affect rule selection.
+
+**Other common fields:**
+```yaml
+---
+language: go
 stage: implementation
 priority: high
 team: backend
-source: jira
+agent: cursor
+task_name: implement-feature
 ---
 ```
 
@@ -282,14 +521,14 @@ boolean_key: true
 ```yaml
 # ✅ Supported
 ---
-language: Go
+language: go
 stage: testing
 ---
 
 # ❌ Not supported (nested fields)
 ---
 metadata:
-  language: Go
+  language: go
   stage: testing
 ---
 ```
@@ -297,10 +536,10 @@ metadata:
 **Selectors match top-level only:**
 ```bash
 # Works with top-level fields
-coding-context -s language=Go fix-bug
+coding-context -s language=go fix-bug
 
 # Doesn't work with nested fields
-coding-context -s metadata.language=Go fix-bug  # Won't match
+coding-context -s metadata.language=go fix-bug  # Won't match
 ```
 
 ### Data Types
@@ -311,7 +550,7 @@ Frontmatter values are treated as strings for matching:
 ---
 priority: 1
 enabled: true
-language: Go
+language: go
 ---
 ```
 
@@ -319,7 +558,7 @@ language: Go
 # All values are matched as strings
 coding-context -s priority=1 task       # Matches priority: 1
 coding-context -s enabled=true task     # Matches enabled: true
-coding-context -s language=Go task      # Matches language: Go
+coding-context -s language=go task      # Matches language: go
 ```
 
 ## Special Behaviors

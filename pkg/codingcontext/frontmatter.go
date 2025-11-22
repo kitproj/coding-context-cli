@@ -1,4 +1,6 @@
 package codingcontext
 
-// FrontMatter represents parsed YAML frontmatter from markdown files
-type FrontMatter map[string]any
+// BaseFrontMatter represents parsed YAML frontmatter from markdown files
+type BaseFrontMatter struct {
+	Content map[string]any `json:"-" yaml:",inline"`
+}

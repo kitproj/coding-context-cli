@@ -85,9 +85,9 @@ func (s *Selectors) GetValue(key, value string) bool {
 // MatchesIncludes returns true if the frontmatter matches all include selectors
 // If a key doesn't exist in frontmatter, it's allowed
 // Multiple values for the same key use OR logic (matches if frontmatter value is in the inner map)
-func (includes *Selectors) MatchesIncludes(frontmatter FrontMatter) bool {
+func (includes *Selectors) MatchesIncludes(frontmatter BaseFrontMatter) bool {
 	for key, values := range *includes {
-		fmValue, exists := frontmatter[key]
+		fmValue, exists := frontmatter.Content[key]
 		if !exists {
 			// If key doesn't exist in frontmatter, allow it
 			continue

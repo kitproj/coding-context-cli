@@ -68,8 +68,8 @@ This is the content.
 			}
 
 			// Parse the file
-			var frontmatter map[string]string
-			content, err := ParseMarkdownFile(tmpFile, &frontmatter)
+			var frontmatter BaseFrontMatter
+			md, err := ParseMarkdownFile(tmpFile, &frontmatter)
 
 			// Check error
 			if (err != nil) != tt.wantErr {
@@ -78,17 +78,17 @@ This is the content.
 			}
 
 			// Check content
-			if content != tt.wantContent {
-				t.Errorf("ParseMarkdownFile() content = %q, want %q", content, tt.wantContent)
+			if md.Content != tt.wantContent {
+				t.Errorf("ParseMarkdownFile() content = %q, want %q", md.Content, tt.wantContent)
 			}
 
 			// Check frontmatter
-			if len(frontmatter) != len(tt.wantFrontmatter) {
-				t.Errorf("ParseMarkdownFile() frontmatter length = %d, want %d", len(frontmatter), len(tt.wantFrontmatter))
+			if len(frontmatter.Content) != len(tt.wantFrontmatter) {
+				t.Errorf("ParseMarkdownFile() frontmatter length = %d, want %d", len(frontmatter.Content), len(tt.wantFrontmatter))
 			}
 			for k, v := range tt.wantFrontmatter {
-				if frontmatter[k] != v {
-					t.Errorf("ParseMarkdownFile() frontmatter[%q] = %q, want %q", k, frontmatter[k], v)
+				if fmVal, ok := frontmatter.Content[k].(string); !ok || fmVal != v {
+					t.Errorf("ParseMarkdownFile() frontmatter[%q] = %v, want %q", k, frontmatter.Content[k], v)
 				}
 			}
 		})
@@ -96,7 +96,7 @@ This is the content.
 }
 
 func TestParseMarkdownFile_FileNotFound(t *testing.T) {
-	var frontmatter map[string]string
+	var frontmatter BaseFrontMatter
 	_, err := ParseMarkdownFile("/nonexistent/file.md", &frontmatter)
 	if err == nil {
 		t.Error("ParseMarkdownFile() expected error for non-existent file, got nil")
@@ -186,7 +186,7 @@ This task has no frontmatter.
 
 			// Parse the file into custom struct
 			var frontmatter TaskFrontmatter
-			content, err := ParseMarkdownFile(tmpFile, &frontmatter)
+			md, err := ParseMarkdownFile(tmpFile, &frontmatter)
 
 			// Check error
 			if (err != nil) != tt.wantErr {
@@ -195,8 +195,8 @@ This task has no frontmatter.
 			}
 
 			// Check content
-			if content != tt.wantContent {
-				t.Errorf("ParseMarkdownFile() content = %q, want %q", content, tt.wantContent)
+			if md.Content != tt.wantContent {
+				t.Errorf("ParseMarkdownFile() content = %q, want %q", md.Content, tt.wantContent)
 			}
 
 			// Check frontmatter fields

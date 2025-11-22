@@ -1,74 +1,41 @@
 package codingcontext
 
-import (
-	"fmt"
-	"path/filepath"
-	"strings"
-
-	yaml "github.com/goccy/go-yaml"
-)
-
 // Markdown represents a markdown file with frontmatter and content
-type Markdown struct {
-	Path        string      // Path to the markdown file
-	FrontMatter FrontMatter // Parsed YAML frontmatter
-	Content     string      // Expanded content of the markdown
-	Tokens      int         // Estimated token count
+type Markdown[T any] struct {
+	FrontMatter T      // Parsed YAML frontmatter
+	Content     string // Expanded content of the markdown
+	Tokens      int    // Estimated token count
 }
 
-// BootstrapPath returns the path to the bootstrap script for this markdown file, if it exists.
-// Returns empty string if the path is empty.
-func (m *Markdown) BootstrapPath() string {
-	if m.Path == "" {
-		return ""
-	}
-	ext := filepath.Ext(m.Path)
-	baseNameWithoutExt := strings.TrimSuffix(m.Path, ext)
-	return baseNameWithoutExt + "-bootstrap"
-}
+// TaskMarkdown is a Markdown with TaskFrontMatter
+type TaskMarkdown = Markdown[TaskFrontMatter]
 
-// ParseFrontmatter unmarshals the frontmatter into the provided struct.
-// The target parameter should be a pointer to a struct with yaml tags.
-// Returns an error if the frontmatter cannot be unmarshaled into the target.
-//
-// Example:
-//
-//	type TaskMeta struct {
-//	    TaskName string   `yaml:"task_name"`
-//	    Resume   bool     `yaml:"resume"`
-//	    Priority string   `yaml:"priority"`
-//	}
-//
-//	var meta TaskMeta
-//	if err := markdown.ParseFrontmatter(&meta); err != nil {
-//	    // handle error
-//	}
-func (m *Markdown) ParseFrontmatter(target any) error {
-	if target == nil {
-		return fmt.Errorf("target cannot be nil")
-	}
-
-	if m.FrontMatter == nil {
-		return fmt.Errorf("frontmatter is nil")
-	}
-
-	// Marshal the frontmatter map to YAML bytes, then unmarshal into target
-	// This approach leverages the existing YAML library without adding new dependencies
-	yamlBytes, err := yaml.Marshal(m.FrontMatter)
-	if err != nil {
-		return fmt.Errorf("failed to marshal frontmatter: %w", err)
-	}
-
-	// Unmarshal the YAML bytes into the target struct
-	if err := yaml.Unmarshal(yamlBytes, target); err != nil {
-		return fmt.Errorf("failed to unmarshal frontmatter into target: %w", err)
-	}
-
-	return nil
-}
+// RuleMarkdown is a Markdown with RuleFrontMatter
+type RuleMarkdown = Markdown[RuleFrontMatter]
 
 // Result holds the assembled context from running a task
 type Result struct {
-	Rules []Markdown // List of included rule files
-	Task  Markdown   // Task file with frontmatter and content
+	Rules []Markdown[RuleFrontMatter] // List of included rule files
+	Task  Markdown[TaskFrontMatter]   // Task file with frontmatter and content
+}
+
+// MCPServers returns all MCP servers from both rules and the task.
+// Servers from the task are included first, followed by servers from rules.
+// Duplicate servers may be present if the same server is specified in multiple places.
+func (r *Result) MCPServers() []MCPServerConfig {
+	var servers []MCPServerConfig
+
+	// Add servers from task first
+	if r.Task.FrontMatter.MCPServers != nil {
+		servers = append(servers, r.Task.FrontMatter.MCPServers...)
+	}
+
+	// Add servers from all rules
+	for _, rule := range r.Rules {
+		if rule.FrontMatter.MCPServers != nil {
+			servers = append(servers, rule.FrontMatter.MCPServers...)
+		}
+	}
+
+	return servers
 }

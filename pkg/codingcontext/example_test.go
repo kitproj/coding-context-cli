@@ -5,21 +5,13 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/goccy/go-yaml"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext"
 )
 
-// TaskMetadata represents the custom frontmatter structure for a task
-type TaskMetadata struct {
-	TaskName    string         `yaml:"task_name"`
-	Resume      bool           `yaml:"resume"`
-	Priority    string         `yaml:"priority"`
-	Environment string         `yaml:"environment"`
-	Selectors   map[string]any `yaml:"selectors"`
-}
-
-// ExampleMarkdown_ParseFrontmatter demonstrates how to parse task frontmatter
-// into a custom struct when using the coding-context library.
-func ExampleMarkdown_ParseFrontmatter() {
+// ExampleMarkdown_FrontMatter demonstrates how to access task frontmatter
+// when using the coding-context library.
+func ExampleMarkdown_FrontMatter() {
 	// Create a context and run it to get a result
 	// In a real application, you would configure this properly
 	cc := codingcontext.New(
@@ -37,25 +29,22 @@ func ExampleMarkdown_ParseFrontmatter() {
 		log.Fatal(err)
 	}
 
-	// Parse the task frontmatter into your custom struct
-	var taskMeta TaskMetadata
-	if err := result.Task.ParseFrontmatter(&taskMeta); err != nil {
-		log.Fatal(err)
-	}
+	// Access the task frontmatter Content map directly
+	taskName, _ := result.Task.FrontMatter.Content["task_name"].(string)
+	priority, _ := result.Task.FrontMatter.Content["priority"].(string)
+	environment, _ := result.Task.FrontMatter.Content["environment"].(string)
 
-	// Now you can use the strongly-typed task metadata
-	fmt.Printf("Task: %s\n", taskMeta.TaskName)
-	fmt.Printf("Priority: %s\n", taskMeta.Priority)
-	fmt.Printf("Environment: %s\n", taskMeta.Environment)
+	// Now you can use the frontmatter values
+	fmt.Printf("Task: %s\n", taskName)
+	fmt.Printf("Priority: %s\n", priority)
+	fmt.Printf("Environment: %s\n", environment)
 
-	// You can also parse rule frontmatter the same way
+	// You can also access rule frontmatter the same way
 	for _, rule := range result.Rules {
-		var ruleMeta struct {
-			Language string `yaml:"language"`
-			Stage    string `yaml:"stage"`
-		}
-		if err := rule.ParseFrontmatter(&ruleMeta); err == nil {
-			fmt.Printf("Rule: language=%s, stage=%s\n", ruleMeta.Language, ruleMeta.Stage)
+		if language, ok := rule.FrontMatter.Content["language"].(string); ok {
+			if stage, ok := rule.FrontMatter.Content["stage"].(string); ok {
+				fmt.Printf("Rule: language=%s, stage=%s\n", language, stage)
+			}
 		}
 	}
 }
@@ -71,12 +60,17 @@ func ExampleParseMarkdownFile() {
 		Tags     []string `yaml:"tags"`
 	}
 
-	// Parse the markdown file
-	var frontmatter TaskFrontmatter
-	content, err := codingcontext.ParseMarkdownFile("path/to/task.md", &frontmatter)
+	// Parse the markdown file into a BaseFrontMatter
+	var frontmatterMap codingcontext.BaseFrontMatter
+	md, err := codingcontext.ParseMarkdownFile("path/to/task.md", &frontmatterMap)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Unmarshal the Content into your struct if needed
+	var frontmatter TaskFrontmatter
+	yamlBytes, _ := yaml.Marshal(frontmatterMap.Content)
+	yaml.Unmarshal(yamlBytes, &frontmatter)
 
 	// Access the parsed frontmatter
 	fmt.Printf("Task: %s\n", frontmatter.TaskName)
@@ -85,5 +79,5 @@ func ExampleParseMarkdownFile() {
 	fmt.Printf("Tags: %v\n", frontmatter.Tags)
 
 	// Access the content
-	fmt.Printf("Content length: %d\n", len(content))
+	fmt.Printf("Content length: %d\n", len(md.Content))
 }

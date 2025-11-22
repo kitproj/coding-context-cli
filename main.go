@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -22,16 +21,16 @@ func main() {
 
 	var workDir string
 	var resume bool
+	var agent codingcontext.Agent
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
-	var targetAgent codingcontext.TargetAgent
 	var remotePaths []string
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
-	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
+	flag.Var(&agent, "a", "Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
+	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.Var(&targetAgent, "a", "Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.Func("d", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
 		remotePaths = append(remotePaths, s)
 		return nil
@@ -55,12 +54,12 @@ func main() {
 
 	cc := codingcontext.New(
 		codingcontext.WithWorkDir(workDir),
-		codingcontext.WithResume(resume),
 		codingcontext.WithParams(params),
 		codingcontext.WithSelectors(includes),
-		codingcontext.WithAgent(targetAgent),
 		codingcontext.WithRemotePaths(remotePaths),
 		codingcontext.WithLogger(logger),
+		codingcontext.WithResume(resume),
+		codingcontext.WithAgent(agent),
 	)
 
 	result, err := cc.Run(ctx, args[0])
@@ -71,9 +70,9 @@ func main() {
 	}
 
 	// Output task frontmatter (always enabled)
-	if result.Task.FrontMatter != nil {
+	if taskContent := result.Task.FrontMatter.Content; taskContent != nil {
 		fmt.Println("---")
-		if err := yaml.NewEncoder(os.Stdout).Encode(result.Task.FrontMatter); err != nil {
+		if err := yaml.NewEncoder(os.Stdout).Encode(taskContent); err != nil {
 			logger.Error("Failed to encode task frontmatter", "error", err)
 			os.Exit(1)
 		}
@@ -83,24 +82,6 @@ func main() {
 	// Output all rules
 	for _, rule := range result.Rules {
 		fmt.Println(rule.Content)
-	}
-
-	// Run task bootstrap script if it exists
-	if bootstrapPath := result.Task.BootstrapPath(); bootstrapPath != "" {
-		if _, err := os.Stat(bootstrapPath); err == nil {
-			// Make it executable
-			if err := os.Chmod(bootstrapPath, 0o755); err != nil {
-				logger.Error("Failed to chmod task bootstrap file", "path", bootstrapPath, "error", err)
-			} else {
-				logger.Info("Running task bootstrap script", "path", bootstrapPath)
-				cmd := exec.Command(bootstrapPath)
-				cmd.Stdout = os.Stderr
-				cmd.Stderr = os.Stderr
-				if err := cmd.Run(); err != nil {
-					logger.Error("Task bootstrap script failed", "path", bootstrapPath, "error", err)
-				}
-			}
-		}
 	}
 
 	// Output task
