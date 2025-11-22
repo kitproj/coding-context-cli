@@ -467,14 +467,9 @@ func (cc *Context) parseTaskFile() error {
 		}
 	}
 
-	// "languages" field: filters rules by language
-	// Array for OR logic
-	for _, lang := range cc.task.FrontMatter.Languages {
-		cc.includes.SetValue("languages", lang)
-	}
-
 	// Note: The following fields are stored in frontmatter but don't act as selectors.
 	// They're simply passed through in the task frontmatter output:
+	// - "languages": programming languages (metadata only - use selectors to filter by language)
 	// - "model": AI model identifier
 	// - "single_shot": whether task runs once or many times
 	// - "timeout": task timeout duration
