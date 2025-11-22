@@ -123,24 +123,19 @@ func TestParseParams(t *testing.T) {
 			expected: Params{"key1": "value with spaces", "key2": "value2"},
 		},
 		{
-			name:     "single-quoted value with spaces",
-			input:    `key1='value with spaces' key2=value2`,
-			expected: Params{"key1": "value with spaces", "key2": "value2"},
-		},
-		{
 			name:     "escaped double quotes",
 			input:    `key1="value with \"escaped\" quotes"`,
 			expected: Params{"key1": `value with "escaped" quotes`},
 		},
 		{
-			name:     "escaped single quotes",
-			input:    `key1='value with \'escaped\' quotes'`,
-			expected: Params{"key1": `value with 'escaped' quotes`},
+			name:     "mixed quoted and unquoted",
+			input:    `key1="quoted value" key2=unquoted`,
+			expected: Params{"key1": "quoted value", "key2": "unquoted"},
 		},
 		{
-			name:     "mixed quoted and unquoted",
-			input:    `key1="quoted value" key2=unquoted key3='single quoted'`,
-			expected: Params{"key1": "quoted value", "key2": "unquoted", "key3": "single quoted"},
+			name:     "single quote treated as unquoted",
+			input:    `key1='value' key2=value2`,
+			expected: Params{"key1": "'value'", "key2": "value2"},
 		},
 		{
 			name:     "value with equals sign in quotes",

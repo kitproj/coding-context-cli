@@ -27,11 +27,10 @@ func (p *Params) Set(value string) error {
 }
 
 // ParseParams parses a string containing key=value pairs separated by spaces.
-// Values can be quoted with single or double quotes, and quotes can be escaped.
+// Values can be quoted with double quotes, and quotes can be escaped.
 // Examples:
 //   - "key1=value1 key2=value2"
 //   - `key1="value with spaces" key2=value2`
-//   - `key1='value with spaces' key2=value2`
 //   - `key1="value with \"escaped\" quotes"`
 func ParseParams(s string) Params {
 	params := make(Params)
@@ -86,21 +85,6 @@ func ParseParams(s string) Params {
 					value.WriteByte('"')
 					i += 2
 				} else if s[i] == '"' {
-					i++ // skip closing quote
-					break
-				} else {
-					value.WriteByte(s[i])
-					i++
-				}
-			}
-		} else if s[i] == '\'' {
-			// Single-quoted value
-			i++ // skip opening quote
-			for i < len(s) {
-				if s[i] == '\\' && i+1 < len(s) && s[i+1] == '\'' {
-					value.WriteByte('\'')
-					i += 2
-				} else if s[i] == '\'' {
 					i++ // skip closing quote
 					break
 				} else {
