@@ -2,12 +2,15 @@ package codingcontext
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/hashicorp/go-getter/v2"
 )
 
 // Context holds the configuration and state for assembling coding context
@@ -15,8 +18,7 @@ type Context struct {
 	workDir          string
 	params           Params
 	includes         Selectors
-	remotePaths      []string
-	downloadedDirs   []string
+	searchPaths      []string
 	matchingTaskFile string
 	task             Markdown[TaskFrontMatter]   // Parsed task
 	rules            []Markdown[RuleFrontMatter] // Collected rule files
@@ -51,10 +53,10 @@ func WithSelectors(selectors Selectors) Option {
 	}
 }
 
-// WithRemotePaths sets the remote paths
-func WithRemotePaths(paths []string) Option {
+// WithSearchPath sets a search path
+func WithSearchPaths(paths ...string) Option {
 	return func(c *Context) {
-		c.remotePaths = paths
+		c.searchPaths = append(c.searchPaths, paths...)
 	}
 }
 
@@ -213,39 +215,43 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	return result, nil
 }
 
+func downloadDir(path string) string {
+	// hash the path and prepend it with a temporary directory
+	hash := sha256.Sum256([]byte(path))
+	tempDir := os.TempDir()
+	return filepath.Join(tempDir, fmt.Sprintf("%x", hash))
+}
+
 func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
-	for _, remotePath := range cc.remotePaths {
-		cc.logger.Info("Downloading remote directory", "path", remotePath)
-		localPath, err := downloadRemoteDirectory(ctx, remotePath)
-		if err != nil {
-			return fmt.Errorf("failed to download remote directory %s: %w", remotePath, err)
+	for _, path := range cc.searchPaths {
+		cc.logger.Info("Downloading remote directory", "path", path)
+		dst := downloadDir(path)
+		if _, err := getter.Get(ctx, dst, path); err != nil {
+			return fmt.Errorf("failed to download remote directory %s: %w", path, err)
 		}
-		cc.downloadedDirs = append(cc.downloadedDirs, localPath)
-		cc.logger.Info("Downloaded to", "path", localPath)
+		cc.logger.Info("Downloaded to", "path", dst)
 	}
 
 	return nil
 }
 
 func (cc *Context) cleanupDownloadedDirectories() {
-	for _, dir := range cc.downloadedDirs {
-		if dir == "" {
-			continue
-		}
-
-		if err := os.RemoveAll(dir); err != nil {
-			cc.logger.Error("Error cleaning up downloaded directory", "path", dir, "error", err)
+	for _, path := range cc.searchPaths {
+		dst := downloadDir(path)
+		if err := os.RemoveAll(dst); err != nil {
+			cc.logger.Error("Error cleaning up downloaded directory", "path", dst, "error", err)
 		}
 	}
 }
 
 func (cc *Context) findTaskFile(homeDir string, taskName string) error {
-	// find the task file by matching filename (without .md extension)
-	taskSearchDirs := AllTaskSearchPaths(cc.workDir, homeDir)
 
+	var taskSearchDirs []string
 	// Add downloaded remote directories to task search paths
-	for _, dir := range cc.downloadedDirs {
-		taskSearchDirs = append(taskSearchDirs, DownloadedTaskSearchPaths(dir)...)
+	for _, path := range cc.searchPaths {
+		dst := downloadDir(path)
+		subPaths := taskSearchPaths(dst)
+		taskSearchDirs = append(taskSearchDirs, subPaths...)
 	}
 
 	for _, dir := range taskSearchDirs {
@@ -315,15 +321,15 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 		return nil
 	}
 
-	// Build the list of rule locations (local and remote)
-	rulePaths := AllRulePaths(cc.workDir, homeDir)
-
-	// Append remote directories to rule paths
-	for _, dir := range cc.downloadedDirs {
-		rulePaths = append(rulePaths, DownloadedRulePaths(dir)...)
+	var ruleSearchDirs []string
+	for _, path := range cc.searchPaths {
+		dst := downloadDir(path)
+		subPaths := rulePaths(dst, path == homeDir)
+		ruleSearchDirs = append(ruleSearchDirs, subPaths...)
 	}
 
-	for _, rule := range rulePaths {
+	// Build the list of rule locations (local and remote)
+	for _, rule := range ruleSearchDirs {
 		// Skip if this path should be excluded based on target agent
 		if cc.agent.ShouldExcludePath(rule) {
 			cc.logger.Info("Excluding rule path (target agent filtering)", "path", rule)

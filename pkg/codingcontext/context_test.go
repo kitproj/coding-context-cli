@@ -130,8 +130,12 @@ func TestRun(t *testing.T) {
 				workDir:  tmpDir,
 				params:   tt.params,
 				includes: tt.includes,
-				rules:    make([]Markdown[RuleFrontMatter], 0),
-				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
+				searchPaths: func() []string {
+					abs, _ := filepath.Abs(tmpDir)
+					return []string{"file://" + abs}
+				}(),
+				rules:  make([]Markdown[RuleFrontMatter], 0),
+				logger: slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
 				},
@@ -176,13 +180,13 @@ func TestRun(t *testing.T) {
 
 func TestFindTaskFile(t *testing.T) {
 	tests := []struct {
-		name           string
-		taskName       string
-		includes       Selectors
-		setupFiles     func(t *testing.T, tmpDir string)
-		downloadedDirs []string // Directories to add to downloadedDirs
-		wantErr        bool
-		errContains    string
+		name        string
+		taskName    string
+		includes    Selectors
+		setupFiles  func(t *testing.T, tmpDir string)
+		searchPaths []string // Search paths to use (will be downloaded via downloadDir)
+		wantErr     bool
+		errContains string
 	}{
 		{
 			name:     "task file not found",
@@ -272,8 +276,8 @@ func TestFindTaskFile(t *testing.T) {
 					"",
 					"# Downloaded Task")
 			},
-			downloadedDirs: []string{"downloaded"}, // Relative path, will be joined with tmpDir
-			wantErr:        false,
+			searchPaths: []string{"downloaded"}, // Will be resolved relative to tmpDir
+			wantErr:     false,
 		},
 		{
 			name:     "task file found in .cursor/commands directory",
@@ -297,8 +301,8 @@ func TestFindTaskFile(t *testing.T) {
 					"",
 					"# Cursor Remote Task")
 			},
-			downloadedDirs: []string{"downloaded"}, // Relative path, will be joined with tmpDir
-			wantErr:        false,
+			searchPaths: []string{"downloaded"}, // Will be resolved relative to tmpDir
+			wantErr:     false,
 		},
 		{
 			name:     "task file found in .opencode/command directory",
@@ -322,8 +326,8 @@ func TestFindTaskFile(t *testing.T) {
 					"",
 					"# OpenCode Remote Task")
 			},
-			downloadedDirs: []string{"downloaded"}, // Relative path, will be joined with tmpDir
-			wantErr:        false,
+			searchPaths: []string{"downloaded"}, // Will be resolved relative to tmpDir
+			wantErr:     false,
 		},
 	}
 
@@ -344,19 +348,50 @@ func TestFindTaskFile(t *testing.T) {
 
 			cc := &Context{
 				includes: tt.includes,
+				logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 			}
 			if cc.includes == nil {
 				cc.includes = make(Selectors)
 			}
 			cc.includes.SetValue("task_name", tt.taskName)
 
-			// Set downloadedDirs if specified in test case
-			if len(tt.downloadedDirs) > 0 {
-				cc.downloadedDirs = make([]string, len(tt.downloadedDirs))
-				for i, dir := range tt.downloadedDirs {
-					cc.downloadedDirs[i] = filepath.Join(tmpDir, dir)
-				}
+			// Always add tmpDir to searchPaths so local files are found
+			// Ensure absolute path for go-getter
+			absTmpDir, err := filepath.Abs(tmpDir)
+			if err != nil {
+				t.Fatalf("failed to get absolute path: %v", err)
 			}
+			cc.searchPaths = []string{"file://" + absTmpDir}
+
+			// Add additional searchPaths if specified in test case
+			if len(tt.searchPaths) > 0 {
+				additionalPaths := make([]string, len(tt.searchPaths))
+				for i, path := range tt.searchPaths {
+					// Convert relative paths to absolute file:// URLs
+					if strings.HasPrefix(path, "file://") {
+						// Already a file:// URL, resolve relative to tmpDir
+						relPath := strings.TrimPrefix(path, "file://")
+						absPath, err := filepath.Abs(filepath.Join(tmpDir, relPath))
+						if err != nil {
+							t.Fatalf("failed to get absolute path: %v", err)
+						}
+						additionalPaths[i] = "file://" + absPath
+					} else {
+						absPath, err := filepath.Abs(filepath.Join(tmpDir, path))
+						if err != nil {
+							t.Fatalf("failed to get absolute path: %v", err)
+						}
+						additionalPaths[i] = "file://" + absPath
+					}
+				}
+				cc.searchPaths = append(cc.searchPaths, additionalPaths...)
+			}
+
+			// Download the directories
+			if err := cc.downloadRemoteDirectories(context.Background()); err != nil {
+				t.Fatalf("failed to download remote directories: %v", err)
+			}
+			defer cc.cleanupDownloadedDirectories()
 
 			homeDir, err := os.UserHomeDir()
 			if err != nil {
@@ -389,7 +424,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 		includes           Selectors
 		params             Params // Parameters for template expansion
 		setupFiles         func(t *testing.T, tmpDir string)
-		downloadedDirs     []string // Directories to add to downloadedDirs
+		searchPaths        []string // Search paths to use (will be downloaded via downloadDir)
 		wantTokens         int
 		wantMinTokens      bool // Check that tokens > 0
 		expectInOutput     string
@@ -483,7 +518,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 					"",
 					"# Remote Rule")
 			},
-			downloadedDirs: []string{"downloaded"}, // Relative path, will be joined with tmpDir
+			searchPaths:    []string{"file://downloaded"}, // Will be resolved relative to tmpDir
 			wantMinTokens:  true,
 			expectInOutput: "Downloaded Rule",
 		},
@@ -577,13 +612,42 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 				cc.params = make(Params)
 			}
 
-			// Set downloadedDirs if specified in test case
-			if len(tt.downloadedDirs) > 0 {
-				cc.downloadedDirs = make([]string, len(tt.downloadedDirs))
-				for i, dir := range tt.downloadedDirs {
-					cc.downloadedDirs[i] = filepath.Join(tmpDir, dir)
-				}
+			// Always add tmpDir to searchPaths so local files are found
+			absTmpDir, err := filepath.Abs(tmpDir)
+			if err != nil {
+				t.Fatalf("failed to get absolute path: %v", err)
 			}
+			cc.searchPaths = []string{"file://" + absTmpDir}
+
+			// Add additional searchPaths if specified in test case
+			if len(tt.searchPaths) > 0 {
+				additionalPaths := make([]string, len(tt.searchPaths))
+				for i, path := range tt.searchPaths {
+					// Convert relative paths to absolute file:// URLs
+					if strings.HasPrefix(path, "file://") {
+						// Already a file:// URL, resolve relative to tmpDir
+						relPath := strings.TrimPrefix(path, "file://")
+						absPath, err := filepath.Abs(filepath.Join(tmpDir, relPath))
+						if err != nil {
+							t.Fatalf("failed to get absolute path: %v", err)
+						}
+						additionalPaths[i] = "file://" + absPath
+					} else {
+						absPath, err := filepath.Abs(filepath.Join(tmpDir, path))
+						if err != nil {
+							t.Fatalf("failed to get absolute path: %v", err)
+						}
+						additionalPaths[i] = "file://" + absPath
+					}
+				}
+				cc.searchPaths = append(cc.searchPaths, additionalPaths...)
+			}
+
+			// Download the directories
+			if err := cc.downloadRemoteDirectories(context.Background()); err != nil {
+				t.Fatalf("failed to download remote directories: %v", err)
+			}
+			defer cc.cleanupDownloadedDirectories()
 
 			err = cc.findExecuteRuleFiles(context.Background(), tmpDir)
 			if err != nil {
@@ -881,11 +945,9 @@ func TestWriteTaskFileContent(t *testing.T) {
 			}
 
 			// Verify frontmatter is always parsed when present
-			if cc.task.FrontMatter.Content != nil && len(cc.task.FrontMatter.Content) > 0 {
+			if len(cc.task.FrontMatter.Content) > 0 {
 				// Just verify frontmatter was parsed - the Context doesn't emit it, main.go does
-				if _, ok := cc.task.FrontMatter.Content["task_name"]; !ok {
-					// This is OK - not all tasks have task_name in frontmatter
-				}
+				_ = cc.task.FrontMatter.Content["task_name"] // Check if task_name exists (not all tasks have it)
 			}
 
 			// Note: Token counting is done in Run(), not in these internal methods
@@ -1332,6 +1394,17 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 
 			// Set up task name in includes (as done in run())
 			cc.includes.SetValue("task_name", "test-task")
+			absTmpDir, err := filepath.Abs(tmpDir)
+			if err != nil {
+				t.Fatalf("failed to get absolute path: %v", err)
+			}
+			cc.searchPaths = []string{"file://" + absTmpDir}
+
+			// Download the directories
+			if err := cc.downloadRemoteDirectories(context.Background()); err != nil {
+				t.Fatalf("failed to download remote directories: %v", err)
+			}
+			defer cc.cleanupDownloadedDirectories()
 
 			// Find and parse task file
 			homeDir, err := os.UserHomeDir()
@@ -1743,8 +1816,12 @@ func TestSlashCommandSubstitution(t *testing.T) {
 				workDir:  tmpDir,
 				params:   tt.params,
 				includes: make(Selectors),
-				rules:    make([]Markdown[RuleFrontMatter], 0),
-				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
+				searchPaths: func() []string {
+					abs, _ := filepath.Abs(tmpDir)
+					return []string{"file://" + abs}
+				}(),
+				rules:  make([]Markdown[RuleFrontMatter], 0),
+				logger: slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil
 				},
@@ -1853,6 +1930,7 @@ func TestTaskLanguageFieldFilteringRules(t *testing.T) {
 
 			cc := New(
 				WithWorkDir(tmpDir),
+				WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
 			)
 
 			result, err := cc.Run(ctx, "test-task")
@@ -1883,7 +1961,7 @@ func TestTaskLanguageFieldFilteringRules(t *testing.T) {
 
 			// Verify task frontmatter contains the language field
 			if strings.Contains(tt.taskFrontmatter, "language:") {
-				if _, ok := result.Task.FrontMatter.Content["language"]; !ok {
+				if _, exists := result.Task.FrontMatter.Content["language"]; !exists {
 					t.Errorf("Expected task frontmatter to contain 'language' field")
 				}
 			}
@@ -1914,7 +1992,10 @@ mcp_servers:
 	taskPath := filepath.Join(tmpDir, ".agents", "tasks", "test-task.md")
 	createMarkdownFile(t, taskPath, taskFrontmatter, "# Test Task")
 
-	cc := New(WithWorkDir(tmpDir))
+	cc := New(
+		WithWorkDir(tmpDir),
+		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
+	)
 	result, err := cc.Run(context.Background(), "test-task")
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
@@ -1999,6 +2080,7 @@ func TestWithResume(t *testing.T) {
 		WithWorkDir(tmpDir),
 		WithResume(true),
 		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
+		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
 	)
 
 	result, err := cc.Run(context.Background(), "resume_task")
@@ -2024,6 +2106,7 @@ func TestWithResume(t *testing.T) {
 		WithWorkDir(tmpDir),
 		WithResume(false),
 		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
+		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
 	)
 
 	result2, err := cc2.Run(context.Background(), "resume_task")
@@ -2094,6 +2177,7 @@ func TestWithAgent(t *testing.T) {
 		WithWorkDir(tmpDir),
 		WithAgent(agent),
 		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
+		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
 	)
 
 	result, err := cc.Run(context.Background(), "test-task")

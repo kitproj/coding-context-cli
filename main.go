@@ -56,7 +56,7 @@ func main() {
 		codingcontext.WithWorkDir(workDir),
 		codingcontext.WithParams(params),
 		codingcontext.WithSelectors(includes),
-		codingcontext.WithRemotePaths(remotePaths),
+		codingcontext.WithSearchPaths(remotePaths...),
 		codingcontext.WithLogger(logger),
 		codingcontext.WithResume(resume),
 		codingcontext.WithAgent(agent),
