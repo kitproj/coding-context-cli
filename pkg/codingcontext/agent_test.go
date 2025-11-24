@@ -384,4 +384,3 @@ func TestAgent_IsSet(t *testing.T) {
 		t.Errorf("IsSet() on set agent = false, want true")
 	}
 }
-
