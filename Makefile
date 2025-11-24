@@ -7,5 +7,6 @@ lint:
 		$$(go env GOPATH)/bin/goimports -w .; \
 	fi
 	go vet ./...
+	gofmt -w .
 	go run mvdan.cc/unparam@latest
 	go run golang.org/x/tools/cmd/deadcode@latest -test ./...

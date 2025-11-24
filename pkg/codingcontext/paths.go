@@ -26,6 +26,7 @@ func rulePaths(dir string, home bool) []string {
 		filepath.Join(dir, ".augment", "guidelines.md"),
 		filepath.Join(dir, "AGENTS.md"),
 		filepath.Join(dir, "CLAUDE.md"),
+		filepath.Join(dir, "CLAUDE.local.md"),
 		filepath.Join(dir, "GEMINI.md"),
 		filepath.Join(dir, ".cursorrules"),
 		filepath.Join(dir, ".windsurfrules"),
