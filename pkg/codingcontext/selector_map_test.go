@@ -256,8 +256,12 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 
 func TestSelectorMap_String(t *testing.T) {
 	s := make(Selectors)
-	s.Set("env=production")
-	s.Set("language=go")
+	if err := s.Set("env=production"); err != nil {
+		t.Fatalf("Set() failed: %v", err)
+	}
+	if err := s.Set("language=go"); err != nil {
+		t.Fatalf("Set() failed: %v", err)
+	}
 
 	str := s.String()
 	if str == "" {

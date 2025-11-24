@@ -16,7 +16,6 @@ type Context struct {
 	params           Params
 	includes         Selectors
 	searchPaths      []SearchPath
-	paths            []string
 	downloadedDirs   []string
 	matchingTaskFile string
 	task             Markdown[TaskFrontMatter]   // Parsed task
@@ -56,13 +55,6 @@ func WithSelectors(selectors Selectors) Option {
 func WithSearchPaths(searchPaths []SearchPath) Option {
 	return func(c *Context) {
 		c.searchPaths = append(c.searchPaths, searchPaths...)
-	}
-}
-
-// WithPath adds a single path (local or remote) to be downloaded/copied and searched
-func WithPath(path string) Option {
-	return func(c *Context) {
-		c.paths = append(c.paths, path)
 	}
 }
 
@@ -222,7 +214,24 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 }
 
 func (cc *Context) downloadPaths(ctx context.Context) error {
-	for _, path := range cc.paths {
+	// Download BasePaths from SearchPaths that need downloading
+	// (those that have BasePath set but empty RulesSubPaths and TaskSubPaths,
+	// indicating they're paths to download rather than already-configured search paths)
+	var pathsToDownload []string
+	var pathsToKeep []SearchPath
+
+	for _, sp := range cc.searchPaths {
+		// If BasePath is set but both RulesSubPaths and TaskSubPaths are empty,
+		// this is a path that needs to be downloaded
+		if sp.BasePath != "" && len(sp.RulesSubPaths) == 0 && len(sp.TaskSubPaths) == 0 {
+			pathsToDownload = append(pathsToDownload, sp.BasePath)
+		} else {
+			pathsToKeep = append(pathsToKeep, sp)
+		}
+	}
+
+	// Download paths and add SearchPaths for downloaded directories
+	for _, path := range pathsToDownload {
 		cc.logger.Info("Downloading path", "path", path)
 		localPath, err := downloadPath(ctx, path)
 		if err != nil {
@@ -230,7 +239,12 @@ func (cc *Context) downloadPaths(ctx context.Context) error {
 		}
 		cc.downloadedDirs = append(cc.downloadedDirs, localPath)
 		cc.logger.Info("Downloaded to", "path", localPath)
+		// Add SearchPaths for the downloaded directory
+		pathsToKeep = append(pathsToKeep, PathSearchPaths(localPath)...)
 	}
+
+	// Update searchPaths to only include paths that don't need downloading
+	cc.searchPaths = pathsToKeep
 
 	return nil
 }
@@ -260,10 +274,7 @@ func (cc *Context) findTaskFile(homeDir string, taskName string) error {
 	// Build task search directories from search paths
 	taskSearchDirs := make([]string, 0)
 	for _, sp := range searchPaths {
-		for _, taskSubPath := range sp.TaskSubPaths {
-			taskDir := filepath.Join(sp.BasePath, taskSubPath)
-			taskSearchDirs = append(taskSearchDirs, taskDir)
-		}
+		taskSearchDirs = append(taskSearchDirs, sp.TaskSearchDirs()...)
 	}
 
 	for _, dir := range taskSearchDirs {
@@ -345,10 +356,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 	// Build rule paths from search paths
 	rulePaths := make([]string, 0)
 	for _, sp := range searchPaths {
-		for _, subPath := range sp.RulesSubPaths {
-			rulePath := filepath.Join(sp.BasePath, subPath)
-			rulePaths = append(rulePaths, rulePath)
-		}
+		rulePaths = append(rulePaths, sp.RulesSearchDirs()...)
 	}
 
 	for _, rule := range rulePaths {

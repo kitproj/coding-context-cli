@@ -15,7 +15,11 @@ func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) 
 	if err != nil {
 		return Markdown[T]{}, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer fh.Close()
+	defer func() {
+		if err := fh.Close(); err != nil {
+			_ = err
+		}
+	}()
 
 	s := bufio.NewScanner(fh)
 

@@ -33,11 +33,12 @@ func createMarkdownFile(t *testing.T, path string, frontmatter string, content s
 	}
 }
 
-// Helper to get default search paths for tests (only workDir, no homeDir)
+// Helper to get default search paths for tests
 func getTestSearchPaths(t *testing.T, workDir string) []SearchPath {
 	t.Helper()
-	// Use empty homeDir to avoid including user's home directory rules in tests
-	return DefaultSearchPaths(workDir, "")
+	// Use a temporary directory as homeDir to avoid including user's actual home directory rules
+	testHomeDir := t.TempDir()
+	return DefaultSearchPaths(workDir, testHomeDir)
 }
 
 func TestRun(t *testing.T) {
@@ -126,20 +127,24 @@ func TestRun(t *testing.T) {
 			}
 
 			// Change to temp dir
-			oldDir, err := os.Getwd()
-			if err != nil {
-				t.Fatalf("failed to get working directory: %v", err)
+		oldDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+		defer func() {
+			if err := os.Chdir(oldDir); err != nil {
+				t.Errorf("failed to restore working directory: %v", err)
 			}
-			defer os.Chdir(oldDir)
+		}()
 
 			var logOut bytes.Buffer
 			cc := &Context{
-				workDir:    tmpDir,
-				params:     tt.params,
-				includes:   tt.includes,
+				workDir:     tmpDir,
+				params:      tt.params,
+				includes:    tt.includes,
 				searchPaths: getTestSearchPaths(t, tmpDir),
-				rules:      make([]Markdown[RuleFrontMatter], 0),
-				logger:     slog.New(slog.NewTextHandler(&logOut, nil)),
+				rules:       make([]Markdown[RuleFrontMatter], 0),
+				logger:      slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
 				},
@@ -341,11 +346,15 @@ func TestFindTaskFile(t *testing.T) {
 			tt.setupFiles(t, tmpDir)
 
 			// Change to temp dir for relative path searches
-			oldDir, err := os.Getwd()
-			if err != nil {
-				t.Fatalf("failed to get working directory: %v", err)
+		oldDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+		defer func() {
+			if err := os.Chdir(oldDir); err != nil {
+				t.Errorf("failed to restore working directory: %v", err)
 			}
-			defer os.Chdir(oldDir)
+		}()
 			if err := os.Chdir(tmpDir); err != nil {
 				t.Fatalf("failed to chdir: %v", err)
 			}
@@ -556,11 +565,15 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			tt.setupFiles(t, tmpDir)
 
 			// Change to temp dir
-			oldDir, err := os.Getwd()
-			if err != nil {
-				t.Fatalf("failed to get working directory: %v", err)
+		oldDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+		defer func() {
+			if err := os.Chdir(oldDir); err != nil {
+				t.Errorf("failed to restore working directory: %v", err)
 			}
-			defer os.Chdir(oldDir)
+		}()
 			if err := os.Chdir(tmpDir); err != nil {
 				t.Fatalf("failed to chdir: %v", err)
 			}
@@ -896,11 +909,10 @@ func TestWriteTaskFileContent(t *testing.T) {
 			}
 
 			// Verify frontmatter is always parsed when present
-			if cc.task.FrontMatter.Content != nil && len(cc.task.FrontMatter.Content) > 0 {
+			if len(cc.task.FrontMatter.Content) > 0 {
 				// Just verify frontmatter was parsed - the Context doesn't emit it, main.go does
-				if _, ok := cc.task.FrontMatter.Content["task_name"]; !ok {
-					// This is OK - not all tasks have task_name in frontmatter
-				}
+				// Not all tasks have task_name in frontmatter, which is OK
+				_ = cc.task.FrontMatter.Content["task_name"]
 			}
 
 			// Note: Token counting is done in Run(), not in these internal methods
@@ -1325,11 +1337,15 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 			createMarkdownFile(t, taskPath, taskFrontmatter, "# Test Task\nThis is a test task.")
 
 			// Change to temp dir
-			oldDir, err := os.Getwd()
-			if err != nil {
-				t.Fatalf("failed to get working directory: %v", err)
+		oldDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+		defer func() {
+			if err := os.Chdir(oldDir); err != nil {
+				t.Errorf("failed to restore working directory: %v", err)
 			}
-			defer os.Chdir(oldDir)
+		}()
 			if err := os.Chdir(tmpDir); err != nil {
 				t.Fatalf("failed to chdir: %v", err)
 			}
@@ -2014,11 +2030,15 @@ func TestWithResume(t *testing.T) {
 		"# Test Rule")
 
 	// Change to temp dir
-	oldDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get working directory: %v", err)
-	}
-	defer os.Chdir(oldDir)
+		oldDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+		defer func() {
+			if err := os.Chdir(oldDir); err != nil {
+				t.Errorf("failed to restore working directory: %v", err)
+			}
+		}()
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
@@ -2110,11 +2130,15 @@ func TestWithAgent(t *testing.T) {
 		"# Generic Rule")
 
 	// Change to temp dir
-	oldDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get working directory: %v", err)
-	}
-	defer os.Chdir(oldDir)
+		oldDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+		defer func() {
+			if err := os.Chdir(oldDir); err != nil {
+				t.Errorf("failed to restore working directory: %v", err)
+			}
+		}()
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}

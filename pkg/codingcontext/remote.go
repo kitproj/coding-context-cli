@@ -24,7 +24,7 @@ func downloadPath(ctx context.Context, src string) (string, error) {
 	// Use go-getter to download the directory
 	_, err = getter.Get(ctx, tmpDir, src)
 	if err != nil {
-		os.RemoveAll(tmpBase)
+		_ = os.RemoveAll(tmpBase)
 		return "", fmt.Errorf("failed to download from %s: %w", src, err)
 	}
 

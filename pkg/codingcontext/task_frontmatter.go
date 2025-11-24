@@ -54,7 +54,7 @@ func (t *TaskFrontMatter) UnmarshalJSON(data []byte) error {
 	}
 
 	// Also unmarshal into Content map
-	if err := json.Unmarshal(data, &t.BaseFrontMatter.Content); err != nil {
+	if err := json.Unmarshal(data, &t.Content); err != nil {
 		return err
 	}
 

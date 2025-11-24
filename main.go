@@ -24,15 +24,15 @@ func main() {
 	var agent codingcontext.Agent
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
-	var paths []string
+	var pathsToDownload []string
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&agent, "a", "Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.Func("P", "Path (local or remote) containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, file://, etc.).", func(s string) error {
-		paths = append(paths, s)
+	flag.Func("d", "Path (local or remote) containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
+		pathsToDownload = append(pathsToDownload, s)
 		return nil
 	})
 
@@ -68,8 +68,12 @@ func main() {
 		codingcontext.WithAgent(agent),
 	}
 
-	for _, path := range paths {
-		opts = append(opts, codingcontext.WithPath(path))
+	// Add SearchPaths for paths to download (empty RulesSubPaths and TaskSubPaths
+	// indicates these are paths to download, not already-configured search paths)
+	for _, path := range pathsToDownload {
+		opts = append(opts, codingcontext.WithSearchPaths([]codingcontext.SearchPath{
+			{BasePath: path},
+		}))
 	}
 
 	cc := codingcontext.New(opts...)

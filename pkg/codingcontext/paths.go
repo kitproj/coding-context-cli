@@ -1,5 +1,7 @@
 package codingcontext
 
+import "path/filepath"
+
 // SearchPath represents a single search location with its associated subpaths
 type SearchPath struct {
 	BasePath      string
@@ -7,9 +9,29 @@ type SearchPath struct {
 	TaskSubPaths  []string
 }
 
+// TaskSearchDirs returns the full paths for task search directories
+// by joining BasePath with each TaskSubPath
+func (sp SearchPath) TaskSearchDirs() []string {
+	dirs := make([]string, 0, len(sp.TaskSubPaths))
+	for _, subPath := range sp.TaskSubPaths {
+		dirs = append(dirs, filepath.Join(sp.BasePath, subPath))
+	}
+	return dirs
+}
+
+// RulesSearchDirs returns the full paths for rule search directories
+// by joining BasePath with each RulesSubPath
+func (sp SearchPath) RulesSearchDirs() []string {
+	dirs := make([]string, 0, len(sp.RulesSubPaths))
+	for _, subPath := range sp.RulesSubPaths {
+		dirs = append(dirs, filepath.Join(sp.BasePath, subPath))
+	}
+	return dirs
+}
+
 // DefaultSearchPaths returns the search paths for default local paths (baseDir and homeDir)
 func DefaultSearchPaths(baseDir, homeDir string) []SearchPath {
-	searchPaths := []SearchPath{
+	return []SearchPath{
 		// baseDir search paths
 		{
 			BasePath: baseDir,
@@ -42,11 +64,8 @@ func DefaultSearchPaths(baseDir, homeDir string) []SearchPath {
 				".opencode/command",
 			},
 		},
-	}
-
-	// Only add homeDir search paths if homeDir is not empty
-	if homeDir != "" {
-		searchPaths = append(searchPaths, SearchPath{
+		// homeDir search paths
+		{
 			BasePath: homeDir,
 			RulesSubPaths: []string{
 				".agents/rules",
@@ -58,10 +77,8 @@ func DefaultSearchPaths(baseDir, homeDir string) []SearchPath {
 			TaskSubPaths: []string{
 				".agents/tasks",
 			},
-		})
+		},
 	}
-
-	return searchPaths
 }
 
 // PathSearchPaths returns the search paths for a given directory path

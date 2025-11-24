@@ -845,7 +845,7 @@ This is a rule loaded from a remote directory.
 
 	// Run the program with remote directory (using file:// URL)
 	remoteURL := "file://" + remoteDir
-	output := runTool(t, "-C", tmpDir, "-P", remoteURL, "test-task")
+	output := runTool(t, "-C", tmpDir, "-d", remoteURL, "test-task")
 
 	// Check that remote rule content is present
 	if !strings.Contains(output, "# Remote Rule") {

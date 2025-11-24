@@ -36,15 +36,15 @@ func (r *RuleFrontMatter) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(r),
 	}
-	
+
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
-	
+
 	// Also unmarshal into Content map
-	if err := json.Unmarshal(data, &r.BaseFrontMatter.Content); err != nil {
+	if err := json.Unmarshal(data, &r.Content); err != nil {
 		return err
 	}
-	
+
 	return nil
 }

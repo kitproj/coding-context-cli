@@ -70,7 +70,9 @@ func ExampleParseMarkdownFile() {
 	// Unmarshal the Content into your struct if needed
 	var frontmatter TaskFrontmatter
 	yamlBytes, _ := yaml.Marshal(frontmatterMap.Content)
-	yaml.Unmarshal(yamlBytes, &frontmatter)
+	if err := yaml.Unmarshal(yamlBytes, &frontmatter); err != nil {
+		// Handle error if needed
+	}
 
 	// Access the parsed frontmatter
 	fmt.Printf("Task: %s\n", frontmatter.TaskName)

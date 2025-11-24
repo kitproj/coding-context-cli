@@ -82,7 +82,9 @@ func main() {
         }),
         codingcontext.WithSelectors(selectors),
         codingcontext.WithSearchPaths(codingcontext.DefaultSearchPaths(".", homeDir)),
-        codingcontext.WithPath("https://github.com/org/repo//path/to/rules"),
+        codingcontext.WithSearchPaths([]codingcontext.SearchPath{
+            {BasePath: "https://github.com/org/repo//path/to/rules"},
+        }),
         codingcontext.WithLogger(slog.New(slog.NewTextHandler(os.Stderr, nil))),
     )
 
@@ -155,8 +157,7 @@ Creates a new Context with the given options.
 - `WithWorkDir(dir string)` - Set the working directory
 - `WithParams(params Params)` - Set parameters
 - `WithSelectors(selectors Selectors)` - Set selectors for filtering
-- `WithSearchPaths(searchPaths []SearchPath)` - Set search paths to use. Typically called with `DefaultSearchPaths(baseDir, homeDir)` to enable default local path searching
-- `WithPath(path string)` - Add a single path (local or remote) to be downloaded/copied and searched. Can be called multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, file://, etc.)
+- `WithSearchPaths(searchPaths []SearchPath)` - Set search paths to use. Typically called with `DefaultSearchPaths(baseDir, homeDir)` to enable default local path searching. Paths to download can be added as SearchPaths with only BasePath set (empty RulesSubPaths and TaskSubPaths)
 - `WithLogger(logger *slog.Logger)` - Set logger
 - `WithResume(resume bool)` - Enable resume mode, which skips rule discovery and bootstrap scripts
 - `WithAgent(agent Agent)` - Set the target agent, which excludes that agent's own rules
