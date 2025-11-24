@@ -51,7 +51,7 @@ func WithSelectors(selectors Selectors) Option {
 	}
 }
 
-// WithSearchPaths sets the search paths to use
+// WithSearchPaths appends search paths to use (can be called multiple times to accumulate search paths)
 func WithSearchPaths(searchPaths []SearchPath) Option {
 	return func(c *Context) {
 		c.searchPaths = append(c.searchPaths, searchPaths...)
