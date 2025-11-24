@@ -115,11 +115,6 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	}
 	defer cc.cleanupDownloadedDirectories()
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user home directory: %w", err)
-	}
-
 	// Add task name to includes so rules can be filtered by task
 	cc.includes.SetValue("task_name", taskName)
 
@@ -128,7 +123,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		cc.includes.SetValue("resume", "true")
 	}
 
-	err = cc.findTaskFile(homeDir, taskName)
+	err := cc.findTaskFile(taskName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find task file: %w", err)
 	}
@@ -178,7 +173,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		cc.includes.SetValue("task_name", slashTaskName)
 
 		// Find the new task file
-		if err := cc.findTaskFile(homeDir, slashTaskName); err != nil {
+		if err := cc.findTaskFile(slashTaskName); err != nil {
 			return nil, fmt.Errorf("failed to find slash command task file: %w", err)
 		}
 
@@ -188,7 +183,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		}
 	}
 
-	if err := cc.findExecuteRuleFiles(ctx, homeDir); err != nil {
+	if err := cc.findExecuteRuleFiles(ctx); err != nil {
 		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
@@ -325,7 +320,7 @@ func (cc *Context) taskFileWalker(taskName string) func(path string, info os.Fil
 	}
 }
 
-func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) error {
+func (cc *Context) findExecuteRuleFiles(ctx context.Context) error {
 	// Skip rule file discovery if resume mode is enabled
 	// Check cc.resume directly first, then fall back to selector check for backward compatibility
 	if cc.resume || (cc.includes != nil && cc.includes.GetValue("resume", "true")) {

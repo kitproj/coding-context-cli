@@ -127,15 +127,15 @@ func TestRun(t *testing.T) {
 			}
 
 			// Change to temp dir
-		oldDir, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("failed to get working directory: %v", err)
-		}
-		defer func() {
-			if err := os.Chdir(oldDir); err != nil {
-				t.Errorf("failed to restore working directory: %v", err)
+			oldDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("failed to get working directory: %v", err)
 			}
-		}()
+			defer func() {
+				if err := os.Chdir(oldDir); err != nil {
+					t.Errorf("failed to restore working directory: %v", err)
+				}
+			}()
 
 			var logOut bytes.Buffer
 			cc := &Context{
@@ -346,15 +346,15 @@ func TestFindTaskFile(t *testing.T) {
 			tt.setupFiles(t, tmpDir)
 
 			// Change to temp dir for relative path searches
-		oldDir, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("failed to get working directory: %v", err)
-		}
-		defer func() {
-			if err := os.Chdir(oldDir); err != nil {
-				t.Errorf("failed to restore working directory: %v", err)
+			oldDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("failed to get working directory: %v", err)
 			}
-		}()
+			defer func() {
+				if err := os.Chdir(oldDir); err != nil {
+					t.Errorf("failed to restore working directory: %v", err)
+				}
+			}()
 			if err := os.Chdir(tmpDir); err != nil {
 				t.Fatalf("failed to chdir: %v", err)
 			}
@@ -377,12 +377,7 @@ func TestFindTaskFile(t *testing.T) {
 				}
 			}
 
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				t.Fatalf("failed to get user home directory: %v", err)
-			}
-
-			err = cc.findTaskFile(homeDir, tt.taskName)
+			err = cc.findTaskFile(tt.taskName)
 
 			if tt.wantErr {
 				if err == nil {
@@ -565,15 +560,15 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			tt.setupFiles(t, tmpDir)
 
 			// Change to temp dir
-		oldDir, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("failed to get working directory: %v", err)
-		}
-		defer func() {
-			if err := os.Chdir(oldDir); err != nil {
-				t.Errorf("failed to restore working directory: %v", err)
+			oldDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("failed to get working directory: %v", err)
 			}
-		}()
+			defer func() {
+				if err := os.Chdir(oldDir); err != nil {
+					t.Errorf("failed to restore working directory: %v", err)
+				}
+			}()
 			if err := os.Chdir(tmpDir); err != nil {
 				t.Fatalf("failed to chdir: %v", err)
 			}
@@ -610,7 +605,7 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 				}
 			}
 
-			err = cc.findExecuteRuleFiles(context.Background(), tmpDir)
+			err = cc.findExecuteRuleFiles(context.Background())
 			if err != nil {
 				t.Errorf("findExecuteRuleFiles() unexpected error: %v", err)
 			}
@@ -1337,15 +1332,15 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 			createMarkdownFile(t, taskPath, taskFrontmatter, "# Test Task\nThis is a test task.")
 
 			// Change to temp dir
-		oldDir, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("failed to get working directory: %v", err)
-		}
-		defer func() {
-			if err := os.Chdir(oldDir); err != nil {
-				t.Errorf("failed to restore working directory: %v", err)
+			oldDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("failed to get working directory: %v", err)
 			}
-		}()
+			defer func() {
+				if err := os.Chdir(oldDir); err != nil {
+					t.Errorf("failed to restore working directory: %v", err)
+				}
+			}()
 			if err := os.Chdir(tmpDir); err != nil {
 				t.Fatalf("failed to chdir: %v", err)
 			}
@@ -1366,12 +1361,7 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 			cc.includes.SetValue("task_name", "test-task")
 
 			// Find and parse task file
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				t.Fatalf("failed to get user home directory: %v", err)
-			}
-
-			if err := cc.findTaskFile(homeDir, "test-task"); err != nil {
+			if err := cc.findTaskFile("test-task"); err != nil {
 				if !tt.wantErr {
 					t.Fatalf("findTaskFile() unexpected error: %v", err)
 				}
@@ -1387,7 +1377,7 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 			}
 
 			// Find and execute rule files
-			if err := cc.findExecuteRuleFiles(context.Background(), homeDir); err != nil {
+			if err := cc.findExecuteRuleFiles(context.Background()); err != nil {
 				if !tt.wantErr {
 					t.Fatalf("findExecuteRuleFiles() unexpected error: %v", err)
 				}
@@ -2030,15 +2020,15 @@ func TestWithResume(t *testing.T) {
 		"# Test Rule")
 
 	// Change to temp dir
-		oldDir, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("failed to get working directory: %v", err)
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
 		}
-		defer func() {
-			if err := os.Chdir(oldDir); err != nil {
-				t.Errorf("failed to restore working directory: %v", err)
-			}
-		}()
+	}()
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
@@ -2130,15 +2120,15 @@ func TestWithAgent(t *testing.T) {
 		"# Generic Rule")
 
 	// Change to temp dir
-		oldDir, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("failed to get working directory: %v", err)
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
 		}
-		defer func() {
-			if err := os.Chdir(oldDir); err != nil {
-				t.Errorf("failed to restore working directory: %v", err)
-			}
-		}()
+	}()
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
