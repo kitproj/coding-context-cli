@@ -68,11 +68,10 @@ func main() {
 		codingcontext.WithAgent(agent),
 	}
 
-	// Add SearchPaths for paths to download (empty RulesSubPaths and TaskSubPaths
-	// indicates these are paths to download, not already-configured search paths)
+	// Add SearchPaths for paths to download with default subpaths
 	for _, path := range pathsToDownload {
 		opts = append(opts, codingcontext.WithSearchPaths([]codingcontext.SearchPath{
-			{BasePath: path},
+			codingcontext.NewSearchPathWithDefaults(path),
 		}))
 	}
 

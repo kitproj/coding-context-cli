@@ -215,20 +215,8 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 func (cc *Context) downloadPaths(ctx context.Context) error {
 	// Download BasePaths from SearchPaths that need downloading
-	// (those that have BasePath set but empty RulesSubPaths and TaskSubPaths,
-	// indicating they're paths to download rather than already-configured search paths)
 	var pathsToDownload []string
-	var pathsToKeep []SearchPath
-
-	for _, sp := range cc.searchPaths {
-		// If BasePath is set but both RulesSubPaths and TaskSubPaths are empty,
-		// this is a path that needs to be downloaded
-		if sp.BasePath != "" && len(sp.RulesSubPaths) == 0 && len(sp.TaskSubPaths) == 0 {
-			pathsToDownload = append(pathsToDownload, sp.BasePath)
-		} else {
-			pathsToKeep = append(pathsToKeep, sp)
-		}
-	}
+	pathsToKeep := append([]SearchPath{}, cc.searchPaths...)
 
 	// Download paths and add SearchPaths for downloaded directories
 	for _, path := range pathsToDownload {

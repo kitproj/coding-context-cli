@@ -81,33 +81,39 @@ func DefaultSearchPaths(baseDir, homeDir string) []SearchPath {
 	}
 }
 
+// NewSearchPathWithDefaults creates a SearchPath with default subpaths for a given base path
+// (uses the same default subpaths as PathSearchPaths)
+func NewSearchPathWithDefaults(basePath string) SearchPath {
+	return SearchPath{
+		BasePath: basePath,
+		RulesSubPaths: []string{
+			".agents/rules",
+			".cursor/rules",
+			".augment/rules",
+			".windsurf/rules",
+			".opencode/agent",
+			".github/copilot-instructions.md",
+			".gemini/styleguide.md",
+			".github/agents",
+			".augment/guidelines.md",
+			"AGENTS.md",
+			"CLAUDE.md",
+			"GEMINI.md",
+			".cursorrules",
+			".windsurfrules",
+		},
+		TaskSubPaths: []string{
+			".agents/tasks",
+			".cursor/commands",
+			".opencode/command",
+		},
+	}
+}
+
 // PathSearchPaths returns the search paths for a given directory path
 // (used for both local and remote paths after download)
 func PathSearchPaths(dir string) []SearchPath {
 	return []SearchPath{
-		{
-			BasePath: dir,
-			RulesSubPaths: []string{
-				".agents/rules",
-				".cursor/rules",
-				".augment/rules",
-				".windsurf/rules",
-				".opencode/agent",
-				".github/copilot-instructions.md",
-				".gemini/styleguide.md",
-				".github/agents",
-				".augment/guidelines.md",
-				"AGENTS.md",
-				"CLAUDE.md",
-				"GEMINI.md",
-				".cursorrules",
-				".windsurfrules",
-			},
-			TaskSubPaths: []string{
-				".agents/tasks",
-				".cursor/commands",
-				".opencode/command",
-			},
-		},
+		NewSearchPathWithDefaults(dir),
 	}
 }
