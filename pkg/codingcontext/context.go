@@ -261,7 +261,7 @@ func (cc *Context) cleanupDownloadedDirectories() {
 	}
 }
 
-func (cc *Context) findTaskFile(homeDir string, taskName string) error {
+func (cc *Context) findTaskFile(taskName string) error {
 	// Build search paths from all sources
 	searchPaths := make([]SearchPath, 0)
 	searchPaths = append(searchPaths, cc.searchPaths...)
