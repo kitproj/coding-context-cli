@@ -80,12 +80,15 @@ sudo chmod +x /usr/local/bin/coding-context
 ```
 Usage:
   coding-context [options] <task-name>
+  coding-context --list-tasks
 
 Options:
   -C string
     	Change to directory before doing anything. (default ".")
   -d value
     	Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).
+  -list-tasks
+    	List all available tasks and exit.
   -p value
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
   -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
@@ -94,6 +97,44 @@ Options:
     	Note: Only matches top-level YAML fields in frontmatter.
   -a value
     	Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
+```
+
+### Discovering Available Tasks
+
+To see all available tasks in your project, use the `--list-tasks` flag:
+
+```bash
+coding-context --list-tasks
+```
+
+This will display:
+- All task names found in the search paths
+- Task variants (e.g., resume mode, different selectors)
+- Brief descriptions extracted from each task
+- Selector metadata (language, stage, etc.)
+
+**Example output:**
+```
+Available tasks:
+
+  fix-bug
+    Bug Fix Task
+  fix-bug (resume)
+    Bug Fix Task - Resume
+  implement-feature [language=go, stage=implementation]
+    Implement Feature in Go
+  plan-feature
+    Feature Planning Task
+```
+
+The `--list-tasks` flag respects the `-C` (working directory) and `-d` (remote directories) options, allowing you to discover tasks from different locations:
+
+```bash
+# List tasks from a specific directory
+coding-context -C /path/to/project --list-tasks
+
+# List tasks from remote directories
+coding-context -d git::https://github.com/company/shared-tasks.git --list-tasks
 ```
 
 ### Examples
@@ -111,6 +152,15 @@ This command will:
 5. Substitute `${jira_issue_key}` with `PROJ-1234` in the task prompt.
 6. Print the combined context (rules + task) to `stdout`.
 7. Pipe the output to another program (in this case, `llm`).
+
+**Discovering available tasks:**
+```bash
+# See what tasks are available
+coding-context --list-tasks
+
+# See tasks from a remote repository
+coding-context -d git::https://github.com/company/shared-tasks.git --list-tasks
+```
 
 **Using remote directories:**
 ```bash
