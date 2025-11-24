@@ -127,7 +127,6 @@ func TestRun(t *testing.T) {
 
 			var logOut bytes.Buffer
 			cc := &Context{
-				workDir:  tmpDir,
 				params:   tt.params,
 				includes: tt.includes,
 				searchPaths: func() []string {
@@ -905,7 +904,6 @@ func TestWriteTaskFileContent(t *testing.T) {
 
 			var logOut bytes.Buffer
 			cc := &Context{
-				workDir:          tmpDir,
 				matchingTaskFile: taskPath,
 				params:           tt.params,
 				rules:            make([]Markdown[RuleFrontMatter], 0),
@@ -1383,7 +1381,6 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 
 			var logOut bytes.Buffer
 			cc := &Context{
-				workDir:  tmpDir,
 				includes: make(Selectors),
 				rules:    make([]Markdown[RuleFrontMatter], 0),
 				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
@@ -1813,7 +1810,6 @@ func TestSlashCommandSubstitution(t *testing.T) {
 
 			var logOut bytes.Buffer
 			cc := &Context{
-				workDir:  tmpDir,
 				params:   tt.params,
 				includes: make(Selectors),
 				searchPaths: func() []string {
@@ -1929,7 +1925,6 @@ func TestTaskLanguageFieldFilteringRules(t *testing.T) {
 			createMarkdownFile(t, taskPath, tt.taskFrontmatter, "# Test Task Content")
 
 			cc := New(
-				WithWorkDir(tmpDir),
 				WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
 			)
 
@@ -1993,7 +1988,6 @@ mcp_servers:
 	createMarkdownFile(t, taskPath, taskFrontmatter, "# Test Task")
 
 	cc := New(
-		WithWorkDir(tmpDir),
 		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
 	)
 	result, err := cc.Run(context.Background(), "test-task")
@@ -2077,7 +2071,6 @@ func TestWithResume(t *testing.T) {
 
 	var logOut bytes.Buffer
 	cc := New(
-		WithWorkDir(tmpDir),
 		WithResume(true),
 		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
 		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
@@ -2103,7 +2096,6 @@ func TestWithResume(t *testing.T) {
 
 	// Test that WithResume(false) includes rules
 	cc2 := New(
-		WithWorkDir(tmpDir),
 		WithResume(false),
 		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
 		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
@@ -2174,7 +2166,6 @@ func TestWithAgent(t *testing.T) {
 	}
 
 	cc := New(
-		WithWorkDir(tmpDir),
 		WithAgent(agent),
 		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
 		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),

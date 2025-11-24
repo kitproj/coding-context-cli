@@ -49,13 +49,15 @@ coding-context -C /path/to/project fix-bug
 **Type:** String (URL or path)  
 **Repeatable:** Yes
 
-Load rules and tasks from a remote directory. The directory is downloaded to a temporary location before processing and cleaned up afterward.
+Load rules and tasks from a directory (remote or local). The directory is processed via go-getter, which downloads remote directories to a temporary location before processing and cleans up afterward.
+
+**Note:** The working directory (`-C` or current directory) and home directory (`~`) are automatically added to the search paths, so you don't need to specify them explicitly.
 
 Supports various protocols via [go-getter](https://github.com/hashicorp/go-getter):
 - `git::` - Git repositories (HTTPS, SSH)
 - `http://`, `https://` - HTTP/HTTPS URLs (tar.gz, zip, directories)
 - `s3::` - S3 buckets
-- `file://` - Local file paths
+- `file://` - Local file paths (or absolute paths without prefix)
 
 **Examples:**
 ```bash
@@ -80,8 +82,13 @@ coding-context \
 # Mix local and remote
 coding-context \
   -d git::https://github.com/company/org-standards.git \
+  -d file:///path/to/local/rules \
   -s language=Go \
   fix-bug
+
+# Local directories are automatically included
+# (workDir and homeDir are added automatically)
+coding-context fix-bug
 ```
 
 **See also:** [How to Use Remote Directories](../how-to/use-remote-directories)

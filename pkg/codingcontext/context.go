@@ -15,7 +15,6 @@ import (
 
 // Context holds the configuration and state for assembling coding context
 type Context struct {
-	workDir          string
 	params           Params
 	includes         Selectors
 	searchPaths      []string
@@ -31,13 +30,6 @@ type Context struct {
 
 // Option is a functional option for configuring a Context
 type Option func(*Context)
-
-// WithWorkDir sets the working directory
-func WithWorkDir(dir string) Option {
-	return func(c *Context) {
-		c.workDir = dir
-	}
-}
 
 // WithParams sets the parameters
 func WithParams(params Params) Option {
@@ -84,7 +76,6 @@ func WithAgent(agent Agent) Option {
 // New creates a new Context with the given options
 func New(opts ...Option) *Context {
 	c := &Context{
-		workDir:  ".",
 		params:   make(Params),
 		includes: make(Selectors),
 		rules:    make([]Markdown[RuleFrontMatter], 0),

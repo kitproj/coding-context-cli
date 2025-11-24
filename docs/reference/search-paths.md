@@ -9,37 +9,19 @@ nav_order: 3
 
 Complete reference for where the CLI searches for task files and rule files.
 
-## Remote Directories
+## Search Paths Overview
 
-When using the `-d` flag, the CLI downloads remote directories to a temporary location and includes them in the search paths.
+The CLI searches for rules and tasks in directories specified via the `-d` flag. The working directory (`-C` or current directory) and home directory (`~`) are **automatically added** to the search paths, so they don't need to be specified explicitly.
 
-**Example:**
-```bash
-coding-context -d git::https://github.com/company/shared-rules.git fix-bug
-```
-
-The downloaded directory is searched for rules and tasks in all standard locations (`.agents/rules/`, `.agents/tasks/`, `AGENTS.md`, etc.) before being automatically cleaned up.
-
-Multiple remote directories can be specified and are processed in the order given:
-```bash
-coding-context \
-  -d git::https://github.com/company/org-standards.git \
-  -d git::https://github.com/team/team-rules.git \
-  fix-bug
-```
-
-See [How to Use Remote Directories](../how-to/use-remote-directories) for complete documentation.
-
-## Local Search Paths
+All directories (local and remote) are processed via go-getter, which downloads remote directories to temporary locations and processes local directories directly.
 
 ### Task File Search Paths
 
-Task files are searched in the following directories, in order of precedence:
+Within each directory, task files are searched in the following locations:
 
-1. `./.agents/tasks/`
-2. `./.cursor/commands/`
-3. `./.opencode/command/`
-4. `~/.agents/tasks/`
+1. `.agents/tasks/`
+2. `.cursor/commands/`
+3. `.opencode/command/`
 
 ### Discovery Rules
 
@@ -48,7 +30,7 @@ Task files are searched in the following directories, in order of precedence:
 - If `task_name` is absent, the filename (without `.md` extension) is used as the task name
 - First match wins (unless selectors create ambiguity)
 - Searches stop when a matching task is found
-- Remote directories (via `-d` flag) are searched before local directories
+- Directories are searched in the order they appear in `-d` flags, then the automatically-added working directory and home directory
 
 ### Example
 
@@ -60,69 +42,63 @@ Project structure:
 ~/.agents/tasks/code-review.md        (task_name: code-review)
 
 Commands:
-coding-context fix-bug          → Uses ./.agents/tasks/fix-bug.md
-coding-context review-code      → Uses ./.opencode/command/review-code.md
-coding-context deploy           → Uses ./.opencode/command/deploy.md
-coding-context code-review      → Uses ~/.agents/tasks/code-review.md
-coding-context deploy           → Uses ~/.config/opencode/command/deploy.md
+coding-context fix-bug          → Uses ./.agents/tasks/fix-bug.md (from working directory)
+coding-context review-code      → Uses ./.opencode/command/review-code.md (from working directory)
+coding-context deploy           → Uses ./.opencode/command/deploy.md (from working directory)
+coding-context code-review      → Uses ~/.agents/tasks/code-review.md (from home directory)
+```
+
+**Note:** The working directory and home directory are automatically added to search paths, so tasks in those locations are found automatically.
 ```
 
 ## Rule File Search Paths
 
-Rule files are discovered from multiple locations supporting various AI agent formats.
+Rule files are discovered from directories specified via the `-d` flag (plus automatically-added working directory and home directory). Within each directory, the CLI searches for all standard file patterns listed below.
 
-### Remote Directories (Highest Precedence)
+### Directory Processing Order
 
-When using `-d` flag, remote directories are searched first:
+1. Directories specified via `-d` flags (in order)
+2. Working directory (`-C` flag or current directory) - added automatically
+3. Home directory (`~`) - added automatically
 
-```bash
-coding-context -d git::https://github.com/company/rules.git fix-bug
-```
-
-The remote directory is searched for all standard file patterns listed below.
-
-### Project-Specific Rules
+### Rule File Locations Within Each Directory
 
 **Agent-specific directories:**
 ```
-./.agents/rules/
-./.cursor/rules/
-./.augment/rules/
-./.windsurf/rules/
-./.opencode/agent/
-./.opencode/command/
-./.opencode/rules/
-./.github/agents/
-./.codex/
+.agents/rules/
+.cursor/rules/
+.augment/rules/
+.windsurf/rules/
+.opencode/agent/
+.opencode/command/
+.opencode/rules/
+.github/agents/
+.codex/
 ```
 
 **Specific files:**
 ```
-./CLAUDE.local.md
-./.github/copilot-instructions.md
-./.gemini/styleguide.md
+CLAUDE.local.md
+.github/copilot-instructions.md
+.gemini/styleguide.md
 ```
 
-**Standard files (searched in current and parent directories):**
+**Standard files:**
 ```
-./AGENTS.md
-./CLAUDE.md
-./GEMINI.md
-../ (continues up to root)
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.cursorrules
+.windsurfrules
 ```
 
-### User-Specific Rules (Medium Precedence)
-
+**User-specific locations (only in home directory):**
 ```
-~/.agents/rules/
-~/.claude/CLAUDE.md
-~/.cursor/rules/
-~/.augment/rules/
-~/.windsurf/rules/
-~/.opencode/rules/
-~/.github/agents/
-~/.codex/AGENTS.md
-~/.gemini/styleguide.md
+.agents/rules/
+.claude/CLAUDE.md
+.codex/AGENTS.md
+.gemini/GEMINI.md
+.opencode/rules/
 ```
 
 ## Supported AI Agent Formats
@@ -151,35 +127,37 @@ The CLI processes:
 
 Other file types are ignored.
 
-### Directory Traversal
+### Directory Processing
 
-For standard files (like `AGENTS.md`, `CLAUDE.md`):
-1. Start in current directory (or `-C` directory)
-2. Check for file
-3. Move to parent directory
-4. Repeat until root or file found
+The CLI searches within each directory specified in search paths. It does not traverse parent directories automatically. Each directory is searched independently for the standard file patterns listed above.
 
 **Example:**
 ```
-/home/user/projects/myapp/backend/
+Search paths:
+1. /home/user/projects/myapp/backend/ (working directory, auto-added)
+2. /home/user/ (home directory, auto-added)
 
-Searches:
-/home/user/projects/myapp/backend/AGENTS.md
-/home/user/projects/myapp/AGENTS.md
-/home/user/projects/AGENTS.md
-/home/user/AGENTS.md
-/home/AGENTS.md
-/AGENTS.md
+Searches in /home/user/projects/myapp/backend/:
+- .agents/rules/
+- .agents/tasks/
+- CLAUDE.md
+- AGENTS.md
+- etc.
+
+Searches in /home/user/:
+- .agents/rules/
+- .claude/CLAUDE.md
+- etc.
 ```
 
 ### Precedence Order
 
-When multiple rule files exist:
-1. Project-specific (`./.agents/rules/`)
-2. Parent directories (moving up)
-3. User-specific (`~/.agents/rules/`)
+When multiple rule files exist across different directories:
+1. Directories specified via `-d` flags (in order)
+2. Working directory
+3. Home directory
 
-All matching files are included (unless filtered by selectors).
+Within each directory, all matching files are included (unless filtered by selectors).
 
 ## Bootstrap Script Discovery
 
@@ -200,20 +178,17 @@ For each rule file `rule-name.md`, the CLI looks for `rule-name-bootstrap` in th
 
 ## Working Directory
 
-The `-C` option changes the working directory before searching:
+The `-C` option changes the working directory, which is automatically added to the search paths:
 
 ```bash
 # Search from /path/to/project
 coding-context -C /path/to/project fix-bug
 
-# Equivalent to:
-cd /path/to/project && coding-context fix-bug
+# The working directory is automatically included, equivalent to:
+coding-context -d file:///path/to/project fix-bug
 ```
 
-This affects:
-- Where `./.agents/` is located
-- Parent directory traversal starting point
-- Bootstrap script execution directory
+The working directory is automatically included in search paths, so rules and tasks in that directory are discovered automatically.
 
 ## Custom Organization
 
@@ -303,14 +278,17 @@ coding-context -s team=backend fix-bug
 ## Troubleshooting
 
 **No rules found:**
-- Check that `.agents/rules/` directory exists
+- Check that directories are in search paths (working directory and home directory are added automatically)
+- Verify that `.agents/rules/` directory exists in one of the search path directories
 - Verify files have `.md` or `.mdc` extension
 - Check file permissions (must be readable)
+- For remote directories, verify the download succeeded (check stderr logs)
 
 **Task not found:**
-- Verify `.agents/tasks/` directory exists
-- Check `task_name` field in frontmatter
+- Verify that `.agents/tasks/`, `.cursor/commands/`, or `.opencode/command/` directory exists in one of the search path directories
+- Check `task_name` field in frontmatter matches the task name you're using
 - Ensure filename has `.md` extension
+- Verify the directory containing the task is in search paths (working directory and home directory are added automatically)
 
 **Rules not filtered correctly:**
 - Verify frontmatter YAML is valid
