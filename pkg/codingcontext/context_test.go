@@ -369,11 +369,16 @@ func TestFindTaskFile(t *testing.T) {
 			}
 			cc.includes.SetValue("task_name", tt.taskName)
 
-			// Set downloadedDirs if specified in test case
+			// Add SearchPaths with DownloadedDir set if specified in test case
 			if len(tt.downloadedDirs) > 0 {
-				cc.downloadedDirs = make([]string, len(tt.downloadedDirs))
-				for i, dir := range tt.downloadedDirs {
-					cc.downloadedDirs[i] = filepath.Join(tmpDir, dir)
+				for _, dir := range tt.downloadedDirs {
+					downloadedPath := filepath.Join(tmpDir, dir)
+					startIdx := len(cc.searchPaths)
+					cc.searchPaths = append(cc.searchPaths, PathSearchPaths(downloadedPath)...)
+					// Set DownloadedDir on all newly added SearchPaths
+					for i := startIdx; i < len(cc.searchPaths); i++ {
+						cc.searchPaths[i].DownloadedDir = downloadedPath
+					}
 				}
 			}
 
@@ -597,11 +602,16 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 				cc.params = make(Params)
 			}
 
-			// Set downloadedDirs if specified in test case
+			// Add SearchPaths with DownloadedDir set if specified in test case
 			if len(tt.downloadedDirs) > 0 {
-				cc.downloadedDirs = make([]string, len(tt.downloadedDirs))
-				for i, dir := range tt.downloadedDirs {
-					cc.downloadedDirs[i] = filepath.Join(tmpDir, dir)
+				for _, dir := range tt.downloadedDirs {
+					downloadedPath := filepath.Join(tmpDir, dir)
+					startIdx := len(cc.searchPaths)
+					cc.searchPaths = append(cc.searchPaths, PathSearchPaths(downloadedPath)...)
+					// Set DownloadedDir on all newly added SearchPaths
+					for i := startIdx; i < len(cc.searchPaths); i++ {
+						cc.searchPaths[i].DownloadedDir = downloadedPath
+					}
 				}
 			}
 

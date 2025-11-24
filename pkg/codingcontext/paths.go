@@ -7,24 +7,33 @@ type SearchPath struct {
 	BasePath      string
 	RulesSubPaths []string
 	TaskSubPaths  []string
+	DownloadedDir string // Local path where this directory was downloaded (if applicable)
 }
 
 // TaskSearchDirs returns the full paths for task search directories
-// by joining BasePath with each TaskSubPath
+// by joining BasePath (or DownloadedDir if set) with each TaskSubPath
 func (sp SearchPath) TaskSearchDirs() []string {
+	basePath := sp.BasePath
+	if sp.DownloadedDir != "" {
+		basePath = sp.DownloadedDir
+	}
 	dirs := make([]string, 0, len(sp.TaskSubPaths))
 	for _, subPath := range sp.TaskSubPaths {
-		dirs = append(dirs, filepath.Join(sp.BasePath, subPath))
+		dirs = append(dirs, filepath.Join(basePath, subPath))
 	}
 	return dirs
 }
 
 // RulesSearchDirs returns the full paths for rule search directories
-// by joining BasePath with each RulesSubPath
+// by joining BasePath (or DownloadedDir if set) with each RulesSubPath
 func (sp SearchPath) RulesSearchDirs() []string {
+	basePath := sp.BasePath
+	if sp.DownloadedDir != "" {
+		basePath = sp.DownloadedDir
+	}
 	dirs := make([]string, 0, len(sp.RulesSubPaths))
 	for _, subPath := range sp.RulesSubPaths {
-		dirs = append(dirs, filepath.Join(sp.BasePath, subPath))
+		dirs = append(dirs, filepath.Join(basePath, subPath))
 	}
 	return dirs
 }

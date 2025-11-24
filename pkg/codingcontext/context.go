@@ -16,7 +16,6 @@ type Context struct {
 	params           Params
 	includes         Selectors
 	searchPaths      []SearchPath
-	downloadedDirs   []string
 	matchingTaskFile string
 	task             Markdown[TaskFrontMatter]   // Parsed task
 	rules            []Markdown[RuleFrontMatter] // Collected rule files
@@ -209,54 +208,38 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 }
 
 func (cc *Context) downloadPaths(ctx context.Context) error {
-	// Download BasePaths from SearchPaths that need downloading
-	var pathsToDownload []string
-	pathsToKeep := append([]SearchPath{}, cc.searchPaths...)
-
-	// Download paths and add SearchPaths for downloaded directories
-	for _, path := range pathsToDownload {
-		cc.logger.Info("Downloading path", "path", path)
-		localPath, err := downloadPath(ctx, path)
+	// Process each SearchPath - download/copy paths (go-getter handles both local and remote)
+	for i := range cc.searchPaths {
+		sp := &cc.searchPaths[i]
+		// Download/copy the path (go-getter handles both local and remote paths)
+		cc.logger.Info("Processing path", "path", sp.BasePath)
+		localPath, err := downloadPath(ctx, sp.BasePath)
 		if err != nil {
-			return fmt.Errorf("failed to download path %s: %w", path, err)
+			return fmt.Errorf("failed to process path %s: %w", sp.BasePath, err)
 		}
-		cc.downloadedDirs = append(cc.downloadedDirs, localPath)
-		cc.logger.Info("Downloaded to", "path", localPath)
-		// Add SearchPaths for the downloaded directory
-		pathsToKeep = append(pathsToKeep, PathSearchPaths(localPath)...)
+		// Set DownloadedDir to track the local path, keeping BasePath as original
+		sp.DownloadedDir = localPath
+		cc.logger.Info("Processed to", "path", localPath)
 	}
-
-	// Update searchPaths to only include paths that don't need downloading
-	cc.searchPaths = pathsToKeep
 
 	return nil
 }
 
 func (cc *Context) cleanupDownloadedDirectories() {
-	for _, dir := range cc.downloadedDirs {
-		if dir == "" {
-			continue
-		}
-
-		if err := os.RemoveAll(dir); err != nil {
-			cc.logger.Error("Error cleaning up downloaded directory", "path", dir, "error", err)
+	for _, sp := range cc.searchPaths {
+		if sp.DownloadedDir != "" {
+			if err := os.RemoveAll(sp.DownloadedDir); err != nil {
+				cc.logger.Error("Error cleaning up downloaded directory", "path", sp.DownloadedDir, "error", err)
+			}
 		}
 	}
 }
 
 func (cc *Context) findTaskFile(taskName string) error {
-	// Build search paths from all sources
-	searchPaths := make([]SearchPath, 0)
-	searchPaths = append(searchPaths, cc.searchPaths...)
-
-	// Add search paths from downloaded directories
-	for _, dir := range cc.downloadedDirs {
-		searchPaths = append(searchPaths, PathSearchPaths(dir)...)
-	}
 
 	// Build task search directories from search paths
 	taskSearchDirs := make([]string, 0)
-	for _, sp := range searchPaths {
+	for _, sp := range cc.searchPaths {
 		taskSearchDirs = append(taskSearchDirs, sp.TaskSearchDirs()...)
 	}
 
@@ -328,13 +311,8 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context) error {
 	}
 
 	// Build search paths from all sources
-	searchPaths := make([]SearchPath, 0)
-	searchPaths = append(searchPaths, cc.searchPaths...)
-
-	// Add search paths from downloaded directories
-	for _, dir := range cc.downloadedDirs {
-		searchPaths = append(searchPaths, PathSearchPaths(dir)...)
-	}
+	// Downloaded paths are already included in cc.searchPaths with DownloadedDir set
+	searchPaths := cc.searchPaths
 
 	// Build rule paths from search paths
 	rulePaths := make([]string, 0)
