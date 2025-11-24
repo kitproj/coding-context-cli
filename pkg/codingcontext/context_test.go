@@ -392,12 +392,7 @@ func TestFindTaskFile(t *testing.T) {
 			}
 			defer cc.cleanupDownloadedDirectories()
 
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				t.Fatalf("failed to get user home directory: %v", err)
-			}
-
-			err = cc.findTaskFile(homeDir, tt.taskName)
+			err = cc.findTaskFile(tt.taskName)
 
 			if tt.wantErr {
 				if err == nil {
@@ -1409,7 +1404,7 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 				t.Fatalf("failed to get user home directory: %v", err)
 			}
 
-			if err := cc.findTaskFile(homeDir, "test-task"); err != nil {
+			if err := cc.findTaskFile("test-task"); err != nil {
 				if !tt.wantErr {
 					t.Fatalf("findTaskFile() unexpected error: %v", err)
 				}

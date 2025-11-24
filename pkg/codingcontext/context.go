@@ -1,6 +1,7 @@
 package codingcontext
 
 import (
+	"bufio"
 	"context"
 	"crypto/sha256"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 type Context struct {
 	params           Params
 	includes         Selectors
+	manifestURL      string
 	searchPaths      []string
 	matchingTaskFile string
 	task             Markdown[TaskFrontMatter]   // Parsed task
@@ -42,6 +44,13 @@ func WithParams(params Params) Option {
 func WithSelectors(selectors Selectors) Option {
 	return func(c *Context) {
 		c.includes = selectors
+	}
+}
+
+// WithManifestURL sets the manifest URL
+func WithManifestURL(manifestURL string) Option {
+	return func(c *Context) {
+		c.manifestURL = manifestURL
 	}
 }
 
@@ -121,7 +130,13 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	err = cc.findTaskFile(homeDir, taskName)
+	searchPaths, err := cc.parseManifestFile(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse manifest file: %w", err)
+	}
+	cc.searchPaths = append(cc.searchPaths, searchPaths...)
+
+	err = cc.findTaskFile(taskName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find task file: %w", err)
 	}
@@ -171,7 +186,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		cc.includes.SetValue("task_name", slashTaskName)
 
 		// Find the new task file
-		if err := cc.findTaskFile(homeDir, slashTaskName); err != nil {
+		if err := cc.findTaskFile(slashTaskName); err != nil {
 			return nil, fmt.Errorf("failed to find slash command task file: %w", err)
 		}
 
@@ -213,6 +228,44 @@ func downloadDir(path string) string {
 	return filepath.Join(tempDir, fmt.Sprintf("%x", hash))
 }
 
+// ParseManifestURL downloads a manifest file from a Go Getter URL and returns
+// the list of search paths (one per line). Every line is included as-is without trimming.
+func (cc *Context) parseManifestFile(ctx context.Context) ([]string, error) {
+	if cc.manifestURL == "" {
+		return nil, nil
+	}
+
+	manifestFile := downloadDir(cc.manifestURL)
+
+	// Download the manifest file using go-getter
+	if _, err := getter.Get(ctx, manifestFile, cc.manifestURL); err != nil {
+		return nil, fmt.Errorf("failed to download manifest file %s: %w", cc.manifestURL, err)
+	}
+
+	cc.logger.Info("Downloaded manifest file", "path", manifestFile)
+
+	// Read and parse the manifest file
+	file, err := os.Open(manifestFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open manifest file: %w", err)
+	}
+	defer file.Close()
+
+	var paths []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		paths = append(paths, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read manifest file: %w", err)
+	}
+
+	cc.logger.Info("Parsed manifest file", "url", cc.manifestURL, "paths", len(paths))
+
+	return paths, nil
+}
+
 func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
 	for _, path := range cc.searchPaths {
 		cc.logger.Info("Downloading remote directory", "path", path)
@@ -235,7 +288,7 @@ func (cc *Context) cleanupDownloadedDirectories() {
 	}
 }
 
-func (cc *Context) findTaskFile(homeDir string, taskName string) error {
+func (cc *Context) findTaskFile(taskName string) error {
 
 	var taskSearchDirs []string
 	// Add downloaded remote directories to task search paths

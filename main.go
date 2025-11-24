@@ -25,6 +25,7 @@ func main() {
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
 	var searchPaths []string
+	var manifestURL string
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
@@ -35,6 +36,7 @@ func main() {
 		searchPaths = append(searchPaths, s)
 		return nil
 	})
+	flag.StringVar(&manifestURL, "m", "", "Go Getter URL to a manifest file containing search paths (one per line). Every line is included as-is.")
 
 	flag.Usage = func() {
 		logger.Info("Usage:")
@@ -68,6 +70,7 @@ func main() {
 		codingcontext.WithLogger(logger),
 		codingcontext.WithResume(resume),
 		codingcontext.WithAgent(agent),
+		codingcontext.WithManifestURL(manifestURL),
 	)
 
 	result, err := cc.Run(ctx, args[0])
