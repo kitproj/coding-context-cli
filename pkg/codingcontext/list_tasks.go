@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+const (
+	maxDescriptionLength = 100
+	truncationSuffix     = "..."
+)
+
 // TaskInfo contains metadata about a discovered task
 type TaskInfo struct {
 	TaskName    string
@@ -81,7 +86,8 @@ func (cc *Context) ListTasks(ctx context.Context) ([]TaskInfo, error) {
 			}
 
 			// Extract description from content (first paragraph or heading)
-			description := extractDescription(content.Content)
+			markdownText := content.Content
+			description := extractDescription(markdownText)
 
 			// Extract language from frontmatter (can be in Content or Languages field)
 			var language string
@@ -198,8 +204,9 @@ func extractDescription(content string) string {
 
 	result := description.String()
 	// Truncate if too long
-	if len(result) > 100 {
-		result = result[:97] + "..."
+	if len(result) > maxDescriptionLength {
+		truncateAt := maxDescriptionLength - len(truncationSuffix)
+		result = result[:truncateAt] + truncationSuffix
 	}
 	return result
 }
