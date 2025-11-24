@@ -21,6 +21,7 @@ func main() {
 
 	var workDir string
 	var resume bool
+	var listTasks bool
 	var agent codingcontext.Agent
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
@@ -28,6 +29,7 @@ func main() {
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
+	flag.BoolVar(&listTasks, "list-tasks", false, "List all available tasks and exit.")
 	flag.Var(&agent, "a", "Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
@@ -39,18 +41,12 @@ func main() {
 	flag.Usage = func() {
 		logger.Info("Usage:")
 		logger.Info("  coding-context [options] <task-name>")
+		logger.Info("  coding-context --list-tasks")
 		logger.Info("")
 		logger.Info("Options:")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
-
-	args := flag.Args()
-	if len(args) != 1 {
-		logger.Error("Error", "error", fmt.Errorf("invalid usage"))
-		flag.Usage()
-		os.Exit(1)
-	}
 
 	cc := codingcontext.New(
 		codingcontext.WithWorkDir(workDir),
@@ -61,6 +57,63 @@ func main() {
 		codingcontext.WithResume(resume),
 		codingcontext.WithAgent(agent),
 	)
+
+	// Handle list-tasks mode
+	if listTasks {
+		tasks, err := cc.ListTasks(ctx)
+		if err != nil {
+			logger.Error("Error listing tasks", "error", err)
+			os.Exit(1)
+		}
+
+		if len(tasks) == 0 {
+			logger.Info("No tasks found")
+			return
+		}
+
+		fmt.Println("Available tasks:")
+		fmt.Println()
+
+		for _, task := range tasks {
+			fmt.Printf("  %s", task.TaskName)
+
+			// Add variant info if present
+			if task.Resume {
+				fmt.Print(" (resume)")
+			}
+			if len(task.Selectors) > 0 {
+				fmt.Print(" [")
+				first := true
+				for k, v := range task.Selectors {
+					if !first {
+						fmt.Print(", ")
+					}
+					fmt.Printf("%s=%v", k, v)
+					first = false
+				}
+				fmt.Print("]")
+			}
+
+			fmt.Println()
+
+			// Print description if available
+			if task.Description != "" {
+				fmt.Printf("    %s\n", task.Description)
+			}
+
+			// Print path for reference
+			logger.Info("Task file", "task", task.TaskName, "path", task.Path)
+		}
+
+		return
+	}
+
+	args := flag.Args()
+	if len(args) != 1 {
+		logger.Error("Error", "error", fmt.Errorf("invalid usage"))
+		flag.Usage()
+		os.Exit(1)
+	}
 
 	result, err := cc.Run(ctx, args[0])
 	if err != nil {
