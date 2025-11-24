@@ -217,8 +217,8 @@ func (cc *Context) downloadPaths(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to process path %s: %w", sp.BasePath, err)
 		}
-		// Set DownloadedDir to track the local path, keeping BasePath as original
-		sp.DownloadedDir = localPath
+		// Set downloadedDir to track the local path, keeping BasePath as original
+		sp.downloadedDir = localPath
 		cc.logger.Info("Processed to", "path", localPath)
 	}
 
@@ -227,9 +227,9 @@ func (cc *Context) downloadPaths(ctx context.Context) error {
 
 func (cc *Context) cleanupDownloadedDirectories() {
 	for _, sp := range cc.searchPaths {
-		if sp.DownloadedDir != "" {
-			if err := os.RemoveAll(sp.DownloadedDir); err != nil {
-				cc.logger.Error("Error cleaning up downloaded directory", "path", sp.DownloadedDir, "error", err)
+		if sp.downloadedDir != "" {
+			if err := os.RemoveAll(sp.downloadedDir); err != nil {
+				cc.logger.Error("Error cleaning up downloaded directory", "path", sp.downloadedDir, "error", err)
 			}
 		}
 	}
@@ -311,7 +311,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context) error {
 	}
 
 	// Build search paths from all sources
-	// Downloaded paths are already included in cc.searchPaths with DownloadedDir set
+	// Downloaded paths are already included in cc.searchPaths with downloadedDir set
 	searchPaths := cc.searchPaths
 
 	// Build rule paths from search paths
