@@ -60,8 +60,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	searchPaths = append(searchPaths, workDir)
-	searchPaths = append(searchPaths, homeDir)
+	searchPaths = append(searchPaths, "file://"+workDir)
+	searchPaths = append(searchPaths, "file://"+homeDir)
 
 	cc := codingcontext.New(
 		codingcontext.WithParams(params),
