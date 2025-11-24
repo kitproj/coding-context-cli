@@ -15,7 +15,8 @@ type Context struct {
 	workDir          string
 	params           Params
 	includes         Selectors
-	remotePaths      []string
+	searchPaths      []SearchPath
+	paths            []string
 	downloadedDirs   []string
 	matchingTaskFile string
 	task             Markdown[TaskFrontMatter]   // Parsed task
@@ -51,10 +52,17 @@ func WithSelectors(selectors Selectors) Option {
 	}
 }
 
-// WithRemotePaths sets the remote paths
-func WithRemotePaths(paths []string) Option {
+// WithSearchPaths sets the search paths to use
+func WithSearchPaths(searchPaths []SearchPath) Option {
 	return func(c *Context) {
-		c.remotePaths = paths
+		c.searchPaths = append(c.searchPaths, searchPaths...)
+	}
+}
+
+// WithPath adds a single path (local or remote) to be downloaded/copied and searched
+func WithPath(path string) Option {
+	return func(c *Context) {
+		c.paths = append(c.paths, path)
 	}
 }
 
@@ -110,10 +118,15 @@ func (cc *Context) expandParams(content string) string {
 
 // Run executes the context assembly for the given task name and returns the assembled result
 func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
-	if err := cc.downloadRemoteDirectories(ctx); err != nil {
-		return nil, fmt.Errorf("failed to download remote directories: %w", err)
+	if err := cc.downloadPaths(ctx); err != nil {
+		return nil, fmt.Errorf("failed to download paths: %w", err)
 	}
 	defer cc.cleanupDownloadedDirectories()
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user home directory: %w", err)
+	}
 
 	// Add task name to includes so rules can be filtered by task
 	cc.includes.SetValue("task_name", taskName)
@@ -121,11 +134,6 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	// If resume mode is enabled, add resume=true as a selector
 	if cc.resume {
 		cc.includes.SetValue("resume", "true")
-	}
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
 	err = cc.findTaskFile(homeDir, taskName)
@@ -213,12 +221,12 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	return result, nil
 }
 
-func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
-	for _, remotePath := range cc.remotePaths {
-		cc.logger.Info("Downloading remote directory", "path", remotePath)
-		localPath, err := downloadRemoteDirectory(ctx, remotePath)
+func (cc *Context) downloadPaths(ctx context.Context) error {
+	for _, path := range cc.paths {
+		cc.logger.Info("Downloading path", "path", path)
+		localPath, err := downloadPath(ctx, path)
 		if err != nil {
-			return fmt.Errorf("failed to download remote directory %s: %w", remotePath, err)
+			return fmt.Errorf("failed to download path %s: %w", path, err)
 		}
 		cc.downloadedDirs = append(cc.downloadedDirs, localPath)
 		cc.logger.Info("Downloaded to", "path", localPath)
@@ -240,12 +248,22 @@ func (cc *Context) cleanupDownloadedDirectories() {
 }
 
 func (cc *Context) findTaskFile(homeDir string, taskName string) error {
-	// find the task file by matching filename (without .md extension)
-	taskSearchDirs := AllTaskSearchPaths(cc.workDir, homeDir)
+	// Build search paths from all sources
+	searchPaths := make([]SearchPath, 0)
+	searchPaths = append(searchPaths, cc.searchPaths...)
 
-	// Add downloaded remote directories to task search paths
+	// Add search paths from downloaded directories
 	for _, dir := range cc.downloadedDirs {
-		taskSearchDirs = append(taskSearchDirs, DownloadedTaskSearchPaths(dir)...)
+		searchPaths = append(searchPaths, PathSearchPaths(dir)...)
+	}
+
+	// Build task search directories from search paths
+	taskSearchDirs := make([]string, 0)
+	for _, sp := range searchPaths {
+		for _, taskSubPath := range sp.TaskSubPaths {
+			taskDir := filepath.Join(sp.BasePath, taskSubPath)
+			taskSearchDirs = append(taskSearchDirs, taskDir)
+		}
 	}
 
 	for _, dir := range taskSearchDirs {
@@ -315,12 +333,22 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 		return nil
 	}
 
-	// Build the list of rule locations (local and remote)
-	rulePaths := AllRulePaths(cc.workDir, homeDir)
+	// Build search paths from all sources
+	searchPaths := make([]SearchPath, 0)
+	searchPaths = append(searchPaths, cc.searchPaths...)
 
-	// Append remote directories to rule paths
+	// Add search paths from downloaded directories
 	for _, dir := range cc.downloadedDirs {
-		rulePaths = append(rulePaths, DownloadedRulePaths(dir)...)
+		searchPaths = append(searchPaths, PathSearchPaths(dir)...)
+	}
+
+	// Build rule paths from search paths
+	rulePaths := make([]string, 0)
+	for _, sp := range searchPaths {
+		for _, subPath := range sp.RulesSubPaths {
+			rulePath := filepath.Join(sp.BasePath, subPath)
+			rulePaths = append(rulePaths, rulePath)
+		}
 	}
 
 	for _, rule := range rulePaths {

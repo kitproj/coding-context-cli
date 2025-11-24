@@ -33,6 +33,13 @@ func createMarkdownFile(t *testing.T, path string, frontmatter string, content s
 	}
 }
 
+// Helper to get default search paths for tests (only workDir, no homeDir)
+func getTestSearchPaths(t *testing.T, workDir string) []SearchPath {
+	t.Helper()
+	// Use empty homeDir to avoid including user's home directory rules in tests
+	return DefaultSearchPaths(workDir, "")
+}
+
 func TestRun(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -127,11 +134,12 @@ func TestRun(t *testing.T) {
 
 			var logOut bytes.Buffer
 			cc := &Context{
-				workDir:  tmpDir,
-				params:   tt.params,
-				includes: tt.includes,
-				rules:    make([]Markdown[RuleFrontMatter], 0),
-				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
+				workDir:    tmpDir,
+				params:     tt.params,
+				includes:   tt.includes,
+				searchPaths: getTestSearchPaths(t, tmpDir),
+				rules:      make([]Markdown[RuleFrontMatter], 0),
+				logger:     slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
 				},
@@ -343,7 +351,9 @@ func TestFindTaskFile(t *testing.T) {
 			}
 
 			cc := &Context{
-				includes: tt.includes,
+				workDir:     tmpDir,
+				includes:    tt.includes,
+				searchPaths: getTestSearchPaths(t, tmpDir),
 			}
 			if cc.includes == nil {
 				cc.includes = make(Selectors)
@@ -558,10 +568,12 @@ func TestFindExecuteRuleFiles(t *testing.T) {
 			var logOut bytes.Buffer
 			bootstrapRan := false
 			cc := &Context{
-				includes: tt.includes,
-				params:   tt.params,
-				rules:    make([]Markdown[RuleFrontMatter], 0),
-				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
+				workDir:     tmpDir,
+				includes:    tt.includes,
+				params:      tt.params,
+				searchPaths: getTestSearchPaths(t, tmpDir),
+				rules:       make([]Markdown[RuleFrontMatter], 0),
+				logger:      slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					// Track if bootstrap script was executed
 					if cmd.Path != "" {
@@ -698,7 +710,9 @@ func TestRunBootstrapScript(t *testing.T) {
 			var logOut bytes.Buffer
 			cmdRan := false
 			cc := &Context{
-				logger: slog.New(slog.NewTextHandler(&logOut, nil)),
+				workDir:     tmpDir,
+				searchPaths: getTestSearchPaths(t, tmpDir),
+				logger:      slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					cmdRan = true
 					if tt.mockRunError != nil {
@@ -844,6 +858,7 @@ func TestWriteTaskFileContent(t *testing.T) {
 				workDir:          tmpDir,
 				matchingTaskFile: taskPath,
 				params:           tt.params,
+				searchPaths:      getTestSearchPaths(t, tmpDir),
 				rules:            make([]Markdown[RuleFrontMatter], 0),
 				logger:           slog.New(slog.NewTextHandler(&logOut, nil)),
 				includes:         make(Selectors),
@@ -1321,10 +1336,11 @@ func TestTaskSelectorsFilterRulesByRuleName(t *testing.T) {
 
 			var logOut bytes.Buffer
 			cc := &Context{
-				workDir:  tmpDir,
-				includes: make(Selectors),
-				rules:    make([]Markdown[RuleFrontMatter], 0),
-				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
+				workDir:     tmpDir,
+				includes:    make(Selectors),
+				searchPaths: getTestSearchPaths(t, tmpDir),
+				rules:       make([]Markdown[RuleFrontMatter], 0),
+				logger:      slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil // Mock command runner
 				},
@@ -1740,11 +1756,12 @@ func TestSlashCommandSubstitution(t *testing.T) {
 
 			var logOut bytes.Buffer
 			cc := &Context{
-				workDir:  tmpDir,
-				params:   tt.params,
-				includes: make(Selectors),
-				rules:    make([]Markdown[RuleFrontMatter], 0),
-				logger:   slog.New(slog.NewTextHandler(&logOut, nil)),
+				workDir:     tmpDir,
+				params:      tt.params,
+				includes:    make(Selectors),
+				searchPaths: getTestSearchPaths(t, tmpDir),
+				rules:       make([]Markdown[RuleFrontMatter], 0),
+				logger:      slog.New(slog.NewTextHandler(&logOut, nil)),
 				cmdRunner: func(cmd *exec.Cmd) error {
 					return nil
 				},
@@ -1851,8 +1868,13 @@ func TestTaskLanguageFieldFilteringRules(t *testing.T) {
 			taskPath := filepath.Join(tmpDir, ".agents", "tasks", "test-task.md")
 			createMarkdownFile(t, taskPath, tt.taskFrontmatter, "# Test Task Content")
 
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				t.Fatalf("failed to get user home directory: %v", err)
+			}
 			cc := New(
 				WithWorkDir(tmpDir),
+				WithSearchPaths(DefaultSearchPaths(tmpDir, homeDir)),
 			)
 
 			result, err := cc.Run(ctx, "test-task")
@@ -1914,7 +1936,14 @@ mcp_servers:
 	taskPath := filepath.Join(tmpDir, ".agents", "tasks", "test-task.md")
 	createMarkdownFile(t, taskPath, taskFrontmatter, "# Test Task")
 
-	cc := New(WithWorkDir(tmpDir))
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("failed to get user home directory: %v", err)
+	}
+	cc := New(
+		WithWorkDir(tmpDir),
+		WithSearchPaths(DefaultSearchPaths(tmpDir, homeDir)),
+	)
 	result, err := cc.Run(context.Background(), "test-task")
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
@@ -1995,9 +2024,14 @@ func TestWithResume(t *testing.T) {
 	}
 
 	var logOut bytes.Buffer
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("failed to get user home directory: %v", err)
+	}
 	cc := New(
 		WithWorkDir(tmpDir),
 		WithResume(true),
+		WithSearchPaths(DefaultSearchPaths(tmpDir, homeDir)),
 		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
 	)
 
@@ -2023,6 +2057,7 @@ func TestWithResume(t *testing.T) {
 	cc2 := New(
 		WithWorkDir(tmpDir),
 		WithResume(false),
+		WithSearchPaths(DefaultSearchPaths(tmpDir, homeDir)),
 		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
 	)
 
@@ -2090,9 +2125,14 @@ func TestWithAgent(t *testing.T) {
 		t.Fatalf("failed to set target agent: %v", err)
 	}
 
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("failed to get user home directory: %v", err)
+	}
 	cc := New(
 		WithWorkDir(tmpDir),
 		WithAgent(agent),
+		WithSearchPaths(DefaultSearchPaths(tmpDir, homeDir)),
 		WithLogger(slog.New(slog.NewTextHandler(&logOut, nil))),
 	)
 

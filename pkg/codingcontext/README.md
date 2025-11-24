@@ -71,6 +71,9 @@ func main() {
     selectors.SetValue("language", "go")
     selectors.SetValue("stage", "implementation")
 
+    // Get home directory for default search paths
+    homeDir, _ := os.UserHomeDir()
+    
     // Create context with all options
     ctx := codingcontext.New(
         codingcontext.WithWorkDir("."),
@@ -78,10 +81,8 @@ func main() {
             "issue_number": "123",
         }),
         codingcontext.WithSelectors(selectors),
-        codingcontext.WithRemotePaths([]string{
-            "https://github.com/org/repo//path/to/rules",
-        }),
-        codingcontext.WithEmitTaskFrontmatter(true),
+        codingcontext.WithSearchPaths(codingcontext.DefaultSearchPaths(".", homeDir)),
+        codingcontext.WithPath("https://github.com/org/repo//path/to/rules"),
         codingcontext.WithLogger(slog.New(slog.NewTextHandler(os.Stderr, nil))),
     )
 
@@ -137,6 +138,13 @@ Map structure for filtering rules based on frontmatter metadata.
 
 Map representing parsed YAML frontmatter from markdown files.
 
+#### `SearchPath`
+
+Represents a single search location with its associated subpaths:
+- `BasePath string` - Base directory path to search
+- `RulesSubPaths []string` - Relative subpaths within BasePath where rule files can be found
+- `TaskSubPaths []string` - Relative subpaths within BasePath where task files can be found
+
 ### Functions
 
 #### `New(opts ...Option) *Context`
@@ -147,9 +155,11 @@ Creates a new Context with the given options.
 - `WithWorkDir(dir string)` - Set the working directory
 - `WithParams(params Params)` - Set parameters
 - `WithSelectors(selectors Selectors)` - Set selectors for filtering
-- `WithRemotePaths(paths []string)` - Set remote directories to download
-- `WithEmitTaskFrontmatter(emit bool)` - Enable task frontmatter inclusion in result
+- `WithSearchPaths(searchPaths []SearchPath)` - Set search paths to use. Typically called with `DefaultSearchPaths(baseDir, homeDir)` to enable default local path searching
+- `WithPath(path string)` - Add a single path (local or remote) to be downloaded/copied and searched. Can be called multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, file://, etc.)
 - `WithLogger(logger *slog.Logger)` - Set logger
+- `WithResume(resume bool)` - Enable resume mode, which skips rule discovery and bootstrap scripts
+- `WithAgent(agent Agent)` - Set the target agent, which excludes that agent's own rules
 
 #### `(*Context) Run(ctx context.Context, taskName string) (*Result, error)`
 
@@ -159,13 +169,13 @@ Executes the context assembly for the given task name and returns the assembled 
 
 Parses a markdown file into frontmatter and content.
 
-#### `AllTaskSearchPaths(baseDir, homeDir string) []string`
+#### `DefaultSearchPaths(baseDir, homeDir string) []SearchPath`
 
-Returns the standard search paths for task files. `baseDir` is the working directory to resolve relative paths from.
+Returns the search paths for default local paths (baseDir and homeDir). Each `SearchPath` represents one base path with its associated rule and task subpaths.
 
-#### `AllRulePaths(baseDir, homeDir string) []string`
+#### `PathSearchPaths(dir string) []SearchPath`
 
-Returns the standard search paths for rule files. `baseDir` is the working directory to resolve relative paths from.
+Returns the search paths for a given directory path (used for both local and remote paths after download). Uses the same standard subpaths as downloaded directories.
 
 ## See Also
 

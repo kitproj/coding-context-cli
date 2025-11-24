@@ -24,15 +24,15 @@ func main() {
 	var agent codingcontext.Agent
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
-	var remotePaths []string
+	var paths []string
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.Var(&agent, "a", "Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.Func("d", "Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).", func(s string) error {
-		remotePaths = append(remotePaths, s)
+	flag.Func("P", "Path (local or remote) containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, file://, etc.).", func(s string) error {
+		paths = append(paths, s)
 		return nil
 	})
 
@@ -52,15 +52,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	cc := codingcontext.New(
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		logger.Error("Error", "error", fmt.Errorf("failed to get user home directory: %w", err))
+		os.Exit(1)
+	}
+
+	opts := []codingcontext.Option{
 		codingcontext.WithWorkDir(workDir),
 		codingcontext.WithParams(params),
 		codingcontext.WithSelectors(includes),
-		codingcontext.WithRemotePaths(remotePaths),
+		codingcontext.WithSearchPaths(codingcontext.DefaultSearchPaths(workDir, homeDir)),
 		codingcontext.WithLogger(logger),
 		codingcontext.WithResume(resume),
 		codingcontext.WithAgent(agent),
-	)
+	}
+
+	for _, path := range paths {
+		opts = append(opts, codingcontext.WithPath(path))
+	}
+
+	cc := codingcontext.New(opts...)
 
 	result, err := cc.Run(ctx, args[0])
 	if err != nil {
