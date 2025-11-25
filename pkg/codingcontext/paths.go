@@ -33,7 +33,7 @@ func rulePaths(dir string, home bool) []string {
 	}
 }
 
-// DownloadedTaskSearchPaths returns the search paths for task files in downloaded directories
+// taskSearchPaths returns the search paths for task files in a directory
 func taskSearchPaths(dir string) []string {
 	return []string{
 		filepath.Join(dir, ".agents", "tasks"),
