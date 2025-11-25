@@ -54,7 +54,7 @@ func WithManifestURL(manifestURL string) Option {
 	}
 }
 
-// WithSearchPath sets a search path
+// WithSearchPaths adds one or more search paths
 func WithSearchPaths(paths ...string) Option {
 	return func(c *Context) {
 		c.searchPaths = append(c.searchPaths, paths...)
