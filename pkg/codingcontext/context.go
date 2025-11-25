@@ -241,6 +241,7 @@ func (cc *Context) parseManifestFile(ctx context.Context) ([]string, error) {
 	if _, err := getter.Get(ctx, manifestFile, cc.manifestURL); err != nil {
 		return nil, fmt.Errorf("failed to download manifest file %s: %w", cc.manifestURL, err)
 	}
+	defer os.RemoveAll(manifestFile)
 
 	cc.logger.Info("Downloaded manifest file", "path", manifestFile)
 
