@@ -228,7 +228,7 @@ func downloadDir(path string) string {
 	return filepath.Join(tempDir, fmt.Sprintf("%x", hash))
 }
 
-// ParseManifestURL downloads a manifest file from a Go Getter URL and returns
+// parseManifestFile downloads a manifest file from a Go Getter URL and returns
 // the list of search paths (one per line). Every line is included as-is without trimming.
 func (cc *Context) parseManifestFile(ctx context.Context) ([]string, error) {
 	if cc.manifestURL == "" {
