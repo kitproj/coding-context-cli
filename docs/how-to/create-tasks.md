@@ -29,7 +29,7 @@ Save as `.agents/tasks/code-review.md`.
 
 Use with:
 ```bash
-coding-context code-review
+coding-context /code-review
 ```
 
 ## Task with Parameters
@@ -57,7 +57,7 @@ coding-context \
   -p feature_name="User Authentication" \
   -p requirements="OAuth2 support, secure password storage" \
   -p success_criteria="All tests pass, security audit clean" \
-  implement-feature
+  /implement-feature
 ```
 
 ## Multiple Tasks with Selectors
@@ -89,10 +89,10 @@ Deploy with all safety checks and rollback plan.
 Use with:
 ```bash
 # Deploy to staging
-coding-context -s environment=staging deploy
+coding-context -s environment=staging /deploy
 
 # Deploy to production
-coding-context -s environment=production deploy
+coding-context -s environment=production /deploy
 ```
 
 ## Resume Mode Tasks
@@ -124,10 +124,10 @@ Continue with the refactoring work from your previous session.
 Use with:
 ```bash
 # Initial session
-coding-context -s resume=false refactor
+coding-context -s resume=false /refactor
 
 # Resume session (uses -r flag to skip rules and select resume task)
-coding-context -r refactor
+coding-context -r /refactor
 ```
 
 ## Tasks with Embedded Selectors
@@ -153,7 +153,7 @@ Requirements: ${requirements}
 **Usage:**
 ```bash
 # Automatically applies language=Go and stage=implementation selectors
-coding-context -p feature_name="User Auth" implement-feature
+coding-context -p feature_name="User Auth" /implement-feature
 ```
 
 **Example with OR logic using arrays:**
@@ -176,7 +176,7 @@ This matches rules where `(language=Go OR language=Python) AND stage=testing`.
 # Task has: selectors.language = Go
 # Command adds: -s priority=high
 # Result: Includes rules matching language=Go AND priority=high
-coding-context -s priority=high implement-feature
+coding-context -s priority=high /implement-feature
 ```
 
 ## Task Frontmatter
@@ -185,7 +185,7 @@ Task frontmatter is automatically included in the output. This is useful when do
 
 **Example:**
 ```bash
-coding-context implement-feature
+coding-context /implement-feature
 ```
 
 **Output:**

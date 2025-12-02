@@ -40,7 +40,11 @@ func main() {
 
 	flag.Usage = func() {
 		logger.Info("Usage:")
-		logger.Info("  coding-context [options] <task-name>")
+		logger.Info("  coding-context [options] <task-prompt>")
+		logger.Info("")
+		logger.Info("The task-prompt can be:")
+		logger.Info("  - A free-text prompt (used directly as task content)")
+		logger.Info("  - A prompt containing a slash command (e.g., '/fix-bug 123') which triggers task lookup")
 		logger.Info("")
 		logger.Info("Options:")
 		flag.PrintDefaults()
@@ -49,7 +53,7 @@ func main() {
 
 	args := flag.Args()
 	if len(args) != 1 {
-		logger.Error("Error", "error", fmt.Errorf("invalid usage"))
+		logger.Error("Error", "error", fmt.Errorf("invalid usage: expected exactly one task-prompt argument"))
 		flag.Usage()
 		os.Exit(1)
 	}
