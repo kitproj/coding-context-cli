@@ -104,7 +104,7 @@ coding-context -p jira_issue_key=PROJ-1234 /fix-bug | llm -m gemini-pro
 ```
 
 This command will:
-1. Find a task file with `task_name: fix-bug` in its frontmatter.
+1. Find a task file named `fix-bug.md` in the task search paths.
 2. Find all rule files in the search paths.
 3. Filter the rules based on selectors.
 4. Execute any associated bootstrap scripts.
@@ -135,7 +135,7 @@ The `-d` flag supports various protocols via go-getter:
 
 ### Example Tasks
 
-The `<task-name>` is the value of the `task_name` field in the frontmatter of task files. Here are some common examples:
+The `<task-name>` corresponds to the filename (without the `.md` extension) of task files. Here are some common examples:
 
 - `triage-bug`
 - `review-pull-request`
@@ -145,7 +145,7 @@ The `<task-name>` is the value of the `task_name` field in the frontmatter of ta
 - `remove-feature-flag`
 - `speed-up-build`
 
-Each of these would have a corresponding `.md` file with `task_name` in the frontmatter (e.g., a file with `task_name: triage-bug`).
+Each of these would have a corresponding `.md` file (e.g., `triage-bug.md`, `fix-broken-build.md`).
 
 ## How It Works
 
@@ -165,7 +165,7 @@ The tool assembles the context in the following order:
 The tool looks for task and rule files in the following locations, in order of precedence:
 
 **Tasks:**
-- `./.agents/tasks/*.md` (any `.md` file with matching `task_name` in frontmatter)
+- `./.agents/tasks/*.md` (task name matches filename without `.md` extension)
 - `./.agents/commands/*.md`
 - `./.cursor/commands/*.md`
 - `./.opencode/command/*.md`
@@ -238,7 +238,7 @@ coding-context \
 
 ### Task Files
 
-Task files are Markdown files with a required `task_name` field in the frontmatter. The filename itself doesn't matter - only the `task_name` value is used for selection. Task files can contain variables for substitution and can use selectors in frontmatter to provide different prompts for the same task.
+Task files are Markdown files located in task search directories (e.g., `.agents/tasks/`). Tasks are matched by filename (without the `.md` extension), not by frontmatter fields. The `task_name` field in frontmatter is optional metadata. Task files can contain variables for substitution and can use selectors in frontmatter to filter between multiple task files with the same filename in different locations.
 
 **Example (`.agents/tasks/fix-bug.md`):**
 ```markdown
