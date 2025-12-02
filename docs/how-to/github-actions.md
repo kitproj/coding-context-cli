@@ -47,7 +47,7 @@ jobs:
             -s stage=review \
             -p pr_number=${{ github.event.pull_request.number }} \
             -p pr_title="${{ github.event.pull_request.title }}" \
-            code-review > context.txt
+            /code-review > context.txt
       
       - name: Review with AI
         run: |
@@ -96,7 +96,7 @@ jobs:
             -p issue_number=${{ github.event.issue.number }} \
             -p issue_title="${{ github.event.issue.title }}" \
             -p issue_body="${{ github.event.issue.body }}" \
-            fix-bug > context.txt
+            /fix-bug > context.txt
       
       - name: Apply AI Fix
         run: |
@@ -132,7 +132,7 @@ jobs:
       
       - name: Planning Context
         run: |
-          coding-context -s stage=planning plan-feature > plan-context.txt
+          coding-context -s stage=planning /plan-feature > plan-context.txt
       
       - name: Create Plan
         run: cat plan-context.txt | your-ai-agent > plan.md
@@ -162,7 +162,7 @@ jobs:
       
       - name: Implementation Context
         run: |
-          coding-context -s stage=implementation implement-feature > impl-context.txt
+          coding-context -s stage=implementation /implement-feature > impl-context.txt
       
       - name: Implement
         run: |
@@ -179,7 +179,7 @@ Pass secrets to bootstrap scripts:
     JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   run: |
-    coding-context -s source=jira fix-bug > context.txt
+    coding-context -s source=jira /fix-bug > context.txt
 ```
 
 ## Caching CLI Binary
@@ -209,7 +209,7 @@ Use the `-C` flag to run from a different directory:
 ```yaml
 - name: Assemble Context
   run: |
-    coding-context -C ./backend -s language=Go fix-bug > context.txt
+    coding-context -C ./backend -s language=Go /fix-bug > context.txt
 ```
 
 ## Best Practices
