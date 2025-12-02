@@ -271,24 +271,24 @@ func TestParseSlashCommand(t *testing.T) {
 		},
 		// Edge case tests for named parameters
 		{
-			name:      "numeric key in named parameter is ignored",
+			name:      "numeric key in named parameter overwrites positional",
 			command:   `/task arg1 1="override"`,
 			wantFound: true,
 			wantTask:  "task",
 			wantParams: map[string]string{
 				"ARGUMENTS": `arg1 1="override"`,
-				"1":         "arg1",
+				"1":         "override",
 				"2":         `1="override"`,
 			},
 			wantErr: false,
 		},
 		{
-			name:      "ARGUMENTS key in named parameter is ignored",
+			name:      "ARGUMENTS key in named parameter overwrites",
 			command:   `/task arg1 ARGUMENTS="custom"`,
 			wantFound: true,
 			wantTask:  "task",
 			wantParams: map[string]string{
-				"ARGUMENTS": `arg1 ARGUMENTS="custom"`,
+				"ARGUMENTS": "custom",
 				"1":         "arg1",
 				"2":         `ARGUMENTS="custom"`,
 			},

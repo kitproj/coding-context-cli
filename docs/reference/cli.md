@@ -419,8 +419,6 @@ Named parameter values can contain spaces and special characters:
 
 **Note:** Unquoted values (e.g., `key=value`) or single-quoted values (e.g., `key='value'`) are treated as regular positional arguments, not named parameters.
 
-Reserved keys (`ARGUMENTS` and numeric keys like `1`, `2`, etc.) cannot be used as named parameter keys and will be ignored.
-
 ### Example with Positional Parameters
 
 Create a task file (`implement-feature.md`):

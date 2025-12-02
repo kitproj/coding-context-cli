@@ -23,7 +23,6 @@ import (
 // Named parameters:
 //   - Named parameters use key="value" format with mandatory double quotes
 //   - Named parameters are also counted as positional arguments (retaining their original form)
-//   - The named parameter key must not be a reserved key (ARGUMENTS) or a numeric key
 //
 // Examples:
 //   - "/fix-bug 123" -> taskName: "fix-bug", params: {"ARGUMENTS": "123", "1": "123"}, found: true
@@ -94,14 +93,8 @@ func parseSlashCommand(command string) (taskName string, params map[string]strin
 		return "", nil, false, err
 	}
 
-	// Merge parsed params into params (excluding reserved keys)
+	// Merge parsed params into params
 	for key, value := range parsedParams {
-		// Skip reserved key ARGUMENTS (already set above)
-		if key == "ARGUMENTS" {
-			continue
-		}
-		// Skip numeric keys used as named parameter keys (they're already set as positional)
-		// But we do want to include positional keys "1", "2", etc from the parser
 		params[key] = value
 	}
 
@@ -164,12 +157,7 @@ func parseBashArgsWithNamed(s string) (map[string]string, error) {
 
 				// Check if this is also a named parameter with mandatory double quotes
 				if key, value, isNamed := parseNamedParamWithQuotes(rawArgStr); isNamed {
-					// Only add if not a reserved or numeric key
-					if key != "ARGUMENTS" {
-						if _, err := strconv.Atoi(key); err != nil {
-							params[key] = value
-						}
-					}
+					params[key] = value
 				} else {
 					// For non-named params, use stripped value as positional
 					params[strconv.Itoa(argNum-1)] = arg
@@ -197,12 +185,7 @@ func parseBashArgsWithNamed(s string) (map[string]string, error) {
 
 		// Check if this is also a named parameter with mandatory double quotes
 		if key, value, isNamed := parseNamedParamWithQuotes(rawArgStr); isNamed {
-			// Only add if not a reserved or numeric key
-			if key != "ARGUMENTS" {
-				if _, err := strconv.Atoi(key); err != nil {
-					params[key] = value
-				}
-			}
+			params[key] = value
 		} else {
 			// For non-named params, use stripped value as positional
 			params[strconv.Itoa(argNum)] = arg
