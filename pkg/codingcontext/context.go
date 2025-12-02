@@ -110,15 +110,15 @@ func (cc *Context) expandParams(content string) string {
 	})
 }
 
-// Run executes the context assembly for the given task name and returns the assembled result
-func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
+// Run executes the context assembly for the given taskPrompt and returns the assembled result.
+// The taskPrompt can be either:
+// - A free-text prompt (used directly as task content)
+// - A prompt containing a slash command (e.g., "/fix-bug 123") which triggers task lookup
+func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) {
 	if err := cc.downloadRemoteDirectories(ctx); err != nil {
 		return nil, fmt.Errorf("failed to download remote directories: %w", err)
 	}
 	defer cc.cleanupDownloadedDirectories()
-
-	// Add task name to includes so rules can be filtered by task
-	cc.includes.SetValue("task_name", taskName)
 
 	// If resume mode is enabled, add resume=true as a selector
 	if cc.resume {
@@ -136,72 +136,61 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	}
 	cc.searchPaths = append(cc.searchPaths, searchPaths...)
 
-	err = cc.findTaskFile(taskName)
+	// Expand parameters in taskPrompt to allow slash commands in parameters
+	expandedTaskPrompt := cc.expandParams(taskPrompt)
+
+	// Check if the taskPrompt contains a slash command
+	slashTaskName, slashParams, found, err := parseSlashCommand(expandedTaskPrompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find task file: %w", err)
+		return nil, fmt.Errorf("failed to parse slash command in taskPrompt: %w", err)
 	}
 
-	// Parse task file early to extract selector labels for filtering rules and tools
-	if err := cc.parseTaskFile(); err != nil {
-		return nil, fmt.Errorf("failed to parse task file: %w", err)
-	}
-
-	// Task frontmatter agent field overrides -a flag if -a was not set
-	if cc.task.FrontMatter.Agent != "" && !cc.agent.IsSet() {
-		if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
-			cc.agent = agent
-		} else {
-			cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", cc.task.FrontMatter.Agent, "error", err)
-		}
-	}
-
-	// Expand parameters in task content to allow slash commands in parameters
-	expandedContent := cc.expandParams(cc.task.Content)
-
-	// Check if the task contains a slash command (after parameter expansion)
-	slashTaskName, slashParams, found, err := parseSlashCommand(expandedContent)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse slash command in task: %w", err)
-	}
 	if found {
-		cc.logger.Info("Found slash command in task", "task", slashTaskName, "params", slashParams)
+		// Slash command found - find and use the corresponding task file
+		cc.logger.Info("Found slash command in taskPrompt", "task", slashTaskName, "params", slashParams)
 
-		// Replace parameters completely with slash command parameters
-		// The slash command fully replaces both task name and parameters
-		cc.params = slashParams
-
-		// Always find and parse the slash command task file, even if it's the same task name
-		// This ensures fresh parsing with the new parameters
-		if slashTaskName == taskName {
-			cc.logger.Info("Reloading slash command task", "task", slashTaskName)
-		} else {
-			cc.logger.Info("Switching to slash command task", "from", taskName, "to", slashTaskName)
+		// Merge slash command parameters with existing parameters
+		// Slash command parameters take precedence
+		for k, v := range slashParams {
+			cc.params[k] = v
 		}
 
-		// Reset task-related state
-		cc.matchingTaskFile = ""
-		cc.task = Markdown[TaskFrontMatter]{}
-
-		// Update task_name in includes for rule filtering
+		// Add task name to includes so rules can be filtered by task
 		cc.includes.SetValue("task_name", slashTaskName)
 
-		// Find the new task file
+		// Find the task file
 		if err := cc.findTaskFile(slashTaskName); err != nil {
 			return nil, fmt.Errorf("failed to find slash command task file: %w", err)
 		}
 
-		// Parse the new task file
+		// Parse task file to extract selector labels for filtering rules and tools
 		if err := cc.parseTaskFile(); err != nil {
 			return nil, fmt.Errorf("failed to parse slash command task file: %w", err)
 		}
+
+		// Task frontmatter agent field overrides -a flag if -a was not set
+		if cc.task.FrontMatter.Agent != "" && !cc.agent.IsSet() {
+			if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
+				cc.agent = agent
+			} else {
+				cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", cc.task.FrontMatter.Agent, "error", err)
+			}
+		}
+	} else {
+		// No slash command - use the taskPrompt directly as an inline task
+		cc.logger.Info("Using taskPrompt as inline task")
+		cc.task = Markdown[TaskFrontMatter]{
+			Content:     expandedTaskPrompt,
+			FrontMatter: TaskFrontMatter{},
+		}
+		cc.matchingTaskFile = "<inline>"
 	}
 
 	if err := cc.findExecuteRuleFiles(ctx, homeDir); err != nil {
 		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
-	// Expand parameters in task content (note: this may be a different task than initially loaded
-	// if a slash command was found above, which loaded a new task with new parameters)
+	// Expand parameters in task content
 	expandedTask := cc.expandParams(cc.task.Content)
 
 	// Estimate tokens for task file

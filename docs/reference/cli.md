@@ -12,7 +12,7 @@ Complete reference for the `coding-context` command-line interface.
 ## Synopsis
 
 ```
-coding-context [options] <task-name>
+coding-context [options] <task-prompt>
 ```
 
 ## Description
@@ -21,13 +21,23 @@ The Coding Context CLI assembles context from rule files and task prompts, perfo
 
 ## Arguments
 
-### `<task-name>`
+### `<task-prompt>`
 
-**Required.** The name of the task to execute. This matches the `task_name` field in task file frontmatter, not the filename.
+**Required.** The task prompt to execute. This can be either:
 
-**Example:**
+1. **Free-text prompt**: Used directly as the task content
+2. **Slash command**: A prompt containing `/task-name` which triggers task file lookup
+
+**Examples:**
 ```bash
-coding-context fix-bug
+# Free-text prompt (used directly as task content)
+coding-context "Please help me fix the login bug"
+
+# Slash command (looks up fix-bug.md task file)
+coding-context /fix-bug
+
+# Slash command with arguments
+coding-context "/fix-bug 123"
 ```
 
 ## Options
@@ -62,33 +72,33 @@ Supports various protocols via [go-getter](https://github.com/hashicorp/go-gette
 **Examples:**
 ```bash
 # Load from Git repository
-coding-context -d git::https://github.com/company/shared-rules.git fix-bug
+coding-context -d git::https://github.com/company/shared-rules.git /fix-bug
 
 # Use specific branch or tag
-coding-context -d 'git::https://github.com/company/shared-rules.git?ref=v1.0' fix-bug
+coding-context -d 'git::https://github.com/company/shared-rules.git?ref=v1.0' /fix-bug
 
 # Use subdirectory within repository (note the double slash)
-coding-context -d 'git::https://github.com/company/mono-repo.git//standards' fix-bug
+coding-context -d 'git::https://github.com/company/mono-repo.git//standards' /fix-bug
 
 # Load from HTTP archive
-coding-context -d https://example.com/coding-rules.tar.gz fix-bug
+coding-context -d https://example.com/coding-rules.tar.gz /fix-bug
 
 # Multiple remote sources
 coding-context \
   -d git::https://github.com/company/shared-rules.git \
   -d https://cdn.example.com/team-rules.zip \
-  fix-bug
+  /fix-bug
 
 # Mix local and remote
 coding-context \
   -d git::https://github.com/company/org-standards.git \
   -d file:///path/to/local/rules \
   -s language=Go \
-  fix-bug
+  /fix-bug
 
 # Local directories are automatically included
 # (workDir and homeDir are added automatically)
-coding-context fix-bug
+coding-context /fix-bug
 ```
 
 **See also:** [How to Use Remote Directories](../how-to/use-remote-directories)
@@ -103,14 +113,14 @@ Define a parameter for substitution in task prompts. Variables in task files usi
 **Examples:**
 ```bash
 # Single parameter
-coding-context -p issue_key=BUG-123 fix-bug
+coding-context -p issue_key=BUG-123 /fix-bug
 
 # Multiple parameters
 coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes" \
   -p severity=critical \
-  fix-bug
+  /fix-bug
 ```
 
 ### `-r`
@@ -127,10 +137,10 @@ Use this when continuing work in a new session where context has already been es
 **Example:**
 ```bash
 # Initial session
-coding-context -s resume=false fix-bug | ai-agent
+coding-context -s resume=false /fix-bug | ai-agent
 
 # Resume session
-coding-context -r fix-bug | ai-agent
+coding-context -r /fix-bug | ai-agent
 ```
 
 ### `-s <key>=<value>`
@@ -145,13 +155,13 @@ Filter rules and tasks by frontmatter fields. Only rules and tasks where ALL spe
 **Examples:**
 ```bash
 # Single selector
-coding-context -s language=Go fix-bug
+coding-context -s language=Go /fix-bug
 
 # Multiple selectors (AND logic)
-coding-context -s language=Go -s priority=high fix-bug
+coding-context -s language=Go -s priority=high /fix-bug
 
 # Select specific task variant
-coding-context -s environment=production deploy
+coding-context -s environment=production /deploy
 ```
 
 ### `-t`
@@ -166,7 +176,7 @@ Use this when downstream tools or AI agents need access to task metadata for dec
 **Example:**
 ```bash
 # Emit task frontmatter with the assembled context
-coding-context -t fix-bug
+coding-context -t /fix-bug
 ```
 
 **Output:**
@@ -181,7 +191,7 @@ resume: false
 
 **Example with selectors:**
 ```bash
-coding-context -t implement-feature
+coding-context -t /implement-feature
 ```
 
 If the task includes `selectors` in frontmatter, they appear in the output:
@@ -220,7 +230,7 @@ This output is intended to be piped to an AI agent.
 
 **Example:**
 ```bash
-coding-context fix-bug 2>errors.log | ai-agent
+coding-context /fix-bug 2>errors.log | ai-agent
 ```
 
 ## Environment Variables
@@ -232,7 +242,7 @@ The CLI itself doesn't use environment variables, but bootstrap scripts can acce
 export JIRA_API_KEY="your-key"
 export GITHUB_TOKEN="your-token"
 
-coding-context fix-bug  # Bootstrap scripts can use these variables
+coding-context /fix-bug  # Bootstrap scripts can use these variables
 ```
 
 ## Examples
@@ -240,90 +250,99 @@ coding-context fix-bug  # Bootstrap scripts can use these variables
 ### Basic Usage
 
 ```bash
-# Simple task execution
-coding-context code-review
+# Free-text prompt (used directly as task content)
+coding-context "Please help me review this code for security issues"
+
+# Slash command to execute a task file
+coding-context /code-review
+
+# Slash command with arguments
+coding-context "/fix-bug 123"
 
 # With parameters
-coding-context -p pr_number=123 code-review
+coding-context -p pr_number=123 /code-review
 
 # With selectors
-coding-context -s language=Python fix-bug
+coding-context -s language=Python /fix-bug
 
 # Multiple parameters and selectors
 coding-context \
   -s language=Go \
   -s stage=implementation \
   -p feature_name="Authentication" \
-  implement-feature
+  /implement-feature
 ```
 
 ### Working Directory
 
 ```bash
 # Run from different directory
-coding-context -C /path/to/project fix-bug
+coding-context -C /path/to/project /fix-bug
 
 # Run from subdirectory
 cd backend
-coding-context fix-bug  # Uses backend/.agents/ if it exists
+coding-context /fix-bug  # Uses backend/.agents/ if it exists
 ```
 
 ### Remote Directories
 
 ```bash
 # Load from Git repository
-coding-context -d git::https://github.com/company/shared-rules.git fix-bug
+coding-context -d git::https://github.com/company/shared-rules.git /fix-bug
 
 # Use specific version
-coding-context -d 'git::https://github.com/company/rules.git?ref=v1.0.0' fix-bug
+coding-context -d 'git::https://github.com/company/rules.git?ref=v1.0.0' /fix-bug
 
 # Combine multiple sources
 coding-context \
   -d git::https://github.com/company/org-standards.git \
   -d git::https://github.com/team/project-rules.git \
   -s language=Go \
-  implement-feature
+  /implement-feature
 
 # Load from HTTP archive
-coding-context -d https://cdn.company.com/rules.tar.gz code-review
+coding-context -d https://cdn.company.com/rules.tar.gz /code-review
 ```
 
 ### Resume Mode
 
 ```bash
 # Initial invocation
-coding-context -s resume=false implement-feature > context.txt
+coding-context -s resume=false /implement-feature > context.txt
 cat context.txt | ai-agent > plan.txt
 
 # Continue work (skips rules)
-coding-context -r implement-feature | ai-agent
+coding-context -r /implement-feature | ai-agent
 ```
 
 ### Piping to AI Agents
 
 ```bash
 # Claude
-coding-context fix-bug | claude
+coding-context /fix-bug | claude
 
 # LLM tool
-coding-context fix-bug | llm -m claude-3-5-sonnet-20241022
+coding-context /fix-bug | llm -m claude-3-5-sonnet-20241022
 
 # OpenAI
-coding-context code-review | openai api completions.create -m gpt-4
+coding-context /code-review | openai api completions.create -m gpt-4
 
 # Save to file first
-coding-context fix-bug > context.txt
+coding-context /fix-bug > context.txt
 cat context.txt | your-ai-agent
+
+# Free-text prompt
+coding-context "Please help me debug the auth module" | claude
 ```
 
 ### Token Monitoring
 
 ```bash
 # See token count in stderr
-coding-context fix-bug 2>&1 | grep -i token
+coding-context /fix-bug 2>&1 | grep -i token
 
 # Separate stdout and stderr
-coding-context fix-bug 2>tokens.log | ai-agent
+coding-context /fix-bug 2>tokens.log | ai-agent
 cat tokens.log  # View token information
 ```
 
@@ -343,7 +362,7 @@ stage: testing
 ---
 ```
 ```bash
-coding-context -s language=Go -s stage=testing fix-bug
+coding-context -s language=Go -s stage=testing /fix-bug
 ```
 
 **Doesn't Work:**
@@ -356,19 +375,19 @@ metadata:
 ```
 ```bash
 # This WON'T match nested fields
-coding-context -s metadata.language=Go fix-bug
+coding-context -s metadata.language=Go /fix-bug
 ```
 
 ## Slash Commands
 
-Slash command parsing is **always enabled** in task files. When a task file contains a slash command (e.g., `/task-name arg1 "arg 2"`), the CLI will automatically:
+When you provide a task-prompt containing a slash command (e.g., `/task-name arg1 "arg 2"`), the CLI will automatically:
 
 1. Extract the task name and arguments from the slash command
-2. Load the referenced task instead of the original task
+2. Load the referenced task file
 3. Pass the slash command arguments as parameters (`$1`, `$2`, `$ARGUMENTS`, etc.)
-4. **Completely replace** any existing parameters with the slash command parameters
+4. Merge with any existing parameters (slash command parameters take precedence)
 
-This enables wrapper tasks that can dynamically delegate to other tasks with arguments. The slash command fully replaces both the task name and all parameters.
+This enables dynamic task execution with inline arguments.
 
 ### Slash Command Format
 
@@ -400,15 +419,7 @@ Named parameter values can contain spaces and special characters:
 
 ### Example with Positional Parameters
 
-Create a wrapper task (`wrapper.md`):
-```yaml
----
-task_name: wrapper
----
-Please execute: /implement-feature login "Add OAuth support"
-```
-
-The target task (`implement-feature.md`):
+Create a task file (`implement-feature.md`):
 ```yaml
 ---
 task_name: implement-feature
@@ -420,13 +431,13 @@ Description: ${2}
 
 When you run:
 ```bash
-coding-context wrapper
+coding-context '/implement-feature login "Add OAuth support"'
 ```
 
 It will:
 1. Parse the slash command `/implement-feature login "Add OAuth support"`
 2. Load the `implement-feature` task
-3. Substitute `$1` with `login` and `$2` with `Add OAuth support`
+3. Substitute `${1}` with `login` and `${2}` with `Add OAuth support`
 
 The output will be:
 ```
@@ -437,7 +448,7 @@ Description: Add OAuth support
 
 This is equivalent to manually running:
 ```bash
-coding-context -p 1=login -p 2="Add OAuth support" implement-feature
+coding-context -p 1=login -p 2="Add OAuth support" /implement-feature
 ```
 
 ### Example with Named Parameters
