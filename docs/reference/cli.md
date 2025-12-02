@@ -395,7 +395,31 @@ This enables dynamic task execution with inline arguments.
 /task-name arg1 "arg with spaces" arg3
 ```
 
-### Example
+### Positional Parameters
+
+Positional arguments are automatically numbered starting from 1:
+- `/fix-bug 123` → `$1` = `123`
+- `/task arg1 arg2 arg3` → `$1` = `arg1`, `$2` = `arg2`, `$3` = `arg3`
+
+Quoted arguments preserve spaces:
+- `/code-review "PR #42"` → `$1` = `PR #42`
+
+### Named Parameters
+
+Named parameters use the format `key="value"` with **mandatory double quotes**:
+- `/fix-bug issue="PROJ-123"` → `$1` = `issue="PROJ-123"`, `$issue` = `PROJ-123`
+- `/deploy env="production" version="1.2.3"` → `$1` = `env="production"`, `$2` = `version="1.2.3"`, `$env` = `production`, `$version` = `1.2.3`
+
+Named parameters are counted as positional arguments (retaining their original form) while also being available by their key name:
+- `/task arg1 key="value" arg2` → `$1` = `arg1`, `$2` = `key="value"`, `$3` = `arg2`, `$key` = `value`
+
+Named parameter values can contain spaces and special characters:
+- `/run message="Hello, World!"` → `$1` = `message="Hello, World!"`, `$message` = `Hello, World!`
+- `/config query="x=y+z"` → `$1` = `query="x=y+z"`, `$query` = `x=y+z`
+
+**Note:** Unquoted values (e.g., `key=value`) or single-quoted values (e.g., `key='value'`) are treated as regular positional arguments, not named parameters.
+
+### Example with Positional Parameters
 
 Create a task file (`implement-feature.md`):
 ```yaml
@@ -427,6 +451,43 @@ Description: Add OAuth support
 This is equivalent to manually running:
 ```bash
 coding-context -p 1=login -p 2="Add OAuth support" /implement-feature
+```
+
+### Example with Named Parameters
+
+Create a wrapper task (`fix-issue-wrapper.md`):
+```yaml
+---
+task_name: fix-issue-wrapper
+---
+/fix-bug issue="PROJ-456" priority="high"
+```
+
+The target task (`fix-bug.md`):
+```yaml
+---
+task_name: fix-bug
+---
+# Fix Bug: ${issue}
+
+Priority: ${priority}
+```
+
+When you run:
+```bash
+coding-context fix-issue-wrapper
+```
+
+The output will be:
+```
+# Fix Bug: PROJ-456
+
+Priority: high
+```
+
+This is equivalent to manually running:
+```bash
+coding-context -p issue=PROJ-456 -p priority=high fix-bug
 ```
 
 ## See Also
