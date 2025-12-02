@@ -93,7 +93,7 @@ coding-context \
 coding-context \
   -d git::https://github.com/company/org-standards.git \
   -d file:///path/to/local/rules \
-  -s language=Go \
+  -s languages=go \
   /fix-bug
 
 # Local directories are automatically included
@@ -150,61 +150,24 @@ coding-context -r /fix-bug | ai-agent
 
 Filter rules and tasks by frontmatter fields. Only rules and tasks where ALL specified selectors match will be included.
 
-**Important:** Only top-level frontmatter fields can be matched. Nested fields are not supported.
+**Important:** 
+- Only top-level frontmatter fields can be matched. Nested fields are not supported.
+- For language filtering, use `-s languages=go` (plural `languages`)
+- This is different from the `-p` flag, which is for parameter substitution, not filtering
 
 **Examples:**
 ```bash
 # Single selector
-coding-context -s language=Go /fix-bug
+coding-context -s languages=go /fix-bug
 
 # Multiple selectors (AND logic)
-coding-context -s language=Go -s priority=high /fix-bug
+coding-context -s languages=go -s priority=high /fix-bug
 
 # Select specific task variant
 coding-context -s environment=production /deploy
 ```
 
-### `-t`
-
-**Type:** Boolean flag  
-**Default:** False
-
-Print the task's YAML frontmatter at the beginning of the output. This includes all frontmatter fields such as `task_name`, `selectors`, `resume`, and any custom fields.
-
-Use this when downstream tools or AI agents need access to task metadata for decision-making or workflow automation.
-
-**Example:**
-```bash
-# Emit task frontmatter with the assembled context
-coding-context -t /fix-bug
-```
-
-**Output:**
-```yaml
----
-task_name: fix-bug
-resume: false
----
-# Fix Bug Task
-...
-```
-
-**Example with selectors:**
-```bash
-coding-context -t /implement-feature
-```
-
-If the task includes `selectors` in frontmatter, they appear in the output:
-```yaml
----
-task_name: implement-feature
-selectors:
-  language: Go
-  stage: implementation
----
-# Implementation
-...
-```
+**Note:** When filtering by language, use `-s languages=go` (plural). The selector key is `languages` (plural), matching the frontmatter field name.
 
 ## Exit Codes
 
@@ -216,8 +179,23 @@ selectors:
 ### Standard Output (stdout)
 
 The assembled context, consisting of:
-1. All matching rule files
-2. The selected task prompt (with parameters substituted)
+1. Task frontmatter (YAML format) - always included when task has frontmatter
+2. All matching rule files
+3. The selected task prompt (with parameters substituted)
+
+Task frontmatter is automatically included at the beginning of the output when present. This includes all frontmatter fields such as `task_name`, `selectors`, `resume`, `language`, `agent`, and any custom fields.
+
+**Example output:**
+```yaml
+---
+task_name: fix-bug
+resume: false
+---
+# Rule content here...
+
+# Fix Bug Task
+...
+```
 
 This output is intended to be piped to an AI agent.
 
@@ -263,11 +241,11 @@ coding-context "/fix-bug 123"
 coding-context -p pr_number=123 /code-review
 
 # With selectors
-coding-context -s language=Python /fix-bug
+coding-context -s languages=python /fix-bug
 
 # Multiple parameters and selectors
 coding-context \
-  -s language=Go \
+  -s languages=go \
   -s stage=implementation \
   -p feature_name="Authentication" \
   /implement-feature
@@ -297,7 +275,7 @@ coding-context -d 'git::https://github.com/company/rules.git?ref=v1.0.0' /fix-bu
 coding-context \
   -d git::https://github.com/company/org-standards.git \
   -d git::https://github.com/team/project-rules.git \
-  -s language=Go \
+  -s languages=go \
   /implement-feature
 
 # Load from HTTP archive
@@ -357,25 +335,28 @@ Selectors (`-s`) only match top-level YAML frontmatter fields.
 **Works:**
 ```yaml
 ---
-language: Go
+languages:
+  - go
 stage: testing
 ---
 ```
 ```bash
-coding-context -s language=Go -s stage=testing /fix-bug
+coding-context -s languages=go -s stage=testing /fix-bug
 ```
+
+**Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`). Use `languages:` (plural) with array format in frontmatter.
 
 **Doesn't Work:**
 ```yaml
 ---
 metadata:
-  language: Go
+  languages: go
   stage: testing
 ---
 ```
 ```bash
 # This WON'T match nested fields
-coding-context -s metadata.language=Go /fix-bug
+coding-context -s metadata.language=go /fix-bug
 ```
 
 ## Slash Commands

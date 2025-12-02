@@ -22,7 +22,7 @@ coding-context /fix-bug | your-ai-agent
 ```bash
 coding-context \
   -p issue_key=BUG-123 \
-  -s language=Go \
+  -s languages=go \
   /fix-bug | claude
 ```
 
@@ -140,7 +140,7 @@ ISSUE_KEY=$1
 DESCRIPTION=$2
 
 coding-context \
-  -s language=Go \
+  -s languages=go \
   -s priority=high \
   -p issue_key="$ISSUE_KEY" \
   -p description="$DESCRIPTION" \
@@ -159,7 +159,7 @@ If your context exceeds token limits:
 
 1. **Use selectors to reduce included rules:**
    ```bash
-   coding-context -s language=Go -s priority=high /fix-bug
+   coding-context -s languages=go -s priority=high /fix-bug
    ```
 
 2. **Use resume mode to skip rules:**

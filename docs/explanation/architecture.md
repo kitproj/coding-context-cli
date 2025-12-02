@@ -24,12 +24,12 @@ Each stage transforms data before passing it to the next stage.
 ### 1. Parse Command-Line Arguments
 
 ```
-coding-context -C /project -s language=Go -p issue=BUG-123 /fix-bug
+coding-context -C /project -s languages=go -p issue=BUG-123 /fix-bug
 ```
 
 The CLI parses:
 - Working directory: `/project`
-- Selectors: `{language: Go}`
+- Selectors: `{languages: go}`
 - Parameters: `{issue: BUG-123}`
 - Task name: `fix-bug`
 
@@ -81,7 +81,7 @@ If found: Execute and log output to stderr
 
 ### 5. Filter Rules by Selectors
 
-If selectors are specified (e.g., `-s language=Go`):
+If selectors are specified (e.g., `-s languages=go`):
 
 ```
 For each rule:
@@ -96,14 +96,15 @@ For each rule:
 ```yaml
 # Rule 1
 ---
-language: Go
+languages:
+  - go
 stage: testing
 ---
 ```
-- `-s language=Go` → ✅ Include
-- `-s language=Python` → ❌ Exclude
-- `-s language=Go -s stage=testing` → ✅ Include
-- `-s language=Go -s stage=planning` → ❌ Exclude
+- `-s languages=go` → ✅ Include
+- `-s languages=python` → ❌ Exclude
+- `-s languages=go -s stage=testing` → ✅ Include
+- `-s languages=go -s stage=planning` → ❌ Exclude
 
 Rules without frontmatter are always included (unless resume mode).
 
@@ -333,7 +334,7 @@ Searched:
   - ./.agents/tasks/
   - ~/.agents/tasks/
 
-Tip: Check that your task file has 'task_name: fix-bug' in frontmatter
+Tip: Check that your task file is named `fix-bug.md` (tasks are matched by filename, not by `task_name` in frontmatter)
 ```
 
 ## Design Principles
@@ -371,13 +372,15 @@ Selectors only match top-level YAML fields:
 ```yaml
 # ✅ Can match
 ---
-language: Go
+languages:
+  - go
 ---
 
 # ❌ Cannot match nested
 ---
 metadata:
-  language: Go
+  languages:
+    - go
 ---
 ```
 
@@ -386,10 +389,10 @@ metadata:
 Multiple selectors use AND logic:
 
 ```bash
-# Requires BOTH language=Go AND stage=testing
-coding-context -s language=Go -s stage=testing /fix-bug
+# Requires BOTH languages=go AND stage=testing
+coding-context -s languages=go -s stage=testing /fix-bug
 
-# No way to specify: language=Go OR language=Python
+# No way to specify: languages=go OR languages=python
 ```
 
 ### No Rule Ordering
