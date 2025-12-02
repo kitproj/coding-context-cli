@@ -2,6 +2,7 @@ package codingcontext
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -101,19 +102,11 @@ func parseSlashCommand(command string) (taskName string, params map[string]strin
 
 	// Add named parameters (excluding reserved and numeric keys)
 	for key, value := range namedParams {
-		// Skip reserved key ARGUMENTS
+		// Skip reserved key ARGUMENTS and numeric keys
 		if key == "ARGUMENTS" {
 			continue
 		}
-		// Skip numeric keys to avoid overwriting positional parameters
-		isNumeric := true
-		for _, ch := range key {
-			if ch < '0' || ch > '9' {
-				isNumeric = false
-				break
-			}
-		}
-		if isNumeric {
+		if _, err := strconv.Atoi(key); err == nil {
 			continue
 		}
 		params[key] = value
