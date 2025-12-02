@@ -24,7 +24,7 @@ Each stage transforms data before passing it to the next stage.
 ### 1. Parse Command-Line Arguments
 
 ```
-coding-context -C /project -s language=Go -p issue=BUG-123 fix-bug
+coding-context -C /project -s language=Go -p issue=BUG-123 /fix-bug
 ```
 
 The CLI parses:
@@ -387,7 +387,7 @@ Multiple selectors use AND logic:
 
 ```bash
 # Requires BOTH language=Go AND stage=testing
-coding-context -s language=Go -s stage=testing fix-bug
+coding-context -s language=Go -s stage=testing /fix-bug
 
 # No way to specify: language=Go OR language=Python
 ```
