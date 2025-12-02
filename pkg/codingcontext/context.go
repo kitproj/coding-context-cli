@@ -110,11 +110,11 @@ func (cc *Context) expandParams(content string) string {
 	})
 }
 
-// Run executes the context assembly for the given prompt and returns the assembled result.
-// The prompt can be either:
+// Run executes the context assembly for the given taskPrompt and returns the assembled result.
+// The taskPrompt can be either:
 // - A free-text prompt (used directly as task content)
 // - A prompt containing a slash command (e.g., "/fix-bug 123") which triggers task lookup
-func (cc *Context) Run(ctx context.Context, prompt string) (*Result, error) {
+func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) {
 	if err := cc.downloadRemoteDirectories(ctx); err != nil {
 		return nil, fmt.Errorf("failed to download remote directories: %w", err)
 	}
@@ -136,18 +136,18 @@ func (cc *Context) Run(ctx context.Context, prompt string) (*Result, error) {
 	}
 	cc.searchPaths = append(cc.searchPaths, searchPaths...)
 
-	// Expand parameters in prompt to allow slash commands in parameters
-	expandedPrompt := cc.expandParams(prompt)
+	// Expand parameters in taskPrompt to allow slash commands in parameters
+	expandedTaskPrompt := cc.expandParams(taskPrompt)
 
-	// Check if the prompt contains a slash command
-	slashTaskName, slashParams, found, err := parseSlashCommand(expandedPrompt)
+	// Check if the taskPrompt contains a slash command
+	slashTaskName, slashParams, found, err := parseSlashCommand(expandedTaskPrompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse slash command in prompt: %w", err)
+		return nil, fmt.Errorf("failed to parse slash command in taskPrompt: %w", err)
 	}
 
 	if found {
 		// Slash command found - find and use the corresponding task file
-		cc.logger.Info("Found slash command in prompt", "task", slashTaskName, "params", slashParams)
+		cc.logger.Info("Found slash command in taskPrompt", "task", slashTaskName, "params", slashParams)
 
 		// Merge slash command parameters with existing parameters
 		// Slash command parameters take precedence
@@ -177,10 +177,10 @@ func (cc *Context) Run(ctx context.Context, prompt string) (*Result, error) {
 			}
 		}
 	} else {
-		// No slash command - use the prompt directly as an inline task
-		cc.logger.Info("Using prompt as inline task")
+		// No slash command - use the taskPrompt directly as an inline task
+		cc.logger.Info("Using taskPrompt as inline task")
 		cc.task = Markdown[TaskFrontMatter]{
-			Content:     expandedPrompt,
+			Content:     expandedTaskPrompt,
 			FrontMatter: TaskFrontMatter{},
 		}
 		cc.matchingTaskFile = "<inline>"

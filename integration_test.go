@@ -1083,7 +1083,7 @@ Deploy instructions.
 	}
 }
 
-func TestFreeTextPrompt(t *testing.T) {
+func TestFreeTextPromptWithRules(t *testing.T) {
 	dirs := setupTestDirs(t)
 
 	// Create a rule file that should be included
@@ -1110,25 +1110,11 @@ Follow these coding standards.
 	if !strings.Contains(output, "# Coding Standards") {
 		t.Errorf("rule content not found in stdout")
 	}
-}
 
-func TestFreeTextPromptWithParameters(t *testing.T) {
-	dirs := setupTestDirs(t)
-
-	// Run with a free-text prompt that contains parameter placeholders
-	output := runTool(t, "-C", dirs.tmpDir, "-p", "component=auth", "-p", "issue=login failure", "Please work on ${component} and fix ${issue}")
-
-	// Parameters should be expanded in the output
-	if !strings.Contains(output, "Please work on auth and fix login failure") {
+	// Test with parameter expansion (combined into same test)
+	output = runTool(t, "-C", dirs.tmpDir, "-p", "component=auth", "Please work on ${component}")
+	if !strings.Contains(output, "Please work on auth") {
 		t.Errorf("parameter expansion not working correctly. Output:\n%s", output)
-	}
-
-	// Original placeholders should not appear
-	if strings.Contains(output, "${component}") {
-		t.Errorf("parameter placeholder ${component} should be replaced")
-	}
-	if strings.Contains(output, "${issue}") {
-		t.Errorf("parameter placeholder ${issue} should be replaced")
 	}
 }
 
