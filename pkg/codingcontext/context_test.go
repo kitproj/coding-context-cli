@@ -304,6 +304,31 @@ func TestFindTaskFile(t *testing.T) {
 			wantErr:     false,
 		},
 		{
+			name:     "task file found in .agents/commands directory",
+			taskName: "agents_commands_task",
+			setupFiles: func(t *testing.T, tmpDir string) {
+				taskDir := filepath.Join(tmpDir, ".agents", "commands")
+				createMarkdownFile(t, filepath.Join(taskDir, "agents_commands_task.md"),
+					"",
+					"# Agents Commands Task")
+			},
+			wantErr: false,
+		},
+		{
+			name:     "task file found in downloaded .agents/commands directory",
+			taskName: "agents_commands_remote_task",
+			setupFiles: func(t *testing.T, tmpDir string) {
+				// Create task file in downloaded directory's .agents/commands
+				downloadedDir := filepath.Join(tmpDir, "downloaded")
+				taskDir := filepath.Join(downloadedDir, ".agents", "commands")
+				createMarkdownFile(t, filepath.Join(taskDir, "agents_commands_remote_task.md"),
+					"",
+					"# Agents Commands Remote Task")
+			},
+			searchPaths: []string{"downloaded"}, // Will be resolved relative to tmpDir
+			wantErr:     false,
+		},
+		{
 			name:     "task file found in .opencode/command directory",
 			taskName: "opencode_task",
 			setupFiles: func(t *testing.T, tmpDir string) {
