@@ -89,39 +89,32 @@ func parseSlashCommand(command string) (taskName string, params map[string]strin
 	}
 
 	// Parse arguments using bash-like parsing, handling both positional and named parameters
-	allArgs, namedParams, err := parseBashArgsWithNamed(argsString)
+	parsedParams, err := parseBashArgsWithNamed(argsString)
 	if err != nil {
 		return "", nil, false, err
 	}
 
-	// Add all arguments as positional parameters $1, $2, $3, etc.
-	// Named parameters are also included in positional numbering
-	for i, arg := range allArgs {
-		params[fmt.Sprintf("%d", i+1)] = arg
-	}
-
-	// Add named parameters (excluding reserved and numeric keys)
-	for key, value := range namedParams {
-		// Skip reserved key ARGUMENTS and numeric keys
+	// Merge parsed params into params (excluding reserved keys)
+	for key, value := range parsedParams {
+		// Skip reserved key ARGUMENTS (already set above)
 		if key == "ARGUMENTS" {
 			continue
 		}
-		if _, err := strconv.Atoi(key); err == nil {
-			continue
-		}
+		// Skip numeric keys used as named parameter keys (they're already set as positional)
+		// But we do want to include positional keys "1", "2", etc from the parser
 		params[key] = value
 	}
 
 	return taskName, params, true, nil
 }
 
-// parseBashArgsWithNamed parses a string into all arguments and named parameters.
-// All arguments (including named parameters) are returned in allArgs for positional numbering.
+// parseBashArgsWithNamed parses a string into a map of parameters.
+// The map contains positional keys ("1", "2", "3", etc.) and named parameter keys.
 // Named parameters must use key="value" format with mandatory double quotes.
-// Returns all arguments, named parameters map, and any error.
-func parseBashArgsWithNamed(s string) ([]string, map[string]string, error) {
-	var allArgs []string
-	namedParams := make(map[string]string)
+// Returns the parameters map and any error.
+func parseBashArgsWithNamed(s string) (map[string]string, error) {
+	params := make(map[string]string)
+	argNum := 1
 
 	var current strings.Builder
 	var rawArg strings.Builder // Tracks the raw argument including quotes
@@ -165,13 +158,23 @@ func parseBashArgsWithNamed(s string) ([]string, map[string]string, error) {
 				arg := current.String()
 				rawArgStr := rawArg.String()
 
-				// Check if this is a named parameter with mandatory double quotes
+				// Add as positional argument
+				params[strconv.Itoa(argNum)] = rawArgStr
+				argNum++
+
+				// Check if this is also a named parameter with mandatory double quotes
 				if key, value, isNamed := parseNamedParamWithQuotes(rawArgStr); isNamed {
-					allArgs = append(allArgs, rawArgStr)
-					namedParams[key] = value
+					// Only add if not a reserved or numeric key
+					if key != "ARGUMENTS" {
+						if _, err := strconv.Atoi(key); err != nil {
+							params[key] = value
+						}
+					}
 				} else {
-					allArgs = append(allArgs, arg)
+					// For non-named params, use stripped value as positional
+					params[strconv.Itoa(argNum-1)] = arg
 				}
+
 				current.Reset()
 				rawArg.Reset()
 				justClosedQuotes = false
@@ -189,21 +192,29 @@ func parseBashArgsWithNamed(s string) ([]string, map[string]string, error) {
 		arg := current.String()
 		rawArgStr := rawArg.String()
 
-		// Check if this is a named parameter with mandatory double quotes
+		// Add as positional argument
+		params[strconv.Itoa(argNum)] = rawArgStr
+
+		// Check if this is also a named parameter with mandatory double quotes
 		if key, value, isNamed := parseNamedParamWithQuotes(rawArgStr); isNamed {
-			allArgs = append(allArgs, rawArgStr)
-			namedParams[key] = value
+			// Only add if not a reserved or numeric key
+			if key != "ARGUMENTS" {
+				if _, err := strconv.Atoi(key); err != nil {
+					params[key] = value
+				}
+			}
 		} else {
-			allArgs = append(allArgs, arg)
+			// For non-named params, use stripped value as positional
+			params[strconv.Itoa(argNum)] = arg
 		}
 	}
 
 	// Check for unclosed quotes
 	if inQuotes {
-		return nil, nil, fmt.Errorf("unclosed quote in arguments")
+		return nil, fmt.Errorf("unclosed quote in arguments")
 	}
 
-	return allArgs, namedParams, nil
+	return params, nil
 }
 
 // parseNamedParamWithQuotes checks if an argument is a named parameter in key="value" format.
