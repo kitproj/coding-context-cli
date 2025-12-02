@@ -25,7 +25,7 @@ Please review the code changes with focus on:
 - Security implications
 ```
 
-Save as `.agents/tasks/code-review.md`.
+Save as `.agents/tasks/code-review.md` (or `.agents/commands/code-review.md`).
 
 Use with:
 ```bash
