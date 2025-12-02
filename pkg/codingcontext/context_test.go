@@ -58,13 +58,13 @@ func TestRun(t *testing.T) {
 		},
 		{
 			name:        "task not found",
-			args:        []string{"nonexistent"},
+			args:        []string{"/nonexistent"},
 			wantErr:     true,
 			errContains: "no task file found",
 		},
 		{
 			name: "successful task execution",
-			args: []string{"test_task"},
+			args: []string{"/test_task"},
 			setupFiles: func(t *testing.T, tmpDir string) {
 				// Create task file
 				taskDir := filepath.Join(tmpDir, ".agents", "tasks")
@@ -76,7 +76,7 @@ func TestRun(t *testing.T) {
 		},
 		{
 			name: "task with parameters",
-			args: []string{"param_task"},
+			args: []string{"/param_task"},
 			params: Params{
 				"name": "value",
 			},
@@ -90,7 +90,7 @@ func TestRun(t *testing.T) {
 		},
 		{
 			name: "resume mode skips rules",
-			args: []string{"resume_task"},
+			args: []string{"/resume_task"},
 			includes: Selectors{
 				"resume": map[string]bool{"true": true},
 			},
@@ -1704,72 +1704,79 @@ func (f *fileInfoMock) Sys() any           { return nil }
 
 func TestSlashCommandSubstitution(t *testing.T) {
 	tests := []struct {
-		name            string
-		initialTaskName string
-		taskContent     string
-		params          Params
-		wantTaskName    string
-		wantParams      map[string]string
-		wantErr         bool
-		errContains     string
+		name         string
+		prompt       string
+		params       Params
+		wantTaskName string
+		wantParams   map[string]string
+		wantContent  string
+		wantErr      bool
+		errContains  string
 	}{
 		{
-			name:            "substitution to different task",
-			initialTaskName: "wrapper-task",
-			taskContent:     "Please /real-task 123",
-			params:          Params{},
-			wantTaskName:    "real-task",
+			name:         "slash command finds task",
+			prompt:       "/real-task 123",
+			params:       Params{},
+			wantTaskName: "real-task",
 			wantParams: map[string]string{
 				"ARGUMENTS": "123",
 				"1":         "123",
 			},
-			wantErr: false,
+			wantContent: "# Real Task Content for issue 123",
+			wantErr:     false,
 		},
 		{
-			name:            "slash command replaces existing parameters completely",
-			initialTaskName: "wrapper-task",
-			taskContent:     "Please /real-task 456",
-			params:          Params{"foo": "bar", "existing": "old"},
-			wantTaskName:    "real-task",
+			name:         "slash command merges with existing parameters",
+			prompt:       "/real-task 456",
+			params:       Params{"foo": "bar", "existing": "old"},
+			wantTaskName: "real-task",
 			wantParams: map[string]string{
 				"ARGUMENTS": "456",
 				"1":         "456",
+				"foo":       "bar",
+				"existing":  "old",
 			},
-			wantErr: false,
+			wantContent: "# Real Task Content for issue 456",
+			wantErr:     false,
 		},
 		{
-			name:            "same task with params - replaces existing params",
-			initialTaskName: "my-task",
-			taskContent:     "/my-task arg1 arg2",
-			params:          Params{"existing": "value"},
-			wantTaskName:    "my-task",
+			name:         "slash command with multiple arguments",
+			prompt:       "/multi-arg-task arg1 arg2 arg3",
+			params:       Params{},
+			wantTaskName: "multi-arg-task",
 			wantParams: map[string]string{
-				"ARGUMENTS": "arg1 arg2",
+				"ARGUMENTS": "arg1 arg2 arg3",
 				"1":         "arg1",
 				"2":         "arg2",
+				"3":         "arg3",
 			},
-			wantErr: false,
+			wantContent: "# Multi Arg Task: arg1, arg2, arg3",
+			wantErr:     false,
 		},
 		{
-			name:            "slash command in parameter value (free-text use case)",
-			initialTaskName: "free-text-task",
-			taskContent:     "${text}",
-			params:          Params{"text": "/real-task PROJ-123"},
-			wantTaskName:    "real-task",
-			wantParams: map[string]string{
-				"ARGUMENTS": "PROJ-123",
-				"1":         "PROJ-123",
-			},
-			wantErr: false,
+			name:         "no slash command - uses free text as inline task",
+			prompt:       "Just a simple task with no slash command",
+			params:       Params{},
+			wantTaskName: "",
+			wantParams:   map[string]string{},
+			wantContent:  "Just a simple task with no slash command",
+			wantErr:      false,
 		},
 		{
-			name:            "no slash command in task",
-			initialTaskName: "simple-task",
-			taskContent:     "Just a simple task with no slash command",
-			params:          Params{},
-			wantTaskName:    "simple-task",
-			wantParams:      map[string]string{},
-			wantErr:         false,
+			name:         "free text with parameters expanded",
+			prompt:       "Please work on ${component}",
+			params:       Params{"component": "auth"},
+			wantTaskName: "",
+			wantParams:   map[string]string{"component": "auth"},
+			wantContent:  "Please work on auth",
+			wantErr:      false,
+		},
+		{
+			name:        "slash command for nonexistent task",
+			prompt:      "/nonexistent-task",
+			params:      Params{},
+			wantErr:     true,
+			errContains: "no task file found",
 		},
 	}
 
@@ -1777,31 +1784,18 @@ func TestSlashCommandSubstitution(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 
-			// Create the initial task file
+			// Create task files
 			taskDir := filepath.Join(tmpDir, ".agents", "tasks")
-			createMarkdownFile(t, filepath.Join(taskDir, "wrapper-task.md"),
-				"task_name: wrapper-task",
-				tt.taskContent)
 
-			// Create the real-task file if needed
+			// Create real-task file
 			createMarkdownFile(t, filepath.Join(taskDir, "real-task.md"),
 				"task_name: real-task",
 				"# Real Task Content for issue ${1}")
 
-			// Create a simple-task file
-			createMarkdownFile(t, filepath.Join(taskDir, "simple-task.md"),
-				"task_name: simple-task",
-				"Just a simple task with no slash command")
-
-			// Create my-task file
-			createMarkdownFile(t, filepath.Join(taskDir, "my-task.md"),
-				"task_name: my-task",
-				"/my-task arg1 arg2")
-
-			// Create free-text-task file
-			createMarkdownFile(t, filepath.Join(taskDir, "free-text-task.md"),
-				"task_name: free-text-task",
-				"${text}")
+			// Create multi-arg-task file
+			createMarkdownFile(t, filepath.Join(taskDir, "multi-arg-task.md"),
+				"task_name: multi-arg-task",
+				"# Multi Arg Task: ${1}, ${2}, ${3}")
 
 			var logOut bytes.Buffer
 			cc := &Context{
@@ -1822,7 +1816,7 @@ func TestSlashCommandSubstitution(t *testing.T) {
 				cc.params = make(Params)
 			}
 
-			result, err := cc.Run(context.Background(), tt.initialTaskName)
+			result, err := cc.Run(context.Background(), tt.prompt)
 
 			if tt.wantErr {
 				if err == nil {
@@ -1843,13 +1837,20 @@ func TestSlashCommandSubstitution(t *testing.T) {
 				return
 			}
 
-			// Verify the task name by checking the task_name in frontmatter
-			if taskName, ok := result.Task.FrontMatter.Content["task_name"].(string); ok {
-				if taskName != tt.wantTaskName {
-					t.Errorf("Task name = %v, want %v", taskName, tt.wantTaskName)
+			// Verify the task name by checking the task_name in frontmatter (only for slash command cases)
+			if tt.wantTaskName != "" {
+				if taskName, ok := result.Task.FrontMatter.Content["task_name"].(string); ok {
+					if taskName != tt.wantTaskName {
+						t.Errorf("Task name = %v, want %v", taskName, tt.wantTaskName)
+					}
+				} else {
+					t.Errorf("Task name not found in frontmatter, wanted %q", tt.wantTaskName)
 				}
-			} else {
-				t.Errorf("Task name not found in frontmatter")
+			}
+
+			// Verify content
+			if tt.wantContent != "" && !strings.Contains(result.Task.Content, tt.wantContent) {
+				t.Errorf("Task content = %q, want to contain %q", result.Task.Content, tt.wantContent)
 			}
 
 			// Verify parameters
@@ -1923,7 +1924,7 @@ func TestTaskLanguageFieldFilteringRules(t *testing.T) {
 				WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
 			)
 
-			result, err := cc.Run(ctx, "test-task")
+			result, err := cc.Run(ctx, "/test-task")
 			if err != nil {
 				t.Fatalf("Run() error = %v", err)
 			}
@@ -1985,7 +1986,7 @@ mcp_servers:
 	cc := New(
 		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
 	)
-	result, err := cc.Run(context.Background(), "test-task")
+	result, err := cc.Run(context.Background(), "/test-task")
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -2071,7 +2072,7 @@ func TestWithResume(t *testing.T) {
 		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
 	)
 
-	result, err := cc.Run(context.Background(), "resume_task")
+	result, err := cc.Run(context.Background(), "/resume_task")
 	if err != nil {
 		t.Fatalf("Run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
 	}
@@ -2096,7 +2097,7 @@ func TestWithResume(t *testing.T) {
 		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
 	)
 
-	result2, err := cc2.Run(context.Background(), "resume_task")
+	result2, err := cc2.Run(context.Background(), "/resume_task")
 	if err != nil {
 		t.Fatalf("Run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
 	}
@@ -2166,7 +2167,7 @@ func TestWithAgent(t *testing.T) {
 		WithSearchPaths(func() string { abs, _ := filepath.Abs(tmpDir); return "file://" + abs }()),
 	)
 
-	result, err := cc.Run(context.Background(), "test-task")
+	result, err := cc.Run(context.Background(), "/test-task")
 	if err != nil {
 		t.Fatalf("Run() unexpected error: %v\nLog output:\n%s", err, logOut.String())
 	}
