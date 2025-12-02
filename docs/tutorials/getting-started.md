@@ -126,14 +126,14 @@ coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \
   -s language=Go \
-  fix-bug
+  /fix-bug
 ```
 
 **What this command does:**
 - `-p issue_key=BUG-123` replaces `${issue_key}` in the task
 - `-p description="..."` replaces `${description}` in the task
 - `-s language=Go` includes only rules with `language: Go` in frontmatter
-- `fix-bug` is the task name to use
+- `/fix-bug` is the task name to use (slash indicates task file lookup)
 
 You should see output containing:
 1. The Go coding standards rule
@@ -148,7 +148,7 @@ coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \
   -s language=Go \
-  fix-bug | llm -m claude-3-5-sonnet-20241022
+  /fix-bug | llm -m claude-3-5-sonnet-20241022
 ```
 
 The AI agent will receive the assembled context and provide a response based on your coding standards and task requirements.
@@ -164,7 +164,7 @@ coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \
   -s language=Go \
-  fix-bug | llm -m claude-3-5-sonnet-20241022
+  /fix-bug | llm -m claude-3-5-sonnet-20241022
 ```
 
 This is useful for:
