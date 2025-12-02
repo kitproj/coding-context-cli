@@ -9,12 +9,11 @@ The documentation is available at: **https://kitproj.github.io/coding-context-cl
 ## Structure
 
 - `index.md` - Home page with overview and quick start
-- `getting-started.md` - Installation and first steps guide
-- `usage.md` - Detailed CLI reference and usage guide
-- `agentic-workflows.md` - Integration with GitHub Actions
-- `examples.md` - Real-world examples and templates
+- `tutorials/` - Step-by-step learning guides
+- `how-to/` - Problem-oriented practical guides
+- `reference/` - Technical specifications
+- `explanation/` - Conceptual documentation
 - `_config.yml` - Jekyll configuration
-- `_layouts/default.html` - Custom layout with navigation
 
 ## Building Locally
 
@@ -28,7 +27,7 @@ gem install bundler jekyll
 cat > Gemfile << 'EOF'
 source 'https://rubygems.org'
 gem 'github-pages', group: :jekyll_plugins
-gem 'jekyll-theme-cayman'
+gem 'just-the-docs'
 EOF
 
 # Install dependencies
@@ -46,7 +45,7 @@ The site is automatically deployed to GitHub Pages when changes are pushed to th
 
 ## Theme
 
-The site uses the Cayman theme, which is one of the officially supported GitHub Pages themes. The theme is configured in `_config.yml`.
+The site uses the Just the Docs theme, which provides excellent navigation and search capabilities. The theme is configured in `_config.yml`.
 
 ## Updating Documentation
 
@@ -57,4 +56,4 @@ The site uses the Cayman theme, which is one of the officially supported GitHub 
 
 ## Navigation
 
-The site navigation is defined in the custom layout file `_layouts/default.html`. To modify the navigation structure, edit that file.
+The site uses the Just the Docs theme, which automatically generates navigation from frontmatter in each page (using `nav_order`, `parent`, and `has_children` fields).

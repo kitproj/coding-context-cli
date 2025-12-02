@@ -50,7 +50,6 @@ coding-context code-review      → Uses ~/.agents/tasks/code-review.md (from ho
 ```
 
 **Note:** The working directory and home directory are automatically added to search paths, so tasks in those locations are found automatically.
-```
 
 ## Rule File Search Paths
 
