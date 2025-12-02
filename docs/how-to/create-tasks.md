@@ -139,7 +139,7 @@ Instead of requiring `-s` flags on every invocation, you can embed selectors dir
 ---
 task_name: implement-feature
 selectors:
-  language: Go
+  languages: go
   stage: implementation
 ---
 # Implement Feature in Go
@@ -152,7 +152,7 @@ Requirements: ${requirements}
 
 **Usage:**
 ```bash
-# Automatically applies language=Go and stage=implementation selectors
+# Automatically applies languages=go and stage=implementation selectors
 coding-context -p feature_name="User Auth" /implement-feature
 ```
 
@@ -161,7 +161,7 @@ coding-context -p feature_name="User Auth" /implement-feature
 ---
 task_name: write-tests
 selectors:
-  language: [Go, Python]
+  languages: [go, python]
   stage: testing
 ---
 # Write Tests
@@ -169,19 +169,21 @@ selectors:
 Write comprehensive tests for the code.
 ```
 
-This matches rules where `(language=Go OR language=Python) AND stage=testing`.
+This matches rules where `(languages=go OR languages=python) AND stage=testing`.
 
 **Combining embedded and command-line selectors:**
 ```bash
-# Task has: selectors.language = Go
+# Task has: selectors.languages = go
 # Command adds: -s priority=high
-# Result: Includes rules matching language=Go AND priority=high
+# Result: Includes rules matching languages=go AND priority=high
 coding-context -s priority=high /implement-feature
 ```
 
+**Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).
+
 ## Task Frontmatter
 
-Task frontmatter is automatically included in the output. This is useful when downstream tools need access to task metadata.
+Task frontmatter is **always** automatically included in the output when present. This happens automatically - no flag is needed. This is useful when downstream tools need access to task metadata.
 
 **Example:**
 ```bash
@@ -193,7 +195,7 @@ coding-context /implement-feature
 ---
 task_name: implement-feature
 selectors:
-  language: Go
+  languages: go
   stage: implementation
 ---
 # Implement Feature in Go

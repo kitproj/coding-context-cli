@@ -209,7 +209,7 @@ Use the `-C` flag to run from a different directory:
 ```yaml
 - name: Assemble Context
   run: |
-    coding-context -C ./backend -s language=Go /fix-bug > context.txt
+    coding-context -C ./backend -s languages=go /fix-bug > context.txt
 ```
 
 ## Best Practices

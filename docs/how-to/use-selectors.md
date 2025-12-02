@@ -15,10 +15,10 @@ Include only rules matching a specific frontmatter field:
 
 ```bash
 # Include only Go rules
-coding-context -s language=Go /fix-bug
+coding-context -s languages=go /fix-bug
 ```
 
-This includes only rules with `language: Go` in their frontmatter.
+This includes only rules with `languages: [ go ]` in their frontmatter.
 
 ## Multiple Selectors (AND Logic)
 
@@ -26,10 +26,12 @@ Combine multiple selectors - all must match:
 
 ```bash
 # Include only Go testing rules
-coding-context -s language=Go -s stage=testing /implement-feature
+coding-context -s languages=go -s stage=testing /implement-feature
 ```
 
-This includes only rules with BOTH `language: Go` AND `stage: testing`.
+This includes only rules with BOTH `languages: [ go ]` AND `stage: testing`.
+
+**Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).
 
 ## Selecting Tasks
 
@@ -68,14 +70,14 @@ coding-context -s environment=production /deploy
 
 ```bash
 # Python project
-coding-context -s language=Python /fix-bug
+coding-context -s languages=python /fix-bug
 
 # JavaScript project
-coding-context -s language=JavaScript /code-review
+coding-context -s languages=javascript /code-review
 
 # Multi-language (run separately)
-coding-context -s language=Go /implement-backend
-coding-context -s language=JavaScript /implement-frontend
+coding-context -s languages=go /implement-backend
+coding-context -s languages=javascript /implement-frontend
 ```
 
 ### By Stage
@@ -134,7 +136,7 @@ Instead of specifying selectors on the command line every time, you can embed th
 ---
 task_name: implement-feature
 selectors:
-  language: go
+  languages: go
   stage: implementation
 ---
 # Implement Feature in Go
@@ -149,7 +151,7 @@ coding-context /implement-feature
 
 This is equivalent to:
 ```bash
-coding-context -s language=go -s stage=implementation /implement-feature
+coding-context -s languages=go -s stage=implementation /implement-feature
 ```
 
 ### Array Selectors (OR Logic)
@@ -217,7 +219,7 @@ coding-context /implement-feature
 ---
 task_name: implement-feature
 selectors:
-  language: go
+  languages: go
   stage: implementation
 ---
 # Task content...
@@ -230,8 +232,10 @@ selectors:
 - All specified selectors match the rule's frontmatter
 
 **Tasks are selected by:**
-- Matching `task_name` (required)
+- Matching filename (without `.md` extension)
 - Matching all selectors (if specified)
+
+**Note:** Tasks are matched by filename, not by `task_name` in frontmatter. The `task_name` field is optional metadata.
 
 **Important limitations:**
 - Only top-level frontmatter fields can be matched
@@ -243,7 +247,8 @@ selectors:
 **Rule with multiple frontmatter fields:**
 ```markdown
 ---
-language: Go
+languages:
+  - go
 stage: testing
 priority: high
 team: backend
@@ -256,13 +261,13 @@ team: backend
 **Matching selectors:**
 ```bash
 # Matches
-coding-context -s language=Go /fix-bug
-coding-context -s language=Go -s stage=testing /fix-bug
+coding-context -s languages=go /fix-bug
+coding-context -s languages=go -s stage=testing /fix-bug
 coding-context -s priority=high /fix-bug
 
 # Does NOT match
-coding-context -s language=Python /fix-bug
-coding-context -s language=Go -s stage=planning /fix-bug
+coding-context -s languages=python /fix-bug
+coding-context -s languages=go -s stage=planning /fix-bug
 ```
 
 ## Debugging Selectors
@@ -271,11 +276,11 @@ Check which rules are included:
 
 ```bash
 # Output to file and review
-coding-context -s language=Go /fix-bug > output.txt
+coding-context -s languages=go /fix-bug > output.txt
 less output.txt
 
 # Check token count
-coding-context -s language=Go /fix-bug 2>&1 | grep -i token
+coding-context -s languages=go /fix-bug 2>&1 | grep -i token
 ```
 
 ## Best Practices

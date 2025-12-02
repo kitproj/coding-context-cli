@@ -33,7 +33,8 @@ Create rules that apply only to specific programming languages:
 **Go standards (`.agents/rules/go-standards.md`):**
 ```markdown
 ---
-language: Go
+languages:
+  - go
 ---
 
 # Go Coding Standards
@@ -47,7 +48,8 @@ language: Go
 **Python standards (`.agents/rules/python-standards.md`):**
 ```markdown
 ---
-language: Python
+languages:
+  - python
 ---
 
 # Python Coding Standards
@@ -61,11 +63,13 @@ language: Python
 Use with:
 ```bash
 # Include only Go rules
-coding-context -s language=Go /fix-bug
+coding-context -s languages=go /fix-bug
 
 # Include only Python rules
-coding-context -s language=Python /fix-bug
+coding-context -s languages=python /fix-bug
 ```
+
+**Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).
 
 ## Rules with Multiple Selectors
 
@@ -73,7 +77,8 @@ Create rules with multiple frontmatter fields for fine-grained filtering:
 
 ```markdown
 ---
-language: Go
+languages:
+  - go
 stage: testing
 priority: high
 ---
@@ -90,8 +95,10 @@ When writing tests:
 Use with:
 ```bash
 # Include rules for Go testing
-coding-context -s language=Go -s stage=testing /implement-feature
+coding-context -s languages=go -s stage=testing /implement-feature
 ```
+
+**Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).
 
 ## Stage-Specific Rules
 
@@ -179,24 +186,26 @@ coding-context -s source=jira /fix-bug
 
 1. **Keep rules focused**: Each rule should address one concern
 2. **Use frontmatter selectors**: Make rules conditionally includable
-3. **Match language names exactly**: Use GitHub Linguist names (e.g., `Go`, not `go`)
+3. **Use lowercase language values**: Language values should be lowercase (e.g., `go`, `python`, `javascript`)
 4. **Organize by category**: Group related rules together
 5. **Update rules as standards evolve**: Keep them current
 
-## Common Linguist Languages
+## Common Language Values
 
-Use these exact names in your `language:` frontmatter:
+Use lowercase values in your `language:` frontmatter:
 
-- C, C++, C#, CSS
-- Dart, Elixir, Go
-- Haskell, HTML
-- Java, JavaScript
-- Kotlin, Lua
-- Markdown, Objective-C
-- PHP, Python
-- Ruby, Rust
-- Scala, Shell, Swift
-- TypeScript, YAML
+- c, c++, c#, css
+- dart, elixir, go
+- haskell, html
+- java, javascript
+- kotlin, lua
+- markdown, objective-c
+- php, python
+- ruby, rust
+- scala, shell, swift
+- typescript, yaml
+
+**Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).
 
 ## See Also
 

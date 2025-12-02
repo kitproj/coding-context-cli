@@ -84,7 +84,8 @@ EOF
 ```
 
 **What this does:**
-- The frontmatter (`---` section) defines `task_name: fix-bug` which is how you'll reference this task
+- The file is named `fix-bug.md`, which is how you'll reference it: `/fix-bug`
+- The frontmatter (`---` section) includes `task_name: fix-bug` as metadata (optional)
 - The `${issue_key}` and `${description}` are placeholders that will be replaced with actual values
 - The content provides instructions for the AI agent
 
@@ -95,7 +96,8 @@ Rules are reusable context snippets that provide guidelines to AI agents.
 ```bash
 cat > rules/coding-standards.md << 'EOF'
 ---
-language: Go
+languages:
+  - go
 ---
 
 # Go Coding Standards
@@ -110,8 +112,9 @@ EOF
 ```
 
 **What this does:**
-- The frontmatter includes `language: Go`, which allows filtering this rule for Go projects
+- The frontmatter includes `languages: [ go ]`, which allows this rule to be filtered when using `-s languages=go`
 - The content provides coding standards that the AI agent should follow
+- **Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`). Use `languages:` (plural) with array format.
 
 ## Step 5: Assemble Context
 
@@ -125,15 +128,16 @@ cd ..
 coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \
-  -s language=Go \
+  -s languages=go \
   /fix-bug
 ```
 
 **What this command does:**
 - `-p issue_key=BUG-123` replaces `${issue_key}` in the task
 - `-p description="..."` replaces `${description}` in the task
-- `-s language=Go` includes only rules with `language: Go` in frontmatter
+- `-s languages=go` includes only rules with `languages: [ go ]` in frontmatter
 - `/fix-bug` is the task name to use (slash indicates task file lookup)
+- **Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`)
 
 You should see output containing:
 1. The Go coding standards rule
@@ -147,7 +151,7 @@ Pipe the output to an AI agent:
 coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \
-  -s language=Go \
+  -s languages=go \
   /fix-bug | llm -m claude-3-5-sonnet-20241022
 ```
 
@@ -163,7 +167,7 @@ coding-context \
   -d git::https://github.com/company/shared-coding-rules.git \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \
-  -s language=Go \
+  -s languages=go \
   /fix-bug | llm -m claude-3-5-sonnet-20241022
 ```
 

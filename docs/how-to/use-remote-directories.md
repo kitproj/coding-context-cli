@@ -126,7 +126,7 @@ Combine remote directories with local project rules:
 # 3. Home directory (automatically added)
 coding-context \
   -d git::https://github.com/company/shared-rules.git \
-  -s language=Go \
+  -s languages=go \
   /fix-bug
 ```
 
@@ -137,7 +137,7 @@ You can also explicitly add local directories:
 coding-context \
   -d git::https://github.com/company/shared-rules.git \
   -d file:///path/to/local/rules \
-  -s language=Go \
+  -s languages=go \
   /fix-bug
 ```
 
@@ -150,7 +150,7 @@ Use remote directories with all normal CLI features:
 ```bash
 coding-context \
   -d git::https://github.com/company/standards.git \
-  -s language=Go \
+  -s languages=go \
   -s environment=production \
   -p component=auth \
   -p severity=critical \
@@ -203,7 +203,8 @@ mkdir -p .agents/tasks
 **`.agents/rules/go-standards.md`:**
 ```markdown
 ---
-language: Go
+languages:
+  - go
 ---
 
 # Go Coding Standards
@@ -259,7 +260,7 @@ git push --tags
 # In any project
 coding-context \
   -d 'git::https://github.com/company/shared-coding-rules.git?ref=v1.0.0' \
-  -s language=Go \
+  -s languages=go \
   /code-review
 ```
 

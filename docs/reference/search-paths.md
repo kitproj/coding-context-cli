@@ -27,8 +27,9 @@ Within each directory, task files are searched in the following locations:
 ### Discovery Rules
 
 - All `.md` files in these directories are examined
-- If `task_name` is present in frontmatter, it's used for task identification
-- If `task_name` is absent, the filename (without `.md` extension) is used as the task name
+- Tasks are matched by filename (without `.md` extension), not by `task_name` in frontmatter
+- The `task_name` field in frontmatter is optional and used only for metadata
+- If multiple files have the same filename, selectors are used to choose between them
 - First match wins (unless selectors create ambiguity)
 - Searches stop when a matching task is found
 - Directories are searched in the order they appear in `-d` flags, then the automatically-added working directory and home directory
@@ -37,16 +38,16 @@ Within each directory, task files are searched in the following locations:
 
 ```
 Project structure:
-./.agents/tasks/fix-bug.md            (task_name: fix-bug)
-./.opencode/command/review-code.md    (task_name: review-code)
-./.opencode/command/deploy.md         (no task_name, uses filename)
-~/.agents/tasks/code-review.md        (task_name: code-review)
+./.agents/tasks/fix-bug.md            (matched by filename "fix-bug")
+./.opencode/command/review-code.md    (matched by filename "review-code")
+./.opencode/command/deploy.md         (matched by filename "deploy")
+~/.agents/tasks/code-review.md        (matched by filename "code-review")
 
 Commands:
-coding-context fix-bug          → Uses ./.agents/tasks/fix-bug.md (from working directory)
-coding-context review-code      → Uses ./.opencode/command/review-code.md (from working directory)
-coding-context deploy           → Uses ./.opencode/command/deploy.md (from working directory)
-coding-context code-review      → Uses ~/.agents/tasks/code-review.md (from home directory)
+coding-context /fix-bug          → Uses ./.agents/tasks/fix-bug.md (from working directory)
+coding-context /review-code      → Uses ./.opencode/command/review-code.md (from working directory)
+coding-context /deploy           → Uses ./.opencode/command/deploy.md (from working directory)
+coding-context /code-review      → Uses ~/.agents/tasks/code-review.md (from home directory)
 ```
 
 **Note:** The working directory and home directory are automatically added to search paths, so tasks in those locations are found automatically.
@@ -219,7 +220,7 @@ Regardless of where rules are found, they can be filtered using selectors:
 
 ```bash
 # Include only Go rules (from any location)
-coding-context -s language=Go fix-bug
+coding-context -s languages=go /fix-bug
 
 # Include only planning rules
 coding-context -s stage=planning plan-feature
@@ -233,16 +234,18 @@ coding-context -s stage=planning plan-feature
 .agents/
 └── rules/
     ├── general-standards.md        (no frontmatter - always included)
-    ├── go-backend.md               (language: Go)
-    ├── python-ml.md                (language: Python)
-    └── javascript-frontend.md      (language: JavaScript)
+    ├── go-backend.md               (languages: [ go ])
+    ├── python-ml.md                (languages: [ python ])
+    └── javascript-frontend.md      (languages: [ javascript ])
 
 Commands:
-coding-context -s language=Go fix-bug
+coding-context -s languages=go /fix-bug
   → Includes: general-standards.md, go-backend.md
 
-coding-context -s language=Python train-model
+coding-context -s languages=python /train-model
   → Includes: general-standards.md, python-ml.md
+
+**Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).
 ```
 
 ### Environment Tiers
@@ -286,9 +289,10 @@ coding-context -s team=backend fix-bug
 
 **Task not found:**
 - Verify that `.agents/tasks/`, `.agents/commands/`, `.cursor/commands/`, or `.opencode/command/` directory exists in one of the search path directories
-- Check `task_name` field in frontmatter matches the task name you're using
+- Check that the filename (without `.md` extension) matches the task name you're using (e.g., `fix-bug.md` for `/fix-bug`)
 - Ensure filename has `.md` extension
 - Verify the directory containing the task is in search paths (working directory and home directory are added automatically)
+- Note: Tasks are matched by filename, not by `task_name` in frontmatter
 
 **Rules not filtered correctly:**
 - Verify frontmatter YAML is valid

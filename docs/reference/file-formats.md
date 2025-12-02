@@ -17,7 +17,7 @@ Task files define what the AI agent should do. They are Markdown files with YAML
 
 ```markdown
 ---
-task_name: <required-task-identifier>
+task_name: <optional-task-identifier>
 <optional-frontmatter-fields>
 ---
 
@@ -26,12 +26,14 @@ task_name: <required-task-identifier>
 Content can include ${parameter_placeholders}.
 ```
 
+**Note:** The `task_name` field is optional. Tasks are matched by filename (without `.md` extension), not by `task_name` in frontmatter. The `task_name` field is useful for metadata and appears in the frontmatter output.
+
 ### Frontmatter Fields
 
-#### `task_name` (required)
+#### `task_name` (optional)
 
 **Type:** String  
-**Purpose:** Identifies the task for selection via command line
+**Purpose:** Metadata field that identifies the task. Tasks are actually matched by filename (without `.md` extension), not by this field. This field is useful for metadata and can be used in task frontmatter output.
 
 **Example:**
 ```yaml
@@ -42,47 +44,65 @@ task_name: fix-bug
 
 **Usage:**
 ```bash
+# Task is matched by filename "fix-bug.md", not by task_name field
 coding-context /fix-bug
 ```
 
-#### `language` (optional, standard field)
+**Note:** The `task_name` field is optional. If omitted, the task is still matched by its filename.
 
-**Type:** String or Array  
-**Purpose:** Specifies the programming language(s) and automatically filters rules with matching language selector
+#### `languages` (optional, standard field)
 
-The `language` field is a **standard frontmatter field** that acts as a default selector. When a task specifies a language, only rules with that same language value (or no language field) will be included in the context.
+**Type:** Array (recommended) or String  
+**Purpose:** Metadata field that specifies the programming language(s) for the task. This field does NOT filter rules - it is metadata only and appears in the task frontmatter output.
 
-**Example (single language):**
+The `languages` field is a **standard frontmatter field** that provides metadata about which programming language(s) the task relates to. Unlike selectors, this field does not automatically filter rules. To filter rules by language, use the `selectors` field or the `-s languages=go` command-line flag.
+
+**Recommended format (array with lowercase values):**
 ```yaml
 ---
 task_name: implement-feature
-language: go
+languages:
+  - go
 ---
 ```
 
-**Example (multiple languages with OR logic):**
+**Example (multiple languages):**
 ```yaml
 ---
 task_name: polyglot-task
-language:
+languages:
   - go
   - python
   - javascript
 ---
 ```
 
-**Behavior:**
-- Rules with `language: go` are included (when task has `language: go`)
-- Rules without a `language` field are included (generic rules)
-- Rules with different language values are excluded
-- When multiple languages are specified, rules matching ANY of them are included (OR logic)
+**Note:** Both `language` (singular) and `languages` (plural) are accepted in YAML and map to the same field, but `languages` (plural) is recommended. Language values should be lowercase (e.g., `go`, `python`, `javascript`). The field is stored in frontmatter output but does not affect rule filtering.
 
-**Equivalent command-line usage:**
-```bash
-# These are equivalent:
-coding-context /implement-feature  # (task has language: go)
-coding-context -s language=go /implement-feature
+**To filter rules by language, use selectors:**
+
+**Important distinction:**
+- Frontmatter metadata field: `languages:` (plural) - does NOT filter rules
+- Selector key: `languages:` (plural) - used for filtering rules
+
+**In task frontmatter selectors:**
+```yaml
+---
+task_name: implement-feature
+selectors:
+  languages: go
+---
 ```
+
+**On the command line:**
+```bash
+coding-context -s languages=go /implement-feature
+```
+
+**Note:** 
+- Use `-s languages=go` (selector flag, plural `languages`)
+- Do NOT use `-p languages=go` (`-p` is for parameter substitution, not filtering)
+- Language values should be lowercase (e.g., `go`, `python`, `javascript`)
 
 #### `single_shot` (optional, standard field)
 
@@ -227,20 +247,20 @@ The `selectors` field allows a task to specify which rules should be included wh
 ---
 task_name: implement-feature
 selectors:
-  language: go
+  languages: go
   stage: implementation
 ---
 ```
 
 **Usage:**
 ```bash
-# Automatically includes rules with language=go AND stage=implementation
+# Automatically includes rules with languages=go AND stage=implementation
 coding-context /implement-feature
 ```
 
 This is equivalent to:
 ```bash
-coding-context -s language=go -s stage=implementation /implement-feature
+coding-context -s languages=go -s stage=implementation /implement-feature
 ```
 
 **OR Logic with Arrays:**
@@ -251,21 +271,21 @@ You can specify multiple values for the same key using YAML arrays for OR logic:
 ---
 task_name: test-code
 selectors:
-  language: [Go, Python, JavaScript]
+  languages: [go, python, javascript]
   stage: testing
 ---
 ```
 
-This matches rules where `(language=go OR language=python OR language=javascript) AND stage=testing`.
+This matches rules where `(languages=go OR languages=python OR languages=javascript) AND stage=testing`.
 
 **Combining with Command-Line Selectors:**
 
 Selectors from the task frontmatter and command-line `-s` flags are combined (additive):
 
 ```bash
-# Task frontmatter has: selectors.language = Go
+# Task frontmatter has: selectors.languages = go
 # Command line adds: -s priority=high
-# Result: Rules must match language=go AND priority=high
+# Result: Rules must match languages=go AND priority=high
 coding-context -s priority=high /implement-feature
 ```
 
@@ -316,7 +336,7 @@ Task files must be in one of these directories:
 - `./.opencode/command/`
 - `~/.agents/tasks/`
 
-The filename itself doesn't matter if `task_name` is specified in frontmatter. If `task_name` is not specified, the filename (without `.md` extension) is used as the task name.
+Tasks are matched by filename (without `.md` extension). The `task_name` field in frontmatter is optional and used only for metadata. For example, a file named `fix-bug.md` is matched by the command `/fix-bug`, regardless of whether it has `task_name` in its frontmatter.
 
 ## Rule Files
 
@@ -367,32 +387,37 @@ task_name:
 - Rules without `task_name` are included for all tasks (generic rules)
 - The task's own `task_name` is automatically added as a selector
 
-#### `language` (rule selector)
+#### `language` or `languages` (rule selector)
 
-Specifies which programming language(s) this rule applies to. Can be a string or array.
+Specifies which programming language(s) this rule applies to. Can be a string or array. Language values should be lowercase. The recommended format is `languages:` (plural) with an array.
 
+**Recommended format (array):**
 ```yaml
 ---
-language: go
+languages:
+  - go
 ---
-# This rule only applies when language=go is selected
+# This rule only applies when languages=go is selected
 ```
 
 **Multiple languages (OR logic):**
 ```yaml
 ---
-language:
-  - Go
-  - Python
-  - JavaScript
+languages:
+  - go
+  - python
+  - javascript
 ---
 # This rule applies to any of these languages
 ```
 
 **Behavior:**
-- When a task has `language: go`, rules with `language: go` are included
-- Rules without `language` are included (generic rules)
-- Can also be filtered via `-s language=go` command-line flag
+- Rules with `languages: [ go ]` are included when `-s languages=go` is specified (or via task `selectors.languages`)
+- Rules without `languages` are included (generic rules)
+- The task's `languages` field (metadata) does NOT automatically filter rules - use `selectors.languages` or `-s languages=go` instead
+- Language values should be lowercase (e.g., `go`, `python`, `javascript`)
+- Both `language` (singular) and `languages` (plural) are accepted in frontmatter, but `languages` (plural) with array format is recommended
+- **Important:** When using selectors (`-s` flag or `selectors:` in frontmatter), use `languages` (plural) as the key
 
 #### `agent` (rule selector)
 
@@ -427,7 +452,8 @@ mcp_servers:
 **Other common fields:**
 ```yaml
 ---
-language: go
+languages:
+  - go
 stage: implementation
 priority: high
 team: backend
@@ -435,6 +461,8 @@ agent: cursor
 task_name: implement-feature
 ---
 ```
+
+**Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`). Use `languages:` (plural) with array format.
 
 ### Supported Extensions
 
@@ -521,7 +549,8 @@ boolean_key: true
 ```yaml
 # ✅ Supported
 ---
-language: go
+languages:
+  - go
 stage: testing
 ---
 
@@ -536,7 +565,7 @@ metadata:
 **Selectors match top-level only:**
 ```bash
 # Works with top-level fields
-coding-context -s language=go /fix-bug
+coding-context -s languages=go /fix-bug
 
 # Doesn't work with nested fields
 coding-context -s metadata.language=go /fix-bug  # Won't match
@@ -550,7 +579,8 @@ Frontmatter values are treated as strings for matching:
 ---
 priority: 1
 enabled: true
-language: go
+languages:
+  - go
 ---
 ```
 
@@ -558,7 +588,7 @@ language: go
 # All values are matched as strings
 coding-context -s priority=1 /task       # Matches priority: 1
 coding-context -s enabled=true /task     # Matches enabled: true
-coding-context -s language=go /task      # Matches language: go
+coding-context -s languages=go /task      # Matches languages: [ go ]
 ```
 
 ## Special Behaviors
@@ -603,8 +633,8 @@ coding-context -s resume=true /fix-bug        # Includes rules
 ## Validation
 
 The CLI validates:
-- ✅ Task files have `task_name` in frontmatter
-- ✅ YAML frontmatter is well-formed
+- ✅ Task files match by filename (`.md` files with matching base name)
+- ✅ YAML frontmatter is well-formed (if present)
 - ✅ At most one task matches the selectors
 
 The CLI does NOT validate:
