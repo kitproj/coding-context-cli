@@ -37,6 +37,7 @@ func rulePaths(dir string, home bool) []string {
 func taskSearchPaths(dir string) []string {
 	return []string{
 		filepath.Join(dir, ".agents", "tasks"),
+		filepath.Join(dir, ".agents", "commands"),
 		filepath.Join(dir, ".cursor", "commands"),
 		filepath.Join(dir, ".opencode", "command"),
 	}
