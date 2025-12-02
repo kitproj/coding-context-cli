@@ -158,6 +158,7 @@ func TestParseSlashCommand(t *testing.T) {
 			wantTask:  "fix-bug",
 			wantParams: map[string]string{
 				"ARGUMENTS": `issue="PROJ-123"`,
+				"1":         `issue="PROJ-123"`,
 				"issue":     "PROJ-123",
 			},
 			wantErr: false,
@@ -169,6 +170,8 @@ func TestParseSlashCommand(t *testing.T) {
 			wantTask:  "deploy",
 			wantParams: map[string]string{
 				"ARGUMENTS": `env="production" version="1.2.3"`,
+				"1":         `env="production"`,
+				"2":         `version="1.2.3"`,
 				"env":       "production",
 				"version":   "1.2.3",
 			},
@@ -182,7 +185,8 @@ func TestParseSlashCommand(t *testing.T) {
 			wantParams: map[string]string{
 				"ARGUMENTS": `arg1 key="value" arg2`,
 				"1":         "arg1",
-				"2":         "arg2",
+				"2":         `key="value"`,
+				"3":         "arg2",
 				"key":       "value",
 			},
 			wantErr: false,
@@ -194,6 +198,7 @@ func TestParseSlashCommand(t *testing.T) {
 			wantTask:  "implement",
 			wantParams: map[string]string{
 				"ARGUMENTS": `feature="Add user authentication"`,
+				"1":         `feature="Add user authentication"`,
 				"feature":   "Add user authentication",
 			},
 			wantErr: false,
@@ -205,6 +210,7 @@ func TestParseSlashCommand(t *testing.T) {
 			wantTask:  "log",
 			wantParams: map[string]string{
 				"ARGUMENTS": `message="User said \"hello\""`,
+				"1":         `message="User said \"hello\""`,
 				"message":   `User said "hello"`,
 			},
 			wantErr: false,
@@ -217,7 +223,8 @@ func TestParseSlashCommand(t *testing.T) {
 			wantParams: map[string]string{
 				"ARGUMENTS": `before key="middle" after`,
 				"1":         "before",
-				"2":         "after",
+				"2":         `key="middle"`,
+				"3":         "after",
 				"key":       "middle",
 			},
 			wantErr: false,
@@ -229,6 +236,9 @@ func TestParseSlashCommand(t *testing.T) {
 			wantTask:  "config",
 			wantParams: map[string]string{
 				"ARGUMENTS": `host="localhost" port="8080" debug="true"`,
+				"1":         `host="localhost"`,
+				"2":         `port="8080"`,
+				"3":         `debug="true"`,
 				"host":      "localhost",
 				"port":      "8080",
 				"debug":     "true",
@@ -242,6 +252,7 @@ func TestParseSlashCommand(t *testing.T) {
 			wantTask:  "task",
 			wantParams: map[string]string{
 				"ARGUMENTS": `key=""`,
+				"1":         `key=""`,
 				"key":       "",
 			},
 			wantErr: false,
@@ -253,7 +264,46 @@ func TestParseSlashCommand(t *testing.T) {
 			wantTask:  "run",
 			wantParams: map[string]string{
 				"ARGUMENTS": `equation="x=y+z"`,
+				"1":         `equation="x=y+z"`,
 				"equation":  "x=y+z",
+			},
+			wantErr: false,
+		},
+		// Edge case tests for named parameters
+		{
+			name:      "numeric key in named parameter is ignored",
+			command:   `/task arg1 1="override"`,
+			wantFound: true,
+			wantTask:  "task",
+			wantParams: map[string]string{
+				"ARGUMENTS": `arg1 1="override"`,
+				"1":         "arg1",
+				"2":         `1="override"`,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "ARGUMENTS key in named parameter is ignored",
+			command:   `/task arg1 ARGUMENTS="custom"`,
+			wantFound: true,
+			wantTask:  "task",
+			wantParams: map[string]string{
+				"ARGUMENTS": `arg1 ARGUMENTS="custom"`,
+				"1":         "arg1",
+				"2":         `ARGUMENTS="custom"`,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "duplicate named parameter keys - last value wins",
+			command:   `/task key="first" key="second"`,
+			wantFound: true,
+			wantTask:  "task",
+			wantParams: map[string]string{
+				"ARGUMENTS": `key="first" key="second"`,
+				"1":         `key="first"`,
+				"2":         `key="second"`,
+				"key":       "second",
 			},
 			wantErr: false,
 		},

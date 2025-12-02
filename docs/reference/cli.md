@@ -406,16 +406,18 @@ Quoted arguments preserve spaces:
 
 ### Named Parameters
 
-Named parameters use the format `key="value"` (double quotes required):
-- `/fix-bug issue="PROJ-123"` → `$issue` = `PROJ-123`
-- `/deploy env="production" version="1.2.3"` → `$env` = `production`, `$version` = `1.2.3`
+Named parameters use the format `key="value"` (quotes required for values with spaces):
+- `/fix-bug issue="PROJ-123"` → `$1` = `issue="PROJ-123"`, `$issue` = `PROJ-123`
+- `/deploy env="production" version="1.2.3"` → `$1` = `env="production"`, `$2` = `version="1.2.3"`, `$env` = `production`, `$version` = `1.2.3`
 
-Named parameters can be mixed with positional arguments. Named parameters do not count toward positional numbering:
-- `/task arg1 key="value" arg2` → `$1` = `arg1`, `$2` = `arg2`, `$key` = `value`
+Named parameters are counted as positional arguments (retaining their original form) while also being available by their key name:
+- `/task arg1 key="value" arg2` → `$1` = `arg1`, `$2` = `key="value"`, `$3` = `arg2`, `$key` = `value`
 
 Named parameter values can contain spaces and special characters:
-- `/run message="Hello, World!"` → `$message` = `Hello, World!`
-- `/config query="x=y+z"` → `$query` = `x=y+z`
+- `/run message="Hello, World!"` → `$1` = `message="Hello, World!"`, `$message` = `Hello, World!`
+- `/config query="x=y+z"` → `$1` = `query="x=y+z"`, `$query` = `x=y+z`
+
+Reserved keys (`ARGUMENTS` and numeric keys like `1`, `2`, etc.) cannot be used as named parameter keys and will be ignored.
 
 ### Example with Positional Parameters
 
