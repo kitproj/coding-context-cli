@@ -56,7 +56,7 @@ The `language` field is a **standard frontmatter field** that acts as a default 
 ```yaml
 ---
 task_name: implement-feature
-language: Go
+language: go
 ---
 ```
 
@@ -65,14 +65,14 @@ language: Go
 ---
 task_name: polyglot-task
 language:
-  - Go
-  - Python
-  - JavaScript
+  - go
+  - python
+  - javascript
 ---
 ```
 
 **Behavior:**
-- Rules with `language: Go` are included (when task has `language: Go`)
+- Rules with `language: go` are included (when task has `language: go`)
 - Rules without a `language` field are included (generic rules)
 - Rules with different language values are excluded
 - When multiple languages are specified, rules matching ANY of them are included (OR logic)
@@ -80,8 +80,8 @@ language:
 **Equivalent command-line usage:**
 ```bash
 # These are equivalent:
-coding-context implement-feature  # (task has language: Go)
-coding-context -s language=Go implement-feature
+coding-context implement-feature  # (task has language: go)
+coding-context -s language=go implement-feature
 ```
 
 #### `single_shot` (optional, standard field)
@@ -227,20 +227,20 @@ The `selectors` field allows a task to specify which rules should be included wh
 ---
 task_name: implement-feature
 selectors:
-  language: Go
+  language: go
   stage: implementation
 ---
 ```
 
 **Usage:**
 ```bash
-# Automatically includes rules with language=Go AND stage=implementation
+# Automatically includes rules with language=go AND stage=implementation
 coding-context implement-feature
 ```
 
 This is equivalent to:
 ```bash
-coding-context -s language=Go -s stage=implementation implement-feature
+coding-context -s language=go -s stage=implementation implement-feature
 ```
 
 **OR Logic with Arrays:**
@@ -256,7 +256,7 @@ selectors:
 ---
 ```
 
-This matches rules where `(language=Go OR language=Python OR language=JavaScript) AND stage=testing`.
+This matches rules where `(language=go OR language=python OR language=javascript) AND stage=testing`.
 
 **Combining with Command-Line Selectors:**
 
@@ -265,7 +265,7 @@ Selectors from the task frontmatter and command-line `-s` flags are combined (ad
 ```bash
 # Task frontmatter has: selectors.language = Go
 # Command line adds: -s priority=high
-# Result: Rules must match language=Go AND priority=high
+# Result: Rules must match language=go AND priority=high
 coding-context -s priority=high implement-feature
 ```
 
@@ -373,9 +373,9 @@ Specifies which programming language(s) this rule applies to. Can be a string or
 
 ```yaml
 ---
-language: Go
+language: go
 ---
-# This rule only applies when language=Go is selected
+# This rule only applies when language=go is selected
 ```
 
 **Multiple languages (OR logic):**
@@ -390,9 +390,9 @@ language:
 ```
 
 **Behavior:**
-- When a task has `language: Go`, rules with `language: Go` are included
+- When a task has `language: go`, rules with `language: go` are included
 - Rules without `language` are included (generic rules)
-- Can also be filtered via `-s language=Go` command-line flag
+- Can also be filtered via `-s language=go` command-line flag
 
 #### `agent` (rule selector)
 
@@ -427,7 +427,7 @@ mcp_servers:
 **Other common fields:**
 ```yaml
 ---
-language: Go
+language: go
 stage: implementation
 priority: high
 team: backend
@@ -521,14 +521,14 @@ boolean_key: true
 ```yaml
 # ✅ Supported
 ---
-language: Go
+language: go
 stage: testing
 ---
 
 # ❌ Not supported (nested fields)
 ---
 metadata:
-  language: Go
+  language: go
   stage: testing
 ---
 ```
@@ -536,10 +536,10 @@ metadata:
 **Selectors match top-level only:**
 ```bash
 # Works with top-level fields
-coding-context -s language=Go fix-bug
+coding-context -s language=go fix-bug
 
 # Doesn't work with nested fields
-coding-context -s metadata.language=Go fix-bug  # Won't match
+coding-context -s metadata.language=go fix-bug  # Won't match
 ```
 
 ### Data Types
@@ -550,7 +550,7 @@ Frontmatter values are treated as strings for matching:
 ---
 priority: 1
 enabled: true
-language: Go
+language: go
 ---
 ```
 
@@ -558,7 +558,7 @@ language: Go
 # All values are matched as strings
 coding-context -s priority=1 task       # Matches priority: 1
 coding-context -s enabled=true task     # Matches enabled: true
-coding-context -s language=Go task      # Matches language: Go
+coding-context -s language=go task      # Matches language: go
 ```
 
 ## Special Behaviors
