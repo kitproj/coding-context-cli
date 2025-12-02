@@ -184,8 +184,9 @@ func parseBashArgsWithNamed(s string) ([]string, map[string]string, error) {
 }
 
 // parseNamedParam checks if a string is a named parameter in key=value format.
-// The value must have been quoted (quotes are already stripped by the caller).
+// After quote stripping by the caller, the value portion is what remains after the equals sign.
 // Returns the key, value, and whether it was a named parameter.
+// Key must be non-empty and cannot contain spaces or tabs.
 func parseNamedParam(arg string) (key string, value string, isNamed bool) {
 	// Find the equals sign
 	eqIdx := strings.Index(arg, "=")
@@ -194,7 +195,7 @@ func parseNamedParam(arg string) (key string, value string, isNamed bool) {
 	}
 
 	key = arg[:eqIdx]
-	// Key must be a valid identifier (non-empty, no spaces)
+	// Key must be a valid identifier (non-empty, no spaces or tabs)
 	if key == "" || strings.ContainsAny(key, " \t") {
 		return "", "", false
 	}
