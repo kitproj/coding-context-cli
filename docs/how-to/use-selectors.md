@@ -134,7 +134,7 @@ Instead of specifying selectors on the command line every time, you can embed th
 ---
 task_name: implement-feature
 selectors:
-  language: go
+  language: Go
   stage: implementation
 ---
 # Implement Feature in Go
@@ -143,13 +143,13 @@ selectors:
 
 **Usage:**
 ```bash
-# Automatically applies language=go and stage=implementation
+# Automatically applies language=Go and stage=implementation
 coding-context implement-feature
 ```
 
 This is equivalent to:
 ```bash
-coding-context -s language=go -s stage=implementation implement-feature
+coding-context -s language=Go -s stage=implementation implement-feature
 ```
 
 ### Array Selectors (OR Logic)
@@ -161,14 +161,14 @@ Use arrays for OR logic within the same selector key:
 ---
 task_name: refactor-code
 selectors:
-  language: [go, python, javascript]
+  language: [Go, Python, JavaScript]
   stage: refactoring
 ---
 ```
 
 **Usage:**
 ```bash
-# Includes rules matching (go OR python OR javascript) AND refactoring
+# Includes rules matching (Go OR Python OR JavaScript) AND refactoring
 coding-context refactor-code
 ```
 
@@ -217,7 +217,7 @@ coding-context implement-feature
 ---
 task_name: implement-feature
 selectors:
-  language: go
+  language: Go
   stage: implementation
 ---
 # Task content...
