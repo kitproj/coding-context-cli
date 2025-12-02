@@ -1082,3 +1082,80 @@ Deploy instructions.
 		t.Errorf("rule content should appear before task content")
 	}
 }
+
+func TestFreeTextPrompt(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a rule file that should be included
+	ruleFile := filepath.Join(dirs.rulesDir, "coding-standards.md")
+	ruleContent := `---
+---
+# Coding Standards
+
+Follow these coding standards.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	// Run with a free-text prompt (no slash command)
+	output := runTool(t, "-C", dirs.tmpDir, "Please help me fix a bug in the login system")
+
+	// Free-text prompt should be output as task content
+	if !strings.Contains(output, "Please help me fix a bug in the login system") {
+		t.Errorf("free-text prompt not found in stdout")
+	}
+
+	// Rules should still be included
+	if !strings.Contains(output, "# Coding Standards") {
+		t.Errorf("rule content not found in stdout")
+	}
+}
+
+func TestFreeTextPromptWithParameters(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Run with a free-text prompt that contains parameter placeholders
+	output := runTool(t, "-C", dirs.tmpDir, "-p", "component=auth", "-p", "issue=login failure", "Please work on ${component} and fix ${issue}")
+
+	// Parameters should be expanded in the output
+	if !strings.Contains(output, "Please work on auth and fix login failure") {
+		t.Errorf("parameter expansion not working correctly. Output:\n%s", output)
+	}
+
+	// Original placeholders should not appear
+	if strings.Contains(output, "${component}") {
+		t.Errorf("parameter placeholder ${component} should be replaced")
+	}
+	if strings.Contains(output, "${issue}") {
+		t.Errorf("parameter placeholder ${issue} should be replaced")
+	}
+}
+
+func TestSlashCommandWithArguments(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a task file that uses positional arguments
+	taskFile := filepath.Join(dirs.tasksDir, "fix-issue.md")
+	taskContent := `---
+task_name: fix-issue
+---
+# Fix Issue ${1}
+
+Please fix issue number ${1} with priority ${2}.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run with a slash command that includes arguments
+	output := runTool(t, "-C", dirs.tmpDir, "/fix-issue 123 high")
+
+	// Arguments should be substituted into the task content
+	if !strings.Contains(output, "# Fix Issue 123") {
+		t.Errorf("positional argument ${1} not substituted in title. Output:\n%s", output)
+	}
+	if !strings.Contains(output, "Please fix issue number 123 with priority high.") {
+		t.Errorf("positional arguments not substituted in content. Output:\n%s", output)
+	}
+}
