@@ -28,7 +28,7 @@ This tool is compatible with configuration files from various AI coding agents a
 - **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent`, `.opencode/command`, `.opencode/rules`
 - **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents`
 - **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md`
-- **Generic AI Agents**: `AGENTS.md`, `.agents/rules`
+- **Generic AI Agents**: `AGENTS.md`, `.agents/rules`, `.agents/commands` (tasks), `.agents/tasks`
 
 The tool automatically discovers and includes rules from these locations in your project, parent directories, and user home directory (`~`).
 
@@ -166,6 +166,9 @@ The tool looks for task and rule files in the following locations, in order of p
 
 **Tasks:**
 - `./.agents/tasks/*.md` (any `.md` file with matching `task_name` in frontmatter)
+- `./.agents/commands/*.md`
+- `./.cursor/commands/*.md`
+- `./.opencode/command/*.md`
 - `~/.agents/tasks/*.md`
 
 **Rules:**

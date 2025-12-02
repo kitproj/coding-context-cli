@@ -20,8 +20,9 @@ All directories (local and remote) are processed via go-getter, which downloads 
 Within each directory, task files are searched in the following locations:
 
 1. `.agents/tasks/`
-2. `.cursor/commands/`
-3. `.opencode/command/`
+2. `.agents/commands/`
+3. `.cursor/commands/`
+4. `.opencode/command/`
 
 ### Discovery Rules
 
@@ -115,7 +116,7 @@ The CLI automatically discovers rules from configuration files for these AI codi
 | **OpenCode.ai** | `.opencode/agent/`, `.opencode/command/` (tasks), `.opencode/rules/` |
 | **GitHub Copilot** | `.github/copilot-instructions.md`, `.github/agents/` |
 | **Google Gemini** | `GEMINI.md`, `.gemini/styleguide.md` |
-| **Generic** | `AGENTS.md`, `.agents/rules/` |
+| **Generic** | `AGENTS.md`, `.agents/rules/`, `.agents/commands/` (tasks) |
 
 ## Discovery Behavior
 
@@ -285,7 +286,7 @@ coding-context -s team=backend fix-bug
 - For remote directories, verify the download succeeded (check stderr logs)
 
 **Task not found:**
-- Verify that `.agents/tasks/`, `.cursor/commands/`, or `.opencode/command/` directory exists in one of the search path directories
+- Verify that `.agents/tasks/`, `.agents/commands/`, `.cursor/commands/`, or `.opencode/command/` directory exists in one of the search path directories
 - Check `task_name` field in frontmatter matches the task name you're using
 - Ensure filename has `.md` extension
 - Verify the directory containing the task is in search paths (working directory and home directory are added automatically)
