@@ -21,15 +21,6 @@ const (
 	AgentCodex    Agent = "codex"
 )
 
-// AllAgents returns all supported agents
-func AllAgents() []Agent {
-	agents := make([]Agent, 0, len(agentPathPatterns))
-	for agent := range agentPathPatterns {
-		agents = append(agents, agent)
-	}
-	return agents
-}
-
 // ParseAgent parses a string into an Agent type
 func ParseAgent(s string) (Agent, error) {
 	agent := Agent(s)

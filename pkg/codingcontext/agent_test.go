@@ -382,29 +382,3 @@ func TestAgent_IsSet(t *testing.T) {
 		t.Errorf("IsSet() on set agent = false, want true")
 	}
 }
-
-func TestAllAgents(t *testing.T) {
-	agents := AllAgents()
-
-	if len(agents) != 8 {
-		t.Errorf("AllAgents() returned %d agents, want 8", len(agents))
-	}
-
-	// Verify all expected agents are present
-	expected := map[Agent]bool{
-		AgentCursor:   true,
-		AgentOpenCode: true,
-		AgentCopilot:  true,
-		AgentClaude:   true,
-		AgentGemini:   true,
-		AgentAugment:  true,
-		AgentWindsurf: true,
-		AgentCodex:    true,
-	}
-
-	for _, agent := range agents {
-		if !expected[agent] {
-			t.Errorf("AllAgents() returned unexpected agent: %v", agent)
-		}
-	}
-}

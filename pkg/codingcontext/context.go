@@ -1,22 +1,25 @@
 package codingcontext
 
 import (
+	"bufio"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/hashicorp/go-getter/v2"
 )
 
 // Context holds the configuration and state for assembling coding context
 type Context struct {
-	workDir          string
 	params           Params
 	includes         Selectors
-	remotePaths      []string
-	downloadedDirs   []string
+	manifestURL      string
+	searchPaths      []string
 	matchingTaskFile string
 	task             Markdown[TaskFrontMatter]   // Parsed task
 	rules            []Markdown[RuleFrontMatter] // Collected rule files
@@ -29,13 +32,6 @@ type Context struct {
 
 // Option is a functional option for configuring a Context
 type Option func(*Context)
-
-// WithWorkDir sets the working directory
-func WithWorkDir(dir string) Option {
-	return func(c *Context) {
-		c.workDir = dir
-	}
-}
 
 // WithParams sets the parameters
 func WithParams(params Params) Option {
@@ -51,10 +47,17 @@ func WithSelectors(selectors Selectors) Option {
 	}
 }
 
-// WithRemotePaths sets the remote paths
-func WithRemotePaths(paths []string) Option {
+// WithManifestURL sets the manifest URL
+func WithManifestURL(manifestURL string) Option {
 	return func(c *Context) {
-		c.remotePaths = paths
+		c.manifestURL = manifestURL
+	}
+}
+
+// WithSearchPaths adds one or more search paths
+func WithSearchPaths(paths ...string) Option {
+	return func(c *Context) {
+		c.searchPaths = append(c.searchPaths, paths...)
 	}
 }
 
@@ -82,7 +85,6 @@ func WithAgent(agent Agent) Option {
 // New creates a new Context with the given options
 func New(opts ...Option) *Context {
 	c := &Context{
-		workDir:  ".",
 		params:   make(Params),
 		includes: make(Selectors),
 		rules:    make([]Markdown[RuleFrontMatter], 0),
@@ -128,7 +130,13 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	err = cc.findTaskFile(homeDir, taskName)
+	searchPaths, err := cc.parseManifestFile(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse manifest file: %w", err)
+	}
+	cc.searchPaths = append(cc.searchPaths, searchPaths...)
+
+	err = cc.findTaskFile(taskName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find task file: %w", err)
 	}
@@ -178,7 +186,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		cc.includes.SetValue("task_name", slashTaskName)
 
 		// Find the new task file
-		if err := cc.findTaskFile(homeDir, slashTaskName); err != nil {
+		if err := cc.findTaskFile(slashTaskName); err != nil {
 			return nil, fmt.Errorf("failed to find slash command task file: %w", err)
 		}
 
@@ -213,39 +221,82 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	return result, nil
 }
 
+func downloadDir(path string) string {
+	// hash the path and prepend it with a temporary directory
+	hash := sha256.Sum256([]byte(path))
+	tempDir := os.TempDir()
+	return filepath.Join(tempDir, fmt.Sprintf("%x", hash))
+}
+
+// parseManifestFile downloads a manifest file from a Go Getter URL and returns
+// the list of search paths (one per line). Every line is included as-is without trimming.
+func (cc *Context) parseManifestFile(ctx context.Context) ([]string, error) {
+	if cc.manifestURL == "" {
+		return nil, nil
+	}
+
+	manifestFile := downloadDir(cc.manifestURL)
+
+	// Download the manifest file using go-getter
+	if _, err := getter.Get(ctx, manifestFile, cc.manifestURL); err != nil {
+		return nil, fmt.Errorf("failed to download manifest file %s: %w", cc.manifestURL, err)
+	}
+	defer os.RemoveAll(manifestFile)
+
+	cc.logger.Info("Downloaded manifest file", "path", manifestFile)
+
+	// Read and parse the manifest file
+	file, err := os.Open(manifestFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open manifest file: %w", err)
+	}
+	defer file.Close()
+
+	var paths []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		paths = append(paths, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read manifest file: %w", err)
+	}
+
+	cc.logger.Info("Parsed manifest file", "url", cc.manifestURL, "paths", len(paths))
+
+	return paths, nil
+}
+
 func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
-	for _, remotePath := range cc.remotePaths {
-		cc.logger.Info("Downloading remote directory", "path", remotePath)
-		localPath, err := downloadRemoteDirectory(ctx, remotePath)
-		if err != nil {
-			return fmt.Errorf("failed to download remote directory %s: %w", remotePath, err)
+	for _, path := range cc.searchPaths {
+		cc.logger.Info("Downloading remote directory", "path", path)
+		dst := downloadDir(path)
+		if _, err := getter.Get(ctx, dst, path); err != nil {
+			return fmt.Errorf("failed to download remote directory %s: %w", path, err)
 		}
-		cc.downloadedDirs = append(cc.downloadedDirs, localPath)
-		cc.logger.Info("Downloaded to", "path", localPath)
+		cc.logger.Info("Downloaded to", "path", dst)
 	}
 
 	return nil
 }
 
 func (cc *Context) cleanupDownloadedDirectories() {
-	for _, dir := range cc.downloadedDirs {
-		if dir == "" {
-			continue
-		}
-
-		if err := os.RemoveAll(dir); err != nil {
-			cc.logger.Error("Error cleaning up downloaded directory", "path", dir, "error", err)
+	for _, path := range cc.searchPaths {
+		dst := downloadDir(path)
+		if err := os.RemoveAll(dst); err != nil {
+			cc.logger.Error("Error cleaning up downloaded directory", "path", dst, "error", err)
 		}
 	}
 }
 
-func (cc *Context) findTaskFile(homeDir string, taskName string) error {
-	// find the task file by matching filename (without .md extension)
-	taskSearchDirs := AllTaskSearchPaths(cc.workDir, homeDir)
+func (cc *Context) findTaskFile(taskName string) error {
 
+	var taskSearchDirs []string
 	// Add downloaded remote directories to task search paths
-	for _, dir := range cc.downloadedDirs {
-		taskSearchDirs = append(taskSearchDirs, DownloadedTaskSearchPaths(dir)...)
+	for _, path := range cc.searchPaths {
+		dst := downloadDir(path)
+		subPaths := taskSearchPaths(dst)
+		taskSearchDirs = append(taskSearchDirs, subPaths...)
 	}
 
 	for _, dir := range taskSearchDirs {
@@ -315,15 +366,15 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 		return nil
 	}
 
-	// Build the list of rule locations (local and remote)
-	rulePaths := AllRulePaths(cc.workDir, homeDir)
-
-	// Append remote directories to rule paths
-	for _, dir := range cc.downloadedDirs {
-		rulePaths = append(rulePaths, DownloadedRulePaths(dir)...)
+	var ruleSearchDirs []string
+	for _, path := range cc.searchPaths {
+		dst := downloadDir(path)
+		subPaths := rulePaths(dst, path == homeDir)
+		ruleSearchDirs = append(ruleSearchDirs, subPaths...)
 	}
 
-	for _, rule := range rulePaths {
+	// Build the list of rule locations (local and remote)
+	for _, rule := range ruleSearchDirs {
 		// Skip if this path should be excluded based on target agent
 		if cc.agent.ShouldExcludePath(rule) {
 			cc.logger.Info("Excluding rule path (target agent filtering)", "path", rule)

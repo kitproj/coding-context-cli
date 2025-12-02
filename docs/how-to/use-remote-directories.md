@@ -121,17 +121,27 @@ Combine remote directories with local project rules:
 
 ```bash
 # Loads from:
-# 1. Remote Git repository
-# 2. Local .agents/rules/ directory (if exists)
-# 3. Local .github/copilot-instructions.md (if exists)
-# etc.
+# 1. Remote Git repository (via -d)
+# 2. Working directory (automatically added)
+# 3. Home directory (automatically added)
 coding-context \
   -d git::https://github.com/company/shared-rules.git \
   -s language=Go \
   fix-bug
 ```
 
-Local rules take precedence over remote rules with the same name.
+You can also explicitly add local directories:
+
+```bash
+# Explicitly add a local directory
+coding-context \
+  -d git::https://github.com/company/shared-rules.git \
+  -d file:///path/to/local/rules \
+  -s language=Go \
+  fix-bug
+```
+
+**Note:** The working directory (`-C` or current directory) and home directory are automatically added to search paths, so you don't need to specify them explicitly.
 
 ### With Selectors and Parameters
 
@@ -373,3 +383,4 @@ Ensure the repository has files in standard locations like `.agents/rules/`.
 - [Search Paths Reference](../reference/search-paths) - Where files are discovered
 - [File Formats](../reference/file-formats) - Rule and task file specifications
 - [go-getter Documentation](https://github.com/hashicorp/go-getter) - Supported protocols and features
+
