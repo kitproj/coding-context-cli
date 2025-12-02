@@ -406,7 +406,7 @@ Quoted arguments preserve spaces:
 
 ### Named Parameters
 
-Named parameters use the format `key="value"` (quotes required for values with spaces):
+Named parameters use the format `key="value"` with **mandatory double quotes**:
 - `/fix-bug issue="PROJ-123"` → `$1` = `issue="PROJ-123"`, `$issue` = `PROJ-123`
 - `/deploy env="production" version="1.2.3"` → `$1` = `env="production"`, `$2` = `version="1.2.3"`, `$env` = `production`, `$version` = `1.2.3`
 
@@ -416,6 +416,8 @@ Named parameters are counted as positional arguments (retaining their original f
 Named parameter values can contain spaces and special characters:
 - `/run message="Hello, World!"` → `$1` = `message="Hello, World!"`, `$message` = `Hello, World!`
 - `/config query="x=y+z"` → `$1` = `query="x=y+z"`, `$query` = `x=y+z`
+
+**Note:** Unquoted values (e.g., `key=value`) or single-quoted values (e.g., `key='value'`) are treated as regular positional arguments, not named parameters.
 
 Reserved keys (`ARGUMENTS` and numeric keys like `1`, `2`, etc.) cannot be used as named parameter keys and will be ignored.
 

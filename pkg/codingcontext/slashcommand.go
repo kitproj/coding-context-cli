@@ -15,12 +15,12 @@ import (
 //
 // Arguments are parsed like Bash:
 //   - Quoted arguments can contain spaces
-//   - Both single and double quotes are supported
+//   - Both single and double quotes are supported for positional arguments
 //   - Quotes are removed from the parsed arguments
 //   - Arguments are extracted until end of line
 //
 // Named parameters:
-//   - Named parameters use key="value" format (quotes required for values with spaces)
+//   - Named parameters use key="value" format with mandatory double quotes
 //   - Named parameters are also counted as positional arguments (retaining their original form)
 //   - The named parameter key must not be a reserved key (ARGUMENTS) or a numeric key
 //
@@ -124,7 +124,7 @@ func parseSlashCommand(command string) (taskName string, params map[string]strin
 
 // parseBashArgsWithNamed parses a string into all arguments and named parameters.
 // All arguments (including named parameters) are returned in allArgs for positional numbering.
-// Named parameters (key=value format) also have their values extracted into namedParams.
+// Named parameters must use key="value" format with mandatory double quotes.
 // Returns all arguments, named parameters map, and any error.
 func parseBashArgsWithNamed(s string) ([]string, map[string]string, error) {
 	var allArgs []string
@@ -172,8 +172,8 @@ func parseBashArgsWithNamed(s string) ([]string, map[string]string, error) {
 				arg := current.String()
 				rawArgStr := rawArg.String()
 
-				// All arguments go into positional list (use raw form for named params)
-				if key, value, isNamed := parseNamedParam(arg); isNamed {
+				// Check if this is a named parameter with mandatory double quotes
+				if key, value, isNamed := parseNamedParamWithQuotes(rawArgStr); isNamed {
 					allArgs = append(allArgs, rawArgStr)
 					namedParams[key] = value
 				} else {
@@ -196,8 +196,8 @@ func parseBashArgsWithNamed(s string) ([]string, map[string]string, error) {
 		arg := current.String()
 		rawArgStr := rawArg.String()
 
-		// All arguments go into positional list (use raw form for named params)
-		if key, value, isNamed := parseNamedParam(arg); isNamed {
+		// Check if this is a named parameter with mandatory double quotes
+		if key, value, isNamed := parseNamedParamWithQuotes(rawArgStr); isNamed {
 			allArgs = append(allArgs, rawArgStr)
 			namedParams[key] = value
 		} else {
@@ -213,22 +213,47 @@ func parseBashArgsWithNamed(s string) ([]string, map[string]string, error) {
 	return allArgs, namedParams, nil
 }
 
-// parseNamedParam checks if an argument (with quotes already stripped) is a named parameter in key=value format.
-// Returns the key, value, and whether it was a named parameter.
+// parseNamedParamWithQuotes checks if an argument is a named parameter in key="value" format.
+// Double quotes are mandatory for the value portion.
+// Returns the key, value (with quotes stripped), and whether it was a valid named parameter.
 // Key must be non-empty and cannot contain spaces or tabs.
-func parseNamedParam(arg string) (key string, value string, isNamed bool) {
+func parseNamedParamWithQuotes(rawArg string) (key string, value string, isNamed bool) {
 	// Find the equals sign
-	eqIdx := strings.Index(arg, "=")
+	eqIdx := strings.Index(rawArg, "=")
 	if eqIdx == -1 {
 		return "", "", false
 	}
 
-	key = arg[:eqIdx]
+	key = rawArg[:eqIdx]
 	// Key must be a valid identifier (non-empty, no spaces or tabs)
 	if key == "" || strings.ContainsAny(key, " \t") {
 		return "", "", false
 	}
 
-	value = arg[eqIdx+1:]
-	return key, value, true
+	// The value portion (after '=')
+	valuePart := rawArg[eqIdx+1:]
+
+	// Value must start with double quote (mandatory)
+	if len(valuePart) < 2 || valuePart[0] != '"' {
+		return "", "", false
+	}
+
+	// Value must end with double quote
+	if valuePart[len(valuePart)-1] != '"' {
+		return "", "", false
+	}
+
+	// Extract the value between quotes and handle escaped quotes
+	quotedValue := valuePart[1 : len(valuePart)-1]
+	var unescaped strings.Builder
+	for i := 0; i < len(quotedValue); i++ {
+		if quotedValue[i] == '\\' && i+1 < len(quotedValue) && quotedValue[i+1] == '"' {
+			unescaped.WriteByte('"')
+			i++ // Skip the escaped quote
+		} else {
+			unescaped.WriteByte(quotedValue[i])
+		}
+	}
+
+	return key, unescaped.String(), true
 }

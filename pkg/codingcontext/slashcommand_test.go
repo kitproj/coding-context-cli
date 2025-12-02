@@ -307,6 +307,28 @@ func TestParseSlashCommand(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:      "unquoted key=value is treated as positional argument not named parameter",
+			command:   `/task key=value`,
+			wantFound: true,
+			wantTask:  "task",
+			wantParams: map[string]string{
+				"ARGUMENTS": `key=value`,
+				"1":         "key=value",
+			},
+			wantErr: false,
+		},
+		{
+			name:      "single-quoted key=value is treated as positional argument not named parameter",
+			command:   `/task key='value'`,
+			wantFound: true,
+			wantTask:  "task",
+			wantParams: map[string]string{
+				"ARGUMENTS": `key='value'`,
+				"1":         "key=value",
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
