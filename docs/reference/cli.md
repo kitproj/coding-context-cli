@@ -12,7 +12,7 @@ Complete reference for the `coding-context` command-line interface.
 ## Synopsis
 
 ```
-coding-context [options] <taskPrompt>
+coding-context [options] <task-prompt>
 ```
 
 ## Description
@@ -21,7 +21,7 @@ The Coding Context CLI assembles context from rule files and task prompts, perfo
 
 ## Arguments
 
-### `<taskPrompt>`
+### `<task-prompt>`
 
 **Required.** The task prompt to execute. This can be either:
 
@@ -380,7 +380,7 @@ coding-context -s metadata.language=Go /fix-bug
 
 ## Slash Commands
 
-When you provide a taskPrompt containing a slash command (e.g., `/task-name arg1 "arg 2"`), the CLI will automatically:
+When you provide a task-prompt containing a slash command (e.g., `/task-name arg1 "arg 2"`), the CLI will automatically:
 
 1. Extract the task name and arguments from the slash command
 2. Load the referenced task file
