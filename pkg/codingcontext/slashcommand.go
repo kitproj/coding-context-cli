@@ -7,7 +7,7 @@ import (
 
 // parseSlashCommand parses a slash command string and extracts the task name and parameters.
 // It searches for a slash command anywhere in the input string, not just at the beginning.
-// The expected format is: /task-name arg1 "arg 2" arg3
+// The expected format is: /task-name arg1 "arg 2" arg3 key="value"
 //
 // The function will find the slash command even if it's embedded in other text. For example:
 //   - "Please /fix-bug 123 today" -> taskName: "fix-bug", params: {"ARGUMENTS": "123 today", "1": "123", "2": "today"}, found: true
@@ -19,9 +19,16 @@ import (
 //   - Quotes are removed from the parsed arguments
 //   - Arguments are extracted until end of line
 //
+// Named parameters:
+//   - Named parameters use key="value" format (double quotes required)
+//   - Named parameters can be mixed with positional arguments
+//   - Named parameters do not count toward positional numbering
+//
 // Examples:
 //   - "/fix-bug 123" -> taskName: "fix-bug", params: {"ARGUMENTS": "123", "1": "123"}, found: true
 //   - "/code-review \"PR #42\" high" -> taskName: "code-review", params: {"ARGUMENTS": "\"PR #42\" high", "1": "PR #42", "2": "high"}, found: true
+//   - "/fix-bug issue=\"PROJ-123\"" -> taskName: "fix-bug", params: {"ARGUMENTS": "issue=\"PROJ-123\"", "issue": "PROJ-123"}, found: true
+//   - "/task arg1 key=\"val\" arg2" -> taskName: "task", params: {"ARGUMENTS": "arg1 key=\"val\" arg2", "1": "arg1", "2": "arg2", "key": "val"}, found: true
 //   - "no command here" -> taskName: "", params: nil, found: false
 //
 // Returns:
@@ -29,6 +36,7 @@ import (
 //   - params: a map containing:
 //   - "ARGUMENTS": the full argument string (with quotes preserved)
 //   - "1", "2", "3", etc.: positional arguments (with quotes removed)
+//   - "key": named parameter value (with quotes removed)
 //   - found: true if a slash command was found, false otherwise
 //   - err: an error if the command format is invalid (e.g., unclosed quotes)
 func parseSlashCommand(command string) (taskName string, params map[string]string, found bool, err error) {
@@ -79,8 +87,8 @@ func parseSlashCommand(command string) (taskName string, params map[string]strin
 		return taskName, params, true, nil
 	}
 
-	// Parse positional arguments using bash-like parsing
-	args, err := parseBashArgs(argsString)
+	// Parse arguments using bash-like parsing, handling both positional and named parameters
+	args, namedParams, err := parseBashArgsWithNamed(argsString)
 	if err != nil {
 		return "", nil, false, err
 	}
@@ -90,12 +98,21 @@ func parseSlashCommand(command string) (taskName string, params map[string]strin
 		params[fmt.Sprintf("%d", i+1)] = arg
 	}
 
+	// Add named parameters
+	for key, value := range namedParams {
+		params[key] = value
+	}
+
 	return taskName, params, true, nil
 }
 
-// parseBashArgs parses a string into arguments like bash does, respecting quoted values
-func parseBashArgs(s string) ([]string, error) {
-	var args []string
+// parseBashArgsWithNamed parses a string into positional arguments and named parameters.
+// Named parameters have the format key="value" (double quotes required).
+// Returns positional arguments, named parameters, and any error.
+func parseBashArgsWithNamed(s string) ([]string, map[string]string, error) {
+	var positionalArgs []string
+	namedParams := make(map[string]string)
+
 	var current strings.Builder
 	inQuotes := false
 	quoteChar := byte(0)
@@ -130,7 +147,13 @@ func parseBashArgs(s string) ([]string, error) {
 		} else if (ch == ' ' || ch == '\t') && !inQuotes {
 			// Whitespace outside quotes - end of argument
 			if current.Len() > 0 || justClosedQuotes {
-				args = append(args, current.String())
+				arg := current.String()
+				// Check if this is a named parameter (key="value" format)
+				if key, value, isNamed := parseNamedParam(arg); isNamed {
+					namedParams[key] = value
+				} else {
+					positionalArgs = append(positionalArgs, arg)
+				}
 				current.Reset()
 				justClosedQuotes = false
 			}
@@ -143,13 +166,39 @@ func parseBashArgs(s string) ([]string, error) {
 
 	// Add the last argument
 	if current.Len() > 0 || justClosedQuotes {
-		args = append(args, current.String())
+		arg := current.String()
+		// Check if this is a named parameter (key="value" format)
+		if key, value, isNamed := parseNamedParam(arg); isNamed {
+			namedParams[key] = value
+		} else {
+			positionalArgs = append(positionalArgs, arg)
+		}
 	}
 
 	// Check for unclosed quotes
 	if inQuotes {
-		return nil, fmt.Errorf("unclosed quote in arguments")
+		return nil, nil, fmt.Errorf("unclosed quote in arguments")
 	}
 
-	return args, nil
+	return positionalArgs, namedParams, nil
+}
+
+// parseNamedParam checks if a string is a named parameter in key=value format.
+// The value must have been quoted (quotes are already stripped by the caller).
+// Returns the key, value, and whether it was a named parameter.
+func parseNamedParam(arg string) (key string, value string, isNamed bool) {
+	// Find the equals sign
+	eqIdx := strings.Index(arg, "=")
+	if eqIdx == -1 {
+		return "", "", false
+	}
+
+	key = arg[:eqIdx]
+	// Key must be a valid identifier (non-empty, no spaces)
+	if key == "" || strings.ContainsAny(key, " \t") {
+		return "", "", false
+	}
+
+	value = arg[eqIdx+1:]
+	return key, value, true
 }

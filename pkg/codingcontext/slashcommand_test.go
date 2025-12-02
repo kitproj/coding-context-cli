@@ -150,6 +150,113 @@ func TestParseSlashCommand(t *testing.T) {
 			wantParams: map[string]string{},
 			wantErr:    false,
 		},
+		// Named parameter tests
+		{
+			name:      "command with single named parameter",
+			command:   `/fix-bug issue="PROJ-123"`,
+			wantFound: true,
+			wantTask:  "fix-bug",
+			wantParams: map[string]string{
+				"ARGUMENTS": `issue="PROJ-123"`,
+				"issue":     "PROJ-123",
+			},
+			wantErr: false,
+		},
+		{
+			name:      "command with multiple named parameters",
+			command:   `/deploy env="production" version="1.2.3"`,
+			wantFound: true,
+			wantTask:  "deploy",
+			wantParams: map[string]string{
+				"ARGUMENTS": `env="production" version="1.2.3"`,
+				"env":       "production",
+				"version":   "1.2.3",
+			},
+			wantErr: false,
+		},
+		{
+			name:      "command with mixed positional and named parameters",
+			command:   `/task arg1 key="value" arg2`,
+			wantFound: true,
+			wantTask:  "task",
+			wantParams: map[string]string{
+				"ARGUMENTS": `arg1 key="value" arg2`,
+				"1":         "arg1",
+				"2":         "arg2",
+				"key":       "value",
+			},
+			wantErr: false,
+		},
+		{
+			name:      "named parameter with spaces in value",
+			command:   `/implement feature="Add user authentication"`,
+			wantFound: true,
+			wantTask:  "implement",
+			wantParams: map[string]string{
+				"ARGUMENTS": `feature="Add user authentication"`,
+				"feature":   "Add user authentication",
+			},
+			wantErr: false,
+		},
+		{
+			name:      "named parameter with escaped quotes in value",
+			command:   `/log message="User said \"hello\""`,
+			wantFound: true,
+			wantTask:  "log",
+			wantParams: map[string]string{
+				"ARGUMENTS": `message="User said \"hello\""`,
+				"message":   `User said "hello"`,
+			},
+			wantErr: false,
+		},
+		{
+			name:      "positional before and after named parameter",
+			command:   `/task before key="middle" after`,
+			wantFound: true,
+			wantTask:  "task",
+			wantParams: map[string]string{
+				"ARGUMENTS": `before key="middle" after`,
+				"1":         "before",
+				"2":         "after",
+				"key":       "middle",
+			},
+			wantErr: false,
+		},
+		{
+			name:      "multiple named parameters with different types of values",
+			command:   `/config host="localhost" port="8080" debug="true"`,
+			wantFound: true,
+			wantTask:  "config",
+			wantParams: map[string]string{
+				"ARGUMENTS": `host="localhost" port="8080" debug="true"`,
+				"host":      "localhost",
+				"port":      "8080",
+				"debug":     "true",
+			},
+			wantErr: false,
+		},
+		{
+			name:      "named parameter with empty value",
+			command:   `/task key=""`,
+			wantFound: true,
+			wantTask:  "task",
+			wantParams: map[string]string{
+				"ARGUMENTS": `key=""`,
+				"key":       "",
+			},
+			wantErr: false,
+		},
+		{
+			name:      "named parameter with equals sign in value",
+			command:   `/run equation="x=y+z"`,
+			wantFound: true,
+			wantTask:  "run",
+			wantParams: map[string]string{
+				"ARGUMENTS": `equation="x=y+z"`,
+				"equation":  "x=y+z",
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
