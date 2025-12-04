@@ -6,8 +6,12 @@ model: anthropic.claude-sonnet-4-20250514-v1-0
 single_shot: false
 timeout: 10m
 mcp_servers:
-  - filesystem
-  - git
+  filesystem:
+    type: stdio
+    command: filesystem
+  git:
+    type: stdio
+    command: git
 selectors:
   stage: implementation
 ---
