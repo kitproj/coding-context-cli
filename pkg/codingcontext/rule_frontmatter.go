@@ -21,7 +21,7 @@ type RuleFrontMatter struct {
 
 	// MCPServers maps server names to their configurations
 	// Metadata only, does not filter
-	MCPServers map[string]MCPServerConfig `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
+	MCPServers MCPServerConfigs `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
 
 	// RuleName is an optional identifier for the rule file
 	RuleName string `yaml:"rule_name,omitempty" json:"rule_name,omitempty"`

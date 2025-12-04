@@ -50,7 +50,7 @@ agent: cursor
 				TaskNames: []string{"test-task"},
 				Languages: []string{"go", "python"},
 				Agent:     "copilot",
-				MCPServers: map[string]MCPServerConfig{
+				MCPServers: MCPServerConfigs{
 					"database": {
 						Type:    TransportTypeStdio,
 						Command: "database-server",

@@ -24,3 +24,6 @@ type MCPServerConfig struct {
 	// Used for "http" and "sse" types.
 	Headers map[string]string `json:"headers,omitempty"`
 }
+
+// MCPServerConfigs maps server names to their configurations.
+type MCPServerConfigs map[string]MCPServerConfig

@@ -8,7 +8,7 @@ func TestResult_MCPServers(t *testing.T) {
 	tests := []struct {
 		name   string
 		result Result
-		want   map[string]MCPServerConfig
+		want   MCPServerConfigs
 	}{
 		{
 			name: "no MCP servers",
@@ -18,7 +18,7 @@ func TestResult_MCPServers(t *testing.T) {
 					FrontMatter: TaskFrontMatter{},
 				},
 			},
-			want: map[string]MCPServerConfig{},
+			want: MCPServerConfigs{},
 		},
 		{
 			name: "MCP servers from task only",
@@ -26,14 +26,14 @@ func TestResult_MCPServers(t *testing.T) {
 				Rules: []Markdown[RuleFrontMatter]{},
 				Task: Markdown[TaskFrontMatter]{
 					FrontMatter: TaskFrontMatter{
-						MCPServers: map[string]MCPServerConfig{
+						MCPServers: MCPServerConfigs{
 							"filesystem": {Type: TransportTypeStdio, Command: "filesystem"},
 							"git":        {Type: TransportTypeStdio, Command: "git"},
 						},
 					},
 				},
 			},
-			want: map[string]MCPServerConfig{
+			want: MCPServerConfigs{
 				"filesystem": {Type: TransportTypeStdio, Command: "filesystem"},
 				"git":        {Type: TransportTypeStdio, Command: "git"},
 			},
@@ -44,14 +44,14 @@ func TestResult_MCPServers(t *testing.T) {
 				Rules: []Markdown[RuleFrontMatter]{
 					{
 						FrontMatter: RuleFrontMatter{
-							MCPServers: map[string]MCPServerConfig{
+							MCPServers: MCPServerConfigs{
 								"jira": {Type: TransportTypeStdio, Command: "jira"},
 							},
 						},
 					},
 					{
 						FrontMatter: RuleFrontMatter{
-							MCPServers: map[string]MCPServerConfig{
+							MCPServers: MCPServerConfigs{
 								"api": {Type: TransportTypeHTTP, URL: "https://api.example.com"},
 							},
 						},
@@ -61,7 +61,7 @@ func TestResult_MCPServers(t *testing.T) {
 					FrontMatter: TaskFrontMatter{},
 				},
 			},
-			want: map[string]MCPServerConfig{
+			want: MCPServerConfigs{
 				"jira": {Type: TransportTypeStdio, Command: "jira"},
 				"api":  {Type: TransportTypeHTTP, URL: "https://api.example.com"},
 			},
@@ -72,7 +72,7 @@ func TestResult_MCPServers(t *testing.T) {
 				Rules: []Markdown[RuleFrontMatter]{
 					{
 						FrontMatter: RuleFrontMatter{
-							MCPServers: map[string]MCPServerConfig{
+							MCPServers: MCPServerConfigs{
 								"jira": {Type: TransportTypeStdio, Command: "jira"},
 							},
 						},
@@ -80,13 +80,13 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 				Task: Markdown[TaskFrontMatter]{
 					FrontMatter: TaskFrontMatter{
-						MCPServers: map[string]MCPServerConfig{
+						MCPServers: MCPServerConfigs{
 							"filesystem": {Type: TransportTypeStdio, Command: "filesystem"},
 						},
 					},
 				},
 			},
-			want: map[string]MCPServerConfig{
+			want: MCPServerConfigs{
 				"filesystem": {Type: TransportTypeStdio, Command: "filesystem"},
 				"jira":       {Type: TransportTypeStdio, Command: "jira"},
 			},
@@ -97,14 +97,14 @@ func TestResult_MCPServers(t *testing.T) {
 				Rules: []Markdown[RuleFrontMatter]{
 					{
 						FrontMatter: RuleFrontMatter{
-							MCPServers: map[string]MCPServerConfig{
+							MCPServers: MCPServerConfigs{
 								"server1": {Type: TransportTypeStdio, Command: "server1"},
 							},
 						},
 					},
 					{
 						FrontMatter: RuleFrontMatter{
-							MCPServers: map[string]MCPServerConfig{
+							MCPServers: MCPServerConfigs{
 								"server2": {Type: TransportTypeStdio, Command: "server2"},
 							},
 						},
@@ -115,13 +115,13 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 				Task: Markdown[TaskFrontMatter]{
 					FrontMatter: TaskFrontMatter{
-						MCPServers: map[string]MCPServerConfig{
+						MCPServers: MCPServerConfigs{
 							"task-server": {Type: TransportTypeStdio, Command: "task-server"},
 						},
 					},
 				},
 			},
-			want: map[string]MCPServerConfig{
+			want: MCPServerConfigs{
 				"task-server": {Type: TransportTypeStdio, Command: "task-server"},
 				"server1":     {Type: TransportTypeStdio, Command: "server1"},
 				"server2":     {Type: TransportTypeStdio, Command: "server2"},
@@ -133,7 +133,7 @@ func TestResult_MCPServers(t *testing.T) {
 				Rules: []Markdown[RuleFrontMatter]{
 					{
 						FrontMatter: RuleFrontMatter{
-							MCPServers: map[string]MCPServerConfig{
+							MCPServers: MCPServerConfigs{
 								"filesystem": {Type: TransportTypeStdio, Command: "rule-filesystem"},
 							},
 						},
@@ -141,13 +141,13 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 				Task: Markdown[TaskFrontMatter]{
 					FrontMatter: TaskFrontMatter{
-						MCPServers: map[string]MCPServerConfig{
+						MCPServers: MCPServerConfigs{
 							"filesystem": {Type: TransportTypeStdio, Command: "task-filesystem"},
 						},
 					},
 				},
 			},
-			want: map[string]MCPServerConfig{
+			want: MCPServerConfigs{
 				"filesystem": {Type: TransportTypeStdio, Command: "task-filesystem"},
 			},
 		},

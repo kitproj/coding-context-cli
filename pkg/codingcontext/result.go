@@ -22,8 +22,8 @@ type Result struct {
 // MCPServers returns all MCP servers from both rules and the task.
 // Servers from the task take precedence over servers from rules.
 // If multiple rules define the same server name, the behavior is non-deterministic.
-func (r *Result) MCPServers() map[string]MCPServerConfig {
-	servers := make(map[string]MCPServerConfig)
+func (r *Result) MCPServers() MCPServerConfigs {
+	servers := make(MCPServerConfigs)
 
 	// Add servers from rules first (so task can override)
 	for _, rule := range r.Rules {

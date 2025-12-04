@@ -30,7 +30,7 @@ type TaskFrontMatter struct {
 
 	// MCPServers maps server names to their configurations
 	// Does not filter rules, metadata only
-	MCPServers map[string]MCPServerConfig `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
+	MCPServers MCPServerConfigs `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
 
 	// Resume indicates if this task should be resumed
 	Resume bool `yaml:"resume,omitempty" json:"resume,omitempty"`
