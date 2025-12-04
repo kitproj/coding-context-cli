@@ -115,6 +115,14 @@ func (cc *Context) expandParams(content string) string {
 // - A free-text prompt (used directly as task content)
 // - A prompt containing a slash command (e.g., "/fix-bug 123") which triggers task lookup
 func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) {
+	// Parse manifest file first to get additional search paths
+	manifestPaths, err := cc.parseManifestFile(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse manifest file: %w", err)
+	}
+	cc.searchPaths = append(cc.searchPaths, manifestPaths...)
+
+	// Download all remote directories (including those from manifest)
 	if err := cc.downloadRemoteDirectories(ctx); err != nil {
 		return nil, fmt.Errorf("failed to download remote directories: %w", err)
 	}
@@ -129,12 +137,6 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
-
-	searchPaths, err := cc.parseManifestFile(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse manifest file: %w", err)
-	}
-	cc.searchPaths = append(cc.searchPaths, searchPaths...)
 
 	// Expand parameters in taskPrompt to allow slash commands in parameters
 	expandedTaskPrompt := cc.expandParams(taskPrompt)
@@ -226,8 +228,9 @@ func (cc *Context) parseManifestFile(ctx context.Context) ([]string, error) {
 
 	manifestFile := downloadDir(cc.manifestURL)
 
-	// Download the manifest file using go-getter
-	if _, err := getter.Get(ctx, manifestFile, cc.manifestURL); err != nil {
+	// Download the manifest file using go-getter's GetFile function
+	// GetFile is specifically for downloading single files (not directories)
+	if _, err := getter.GetFile(ctx, manifestFile, cc.manifestURL); err != nil {
 		return nil, fmt.Errorf("failed to download manifest file %s: %w", cc.manifestURL, err)
 	}
 	defer os.RemoveAll(manifestFile)
