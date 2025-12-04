@@ -20,20 +20,16 @@ type Result struct {
 }
 
 // MCPServers returns all MCP servers from both rules and the task.
-// Servers from the task are included first, with rule servers added afterwards.
-// If the same server name appears in multiple places, the task's version takes precedence
-// over rule versions, and earlier rules take precedence over later rules.
+// Servers from the task take precedence over servers from rules.
+// If multiple rules define the same server name, the behavior is non-deterministic.
 func (r *Result) MCPServers() map[string]MCPServerConfig {
 	servers := make(map[string]MCPServerConfig)
 
 	// Add servers from rules first (so task can override)
-	for i := len(r.Rules) - 1; i >= 0; i-- {
-		rule := r.Rules[i]
+	for _, rule := range r.Rules {
 		if rule.FrontMatter.MCPServers != nil {
 			for name, config := range rule.FrontMatter.MCPServers {
-				if _, exists := servers[name]; !exists {
-					servers[name] = config
-				}
+				servers[name] = config
 			}
 		}
 	}
