@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1204,7 +1205,7 @@ This rule is from a remote directory.
 
 	// Create a manifest file that references the remote directory
 	manifestFile := filepath.Join(t.TempDir(), "manifest.txt")
-	manifestContent := "file://" + remoteDir + "\n"
+	manifestContent := fmt.Sprintf("file://%s\n", remoteDir)
 	if err := os.WriteFile(manifestFile, []byte(manifestContent), 0o644); err != nil {
 		t.Fatalf("failed to write manifest file: %v", err)
 	}
@@ -1216,6 +1217,67 @@ This rule is from a remote directory.
 	if !strings.Contains(output, "# Main Rule") {
 		t.Errorf("main rule not found in stdout. Output:\n%s", output)
 	}
+
+	// Check that the remote rule from the manifest is included
+	if !strings.Contains(output, "# Remote Rule") {
+		t.Errorf("remote rule from manifest not found in stdout. Output:\n%s", output)
+	}
+
+	// Check that the task is included
+	if !strings.Contains(output, "# Test Task") {
+		t.Errorf("task not found in stdout. Output:\n%s", output)
+	}
+}
+
+func TestManifestFileWithEmptyLines(t *testing.T) {
+	// Create main project directory
+	mainDir := t.TempDir()
+	mainTasksDir := filepath.Join(mainDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(mainTasksDir, 0o755); err != nil {
+		t.Fatalf("failed to create main tasks dir: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(mainTasksDir, "test-task.md")
+	taskContent := `---
+task_name: test-task
+---
+# Test Task
+
+This is a test task.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Create a remote directory with rules
+	remoteDir := t.TempDir()
+	remoteRulesDir := filepath.Join(remoteDir, ".agents", "rules")
+	if err := os.MkdirAll(remoteRulesDir, 0o755); err != nil {
+		t.Fatalf("failed to create remote rules dir: %v", err)
+	}
+
+	remoteRuleFile := filepath.Join(remoteRulesDir, "remote-rule.md")
+	remoteRuleContent := `---
+---
+# Remote Rule
+
+This rule is from a remote directory.
+`
+	if err := os.WriteFile(remoteRuleFile, []byte(remoteRuleContent), 0o644); err != nil {
+		t.Fatalf("failed to write remote rule file: %v", err)
+	}
+
+	// Create a manifest file with empty lines and comments-like lines
+	manifestFile := filepath.Join(t.TempDir(), "manifest.txt")
+	manifestContent := fmt.Sprintf("\n\nfile://%s\n\n\n", remoteDir)
+	if err := os.WriteFile(manifestFile, []byte(manifestContent), 0o644); err != nil {
+		t.Fatalf("failed to write manifest file: %v", err)
+	}
+
+	// Run the tool with the manifest file - should not fail despite empty lines
+	output := runTool(t, "-C", mainDir, "-m", "file://"+manifestFile, "/test-task")
 
 	// Check that the remote rule from the manifest is included
 	if !strings.Contains(output, "# Remote Rule") {

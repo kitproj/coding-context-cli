@@ -247,7 +247,11 @@ func (cc *Context) parseManifestFile(ctx context.Context) ([]string, error) {
 	var paths []string
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		paths = append(paths, scanner.Text())
+		line := scanner.Text()
+		// Skip empty lines
+		if line != "" {
+			paths = append(paths, line)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
