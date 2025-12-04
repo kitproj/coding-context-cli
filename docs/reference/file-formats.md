@@ -146,23 +146,33 @@ timeout: 10m
 
 #### `mcp_servers` (optional, standard field)
 
-**Type:** Array  
-**Purpose:** Specifies the list of MCP (Model Context Protocol) servers that the task should use; stored in frontmatter output but does not filter rules
+**Type:** Map (from server name to server configuration)  
+**Purpose:** Specifies the MCP (Model Context Protocol) servers that the task should use; stored in frontmatter output but does not filter rules
 
-The `mcp_servers` field is a **standard frontmatter field** following the industry standard for MCP server definition. It does not act as a selector.
+The `mcp_servers` field is a **standard frontmatter field** following the industry standard for MCP server definition. It does not act as a selector. The field is a map where keys are server names and values are server configurations.
 
 **Example:**
 ```yaml
 ---
 task_name: file-operations
 mcp_servers:
-  - filesystem
-  - git
-  - database
+  filesystem:
+    type: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/files"]
+  git:
+    type: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-git"]
+  database:
+    type: http
+    url: https://api.example.com/mcp
+    headers:
+      Authorization: Bearer token123
 ---
 ```
 
-**Note:** The format follows the MCP specification for server identification.
+**Note:** The format follows the MCP specification for server identification. Each server configuration includes a `type` field (e.g., "stdio", "http", "sse") and other fields specific to that transport type.
 
 #### `agent` (optional, standard field)
 
@@ -436,13 +446,18 @@ agent: cursor
 
 #### `mcp_servers` (rule metadata)
 
-Specifies MCP servers that need to be running for this rule. Does not filter rules.
+Specifies MCP servers that need to be running for this rule. Does not filter rules. The field is a map where keys are server names and values are server configurations.
 
 ```yaml
 ---
 mcp_servers:
-  - filesystem
-  - database
+  filesystem:
+    type: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-filesystem"]
+  database:
+    type: http
+    url: https://api.example.com/mcp
 ---
 # Metadata indicating required MCP servers
 ```

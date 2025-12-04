@@ -19,9 +19,9 @@ type RuleFrontMatter struct {
 	// Agent specifies which AI agent this rule is intended for
 	Agent string `yaml:"agent,omitempty" json:"agent,omitempty"`
 
-	// MCPServers lists the MCP servers that need to be running for this rule
+	// MCPServers maps server names to their configurations
 	// Metadata only, does not filter
-	MCPServers []MCPServerConfig `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
+	MCPServers MCPServerConfigs `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
 
 	// RuleName is an optional identifier for the rule file
 	RuleName string `yaml:"rule_name,omitempty" json:"rule_name,omitempty"`

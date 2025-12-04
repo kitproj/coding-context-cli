@@ -1200,7 +1200,7 @@ func TestParseTaskFile(t *testing.T) {
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
-					"task_name: test\nsingle_shot: true\ntimeout: 300\nmodel: gpt-4\nmcp_servers:\n  - type: stdio\n    command: server1\n  - type: stdio\n    command: server2",
+					"task_name: test\nsingle_shot: true\ntimeout: 300\nmodel: gpt-4\nmcp_servers:\n  server1:\n    type: stdio\n    command: server1\n  server2:\n    type: stdio\n    command: server2",
 					"# Task with Metadata Fields")
 				return taskPath
 			},
@@ -1216,7 +1216,7 @@ func TestParseTaskFile(t *testing.T) {
 			setupFiles: func(t *testing.T, tmpDir string) string {
 				taskPath := filepath.Join(tmpDir, "task.md")
 				createMarkdownFile(t, taskPath,
-					"task_name: test\nagent: cursor\nlanguage: go\nmodel: gpt-4\nsingle_shot: false\ntimeout: 10m\nmcp_servers:\n  - type: stdio\n    command: filesystem\n  - type: stdio\n    command: git",
+					"task_name: test\nagent: cursor\nlanguage: go\nmodel: gpt-4\nsingle_shot: false\ntimeout: 10m\nmcp_servers:\n  filesystem:\n    type: stdio\n    command: filesystem\n  git:\n    type: stdio\n    command: git",
 					"# Task with All Standard Fields")
 				return taskPath
 			},
@@ -2000,9 +2000,11 @@ model: anthropic.claude-sonnet-4-20250514-v1-0
 single_shot: true
 timeout: 5m
 mcp_servers:
-  - type: stdio
+  filesystem:
+    type: stdio
     command: filesystem-server
-  - type: stdio
+  git:
+    type: stdio
     command: git-server`
 
 	taskPath := filepath.Join(tmpDir, ".agents", "tasks", "test-task.md")
@@ -2024,9 +2026,9 @@ mcp_servers:
 		"model":       "anthropic.claude-sonnet-4-20250514-v1-0",
 		"single_shot": true,
 		"timeout":     "5m",
-		"mcp_servers": []any{
-			map[string]any{"type": "stdio", "command": "filesystem-server"},
-			map[string]any{"type": "stdio", "command": "git-server"},
+		"mcp_servers": map[string]any{
+			"filesystem": map[string]any{"type": "stdio", "command": "filesystem-server"},
+			"git":        map[string]any{"type": "stdio", "command": "git-server"},
 		},
 	}
 
@@ -2037,8 +2039,8 @@ mcp_servers:
 			continue
 		}
 
-		// Special handling for arrays
-		if field == "mcp_servers" || field == "languages" {
+		// Special handling for languages array
+		if field == "languages" {
 			actualArray, ok := actualValue.([]any)
 			if !ok {
 				t.Errorf("Expected %q to be []any, got %T", field, actualValue)
@@ -2047,6 +2049,17 @@ mcp_servers:
 			expectedArray := expectedValue.([]any)
 			if len(actualArray) != len(expectedArray) {
 				t.Errorf("Expected %q length %d, got %d", field, len(expectedArray), len(actualArray))
+			}
+		} else if field == "mcp_servers" {
+			// Special handling for mcp_servers map
+			actualMap, ok := actualValue.(map[string]any)
+			if !ok {
+				t.Errorf("Expected %q to be map[string]any, got %T", field, actualValue)
+				continue
+			}
+			expectedMap := expectedValue.(map[string]any)
+			if len(actualMap) != len(expectedMap) {
+				t.Errorf("Expected %q length %d, got %d", field, len(expectedMap), len(actualMap))
 			}
 		} else {
 			// For simple values, just check they exist
