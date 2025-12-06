@@ -200,8 +200,8 @@ func parseBashArgsWithNamed(s string) (map[string]string, error) {
 	return params, nil
 }
 
-// parseNamedParamWithQuotes checks if an argument is a named parameter in key="value" format.
-// Double quotes are mandatory for the value portion.
+// parseNamedParamWithQuotes checks if an argument is a named parameter in key="value" or key='value' format.
+// Both double quotes and single quotes are supported for the value portion.
 // Returns the key, value (with quotes stripped), and whether it was a valid named parameter.
 // Key must be non-empty and cannot contain spaces or tabs.
 func parseNamedParamWithQuotes(rawArg string) (key string, value string, isNamed bool) {
@@ -220,27 +220,36 @@ func parseNamedParamWithQuotes(rawArg string) (key string, value string, isNamed
 	// The value portion (after '=')
 	valuePart := rawArg[eqIdx+1:]
 
-	// Value must start with double quote (mandatory)
-	if len(valuePart) < 2 || valuePart[0] != '"' {
+	// Value must be quoted (either double or single quotes)
+	if len(valuePart) < 2 {
 		return "", "", false
 	}
 
-	// Value must end with double quote
-	if valuePart[len(valuePart)-1] != '"' {
-		return "", "", false
-	}
+	firstChar := valuePart[0]
+	lastChar := valuePart[len(valuePart)-1]
 
-	// Extract the value between quotes and handle escaped quotes
-	quotedValue := valuePart[1 : len(valuePart)-1]
-	var unescaped strings.Builder
-	for i := 0; i < len(quotedValue); i++ {
-		if quotedValue[i] == '\\' && i+1 < len(quotedValue) && quotedValue[i+1] == '"' {
-			unescaped.WriteByte('"')
-			i++ // Skip the escaped quote
+	// Check if value starts and ends with matching quotes
+	if (firstChar == '"' && lastChar == '"') || (firstChar == '\'' && lastChar == '\'') {
+		// Extract the value between quotes
+		quotedValue := valuePart[1 : len(valuePart)-1]
+
+		// Handle escaped quotes (only for double quotes)
+		if firstChar == '"' {
+			var unescaped strings.Builder
+			for i := 0; i < len(quotedValue); i++ {
+				if quotedValue[i] == '\\' && i+1 < len(quotedValue) && quotedValue[i+1] == '"' {
+					unescaped.WriteByte('"')
+					i++ // Skip the escaped quote
+				} else {
+					unescaped.WriteByte(quotedValue[i])
+				}
+			}
+			return key, unescaped.String(), true
 		} else {
-			unescaped.WriteByte(quotedValue[i])
+			// Single quotes: no escape handling (literal value)
+			return key, quotedValue, true
 		}
 	}
 
-	return key, unescaped.String(), true
+	return "", "", false
 }

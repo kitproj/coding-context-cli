@@ -387,9 +387,14 @@ Quoted arguments preserve spaces:
 
 ### Named Parameters
 
-Named parameters use the format `key="value"` with **mandatory double quotes**:
+Named parameters use the format `key="value"` or `key='value'` with **quoted values**:
 - `/fix-bug issue="PROJ-123"` → `$1` = `issue="PROJ-123"`, `$issue` = `PROJ-123`
 - `/deploy env="production" version="1.2.3"` → `$1` = `env="production"`, `$2` = `version="1.2.3"`, `$env` = `production`, `$version` = `1.2.3`
+- `/run path='/usr/local/bin'` → `$1` = `path='/usr/local/bin'`, `$path` = `/usr/local/bin`
+
+Both double quotes (`"`) and single quotes (`'`) are supported for named parameter values:
+- Double quotes support escape sequences: `msg="He said \"hello\""` → `$msg` = `He said "hello"`
+- Single quotes are literal (no escaping): `path='C:\Users\test'` → `$path` = `C:\Users\test`
 
 Named parameters are counted as positional arguments (retaining their original form) while also being available by their key name:
 - `/task arg1 key="value" arg2` → `$1` = `arg1`, `$2` = `key="value"`, `$3` = `arg2`, `$key` = `value`
@@ -398,7 +403,10 @@ Named parameter values can contain spaces and special characters:
 - `/run message="Hello, World!"` → `$1` = `message="Hello, World!"`, `$message` = `Hello, World!`
 - `/config query="x=y+z"` → `$1` = `query="x=y+z"`, `$query` = `x=y+z`
 
-**Note:** Unquoted values (e.g., `key=value`) or single-quoted values (e.g., `key='value'`) are treated as regular positional arguments, not named parameters.
+You can mix quote types in a single command:
+- `/deploy env="production" region='us-east'` → `$env` = `production`, `$region` = `us-east`
+
+**Note:** Unquoted values (e.g., `key=value`) are treated as regular positional arguments, not named parameters.
 
 ### Example with Positional Parameters
 
