@@ -1,223 +1,138 @@
 package codingcontext
 
 import (
-	"strings"
+	"reflect"
 	"testing"
 )
 
+// Helper functions to create pointers for test expectations
+func strPtr(s string) *string { return &s }
+
+func termValue(s string) *Value {
+	return &Value{Term: strPtr(s)}
+}
+
+func stringValue(s string) *Value {
+	return &Value{String: strPtr(s)}
+}
+
+func positionalArg(value string) *Argument {
+	return &Argument{Value: termValue(value)}
+}
+
+func positionalStringArg(value string) *Argument {
+	return &Argument{Value: stringValue(value)}
+}
+
+func namedArg(key, value string) *Argument {
+	return &Argument{Key: strPtr(key), Value: termValue(value)}
+}
+
+func namedStringArg(key, value string) *Argument {
+	return &Argument{Key: strPtr(key), Value: stringValue(value)}
+}
+
 func TestParseTask_SlashCommand(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
-		wantErr     bool
-		wantBlocks  int
-		validateCmd func(t *testing.T, cmd *SlashCommand)
+		name    string
+		input   string
+		want    *Input
+		wantErr bool
 	}{
 		{
-			name:       "simple command without arguments",
-			input:      "/fix-bug\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validateCmd: func(t *testing.T, cmd *SlashCommand) {
-				if cmd == nil {
-					t.Fatal("expected SlashCommand, got nil")
-				}
-				if cmd.Name != "fix-bug" {
-					t.Errorf("Name = %q, want %q", cmd.Name, "fix-bug")
-				}
-				if len(cmd.Arguments) != 0 {
-					t.Errorf("Arguments length = %d, want 0", len(cmd.Arguments))
-				}
+			name:  "simple command without arguments",
+			input: "/fix-bug\n",
+			want: &Input{
+				Blocks: []*Block{
+					{SlashCommand: &SlashCommand{Name: "fix-bug", Arguments: nil}},
+				},
 			},
 		},
 		{
-			name:       "command with single positional argument",
-			input:      "/fix-bug 123\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validateCmd: func(t *testing.T, cmd *SlashCommand) {
-				if cmd == nil {
-					t.Fatal("expected SlashCommand, got nil")
-				}
-				if cmd.Name != "fix-bug" {
-					t.Errorf("Name = %q, want %q", cmd.Name, "fix-bug")
-				}
-				if len(cmd.Arguments) != 1 {
-					t.Fatalf("Arguments length = %d, want 1", len(cmd.Arguments))
-				}
-				if cmd.Arguments[0].Key != nil {
-					t.Errorf("Arguments[0].Key = %v, want nil", cmd.Arguments[0].Key)
-				}
-				if cmd.Arguments[0].Value == nil || cmd.Arguments[0].Value.Term == nil {
-					t.Fatal("Arguments[0].Value.Term is nil")
-				}
-				if *cmd.Arguments[0].Value.Term != "123" {
-					t.Errorf("Arguments[0].Value.Term = %q, want %q", *cmd.Arguments[0].Value.Term, "123")
-				}
+			name:  "command with single positional argument",
+			input: "/fix-bug 123\n",
+			want: &Input{
+				Blocks: []*Block{
+					{SlashCommand: &SlashCommand{
+						Name:      "fix-bug",
+						Arguments: []*Argument{positionalArg("123")},
+					}},
+				},
 			},
 		},
 		{
-			name:       "command with multiple positional arguments",
-			input:      "/implement-feature login high urgent\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validateCmd: func(t *testing.T, cmd *SlashCommand) {
-				if cmd == nil {
-					t.Fatal("expected SlashCommand, got nil")
-				}
-				if cmd.Name != "implement-feature" {
-					t.Errorf("Name = %q, want %q", cmd.Name, "implement-feature")
-				}
-				if len(cmd.Arguments) != 3 {
-					t.Fatalf("Arguments length = %d, want 3", len(cmd.Arguments))
-				}
-				wantArgs := []string{"login", "high", "urgent"}
-				for i, want := range wantArgs {
-					if cmd.Arguments[i].Value == nil || cmd.Arguments[i].Value.Term == nil {
-						t.Fatalf("Arguments[%d].Value.Term is nil", i)
-					}
-					if *cmd.Arguments[i].Value.Term != want {
-						t.Errorf("Arguments[%d].Value.Term = %q, want %q", i, *cmd.Arguments[i].Value.Term, want)
-					}
-				}
+			name:  "command with multiple positional arguments",
+			input: "/implement-feature login high urgent\n",
+			want: &Input{
+				Blocks: []*Block{
+					{SlashCommand: &SlashCommand{
+						Name: "implement-feature",
+						Arguments: []*Argument{
+							positionalArg("login"),
+							positionalArg("high"),
+							positionalArg("urgent"),
+						},
+					}},
+				},
 			},
 		},
 		{
-			name:       "command with quoted argument",
-			input:      "/code-review \"Fix authentication bug\"\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validateCmd: func(t *testing.T, cmd *SlashCommand) {
-				if cmd == nil {
-					t.Fatal("expected SlashCommand, got nil")
-				}
-				if cmd.Name != "code-review" {
-					t.Errorf("Name = %q, want %q", cmd.Name, "code-review")
-				}
-				if len(cmd.Arguments) != 1 {
-					t.Fatalf("Arguments length = %d, want 1", len(cmd.Arguments))
-				}
-				if cmd.Arguments[0].Value == nil || cmd.Arguments[0].Value.String == nil {
-					t.Fatal("Arguments[0].Value.String is nil")
-				}
-				if *cmd.Arguments[0].Value.String != "Fix authentication bug" {
-					t.Errorf("Arguments[0].Value.String = %q, want %q", *cmd.Arguments[0].Value.String, "Fix authentication bug")
-				}
+			name:  "command with quoted argument",
+			input: "/code-review \"Fix authentication bug\"\n",
+			want: &Input{
+				Blocks: []*Block{
+					{SlashCommand: &SlashCommand{
+						Name:      "code-review",
+						Arguments: []*Argument{positionalStringArg("Fix authentication bug")},
+					}},
+				},
 			},
 		},
 		{
-			name:       "command with named parameter",
-			input:      "/fix-bug issue=PROJ-123\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validateCmd: func(t *testing.T, cmd *SlashCommand) {
-				if cmd == nil {
-					t.Fatal("expected SlashCommand, got nil")
-				}
-				if cmd.Name != "fix-bug" {
-					t.Errorf("Name = %q, want %q", cmd.Name, "fix-bug")
-				}
-				if len(cmd.Arguments) != 1 {
-					t.Fatalf("Arguments length = %d, want 1", len(cmd.Arguments))
-				}
-				if cmd.Arguments[0].Key == nil {
-					t.Fatal("Arguments[0].Key is nil")
-				}
-				if *cmd.Arguments[0].Key != "issue" {
-					t.Errorf("Arguments[0].Key = %q, want %q", *cmd.Arguments[0].Key, "issue")
-				}
-				if cmd.Arguments[0].Value == nil || cmd.Arguments[0].Value.Term == nil {
-					t.Fatal("Arguments[0].Value.Term is nil")
-				}
-				if *cmd.Arguments[0].Value.Term != "PROJ-123" {
-					t.Errorf("Arguments[0].Value.Term = %q, want %q", *cmd.Arguments[0].Value.Term, "PROJ-123")
-				}
+			name:  "command with named parameter",
+			input: "/fix-bug issue=PROJ-123\n",
+			want: &Input{
+				Blocks: []*Block{
+					{SlashCommand: &SlashCommand{
+						Name:      "fix-bug",
+						Arguments: []*Argument{namedArg("issue", "PROJ-123")},
+					}},
+				},
 			},
 		},
 		{
-			name:       "command with named parameter with quoted value",
-			input:      "/implement feature=\"Add user auth\"\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validateCmd: func(t *testing.T, cmd *SlashCommand) {
-				if cmd == nil {
-					t.Fatal("expected SlashCommand, got nil")
-				}
-				if cmd.Name != "implement" {
-					t.Errorf("Name = %q, want %q", cmd.Name, "implement")
-				}
-				if len(cmd.Arguments) != 1 {
-					t.Fatalf("Arguments length = %d, want 1", len(cmd.Arguments))
-				}
-				if cmd.Arguments[0].Key == nil {
-					t.Fatal("Arguments[0].Key is nil")
-				}
-				if *cmd.Arguments[0].Key != "feature" {
-					t.Errorf("Arguments[0].Key = %q, want %q", *cmd.Arguments[0].Key, "feature")
-				}
-				if cmd.Arguments[0].Value == nil || cmd.Arguments[0].Value.String == nil {
-					t.Fatal("Arguments[0].Value.String is nil")
-				}
-				if *cmd.Arguments[0].Value.String != "Add user auth" {
-					t.Errorf("Arguments[0].Value.String = %q, want %q", *cmd.Arguments[0].Value.String, "Add user auth")
-				}
+			name:  "command with named parameter with quoted value",
+			input: "/implement feature=\"Add user auth\"\n",
+			want: &Input{
+				Blocks: []*Block{
+					{SlashCommand: &SlashCommand{
+						Name:      "implement",
+						Arguments: []*Argument{namedStringArg("feature", "Add user auth")},
+					}},
+				},
 			},
 		},
 		{
-			name:       "command with mixed positional and named arguments",
-			input:      "/task arg1 key=value arg2\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validateCmd: func(t *testing.T, cmd *SlashCommand) {
-				if cmd == nil {
-					t.Fatal("expected SlashCommand, got nil")
-				}
-				if cmd.Name != "task" {
-					t.Errorf("Name = %q, want %q", cmd.Name, "task")
-				}
-				if len(cmd.Arguments) != 3 {
-					t.Fatalf("Arguments length = %d, want 3", len(cmd.Arguments))
-				}
-				// arg1 - positional
-				if cmd.Arguments[0].Key != nil {
-					t.Errorf("Arguments[0].Key = %v, want nil", cmd.Arguments[0].Key)
-				}
-				if cmd.Arguments[0].Value == nil || cmd.Arguments[0].Value.Term == nil {
-					t.Fatal("Arguments[0].Value.Term is nil")
-				}
-				if *cmd.Arguments[0].Value.Term != "arg1" {
-					t.Errorf("Arguments[0].Value.Term = %q, want %q", *cmd.Arguments[0].Value.Term, "arg1")
-				}
-				// key=value - named
-				if cmd.Arguments[1].Key == nil {
-					t.Fatal("Arguments[1].Key is nil")
-				}
-				if *cmd.Arguments[1].Key != "key" {
-					t.Errorf("Arguments[1].Key = %q, want %q", *cmd.Arguments[1].Key, "key")
-				}
-				if cmd.Arguments[1].Value == nil || cmd.Arguments[1].Value.Term == nil {
-					t.Fatal("Arguments[1].Value.Term is nil")
-				}
-				if *cmd.Arguments[1].Value.Term != "value" {
-					t.Errorf("Arguments[1].Value.Term = %q, want %q", *cmd.Arguments[1].Value.Term, "value")
-				}
-				// arg2 - positional
-				if cmd.Arguments[2].Key != nil {
-					t.Errorf("Arguments[2].Key = %v, want nil", cmd.Arguments[2].Key)
-				}
-				if cmd.Arguments[2].Value == nil || cmd.Arguments[2].Value.Term == nil {
-					t.Fatal("Arguments[2].Value.Term is nil")
-				}
-				if *cmd.Arguments[2].Value.Term != "arg2" {
-					t.Errorf("Arguments[2].Value.Term = %q, want %q", *cmd.Arguments[2].Value.Term, "arg2")
-				}
+			name:  "command with mixed positional and named arguments",
+			input: "/task arg1 key=value arg2\n",
+			want: &Input{
+				Blocks: []*Block{
+					{SlashCommand: &SlashCommand{
+						Name: "task",
+						Arguments: []*Argument{
+							positionalArg("arg1"),
+							namedArg("key", "value"),
+							positionalArg("arg2"),
+						},
+					}},
+				},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseTask(tt.input)
+			got, err := ParseTask(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -225,112 +140,70 @@ func TestParseTask_SlashCommand(t *testing.T) {
 			if err != nil {
 				return
 			}
-			if len(result.Blocks) != tt.wantBlocks {
-				t.Fatalf("Blocks length = %d, want %d", len(result.Blocks), tt.wantBlocks)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseTask() got = %#v, want %#v", got, tt.want)
 			}
-			if result.Blocks[0].SlashCommand == nil {
-				t.Fatal("expected SlashCommand in first block, got nil")
-			}
-			tt.validateCmd(t, result.Blocks[0].SlashCommand)
 		})
 	}
 }
 
 func TestParseTask_Text(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      string
-		wantErr    bool
-		wantBlocks int
-		validate   func(t *testing.T, result *Input)
+		name    string
+		input   string
+		want    *Input
+		wantErr bool
 	}{
 		{
-			name:       "simple text",
-			input:      "This is a simple task\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validate: func(t *testing.T, result *Input) {
-				if result.Blocks[0].Text == nil {
-					t.Fatal("expected Text block, got nil")
-				}
-				text := strings.Join(result.Blocks[0].Text.Content, "")
-				if !strings.Contains(text, "This") || !strings.Contains(text, "simple") || !strings.Contains(text, "task") {
-					t.Errorf("Text content = %q, want to contain 'This', 'simple', 'task'", text)
-				}
+			name:  "simple text",
+			input: "This is a simple task\n",
+			want: &Input{
+				Blocks: []*Block{
+					{Text: &Text{Content: []string{"This", " ", "is", " ", "a", " ", "simple", " ", "task", "\n"}}},
+				},
 			},
 		},
 		{
-			name:       "multiline text",
-			input:      "Line 1\nLine 2\nLine 3\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validate: func(t *testing.T, result *Input) {
-				if result.Blocks[0].Text == nil {
-					t.Fatal("expected Text block, got nil")
-				}
-				text := strings.Join(result.Blocks[0].Text.Content, "")
-				if !strings.Contains(text, "Line") {
-					t.Errorf("Text content = %q, want to contain 'Line'", text)
-				}
+			name:  "multiline text",
+			input: "Line 1\nLine 2\nLine 3\n",
+			want: &Input{
+				Blocks: []*Block{
+					{Text: &Text{Content: []string{"Line", " ", "1", "\n", "Line", " ", "2", "\n", "Line", " ", "3", "\n"}}},
+				},
 			},
 		},
 		{
-			name:       "text with slash not at line start",
-			input:      "Check the file path\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validate: func(t *testing.T, result *Input) {
-				if result.Blocks[0].Text == nil {
-					t.Fatal("expected Text block, got nil")
-				}
-				text := strings.Join(result.Blocks[0].Text.Content, "")
-				if !strings.Contains(text, "file") || !strings.Contains(text, "path") {
-					t.Errorf("Text content = %q, want to contain 'file' and 'path'", text)
-				}
+			name:  "text with slash not at line start",
+			input: "Check the file path\n",
+			want: &Input{
+				Blocks: []*Block{
+					{Text: &Text{Content: []string{"Check", " ", "the", " ", "file", " ", "path", "\n"}}},
+				},
 			},
 		},
 		{
-			name:       "text with equals sign",
-			input:      "x = y + z\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validate: func(t *testing.T, result *Input) {
-				if result.Blocks[0].Text == nil {
-					t.Fatal("expected Text block, got nil")
-				}
-				text := strings.Join(result.Blocks[0].Text.Content, "")
-				if !strings.Contains(text, "=") {
-					t.Errorf("Text content = %q, want to contain '='", text)
-				}
+			name:  "text with equals sign",
+			input: "x = y + z\n",
+			want: &Input{
+				Blocks: []*Block{
+					{Text: &Text{Content: []string{"x", " ", "=", " ", "y", " ", "+", " ", "z", "\n"}}},
+				},
 			},
 		},
 		{
-			name:       "text with quoted string",
-			input:      "The message is \"Hello World\"\n",
-			wantErr:    false,
-			wantBlocks: 1,
-			validate: func(t *testing.T, result *Input) {
-				if result.Blocks[0].Text == nil {
-					t.Fatal("expected Text block, got nil")
-				}
-				// Should have captured the string token
-				found := false
-				for _, content := range result.Blocks[0].Text.Content {
-					if strings.Contains(content, "Hello World") {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Text content = %v, want to contain 'Hello World'", result.Blocks[0].Text.Content)
-				}
+			name:  "text with quoted string",
+			input: "The message is \"Hello World\"\n",
+			want: &Input{
+				Blocks: []*Block{
+					{Text: &Text{Content: []string{"The", " ", "message", " ", "is", " ", "Hello World", "\n"}}},
+				},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseTask(tt.input)
+			got, err := ParseTask(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -338,45 +211,30 @@ func TestParseTask_Text(t *testing.T) {
 			if err != nil {
 				return
 			}
-			if len(result.Blocks) != tt.wantBlocks {
-				t.Fatalf("Blocks length = %d, want %d", len(result.Blocks), tt.wantBlocks)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseTask() got = %#v, want %#v", got, tt.want)
 			}
-			tt.validate(t, result)
 		})
 	}
 }
 
 func TestParseTask_MixedBlocks(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      string
-		wantErr    bool
-		wantBlocks int
-		validate   func(t *testing.T, result *Input)
+		name    string
+		input   string
+		want    *Input
+		wantErr bool
 	}{
 		{
 			name: "text followed by command",
 			input: `Please fix the bug
 /fix-bug 123
 `,
-			wantErr:    false,
-			wantBlocks: 2,
-			validate: func(t *testing.T, result *Input) {
-				// First block should be text
-				if result.Blocks[0].Text == nil {
-					t.Fatal("expected Text in first block, got nil")
-				}
-				text := strings.Join(result.Blocks[0].Text.Content, "")
-				if !strings.Contains(text, "Please") {
-					t.Errorf("First block text = %q, want to contain 'Please'", text)
-				}
-				// Second block should be command
-				if result.Blocks[1].SlashCommand == nil {
-					t.Fatal("expected SlashCommand in second block, got nil")
-				}
-				if result.Blocks[1].SlashCommand.Name != "fix-bug" {
-					t.Errorf("SlashCommand.Name = %q, want %q", result.Blocks[1].SlashCommand.Name, "fix-bug")
-				}
+			want: &Input{
+				Blocks: []*Block{
+					{Text: &Text{Content: []string{"Please", " ", "fix", " ", "the", " ", "bug", "\n"}}},
+					{SlashCommand: &SlashCommand{Name: "fix-bug", Arguments: []*Argument{positionalArg("123")}}},
+				},
 			},
 		},
 		{
@@ -384,24 +242,11 @@ func TestParseTask_MixedBlocks(t *testing.T) {
 			input: `/fix-bug 123
 This is additional context
 `,
-			wantErr:    false,
-			wantBlocks: 2,
-			validate: func(t *testing.T, result *Input) {
-				// First block should be command
-				if result.Blocks[0].SlashCommand == nil {
-					t.Fatal("expected SlashCommand in first block, got nil")
-				}
-				if result.Blocks[0].SlashCommand.Name != "fix-bug" {
-					t.Errorf("SlashCommand.Name = %q, want %q", result.Blocks[0].SlashCommand.Name, "fix-bug")
-				}
-				// Second block should be text
-				if result.Blocks[1].Text == nil {
-					t.Fatal("expected Text in second block, got nil")
-				}
-				text := strings.Join(result.Blocks[1].Text.Content, "")
-				if !strings.Contains(text, "additional") {
-					t.Errorf("Second block text = %q, want to contain 'additional'", text)
-				}
+			want: &Input{
+				Blocks: []*Block{
+					{SlashCommand: &SlashCommand{Name: "fix-bug", Arguments: []*Argument{positionalArg("123")}}},
+					{Text: &Text{Content: []string{"This", " ", "is", " ", "additional", " ", "context", "\n"}}},
+				},
 			},
 		},
 		{
@@ -411,31 +256,13 @@ Set up the environment
 /config name=myapp
 Additional settings here
 `,
-			wantErr:    false,
-			wantBlocks: 4,
-			validate: func(t *testing.T, result *Input) {
-				// Block 0: command
-				if result.Blocks[0].SlashCommand == nil {
-					t.Fatal("expected SlashCommand in block 0, got nil")
-				}
-				if result.Blocks[0].SlashCommand.Name != "init" {
-					t.Errorf("Block 0 SlashCommand.Name = %q, want %q", result.Blocks[0].SlashCommand.Name, "init")
-				}
-				// Block 1: text
-				if result.Blocks[1].Text == nil {
-					t.Fatal("expected Text in block 1, got nil")
-				}
-				// Block 2: command
-				if result.Blocks[2].SlashCommand == nil {
-					t.Fatal("expected SlashCommand in block 2, got nil")
-				}
-				if result.Blocks[2].SlashCommand.Name != "config" {
-					t.Errorf("Block 2 SlashCommand.Name = %q, want %q", result.Blocks[2].SlashCommand.Name, "config")
-				}
-				// Block 3: text
-				if result.Blocks[3].Text == nil {
-					t.Fatal("expected Text in block 3, got nil")
-				}
+			want: &Input{
+				Blocks: []*Block{
+					{SlashCommand: &SlashCommand{Name: "init", Arguments: []*Argument{positionalArg("project")}}},
+					{Text: &Text{Content: []string{"Set", " ", "up", " ", "the", " ", "environment", "\n"}}},
+					{SlashCommand: &SlashCommand{Name: "config", Arguments: []*Argument{namedArg("name", "myapp")}}},
+					{Text: &Text{Content: []string{"Additional", " ", "settings", " ", "here", "\n"}}},
+				},
 			},
 		},
 		{
@@ -447,7 +274,7 @@ Additional settings here
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseTask(tt.input)
+			got, err := ParseTask(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseTask() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -455,11 +282,8 @@ Additional settings here
 			if err != nil {
 				return
 			}
-			if len(result.Blocks) != tt.wantBlocks {
-				t.Fatalf("Blocks length = %d, want %d", len(result.Blocks), tt.wantBlocks)
-			}
-			if tt.validate != nil {
-				tt.validate(t, result)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseTask() got = %#v, want %#v", got, tt.want)
 			}
 		})
 	}
@@ -469,22 +293,33 @@ func TestParseTask_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
+		want    *Input
 		wantErr bool
 	}{
 		{
-			name:    "empty input",
-			input:   "",
-			wantErr: false,
+			name:  "empty input",
+			input: "",
+			want: &Input{
+				Blocks: nil,
+			},
 		},
 		{
-			name:    "just newlines",
-			input:   "\n\n\n",
-			wantErr: false,
+			name:  "just newlines",
+			input: "\n\n\n",
+			want: &Input{
+				Blocks: []*Block{
+					{Text: &Text{Content: []string{"\n\n\n"}}},
+				},
+			},
 		},
 		{
-			name:    "just whitespace",
-			input:   "   \t  \n",
-			wantErr: false,
+			name:  "just whitespace",
+			input: "   \t  \n",
+			want: &Input{
+				Blocks: []*Block{
+					{Text: &Text{Content: []string{"   \t  ", "\n"}}},
+				},
+			},
 		},
 		{
 			name:    "slash at start with no command name",
@@ -495,9 +330,16 @@ func TestParseTask_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseTask(tt.input)
+			got, err := ParseTask(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseTask() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil {
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseTask() got = %#v, want %#v", got, tt.want)
 			}
 		})
 	}
