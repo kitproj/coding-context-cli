@@ -141,27 +141,27 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 	// Expand parameters in taskPrompt to allow slash commands in parameters
 	expandedTaskPrompt := cc.expandParams(taskPrompt)
 
-	// Check if the taskPrompt contains a slash command
-	slashTaskName, slashParams, found, err := parseSlashCommand(expandedTaskPrompt)
+	// Parse the task prompt using the enhanced parser
+	parsedTask, err := ParseTaskPrompt(expandedTaskPrompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse slash command in taskPrompt: %w", err)
+		return nil, fmt.Errorf("failed to parse task prompt: %w", err)
 	}
 
-	if found {
+	if parsedTask.HasSlashCommand {
 		// Slash command found - find and use the corresponding task file
-		cc.logger.Info("Found slash command in taskPrompt", "task", slashTaskName, "params", slashParams)
+		cc.logger.Info("Found slash command in taskPrompt", "task", parsedTask.FirstCommandName, "params", parsedTask.FirstCommandParams)
 
 		// Merge slash command parameters with existing parameters
 		// Slash command parameters take precedence
-		for k, v := range slashParams {
+		for k, v := range parsedTask.FirstCommandParams {
 			cc.params[k] = v
 		}
 
 		// Add task name to includes so rules can be filtered by task
-		cc.includes.SetValue("task_name", slashTaskName)
+		cc.includes.SetValue("task_name", parsedTask.FirstCommandName)
 
 		// Find the task file
-		if err := cc.findTaskFile(slashTaskName); err != nil {
+		if err := cc.findTaskFile(parsedTask.FirstCommandName); err != nil {
 			return nil, fmt.Errorf("failed to find slash command task file: %w", err)
 		}
 
