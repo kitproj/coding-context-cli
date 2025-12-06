@@ -139,7 +139,8 @@ func extractParamsFromCommand(cmd *SlashCommand) map[string]string {
 	return params
 }
 
-// stripQuotes removes surrounding quotes from a string if present
+// stripQuotes removes surrounding double quotes from a string if present.
+// Single quotes are not supported as the grammar only allows double-quoted strings.
 func stripQuotes(s string) string {
 	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
 		// Remove quotes and handle escaped quotes inside

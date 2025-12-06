@@ -76,7 +76,7 @@ var taskLexer = lexer.MustSimple([]lexer.SimpleRule{
 
 var parser = participle.MustBuild[Input](
 	participle.Lexer(taskLexer),
-	participle.UseLookahead(4), // Increased lookahead for better newline+slash detection
+	participle.UseLookahead(4), // Use lookahead to help distinguish Text from SlashCommand patterns
 )
 
 // ParseTask parses a task string into a Task structure
