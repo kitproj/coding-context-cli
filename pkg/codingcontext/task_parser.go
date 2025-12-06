@@ -22,11 +22,10 @@ type Block struct {
 }
 
 // SlashCommand represents a command starting with "/" that ends with a newline or EOF
-// The grammar REQUIRES a newline after the command, which naturally prevents
-// matching slashes in the middle of a line (since they won't have a trailing newline)
+// The newline is optional to handle EOF, but when present, prevents matching inline slashes
 type SlashCommand struct {
 	Name      string     `parser:"Slash @Term"`
-	Arguments []Argument `parser:"(Whitespace @@)* Whitespace? Newline"`
+	Arguments []Argument `parser:"(Whitespace @@)* Whitespace? Newline?"`
 }
 
 // Argument represents either a named (key=value) or positional argument
@@ -45,7 +44,7 @@ type Text struct {
 // TextLine is a single line of text content (not starting with a slash)
 // It matches tokens until the end of the line
 type TextLine struct {
-	NonSlashStart []string `parser:"(@Term | @String | @Assign | @Whitespace)"`  // First token can't be Slash
+	NonSlashStart []string `parser:"(@Term | @String | @Assign | @Whitespace)"`           // First token can't be Slash
 	RestOfLine    []string `parser:"(@Term | @String | @Slash | @Assign | @Whitespace)*"` // Rest can include Slash
 	NewlineOpt    string   `parser:"@Newline?"`
 }
@@ -65,14 +64,14 @@ func (t *Text) Content() string {
 	return sb.String()
 }
 
-// Define the lexer using participle's lexer.MustSimple  
+// Define the lexer using participle's lexer.MustSimple
 var taskLexer = lexer.MustSimple([]lexer.SimpleRule{
-	{Name: "Slash", Pattern: `/`},                   // Any "/"
-	{Name: "Assign", Pattern: `=`},                  // "="
-	{Name: "String", Pattern: `"(?:\\.|[^"])*"`},    // Quoted strings with escapes
-	{Name: "Whitespace", Pattern: `[ \t]+`},         // Spaces and tabs (horizontal only)
-	{Name: "Newline", Pattern: `[\n\r]+`},           // Newlines
-	{Name: "Term", Pattern: `[^ \t\n\r/"=]+`},       // Any char except space, newline, /, ", =
+	{Name: "Slash", Pattern: `/`},                // Any "/"
+	{Name: "Assign", Pattern: `=`},               // "="
+	{Name: "String", Pattern: `"(?:\\.|[^"])*"`}, // Quoted strings with escapes
+	{Name: "Whitespace", Pattern: `[ \t]+`},      // Spaces and tabs (horizontal only)
+	{Name: "Newline", Pattern: `[\n\r]+`},        // Newlines
+	{Name: "Term", Pattern: `[^ \t\n\r/"=]+`},    // Any char except space, newline, /, ", =
 })
 
 var parser = participle.MustBuild[Input](

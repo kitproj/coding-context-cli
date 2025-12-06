@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/go-getter/v2"
@@ -100,6 +101,55 @@ func New(opts ...Option) *Context {
 }
 
 // expandParams expands parameter placeholders in the given content
+// extractParamsFromCommand converts a SlashCommand into a parameter map
+// similar to what the old parseSlashCommand function did
+func extractParamsFromCommand(cmd *SlashCommand) map[string]string {
+	params := make(map[string]string)
+
+	// Build the ARGUMENTS string from all arguments
+	if len(cmd.Arguments) > 0 {
+		var argStrings []string
+		for _, arg := range cmd.Arguments {
+			if arg.Key != "" {
+				// Named parameter: key="value"
+				argStrings = append(argStrings, arg.Key+"="+arg.Value)
+			} else {
+				// Positional parameter
+				argStrings = append(argStrings, arg.Value)
+			}
+		}
+		params["ARGUMENTS"] = strings.Join(argStrings, " ")
+	}
+
+	// Add positional and named parameters
+	for i, arg := range cmd.Arguments {
+		// Positional parameter (1-indexed)
+		posKey := strconv.Itoa(i + 1)
+		if arg.Key != "" {
+			// This is a named parameter - store as key="value" for positional
+			params[posKey] = arg.Key + "=" + arg.Value
+			// Also store the value under the key name (strip quotes if present)
+			params[arg.Key] = stripQuotes(arg.Value)
+		} else {
+			// Pure positional parameter (strip quotes if present)
+			params[posKey] = stripQuotes(arg.Value)
+		}
+	}
+
+	return params
+}
+
+// stripQuotes removes surrounding quotes from a string if present
+func stripQuotes(s string) string {
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		// Remove quotes and handle escaped quotes inside
+		unquoted := s[1 : len(s)-1]
+		return strings.ReplaceAll(unquoted, `\"`, `"`)
+	}
+	return s
+}
+
+// expandParams expands parameter placeholders in the given content
 func (cc *Context) expandParams(content string) string {
 	return os.Expand(content, func(key string) string {
 		if val, ok := cc.params[key]; ok {
@@ -141,15 +191,27 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 	// Expand parameters in taskPrompt to allow slash commands in parameters
 	expandedTaskPrompt := cc.expandParams(taskPrompt)
 
-	// Check if the taskPrompt contains a slash command
-	slashTaskName, slashParams, found, err := parseSlashCommand(expandedTaskPrompt)
+	// Parse the task prompt into blocks using the new parser
+	taskBlocks, err := ParseTask(expandedTaskPrompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse slash command in taskPrompt: %w", err)
+		return nil, fmt.Errorf("failed to parse task prompt: %w", err)
 	}
 
-	if found {
+	// Look for the first slash command block
+	var firstCommand *SlashCommand
+	for _, block := range taskBlocks {
+		if block.SlashCommand != nil {
+			firstCommand = block.SlashCommand
+			break
+		}
+	}
+
+	if firstCommand != nil {
 		// Slash command found - find and use the corresponding task file
-		cc.logger.Info("Found slash command in taskPrompt", "task", slashTaskName, "params", slashParams)
+		cc.logger.Info("Found slash command in taskPrompt", "task", firstCommand.Name)
+
+		// Extract parameters from the slash command
+		slashParams := extractParamsFromCommand(firstCommand)
 
 		// Merge slash command parameters with existing parameters
 		// Slash command parameters take precedence
@@ -158,10 +220,10 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 		}
 
 		// Add task name to includes so rules can be filtered by task
-		cc.includes.SetValue("task_name", slashTaskName)
+		cc.includes.SetValue("task_name", firstCommand.Name)
 
 		// Find the task file
-		if err := cc.findTaskFile(slashTaskName); err != nil {
+		if err := cc.findTaskFile(firstCommand.Name); err != nil {
 			return nil, fmt.Errorf("failed to find slash command task file: %w", err)
 		}
 
