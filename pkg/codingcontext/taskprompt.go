@@ -26,7 +26,7 @@ type ParsedTask struct {
 func ParseTaskPrompt(taskPrompt string) (*ParsedTask, error) {
 	// First, try the enhanced parser
 	input, err := ParseTask(taskPrompt)
-	
+
 	// If the enhanced parser fails, try to fall back to the old parseSlashCommand
 	// for backward compatibility with slash commands that don't have a trailing newline
 	if err != nil {

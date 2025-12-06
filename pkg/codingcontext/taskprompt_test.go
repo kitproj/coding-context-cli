@@ -15,9 +15,9 @@ func TestParseTaskPrompt(t *testing.T) {
 		wantAllTextContains  []string
 	}{
 		{
-			name:                "simple slash command",
-			input:               "/fix-bug 123\n",
-			wantHasSlashCommand: true,
+			name:                 "simple slash command",
+			input:                "/fix-bug 123\n",
+			wantHasSlashCommand:  true,
 			wantFirstCommandName: "fix-bug",
 			wantParams: map[string]string{
 				"ARGUMENTS": "123",
@@ -26,9 +26,9 @@ func TestParseTaskPrompt(t *testing.T) {
 			wantAllTextContains: []string{"/fix-bug 123"},
 		},
 		{
-			name:                "plain text without slash command",
-			input:               "Just some plain text\n",
-			wantHasSlashCommand: false,
+			name:                 "plain text without slash command",
+			input:                "Just some plain text\n",
+			wantHasSlashCommand:  false,
 			wantFirstCommandName: "",
 			wantParams:           nil,
 			wantAllTextContains:  []string{"Just some plain text"},
@@ -38,7 +38,7 @@ func TestParseTaskPrompt(t *testing.T) {
 			input: `Please fix the bug
 /fix-bug 123
 `,
-			wantHasSlashCommand: true,
+			wantHasSlashCommand:  true,
 			wantFirstCommandName: "fix-bug",
 			wantParams: map[string]string{
 				"ARGUMENTS": "123",
@@ -47,9 +47,9 @@ func TestParseTaskPrompt(t *testing.T) {
 			wantAllTextContains: []string{"Please fix the bug", "/fix-bug 123"},
 		},
 		{
-			name: "slash command with named parameter",
-			input: "/deploy env=production\n",
-			wantHasSlashCommand: true,
+			name:                 "slash command with named parameter",
+			input:                "/deploy env=production\n",
+			wantHasSlashCommand:  true,
 			wantFirstCommandName: "deploy",
 			wantParams: map[string]string{
 				"ARGUMENTS": "env=production",
@@ -59,9 +59,9 @@ func TestParseTaskPrompt(t *testing.T) {
 			wantAllTextContains: []string{"/deploy env=production"},
 		},
 		{
-			name: "slash command with quoted value",
-			input: "/implement feature=\"Add auth\"\n",
-			wantHasSlashCommand: true,
+			name:                 "slash command with quoted value",
+			input:                "/implement feature=\"Add auth\"\n",
+			wantHasSlashCommand:  true,
 			wantFirstCommandName: "implement",
 			wantParams: map[string]string{
 				"ARGUMENTS": "feature=\"Add auth\"",
@@ -75,7 +75,7 @@ func TestParseTaskPrompt(t *testing.T) {
 			input: `/init project
 /config name=myapp
 `,
-			wantHasSlashCommand: true,
+			wantHasSlashCommand:  true,
 			wantFirstCommandName: "init",
 			wantParams: map[string]string{
 				"ARGUMENTS": "project",
@@ -84,9 +84,9 @@ func TestParseTaskPrompt(t *testing.T) {
 			wantAllTextContains: []string{"/init project", "/config name=myapp"},
 		},
 		{
-			name: "mixed positional and named parameters",
-			input: "/task arg1 key=value arg2\n",
-			wantHasSlashCommand: true,
+			name:                 "mixed positional and named parameters",
+			input:                "/task arg1 key=value arg2\n",
+			wantHasSlashCommand:  true,
 			wantFirstCommandName: "task",
 			wantParams: map[string]string{
 				"ARGUMENTS": "arg1 key=value arg2",
