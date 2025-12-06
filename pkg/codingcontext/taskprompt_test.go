@@ -1,6 +1,7 @@
 package codingcontext
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -140,29 +141,10 @@ func TestParseTaskPrompt(t *testing.T) {
 
 			// Check that AllText contains expected substrings
 			for _, substr := range tt.wantAllTextContains {
-				if !containsSubstring(result.AllText, substr) {
+				if !strings.Contains(result.AllText, substr) {
 					t.Errorf("AllText = %q, want to contain %q", result.AllText, substr)
 				}
 			}
 		})
 	}
-}
-
-func containsSubstring(s, substr string) bool {
-	// Simple contains check, handling whitespace variations
-	return len(s) > 0 && len(substr) > 0 && 
-		(s == substr || 
-		 len(s) >= len(substr) && 
-		 (s[:len(substr)] == substr || 
-		  s[len(s)-len(substr):] == substr ||
-		  findInString(s, substr)))
-}
-
-func findInString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
