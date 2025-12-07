@@ -100,7 +100,7 @@ func New(opts ...Option) *Context {
 
 // findMarkdownFile searches for a markdown file by name in the given directories.
 // Returns the path to the file if found, or an error if not found or multiple files match.
-func findMarkdownFile(searchDirs []string, name string) (string, error) {
+func findMarkdownFile(searchDirs []string, name string, selectors *Selectors) (string, error) {
 	var matchingFile string
 
 	for _, dir := range searchDirs {
@@ -122,6 +122,22 @@ func findMarkdownFile(searchDirs []string, name string) (string, error) {
 			baseName := strings.TrimSuffix(filepath.Base(path), ".md")
 			if baseName != name {
 				return nil
+			}
+
+			// If selectors are provided, check if the file matches
+			if selectors != nil && len(*selectors) > 0 {
+				// Parse frontmatter to check selectors
+				var fm BaseFrontMatter
+				_, err := ParseMarkdownFile[BaseFrontMatter](path, &fm)
+				if err != nil {
+					// Skip files that can't be parsed
+					return nil
+				}
+				
+				// Skip files that don't match selectors
+				if !selectors.MatchesIncludes(fm) {
+					return nil
+				}
 			}
 
 			// If we already found a matching file, error on duplicate
@@ -174,8 +190,16 @@ func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name stri
 		searchDirs = append(searchDirs, subPaths...)
 	}
 
-	// Find the file
-	filePath, err := findMarkdownFile(searchDirs, name)
+	// Determine if we should filter by selectors
+	var selectors *Selectors
+	if _, ok := ptrToFrontMatter.(*TaskFrontMatter); ok {
+		// For tasks: filter by selectors
+		selectors = &cc.includes
+	}
+	// For commands: selectors is nil, no filtering
+
+	// Find the file (with selector filtering if applicable)
+	filePath, err := findMarkdownFile(searchDirs, name, selectors)
 	if err != nil {
 		return "", err
 	}
@@ -183,17 +207,11 @@ func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name stri
 	// Parse the file based on frontmatter type
 	var content string
 	if taskFM, ok := ptrToFrontMatter.(*TaskFrontMatter); ok {
-		// For tasks: parse with TaskFrontMatter and check selectors
+		// For tasks: parse with TaskFrontMatter
 		md, err := ParseMarkdownFile[TaskFrontMatter](filePath, taskFM)
 		if err != nil {
 			return "", fmt.Errorf("failed to parse file %s: %w", filePath, err)
 		}
-
-		// Check if file matches include selectors
-		if !cc.includes.MatchesIncludes(taskFM.BaseFrontMatter) {
-			return "", fmt.Errorf("file %s does not match include selectors", filePath)
-		}
-
 		content = md.Content
 	} else if _, ok := ptrToFrontMatter.(*CommandFrontMatter); ok {
 		// For commands: parse without frontmatter
