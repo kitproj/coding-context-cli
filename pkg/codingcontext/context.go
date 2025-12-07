@@ -98,23 +98,11 @@ func New(opts ...Option) *Context {
 	return c
 }
 
-// getMarkdown is a generic method to search for a markdown file and return it with parameters substituted.
-// searchSubPathsFn is a function that returns the search subpaths for the given directory.
-// name is the filename (without .md extension) to search for.
-// params is a map of parameters to substitute in the content.
-// ptrToFrontMatter is a pointer to the frontmatter object to populate (can be nil for commands).
-func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name string, params map[string]string, ptrToFrontMatter any) (string, error) {
-	var searchDirs []string
-	// Add downloaded remote directories to search paths
-	for _, path := range cc.searchPaths {
-		dst := downloadDir(path)
-		subPaths := searchSubPathsFn(dst)
-		searchDirs = append(searchDirs, subPaths...)
-	}
-
+// findMarkdownFile searches for a markdown file by name in the given directories.
+// Returns the path to the file if found, or an error if not found or multiple files match.
+func findMarkdownFile(searchDirs []string, name string) (string, error) {
 	var matchingFile string
 
-	// Search for the markdown file
 	for _, dir := range searchDirs {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
@@ -126,10 +114,7 @@ func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name stri
 			if err != nil {
 				return err
 			}
-			if info.IsDir() {
-				return nil
-			}
-			if filepath.Ext(path) != ".md" {
+			if info.IsDir() || filepath.Ext(path) != ".md" {
 				return nil
 			}
 
@@ -138,24 +123,6 @@ func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name stri
 			if baseName != name {
 				return nil
 			}
-
-			// If ptrToFrontMatter is a TaskFrontMatter pointer, check selectors
-			if taskFM, ok := ptrToFrontMatter.(*TaskFrontMatter); ok {
-				// For tasks, parse and check selectors
-				var frontmatter TaskFrontMatter
-				if _, err = ParseMarkdownFile[TaskFrontMatter](path, &frontmatter); err != nil {
-					return fmt.Errorf("failed to parse markdown file %s: %w", path, err)
-				}
-
-				// Check if file matches include selectors
-				if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
-					return nil
-				}
-
-				// Store the frontmatter for later use
-				*taskFM = frontmatter
-			}
-			// For CommandFrontMatter, we don't check selectors
 
 			// If we already found a matching file, error on duplicate
 			if matchingFile != "" {
@@ -175,30 +142,12 @@ func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name stri
 		return "", fmt.Errorf("no file found with filename=%s.md (searched in %v)", name, searchDirs)
 	}
 
-	// Parse the file and populate the frontmatter if not already done
-	var content string
-	if taskFM, ok := ptrToFrontMatter.(*TaskFrontMatter); ok {
-		// Parse with task frontmatter
-		md, err := ParseMarkdownFile[TaskFrontMatter](matchingFile, taskFM)
-		if err != nil {
-			return "", fmt.Errorf("failed to parse file %s: %w", matchingFile, err)
-		}
-		content = md.Content
-	} else if _, ok := ptrToFrontMatter.(*CommandFrontMatter); ok {
-		// Parse without frontmatter (commands)
-		type EmptyFrontMatter struct{}
-		var emptyFM EmptyFrontMatter
-		md, err := ParseMarkdownFile[EmptyFrontMatter](matchingFile, &emptyFM)
-		if err != nil {
-			return "", fmt.Errorf("failed to parse file %s: %w", matchingFile, err)
-		}
-		content = md.Content
-	} else {
-		return "", fmt.Errorf("unsupported frontmatter type for file %s", matchingFile)
-	}
+	return matchingFile, nil
+}
 
-	// Substitute parameters in the content
-	expandedContent := os.Expand(content, func(key string) string {
+// substituteParams substitutes parameter placeholders in the given content.
+func (cc *Context) substituteParams(content string, params map[string]string) string {
+	return os.Expand(content, func(key string) string {
 		if val, ok := params[key]; ok {
 			return val
 		}
@@ -209,8 +158,58 @@ func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name stri
 		// Return original placeholder if not found
 		return fmt.Sprintf("${%s}", key)
 	})
+}
 
-	return expandedContent, nil
+// getMarkdown finds a markdown file and returns its content with parameters substituted.
+// searchSubPathsFn returns the search subpaths for the given directory.
+// name is the filename (without .md extension) to search for.
+// params is a map of parameters to substitute in the content.
+// ptrToFrontMatter is a pointer to the frontmatter object to populate.
+func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name string, params map[string]string, ptrToFrontMatter any) (string, error) {
+	// Build list of directories to search
+	var searchDirs []string
+	for _, path := range cc.searchPaths {
+		dst := downloadDir(path)
+		subPaths := searchSubPathsFn(dst)
+		searchDirs = append(searchDirs, subPaths...)
+	}
+
+	// Find the file
+	filePath, err := findMarkdownFile(searchDirs, name)
+	if err != nil {
+		return "", err
+	}
+
+	// Parse the file based on frontmatter type
+	var content string
+	if taskFM, ok := ptrToFrontMatter.(*TaskFrontMatter); ok {
+		// For tasks: parse with TaskFrontMatter and check selectors
+		md, err := ParseMarkdownFile[TaskFrontMatter](filePath, taskFM)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse file %s: %w", filePath, err)
+		}
+
+		// Check if file matches include selectors
+		if !cc.includes.MatchesIncludes(taskFM.BaseFrontMatter) {
+			return "", fmt.Errorf("file %s does not match include selectors", filePath)
+		}
+
+		content = md.Content
+	} else if _, ok := ptrToFrontMatter.(*CommandFrontMatter); ok {
+		// For commands: parse without frontmatter
+		type EmptyFrontMatter struct{}
+		var emptyFM EmptyFrontMatter
+		md, err := ParseMarkdownFile[EmptyFrontMatter](filePath, &emptyFM)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse file %s: %w", filePath, err)
+		}
+		content = md.Content
+	} else {
+		return "", fmt.Errorf("unsupported frontmatter type for file %s", filePath)
+	}
+
+	// Substitute parameters and return
+	return cc.substituteParams(content, params), nil
 }
 
 // getTask searches for a task markdown file and returns it with parameters substituted
