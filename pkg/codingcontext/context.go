@@ -139,24 +139,23 @@ func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name stri
 				return nil
 			}
 
-			// If ptrToFrontMatter is provided, check selectors
-			if ptrToFrontMatter != nil {
-				if taskFM, ok := ptrToFrontMatter.(*TaskFrontMatter); ok {
-					// For tasks, parse and check selectors
-					var frontmatter TaskFrontMatter
-					if _, err = ParseMarkdownFile[TaskFrontMatter](path, &frontmatter); err != nil {
-						return fmt.Errorf("failed to parse markdown file %s: %w", path, err)
-					}
-
-					// Check if file matches include selectors
-					if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
-						return nil
-					}
-					
-					// Store the frontmatter for later use
-					*taskFM = frontmatter
+			// If ptrToFrontMatter is a TaskFrontMatter pointer, check selectors
+			if taskFM, ok := ptrToFrontMatter.(*TaskFrontMatter); ok {
+				// For tasks, parse and check selectors
+				var frontmatter TaskFrontMatter
+				if _, err = ParseMarkdownFile[TaskFrontMatter](path, &frontmatter); err != nil {
+					return fmt.Errorf("failed to parse markdown file %s: %w", path, err)
 				}
+
+				// Check if file matches include selectors
+				if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
+					return nil
+				}
+
+				// Store the frontmatter for later use
+				*taskFM = frontmatter
 			}
+			// For CommandFrontMatter, we don't check selectors
 
 			// If we already found a matching file, error on duplicate
 			if matchingFile != "" {
@@ -178,16 +177,14 @@ func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name stri
 
 	// Parse the file and populate the frontmatter if not already done
 	var content string
-	if ptrToFrontMatter != nil {
-		if taskFM, ok := ptrToFrontMatter.(*TaskFrontMatter); ok {
-			// Parse with frontmatter
-			md, err := ParseMarkdownFile[TaskFrontMatter](matchingFile, taskFM)
-			if err != nil {
-				return "", fmt.Errorf("failed to parse file %s: %w", matchingFile, err)
-			}
-			content = md.Content
+	if taskFM, ok := ptrToFrontMatter.(*TaskFrontMatter); ok {
+		// Parse with task frontmatter
+		md, err := ParseMarkdownFile[TaskFrontMatter](matchingFile, taskFM)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse file %s: %w", matchingFile, err)
 		}
-	} else {
+		content = md.Content
+	} else if _, ok := ptrToFrontMatter.(*CommandFrontMatter); ok {
 		// Parse without frontmatter (commands)
 		type EmptyFrontMatter struct{}
 		var emptyFM EmptyFrontMatter
@@ -196,6 +193,8 @@ func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name stri
 			return "", fmt.Errorf("failed to parse file %s: %w", matchingFile, err)
 		}
 		content = md.Content
+	} else {
+		return "", fmt.Errorf("unsupported frontmatter type for file %s", matchingFile)
 	}
 
 	// Substitute parameters in the content
@@ -231,7 +230,8 @@ func (cc *Context) getTask(taskName string, params map[string]string) (Markdown[
 // getCommand searches for a command markdown file and returns it with parameters substituted.
 // Commands don't have frontmatter, so only the content is returned.
 func (cc *Context) getCommand(commandName string, params map[string]string) (string, error) {
-	content, err := cc.getMarkdown(commandSearchPaths, commandName, params, nil)
+	var frontMatter CommandFrontMatter
+	content, err := cc.getMarkdown(commandSearchPaths, commandName, params, &frontMatter)
 	if err != nil {
 		return "", fmt.Errorf("failed to get command: %w", err)
 	}
