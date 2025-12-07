@@ -139,6 +139,68 @@ func extractParamsFromCommand(cmd *SlashCommand) map[string]string {
 	return params
 }
 
+// mergeFrontmatter merges source frontmatter into destination frontmatter
+// Fields from source override fields in destination, except for:
+// - Selectors are merged (not overridden)
+// - MCPServers are merged (source servers override destination servers with same name)
+// - Languages are appended (deduplicated)
+func (cc *Context) mergeFrontmatter(dest, src *TaskFrontMatter) {
+	// Merge simple fields - source overrides destination if non-empty
+	if src.Agent != "" {
+		dest.Agent = src.Agent
+	}
+	if src.Model != "" {
+		dest.Model = src.Model
+	}
+	if src.Timeout != "" {
+		dest.Timeout = src.Timeout
+	}
+	if src.SingleShot {
+		dest.SingleShot = src.SingleShot
+	}
+	if src.Resume {
+		dest.Resume = src.Resume
+	}
+
+	// Merge Languages - append and deduplicate
+	if len(src.Languages) > 0 {
+		langSet := make(map[string]bool)
+		for _, lang := range dest.Languages {
+			langSet[lang] = true
+		}
+		for _, lang := range src.Languages {
+			if !langSet[lang] {
+				dest.Languages = append(dest.Languages, lang)
+				langSet[lang] = true
+			}
+		}
+	}
+
+	// Merge Selectors - combine maps
+	if dest.Selectors == nil {
+		dest.Selectors = make(map[string]any)
+	}
+	for key, value := range src.Selectors {
+		dest.Selectors[key] = value
+	}
+
+	// Merge MCPServers - source servers override destination
+	if dest.MCPServers == nil {
+		dest.MCPServers = make(MCPServerConfigs)
+	}
+	for name, config := range src.MCPServers {
+		dest.MCPServers[name] = config
+	}
+
+	// Merge BaseFrontMatter Content map
+	if dest.Content == nil {
+		dest.Content = make(map[string]any)
+	}
+	for key, value := range src.Content {
+		dest.Content[key] = value
+	}
+}
+
 // stripQuotes removes surrounding double quotes from a string if present.
 // Single quotes are not supported as the grammar only allows double-quoted strings.
 func stripQuotes(s string) string {
@@ -198,57 +260,90 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 		return nil, fmt.Errorf("failed to parse task prompt: %w", err)
 	}
 
-	// Look for the first slash command block
-	var firstCommand *SlashCommand
-	for _, block := range taskBlocks {
-		if block.SlashCommand != nil {
-			firstCommand = block.SlashCommand
-			break
+	// Process all blocks to assemble the final task content and frontmatter
+	var taskContent strings.Builder
+	cc.task = Markdown[TaskFrontMatter]{
+		FrontMatter: TaskFrontMatter{},
+	}
+	var taskFiles []string // Track all task files used
+
+	for i, block := range taskBlocks {
+		if block.Text != nil {
+			// Text block - append directly to content
+			taskContent.WriteString(block.Text.Content())
+		} else if block.SlashCommand != nil {
+			// Slash command block - find and expand the task file
+			cc.logger.Info("Processing slash command", "task", block.SlashCommand.Name, "block", i)
+
+			// Extract parameters from the slash command
+			slashParams := extractParamsFromCommand(block.SlashCommand)
+
+			// Merge slash command parameters with existing parameters
+			// Slash command parameters take precedence
+			for k, v := range slashParams {
+				cc.params[k] = v
+			}
+
+			// Add task name to includes so rules can be filtered by task
+			cc.includes.SetValue("task_name", block.SlashCommand.Name)
+
+			// Reset matchingTaskFile before finding the next one
+			cc.matchingTaskFile = ""
+
+			// Find the task file
+			if err := cc.findTaskFile(block.SlashCommand.Name); err != nil {
+				return nil, fmt.Errorf("failed to find task file for command %q: %w", block.SlashCommand.Name, err)
+			}
+
+			taskFiles = append(taskFiles, cc.matchingTaskFile)
+
+			// Parse the task file
+			var frontMatter TaskFrontMatter
+			taskMarkdown, err := ParseMarkdownFile(cc.matchingTaskFile, &frontMatter)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, err)
+			}
+
+			// Expand parameters in the task content
+			expandedContent := cc.expandParams(taskMarkdown.Content)
+			taskContent.WriteString(expandedContent)
+
+			// Merge frontmatter from this task file into the main task frontmatter
+			cc.mergeFrontmatter(&cc.task.FrontMatter, &frontMatter)
+
+			// Extract selector labels from frontmatter
+			for key, value := range frontMatter.Selectors {
+				switch v := value.(type) {
+				case []any:
+					for _, item := range v {
+						cc.includes.SetValue(key, fmt.Sprint(item))
+					}
+				default:
+					cc.includes.SetValue(key, fmt.Sprint(v))
+				}
+			}
 		}
 	}
 
-	if firstCommand != nil {
-		// Slash command found - find and use the corresponding task file
-		cc.logger.Info("Found slash command in taskPrompt", "task", firstCommand.Name)
+	// Set the assembled content
+	cc.task.Content = taskContent.String()
 
-		// Extract parameters from the slash command
-		slashParams := extractParamsFromCommand(firstCommand)
-
-		// Merge slash command parameters with existing parameters
-		// Slash command parameters take precedence
-		for k, v := range slashParams {
-			cc.params[k] = v
-		}
-
-		// Add task name to includes so rules can be filtered by task
-		cc.includes.SetValue("task_name", firstCommand.Name)
-
-		// Find the task file
-		if err := cc.findTaskFile(firstCommand.Name); err != nil {
-			return nil, fmt.Errorf("failed to find slash command task file: %w", err)
-		}
-
-		// Parse task file to extract selector labels for filtering rules and tools
-		if err := cc.parseTaskFile(); err != nil {
-			return nil, fmt.Errorf("failed to parse slash command task file: %w", err)
-		}
-
-		// Task frontmatter agent field overrides -a flag if -a was not set
-		if cc.task.FrontMatter.Agent != "" && !cc.agent.IsSet() {
-			if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
-				cc.agent = agent
-			} else {
-				cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", cc.task.FrontMatter.Agent, "error", err)
-			}
-		}
-	} else {
-		// No slash command - use the taskPrompt directly as an inline task
-		cc.logger.Info("Using taskPrompt as inline task")
-		cc.task = Markdown[TaskFrontMatter]{
-			Content:     expandedTaskPrompt,
-			FrontMatter: TaskFrontMatter{},
-		}
+	// Set a composite task file name if multiple tasks were used
+	if len(taskFiles) == 0 {
 		cc.matchingTaskFile = "<inline>"
+	} else if len(taskFiles) == 1 {
+		cc.matchingTaskFile = taskFiles[0]
+	} else {
+		cc.matchingTaskFile = fmt.Sprintf("<composite: %d tasks>", len(taskFiles))
+	}
+
+	// Task frontmatter agent field overrides -a flag if -a was not set
+	if cc.task.FrontMatter.Agent != "" && !cc.agent.IsSet() {
+		if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
+			cc.agent = agent
+		} else {
+			cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", cc.task.FrontMatter.Agent, "error", err)
+		}
 	}
 
 	if err := cc.findExecuteRuleFiles(ctx, homeDir); err != nil {
