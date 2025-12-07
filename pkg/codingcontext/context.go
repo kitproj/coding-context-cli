@@ -98,24 +98,28 @@ func New(opts ...Option) *Context {
 	return c
 }
 
-// getTask searches for a task markdown file and returns it with parameters substituted
-func (cc *Context) getTask(taskName string, params map[string]string) (Markdown[TaskFrontMatter], error) {
-	var taskSearchDirs []string
-	// Add downloaded remote directories to task search paths
+// getMarkdown is a generic method to search for a markdown file and return it with parameters substituted.
+// searchSubPathsFn is a function that returns the search subpaths for the given directory.
+// name is the filename (without .md extension) to search for.
+// params is a map of parameters to substitute in the content.
+// ptrToFrontMatter is a pointer to the frontmatter object to populate (can be nil for commands).
+func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name string, params map[string]string, ptrToFrontMatter any) (string, error) {
+	var searchDirs []string
+	// Add downloaded remote directories to search paths
 	for _, path := range cc.searchPaths {
 		dst := downloadDir(path)
-		subPaths := taskSearchPaths(dst)
-		taskSearchDirs = append(taskSearchDirs, subPaths...)
+		subPaths := searchSubPathsFn(dst)
+		searchDirs = append(searchDirs, subPaths...)
 	}
 
 	var matchingFile string
 
-	// Search for the task markdown file
-	for _, dir := range taskSearchDirs {
+	// Search for the markdown file
+	for _, dir := range searchDirs {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
 		} else if err != nil {
-			return Markdown[TaskFrontMatter]{}, fmt.Errorf("failed to stat dir %s: %w", dir, err)
+			return "", fmt.Errorf("failed to stat dir %s: %w", dir, err)
 		}
 
 		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -131,24 +135,32 @@ func (cc *Context) getTask(taskName string, params map[string]string) (Markdown[
 
 			// Match by filename (without .md extension)
 			baseName := strings.TrimSuffix(filepath.Base(path), ".md")
-			if baseName != taskName {
+			if baseName != name {
 				return nil
 			}
 
-			// Parse frontmatter to check selectors
-			var frontmatter TaskFrontMatter
-			if _, err = ParseMarkdownFile(path, &frontmatter); err != nil {
-				return fmt.Errorf("failed to parse markdown file %s: %w", path, err)
-			}
+			// If ptrToFrontMatter is provided, check selectors
+			if ptrToFrontMatter != nil {
+				if taskFM, ok := ptrToFrontMatter.(*TaskFrontMatter); ok {
+					// For tasks, parse and check selectors
+					var frontmatter TaskFrontMatter
+					if _, err = ParseMarkdownFile[TaskFrontMatter](path, &frontmatter); err != nil {
+						return fmt.Errorf("failed to parse markdown file %s: %w", path, err)
+					}
 
-			// Check if file matches include selectors
-			if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
-				return nil
+					// Check if file matches include selectors
+					if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
+						return nil
+					}
+					
+					// Store the frontmatter for later use
+					*taskFM = frontmatter
+				}
 			}
 
 			// If we already found a matching file, error on duplicate
 			if matchingFile != "" {
-				return fmt.Errorf("multiple task files found with filename=%s.md: %s and %s", taskName, matchingFile, path)
+				return fmt.Errorf("multiple files found with filename=%s.md: %s and %s", name, matchingFile, path)
 			}
 
 			matchingFile = path
@@ -156,23 +168,38 @@ func (cc *Context) getTask(taskName string, params map[string]string) (Markdown[
 		})
 
 		if err != nil {
-			return Markdown[TaskFrontMatter]{}, err
+			return "", err
 		}
 	}
 
 	if matchingFile == "" {
-		return Markdown[TaskFrontMatter]{}, fmt.Errorf("no task file found with filename=%s.md matching selectors (searched in %v)", taskName, taskSearchDirs)
+		return "", fmt.Errorf("no file found with filename=%s.md (searched in %v)", name, searchDirs)
 	}
 
-	// Parse the task file
-	var frontMatter TaskFrontMatter
-	markdown, err := ParseMarkdownFile(matchingFile, &frontMatter)
-	if err != nil {
-		return Markdown[TaskFrontMatter]{}, fmt.Errorf("failed to parse task file %s: %w", matchingFile, err)
+	// Parse the file and populate the frontmatter if not already done
+	var content string
+	if ptrToFrontMatter != nil {
+		if taskFM, ok := ptrToFrontMatter.(*TaskFrontMatter); ok {
+			// Parse with frontmatter
+			md, err := ParseMarkdownFile[TaskFrontMatter](matchingFile, taskFM)
+			if err != nil {
+				return "", fmt.Errorf("failed to parse file %s: %w", matchingFile, err)
+			}
+			content = md.Content
+		}
+	} else {
+		// Parse without frontmatter (commands)
+		type EmptyFrontMatter struct{}
+		var emptyFM EmptyFrontMatter
+		md, err := ParseMarkdownFile[EmptyFrontMatter](matchingFile, &emptyFM)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse file %s: %w", matchingFile, err)
+		}
+		content = md.Content
 	}
 
 	// Substitute parameters in the content
-	expandedContent := os.Expand(markdown.Content, func(key string) string {
+	expandedContent := os.Expand(content, func(key string) string {
 		if val, ok := params[key]; ok {
 			return val
 		}
@@ -184,87 +211,31 @@ func (cc *Context) getTask(taskName string, params map[string]string) (Markdown[
 		return fmt.Sprintf("${%s}", key)
 	})
 
-	markdown.Content = expandedContent
-	return markdown, nil
+	return expandedContent, nil
 }
 
-// getCommand searches for a command markdown file and returns it with parameters substituted
-func (cc *Context) getCommand(commandName string, params map[string]string) (Markdown[CommandFrontMatter], error) {
-	var commandSearchDirs []string
-	// Add downloaded remote directories to command search paths
-	for _, path := range cc.searchPaths {
-		dst := downloadDir(path)
-		subPaths := commandSearchPaths(dst)
-		commandSearchDirs = append(commandSearchDirs, subPaths...)
-	}
-
-	var matchingFile string
-
-	// Search for the command markdown file
-	for _, dir := range commandSearchDirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return Markdown[CommandFrontMatter]{}, fmt.Errorf("failed to stat dir %s: %w", dir, err)
-		}
-
-		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
-			}
-			if filepath.Ext(path) != ".md" {
-				return nil
-			}
-
-			// Match by filename (without .md extension)
-			baseName := strings.TrimSuffix(filepath.Base(path), ".md")
-			if baseName != commandName {
-				return nil
-			}
-
-			// If we already found a matching file, error on duplicate
-			if matchingFile != "" {
-				return fmt.Errorf("multiple command files found with filename=%s.md: %s and %s", commandName, matchingFile, path)
-			}
-
-			matchingFile = path
-			return nil
-		})
-
-		if err != nil {
-			return Markdown[CommandFrontMatter]{}, err
-		}
-	}
-
-	if matchingFile == "" {
-		return Markdown[CommandFrontMatter]{}, fmt.Errorf("no command file found with filename=%s.md (searched in %v)", commandName, commandSearchDirs)
-	}
-
-	// Parse the command file
-	var frontMatter CommandFrontMatter
-	markdown, err := ParseMarkdownFile(matchingFile, &frontMatter)
+// getTask searches for a task markdown file and returns it with parameters substituted
+func (cc *Context) getTask(taskName string, params map[string]string) (Markdown[TaskFrontMatter], error) {
+	var frontMatter TaskFrontMatter
+	content, err := cc.getMarkdown(taskSearchPaths, taskName, params, &frontMatter)
 	if err != nil {
-		return Markdown[CommandFrontMatter]{}, fmt.Errorf("failed to parse command file %s: %w", matchingFile, err)
+		return Markdown[TaskFrontMatter]{}, fmt.Errorf("failed to get task: %w", err)
 	}
 
-	// Substitute parameters in the content
-	expandedContent := os.Expand(markdown.Content, func(key string) string {
-		if val, ok := params[key]; ok {
-			return val
-		}
-		// If not in params map, check cc.params
-		if val, ok := cc.params[key]; ok {
-			return val
-		}
-		// Return original placeholder if not found
-		return fmt.Sprintf("${%s}", key)
-	})
+	return Markdown[TaskFrontMatter]{
+		FrontMatter: frontMatter,
+		Content:     content,
+	}, nil
+}
 
-	markdown.Content = expandedContent
-	return markdown, nil
+// getCommand searches for a command markdown file and returns it with parameters substituted.
+// Commands don't have frontmatter, so only the content is returned.
+func (cc *Context) getCommand(commandName string, params map[string]string) (string, error) {
+	content, err := cc.getMarkdown(commandSearchPaths, commandName, params, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get command: %w", err)
+	}
+	return content, nil
 }
 
 // expandParams expands parameter placeholders in the given content
@@ -358,13 +329,13 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 			cmdParams := block.SlashCommand.Params()
 
 			// Get the command markdown
-			commandMarkdown, err := cc.getCommand(block.SlashCommand.Name, cmdParams)
+			commandContent, err := cc.getCommand(block.SlashCommand.Name, cmdParams)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get command %q: %w", block.SlashCommand.Name, err)
 			}
 
 			// Append the command content
-			finalContent.WriteString(commandMarkdown.Content)
+			finalContent.WriteString(commandContent)
 		}
 	}
 
