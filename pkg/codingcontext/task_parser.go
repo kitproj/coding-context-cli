@@ -1,6 +1,7 @@
 package codingcontext
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/alecthomas/participle/v2"
@@ -26,6 +27,58 @@ type Block struct {
 type SlashCommand struct {
 	Name      string     `parser:"Slash @Term"`
 	Arguments []Argument `parser:"(Whitespace @@)* Whitespace? Newline?"`
+}
+
+// Params converts the slash command's arguments into a parameter map
+// Returns a map with:
+// - "ARGUMENTS": space-separated string of all arguments
+// - "1", "2", etc.: positional parameters (1-indexed)
+// - named parameters: key-value pairs from key="value" arguments
+func (s *SlashCommand) Params() map[string]string {
+	params := make(map[string]string)
+
+	// Build the ARGUMENTS string from all arguments
+	if len(s.Arguments) > 0 {
+		var argStrings []string
+		for _, arg := range s.Arguments {
+			if arg.Key != "" {
+				// Named parameter: key="value"
+				argStrings = append(argStrings, arg.Key+"="+arg.Value)
+			} else {
+				// Positional parameter
+				argStrings = append(argStrings, arg.Value)
+			}
+		}
+		params["ARGUMENTS"] = strings.Join(argStrings, " ")
+	}
+
+	// Add positional and named parameters
+	for i, arg := range s.Arguments {
+		// Positional parameter (1-indexed)
+		posKey := strconv.Itoa(i + 1)
+		if arg.Key != "" {
+			// This is a named parameter - store as key="value" for positional
+			params[posKey] = arg.Key + "=" + arg.Value
+			// Also store the value under the key name (strip quotes if present)
+			params[arg.Key] = stripQuotes(arg.Value)
+		} else {
+			// Pure positional parameter (strip quotes if present)
+			params[posKey] = stripQuotes(arg.Value)
+		}
+	}
+
+	return params
+}
+
+// stripQuotes removes surrounding double quotes from a string if present.
+// Single quotes are not supported as the grammar only allows double-quoted strings.
+func stripQuotes(s string) string {
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		// Remove quotes and handle escaped quotes inside
+		unquoted := s[1 : len(s)-1]
+		return strings.ReplaceAll(unquoted, `\"`, `"`)
+	}
+	return s
 }
 
 // Argument represents either a named (key=value) or positional argument

@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/hashicorp/go-getter/v2"
@@ -100,45 +99,6 @@ func New(opts ...Option) *Context {
 	return c
 }
 
-// expandParams expands parameter placeholders in the given content
-// extractParamsFromCommand converts a SlashCommand into a parameter map
-// similar to what the old parseSlashCommand function did
-func extractParamsFromCommand(cmd *SlashCommand) map[string]string {
-	params := make(map[string]string)
-
-	// Build the ARGUMENTS string from all arguments
-	if len(cmd.Arguments) > 0 {
-		var argStrings []string
-		for _, arg := range cmd.Arguments {
-			if arg.Key != "" {
-				// Named parameter: key="value"
-				argStrings = append(argStrings, arg.Key+"="+arg.Value)
-			} else {
-				// Positional parameter
-				argStrings = append(argStrings, arg.Value)
-			}
-		}
-		params["ARGUMENTS"] = strings.Join(argStrings, " ")
-	}
-
-	// Add positional and named parameters
-	for i, arg := range cmd.Arguments {
-		// Positional parameter (1-indexed)
-		posKey := strconv.Itoa(i + 1)
-		if arg.Key != "" {
-			// This is a named parameter - store as key="value" for positional
-			params[posKey] = arg.Key + "=" + arg.Value
-			// Also store the value under the key name (strip quotes if present)
-			params[arg.Key] = stripQuotes(arg.Value)
-		} else {
-			// Pure positional parameter (strip quotes if present)
-			params[posKey] = stripQuotes(arg.Value)
-		}
-	}
-
-	return params
-}
-
 // extractSelectors extracts selector labels from frontmatter and adds them to cc.includes
 func (cc *Context) extractSelectors(frontMatter *TaskFrontMatter) {
 	for key, value := range frontMatter.Selectors {
@@ -152,79 +112,6 @@ func (cc *Context) extractSelectors(frontMatter *TaskFrontMatter) {
 			cc.includes.SetValue(key, fmt.Sprint(v))
 		}
 	}
-}
-
-// mergeFrontmatter merges source frontmatter into destination frontmatter
-// Fields from source override fields in destination, except for:
-// - Selectors are merged (not overridden)
-// - MCPServers are merged (source servers override destination servers with same name)
-// - Languages are appended (deduplicated)
-func (cc *Context) mergeFrontmatter(dest, src *TaskFrontMatter) {
-	// Merge simple fields - source overrides destination if non-empty
-	if src.Agent != "" {
-		dest.Agent = src.Agent
-	}
-	if src.Model != "" {
-		dest.Model = src.Model
-	}
-	if src.Timeout != "" {
-		dest.Timeout = src.Timeout
-	}
-	if src.SingleShot {
-		dest.SingleShot = src.SingleShot
-	}
-	if src.Resume {
-		dest.Resume = src.Resume
-	}
-
-	// Merge Languages - append and deduplicate
-	if len(src.Languages) > 0 {
-		langSet := make(map[string]bool)
-		for _, lang := range dest.Languages {
-			langSet[lang] = true
-		}
-		for _, lang := range src.Languages {
-			if !langSet[lang] {
-				dest.Languages = append(dest.Languages, lang)
-				langSet[lang] = true
-			}
-		}
-	}
-
-	// Merge Selectors - combine maps
-	if dest.Selectors == nil {
-		dest.Selectors = make(map[string]any)
-	}
-	for key, value := range src.Selectors {
-		dest.Selectors[key] = value
-	}
-
-	// Merge MCPServers - source servers override destination
-	if dest.MCPServers == nil {
-		dest.MCPServers = make(MCPServerConfigs)
-	}
-	for name, config := range src.MCPServers {
-		dest.MCPServers[name] = config
-	}
-
-	// Merge BaseFrontMatter Content map
-	if dest.Content == nil {
-		dest.Content = make(map[string]any)
-	}
-	for key, value := range src.Content {
-		dest.Content[key] = value
-	}
-}
-
-// stripQuotes removes surrounding double quotes from a string if present.
-// Single quotes are not supported as the grammar only allows double-quoted strings.
-func stripQuotes(s string) string {
-	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
-		// Remove quotes and handle escaped quotes inside
-		unquoted := s[1 : len(s)-1]
-		return strings.ReplaceAll(unquoted, `\"`, `"`)
-	}
-	return s
 }
 
 // expandParams expands parameter placeholders in the given content
@@ -280,7 +167,8 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 	cc.task = Markdown[TaskFrontMatter]{
 		FrontMatter: TaskFrontMatter{},
 	}
-	var taskFiles []string // Track all task files used
+	var taskFiles []string                // Track all task files used
+	var firstFrontmatter *TaskFrontMatter // Track first task's frontmatter
 
 	for i, block := range taskBlocks {
 		if block.Text != nil {
@@ -290,8 +178,8 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 			// Slash command block - find and expand the task file
 			cc.logger.Info("Processing slash command", "task", block.SlashCommand.Name, "block", i)
 
-			// Extract parameters from the slash command
-			slashParams := extractParamsFromCommand(block.SlashCommand)
+			// Extract parameters from the slash command using the new Params() method
+			slashParams := block.SlashCommand.Params()
 
 			// Merge slash command parameters with existing parameters
 			// Slash command parameters take precedence
@@ -319,12 +207,15 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 				return nil, fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, err)
 			}
 
+			// Use the first task's frontmatter only (as per new requirement)
+			if firstFrontmatter == nil {
+				firstFrontmatter = &frontMatter
+				cc.task.FrontMatter = frontMatter
+			}
+
 			// Expand parameters in the task content
 			expandedContent := cc.expandParams(taskMarkdown.Content)
 			taskContent.WriteString(expandedContent)
-
-			// Merge frontmatter from this task file into the main task frontmatter
-			cc.mergeFrontmatter(&cc.task.FrontMatter, &frontMatter)
 
 			// Extract selector labels from frontmatter
 			cc.extractSelectors(&frontMatter)
