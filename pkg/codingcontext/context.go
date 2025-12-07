@@ -139,6 +139,21 @@ func extractParamsFromCommand(cmd *SlashCommand) map[string]string {
 	return params
 }
 
+// extractSelectors extracts selector labels from frontmatter and adds them to cc.includes
+func (cc *Context) extractSelectors(frontMatter *TaskFrontMatter) {
+	for key, value := range frontMatter.Selectors {
+		switch v := value.(type) {
+		case []any:
+			// Convert []any to multiple selector values for OR logic
+			for _, item := range v {
+				cc.includes.SetValue(key, fmt.Sprint(item))
+			}
+		default:
+			cc.includes.SetValue(key, fmt.Sprint(v))
+		}
+	}
+}
+
 // mergeFrontmatter merges source frontmatter into destination frontmatter
 // Fields from source override fields in destination, except for:
 // - Selectors are merged (not overridden)
@@ -312,16 +327,7 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 			cc.mergeFrontmatter(&cc.task.FrontMatter, &frontMatter)
 
 			// Extract selector labels from frontmatter
-			for key, value := range frontMatter.Selectors {
-				switch v := value.(type) {
-				case []any:
-					for _, item := range v {
-						cc.includes.SetValue(key, fmt.Sprint(item))
-					}
-				default:
-					cc.includes.SetValue(key, fmt.Sprint(v))
-				}
-			}
+			cc.extractSelectors(&frontMatter)
 		}
 	}
 
@@ -668,19 +674,7 @@ func (cc *Context) parseTaskFile() error {
 	cc.task = task
 
 	// Extract selector labels from frontmatter
-	// Look for a "selectors" field that contains a map of key-value pairs
-	// Values can be strings or arrays (for OR logic)
-	for key, value := range cc.task.FrontMatter.Selectors {
-		switch v := value.(type) {
-		case []any:
-			// Convert []any to multiple selector values for OR logic
-			for _, item := range v {
-				cc.includes.SetValue(key, fmt.Sprint(item))
-			}
-		default:
-			cc.includes.SetValue(key, fmt.Sprint(v))
-		}
-	}
+	cc.extractSelectors(&cc.task.FrontMatter)
 
 	return nil
 }
