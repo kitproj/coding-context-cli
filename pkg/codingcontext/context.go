@@ -99,21 +99,6 @@ func New(opts ...Option) *Context {
 	return c
 }
 
-// extractSelectors extracts selector labels from frontmatter and adds them to cc.includes
-func (cc *Context) extractSelectors(frontMatter *TaskFrontMatter) {
-	for key, value := range frontMatter.Selectors {
-		switch v := value.(type) {
-		case []any:
-			// Convert []any to multiple selector values for OR logic
-			for _, item := range v {
-				cc.includes.SetValue(key, fmt.Sprint(item))
-			}
-		default:
-			cc.includes.SetValue(key, fmt.Sprint(v))
-		}
-	}
-}
-
 // expandParams expands parameter placeholders in the given content
 func (cc *Context) expandParams(content string) string {
 	return os.Expand(content, func(key string) string {
@@ -156,91 +141,51 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 	// Expand parameters in taskPrompt to allow slash commands in parameters
 	expandedTaskPrompt := cc.expandParams(taskPrompt)
 
-	// Parse the task prompt into blocks using the new parser
-	taskBlocks, err := ParseTask(expandedTaskPrompt)
+	// Check if the taskPrompt contains a slash command
+	slashTaskName, slashParams, found, err := parseSlashCommand(expandedTaskPrompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse task prompt: %w", err)
+		return nil, fmt.Errorf("failed to parse slash command in taskPrompt: %w", err)
 	}
 
-	// Process all blocks to assemble the final task content and frontmatter
-	var taskContent strings.Builder
-	cc.task = Markdown[TaskFrontMatter]{
-		FrontMatter: TaskFrontMatter{},
-	}
-	var taskFiles []string                // Track all task files used
-	var firstFrontmatter *TaskFrontMatter // Track first task's frontmatter
+	if found {
+		// Slash command found - find and use the corresponding task file
+		cc.logger.Info("Found slash command in taskPrompt", "task", slashTaskName, "params", slashParams)
 
-	for i, block := range taskBlocks {
-		if block.Text != nil {
-			// Text block - append directly to content
-			taskContent.WriteString(block.Text.Content())
-		} else if block.SlashCommand != nil {
-			// Slash command block - find and expand the task file
-			cc.logger.Info("Processing slash command", "task", block.SlashCommand.Name, "block", i)
-
-			// Extract parameters from the slash command using the new Params() method
-			slashParams := block.SlashCommand.Params()
-
-			// Merge slash command parameters with existing parameters
-			// Slash command parameters take precedence
-			for k, v := range slashParams {
-				cc.params[k] = v
-			}
-
-			// Add task name to includes so rules can be filtered by task
-			cc.includes.SetValue("task_name", block.SlashCommand.Name)
-
-			// Reset matchingTaskFile before finding the next one
-			cc.matchingTaskFile = ""
-
-			// Find the task file
-			if err := cc.findTaskFile(block.SlashCommand.Name); err != nil {
-				return nil, fmt.Errorf("failed to find task file for command %q: %w", block.SlashCommand.Name, err)
-			}
-
-			taskFiles = append(taskFiles, cc.matchingTaskFile)
-
-			// Parse the task file
-			var frontMatter TaskFrontMatter
-			taskMarkdown, err := ParseMarkdownFile(cc.matchingTaskFile, &frontMatter)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, err)
-			}
-
-			// Use the first task's frontmatter only (as per new requirement)
-			if firstFrontmatter == nil {
-				firstFrontmatter = &frontMatter
-				cc.task.FrontMatter = frontMatter
-			}
-
-			// Expand parameters in the task content
-			expandedContent := cc.expandParams(taskMarkdown.Content)
-			taskContent.WriteString(expandedContent)
-
-			// Extract selector labels from frontmatter
-			cc.extractSelectors(&frontMatter)
+		// Merge slash command parameters with existing parameters
+		// Slash command parameters take precedence
+		for k, v := range slashParams {
+			cc.params[k] = v
 		}
-	}
 
-	// Set the assembled content
-	cc.task.Content = taskContent.String()
+		// Add task name to includes so rules can be filtered by task
+		cc.includes.SetValue("task_name", slashTaskName)
 
-	// Set a composite task file name if multiple tasks were used
-	if len(taskFiles) == 0 {
-		cc.matchingTaskFile = "<inline>"
-	} else if len(taskFiles) == 1 {
-		cc.matchingTaskFile = taskFiles[0]
+		// Find the task file
+		if err := cc.findTaskFile(slashTaskName); err != nil {
+			return nil, fmt.Errorf("failed to find slash command task file: %w", err)
+		}
+
+		// Parse task file to extract selector labels for filtering rules and tools
+		if err := cc.parseTaskFile(); err != nil {
+			return nil, fmt.Errorf("failed to parse slash command task file: %w", err)
+		}
+
+		// Task frontmatter agent field overrides -a flag if -a was not set
+		if cc.task.FrontMatter.Agent != "" && !cc.agent.IsSet() {
+			if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
+				cc.agent = agent
+			} else {
+				cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", cc.task.FrontMatter.Agent, "error", err)
+			}
+		}
 	} else {
-		cc.matchingTaskFile = fmt.Sprintf("<composite: %d tasks>", len(taskFiles))
-	}
-
-	// Task frontmatter agent field overrides -a flag if -a was not set
-	if cc.task.FrontMatter.Agent != "" && !cc.agent.IsSet() {
-		if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
-			cc.agent = agent
-		} else {
-			cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", cc.task.FrontMatter.Agent, "error", err)
+		// No slash command - use the taskPrompt directly as an inline task
+		cc.logger.Info("Using taskPrompt as inline task")
+		cc.task = Markdown[TaskFrontMatter]{
+			Content:     expandedTaskPrompt,
+			FrontMatter: TaskFrontMatter{},
 		}
+		cc.matchingTaskFile = "<inline>"
 	}
 
 	if err := cc.findExecuteRuleFiles(ctx, homeDir); err != nil {
@@ -565,7 +510,19 @@ func (cc *Context) parseTaskFile() error {
 	cc.task = task
 
 	// Extract selector labels from frontmatter
-	cc.extractSelectors(&cc.task.FrontMatter)
+	// Look for a "selectors" field that contains a map of key-value pairs
+	// Values can be strings or arrays (for OR logic)
+	for key, value := range cc.task.FrontMatter.Selectors {
+		switch v := value.(type) {
+		case []any:
+			// Convert []any to multiple selector values for OR logic
+			for _, item := range v {
+				cc.includes.SetValue(key, fmt.Sprint(item))
+			}
+		default:
+			cc.includes.SetValue(key, fmt.Sprint(v))
+		}
+	}
 
 	return nil
 }
