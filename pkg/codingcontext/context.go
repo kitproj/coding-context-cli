@@ -16,20 +16,17 @@ import (
 
 // Context holds the configuration and state for assembling coding context
 type Context struct {
-	params           Params
-	includes         Selectors
-	manifestURL      string
-	searchPaths      []string
-	matchingTaskFile string
-	taskPromptText   string                      // Task prompt text (if provided via WithTaskPrompt)
-	taskFilePath     string                      // Task file path (if provided via WithTaskFile)
-	task             Markdown[TaskFrontMatter]   // Parsed task
-	rules            []Markdown[RuleFrontMatter] // Collected rule files
-	totalTokens      int
-	logger           *slog.Logger
-	cmdRunner        func(cmd *exec.Cmd) error
-	resume           bool
-	agent            Agent
+	params      Params
+	includes    Selectors
+	manifestURL string
+	searchPaths []string
+	task        Markdown[TaskFrontMatter]   // Parsed task
+	rules       []Markdown[RuleFrontMatter] // Collected rule files
+	totalTokens int
+	logger      *slog.Logger
+	cmdRunner   func(cmd *exec.Cmd) error
+	resume      bool
+	agent       Agent
 }
 
 // Option is a functional option for configuring a Context
@@ -84,20 +81,6 @@ func WithAgent(agent Agent) Option {
 	}
 }
 
-// WithTaskPrompt sets the task prompt text
-func WithTaskPrompt(taskPromptText string) Option {
-	return func(c *Context) {
-		c.taskPromptText = taskPromptText
-	}
-}
-
-// WithTaskFile sets the task file path
-func WithTaskFile(taskFilePath string) Option {
-	return func(c *Context) {
-		c.taskFilePath = taskFilePath
-	}
-}
-
 // New creates a new Context with the given options
 func New(opts ...Option) *Context {
 	c := &Context{
@@ -115,91 +98,113 @@ func New(opts ...Option) *Context {
 	return c
 }
 
-// processTaskBlocks processes the parsed task blocks to assemble the final task content
-func (cc *Context) processTaskBlocks(ctx context.Context, taskBlocks Task) error {
-	var taskContent strings.Builder
-	cc.task = Markdown[TaskFrontMatter]{
-		FrontMatter: TaskFrontMatter{},
-	}
-	var firstFrontmatter *TaskFrontMatter
+// getMarkdown searches for a markdown file with the given name in the provided search paths
+// and returns the parsed markdown with parameters substituted
+func (cc *Context) getMarkdown(searchPaths []string, name string, params map[string]string) (Markdown[TaskFrontMatter], error) {
+	var matchingFile string
 
-	for i, block := range taskBlocks {
-		if block.Text != nil {
-			// Text block - append directly to content
-			taskContent.WriteString(block.Text.Content())
-		} else if block.SlashCommand != nil {
-			// Slash command block - determine if it's a task or command
-			cc.logger.Info("Processing slash command", "name", block.SlashCommand.Name, "block", i)
+	// Search for the markdown file
+	for _, dir := range searchPaths {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return Markdown[TaskFrontMatter]{}, fmt.Errorf("failed to stat dir %s: %w", dir, err)
+		}
 
-			// Extract parameters from the slash command
-			slashParams := block.SlashCommand.Params()
-
-			// Merge slash command parameters with existing parameters
-			for k, v := range slashParams {
-				cc.params[k] = v
+		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+			if filepath.Ext(path) != ".md" {
+				return nil
 			}
 
-			// Try to find as a task first, then as a command
-			var frontMatter TaskFrontMatter
-			var taskMarkdown Markdown[TaskFrontMatter]
-			var parseErr error
-
-			// Reset matchingTaskFile for finding
-			cc.matchingTaskFile = ""
-
-			// Try to find in task paths
-			if err := cc.findTaskFile(block.SlashCommand.Name); err == nil {
-				// Found as task - parse it
-				taskMarkdown, parseErr = ParseMarkdownFile(cc.matchingTaskFile, &frontMatter)
-				if parseErr != nil {
-					return fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, parseErr)
-				}
-				cc.logger.Info("Found task", "name", block.SlashCommand.Name, "path", cc.matchingTaskFile)
-			} else {
-				// Not found as task - try as command
-				cc.matchingTaskFile = ""
-				if err := cc.findCommandFile(block.SlashCommand.Name); err != nil {
-					return fmt.Errorf("failed to find task or command file for %q: %w", block.SlashCommand.Name, err)
-				}
-				// Found as command - parse it
-				taskMarkdown, parseErr = ParseMarkdownFile(cc.matchingTaskFile, &frontMatter)
-				if parseErr != nil {
-					return fmt.Errorf("failed to parse command file %s: %w", cc.matchingTaskFile, parseErr)
-				}
-				cc.logger.Info("Found command", "name", block.SlashCommand.Name, "path", cc.matchingTaskFile)
+			// Match by filename (without .md extension)
+			baseName := strings.TrimSuffix(filepath.Base(path), ".md")
+			if baseName != name {
+				return nil
 			}
 
-			// Use the first task/command's frontmatter
-			if firstFrontmatter == nil {
-				firstFrontmatter = &frontMatter
-				cc.task.FrontMatter = frontMatter
-
-				// Add task name to includes so rules can be filtered
-				cc.includes.SetValue("task_name", block.SlashCommand.Name)
-
-				// Extract selector labels from frontmatter
-				for key, value := range frontMatter.Selectors {
-					switch v := value.(type) {
-					case []any:
-						for _, item := range v {
-							cc.includes.SetValue(key, fmt.Sprint(item))
-						}
-					default:
-						cc.includes.SetValue(key, fmt.Sprint(v))
-					}
-				}
+			// Parse frontmatter to check selectors
+			var frontmatter TaskFrontMatter
+			if _, err = ParseMarkdownFile(path, &frontmatter); err != nil {
+				return fmt.Errorf("failed to parse markdown file %s: %w", path, err)
 			}
 
-			// Expand parameters in the task/command content
-			expandedContent := cc.expandParams(taskMarkdown.Content)
-			taskContent.WriteString(expandedContent)
+			// Check if file matches include selectors
+			if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
+				return nil
+			}
+
+			// If we already found a matching file, error on duplicate
+			if matchingFile != "" {
+				return fmt.Errorf("multiple markdown files found with filename=%s.md: %s and %s", name, matchingFile, path)
+			}
+
+			matchingFile = path
+			return nil
+		})
+
+		if err != nil {
+			return Markdown[TaskFrontMatter]{}, err
 		}
 	}
 
-	// Set the assembled content
-	cc.task.Content = taskContent.String()
+	if matchingFile == "" {
+		return Markdown[TaskFrontMatter]{}, fmt.Errorf("no markdown file found with filename=%s.md matching selectors (searched in %v)", name, searchPaths)
+	}
 
-	return nil
+	// Parse the markdown file
+	var frontMatter TaskFrontMatter
+	markdown, err := ParseMarkdownFile(matchingFile, &frontMatter)
+	if err != nil {
+		return Markdown[TaskFrontMatter]{}, fmt.Errorf("failed to parse markdown file %s: %w", matchingFile, err)
+	}
+
+	// Substitute parameters in the content
+	expandedContent := os.Expand(markdown.Content, func(key string) string {
+		if val, ok := params[key]; ok {
+			return val
+		}
+		// If not in params map, check cc.params
+		if val, ok := cc.params[key]; ok {
+			return val
+		}
+		// Return original placeholder if not found
+		return fmt.Sprintf("${%s}", key)
+	})
+
+	markdown.Content = expandedContent
+	return markdown, nil
+}
+
+// getTask searches for a task markdown file and returns it with parameters substituted
+func (cc *Context) getTask(taskName string, params map[string]string) (Markdown[TaskFrontMatter], error) {
+	var taskSearchDirs []string
+	// Add downloaded remote directories to task search paths
+	for _, path := range cc.searchPaths {
+		dst := downloadDir(path)
+		subPaths := taskSearchPaths(dst)
+		taskSearchDirs = append(taskSearchDirs, subPaths...)
+	}
+
+	return cc.getMarkdown(taskSearchDirs, taskName, params)
+}
+
+// getCommand searches for a command markdown file and returns it with parameters substituted
+func (cc *Context) getCommand(commandName string, params map[string]string) (Markdown[TaskFrontMatter], error) {
+	var commandSearchDirs []string
+	// Add downloaded remote directories to command search paths
+	for _, path := range cc.searchPaths {
+		dst := downloadDir(path)
+		subPaths := commandSearchPaths(dst)
+		commandSearchDirs = append(commandSearchDirs, subPaths...)
+	}
+
+	return cc.getMarkdown(commandSearchDirs, commandName, params)
 }
 
 // expandParams expands parameter placeholders in the given content
@@ -213,44 +218,9 @@ func (cc *Context) expandParams(content string) string {
 	})
 }
 
-// Run executes the context assembly and returns the assembled result.
-// The task prompt can be provided via:
-// - The taskPrompt parameter (for backwards compatibility)
-// - WithTaskPrompt option (for text-based prompts)
-// - WithTaskFile option (for file-based prompts)
-//
-// If taskPrompt starts with "@", it's treated as a file path reference.
-// The loaded prompt is parsed using ParseTask to extract text and command blocks.
+// Run executes the context assembly for the given taskPrompt and returns the assembled result.
+// The taskPrompt should be a task name (e.g., "fix-bug") that will be looked up in task paths.
 func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) {
-	// Determine the task prompt source
-	var promptText string
-
-	if taskPrompt != "" {
-		// Legacy parameter-based approach
-		if strings.HasPrefix(taskPrompt, "@") {
-			// "@" prefix indicates a file path
-			cc.taskFilePath = strings.TrimPrefix(taskPrompt, "@")
-		} else {
-			cc.taskPromptText = taskPrompt
-		}
-	}
-
-	// Load the task prompt
-	if cc.taskFilePath != "" {
-		// Load from file
-		content, err := os.ReadFile(cc.taskFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read task file %s: %w", cc.taskFilePath, err)
-		}
-		promptText = string(content)
-		cc.matchingTaskFile = cc.taskFilePath
-	} else if cc.taskPromptText != "" {
-		promptText = cc.taskPromptText
-		cc.matchingTaskFile = "<inline>"
-	} else {
-		return nil, fmt.Errorf("no task prompt provided")
-	}
-
 	// Parse manifest file first to get additional search paths
 	manifestPaths, err := cc.parseManifestFile(ctx)
 	if err != nil {
@@ -274,18 +244,28 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	// Expand parameters in the loaded prompt text
-	expandedPromptText := cc.expandParams(promptText)
-
-	// Parse the task prompt using the new parser
-	taskBlocks, err := ParseTask(expandedPromptText)
+	// Get the task using getTask (this searches task paths and substitutes parameters)
+	taskMarkdown, err := cc.getTask(taskPrompt, cc.params)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse task prompt: %w", err)
+		return nil, fmt.Errorf("failed to get task: %w", err)
 	}
 
-	// Process the parsed task blocks
-	if err := cc.processTaskBlocks(ctx, taskBlocks); err != nil {
-		return nil, fmt.Errorf("failed to process task blocks: %w", err)
+	// Set the task frontmatter
+	cc.task.FrontMatter = taskMarkdown.FrontMatter
+
+	// Add task name to includes so rules can be filtered
+	cc.includes.SetValue("task_name", taskPrompt)
+
+	// Extract selector labels from task frontmatter
+	for key, value := range taskMarkdown.FrontMatter.Selectors {
+		switch v := value.(type) {
+		case []any:
+			for _, item := range v {
+				cc.includes.SetValue(key, fmt.Sprint(item))
+			}
+		default:
+			cc.includes.SetValue(key, fmt.Sprint(v))
+		}
 	}
 
 	// Task frontmatter agent field overrides -a flag if -a was not set
@@ -297,21 +277,50 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 		}
 	}
 
+	// Parse the task markdown content into blocks
+	taskBlocks, err := ParseTask(taskMarkdown.Content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse task content into blocks: %w", err)
+	}
+
+	// Iterate over blocks and replace commands with their content
+	var finalContent strings.Builder
+	for i, block := range taskBlocks {
+		if block.Text != nil {
+			// Text block - append directly
+			finalContent.WriteString(block.Text.Content())
+		} else if block.SlashCommand != nil {
+			// Command block - get the command and append its content
+			cc.logger.Info("Processing command", "name", block.SlashCommand.Name, "block", i)
+
+			// Extract parameters from the slash command
+			cmdParams := block.SlashCommand.Params()
+
+			// Get the command markdown
+			commandMarkdown, err := cc.getCommand(block.SlashCommand.Name, cmdParams)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get command %q: %w", block.SlashCommand.Name, err)
+			}
+
+			// Append the command content
+			finalContent.WriteString(commandMarkdown.Content)
+		}
+	}
+
+	// Set the final task content
+	cc.task.Content = finalContent.String()
+
 	if err := cc.findExecuteRuleFiles(ctx, homeDir); err != nil {
 		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
-	// Expand parameters in task content
-	expandedTask := cc.expandParams(cc.task.Content)
-
-	// Estimate tokens for task file
-	taskTokens := estimateTokens(expandedTask)
+	// Estimate tokens for task
+	taskTokens := estimateTokens(cc.task.Content)
 	cc.totalTokens += taskTokens
-	cc.logger.Info("Including task file", "path", cc.matchingTaskFile, "tokens", taskTokens)
+	cc.logger.Info("Including task", "name", taskPrompt, "tokens", taskTokens)
 	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
 
 	// Build and return the result
-	cc.task.Content = expandedTask
 	cc.task.Tokens = taskTokens
 	result := &Result{
 		Rules: cc.rules,
@@ -387,147 +396,6 @@ func (cc *Context) cleanupDownloadedDirectories() {
 		if err := os.RemoveAll(dst); err != nil {
 			cc.logger.Error("Error cleaning up downloaded directory", "path", dst, "error", err)
 		}
-	}
-}
-
-func (cc *Context) findTaskFile(taskName string) error {
-
-	var taskSearchDirs []string
-	// Add downloaded remote directories to task search paths
-	for _, path := range cc.searchPaths {
-		dst := downloadDir(path)
-		subPaths := taskSearchPaths(dst)
-		taskSearchDirs = append(taskSearchDirs, subPaths...)
-	}
-
-	for _, dir := range taskSearchDirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("failed to stat task dir %s: %w", dir, err)
-		}
-
-		if err := filepath.Walk(dir, cc.taskFileWalker(taskName)); err != nil {
-			return err
-		}
-	}
-
-	if cc.matchingTaskFile == "" {
-		return fmt.Errorf("no task file found with filename=%s.md matching selectors in frontmatter (searched in %v)", taskName, taskSearchDirs)
-	}
-
-	return nil
-}
-
-func (cc *Context) taskFileWalker(taskName string) func(path string, info os.FileInfo, err error) error {
-	return func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			// Skip errors
-			return err
-		} else if info.IsDir() {
-			// Skip directories
-			return nil
-		} else if filepath.Ext(path) != ".md" {
-			// Only process .md files as task files
-			return nil
-		}
-
-		// Match by filename (without .md extension)
-		baseName := strings.TrimSuffix(filepath.Base(path), ".md")
-		if baseName != taskName {
-			return nil
-		}
-
-		// Parse frontmatter to check selectors
-		var frontmatter TaskFrontMatter
-		if _, err = ParseMarkdownFile(path, &frontmatter); err != nil {
-			return fmt.Errorf("failed to parse task file %s: %w", path, err)
-		}
-
-		// Check if file matches include selectors
-		if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
-			return nil
-		}
-
-		// If we already found a matching task, error on duplicate
-		if cc.matchingTaskFile != "" {
-			return fmt.Errorf("multiple task files found with filename=%s.md: %s and %s", taskName, cc.matchingTaskFile, path)
-		}
-
-		cc.matchingTaskFile = path
-
-		return nil
-	}
-}
-
-// findCommandFile searches for a command file with the given name in command search paths
-func (cc *Context) findCommandFile(commandName string) error {
-	var commandSearchDirs []string
-	// Add downloaded remote directories to command search paths
-	for _, path := range cc.searchPaths {
-		dst := downloadDir(path)
-		subPaths := commandSearchPaths(dst)
-		commandSearchDirs = append(commandSearchDirs, subPaths...)
-	}
-
-	for _, dir := range commandSearchDirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("failed to stat command dir %s: %w", dir, err)
-		}
-
-		if err := filepath.Walk(dir, cc.commandFileWalker(commandName)); err != nil {
-			return err
-		}
-	}
-
-	if cc.matchingTaskFile == "" {
-		return fmt.Errorf("no command file found with filename=%s.md matching selectors in frontmatter (searched in %v)", commandName, commandSearchDirs)
-	}
-
-	return nil
-}
-
-// commandFileWalker returns a walker function for finding command files
-func (cc *Context) commandFileWalker(commandName string) func(path string, info os.FileInfo, err error) error {
-	return func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			// Skip errors
-			return err
-		} else if info.IsDir() {
-			// Skip directories
-			return nil
-		} else if filepath.Ext(path) != ".md" {
-			// Only process .md files as command files
-			return nil
-		}
-
-		// Match by filename (without .md extension)
-		baseName := strings.TrimSuffix(filepath.Base(path), ".md")
-		if baseName != commandName {
-			return nil
-		}
-
-		// Parse frontmatter to check selectors
-		var frontmatter TaskFrontMatter
-		if _, err = ParseMarkdownFile(path, &frontmatter); err != nil {
-			return fmt.Errorf("failed to parse command file %s: %w", path, err)
-		}
-
-		// Check if file matches include selectors
-		if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
-			return nil
-		}
-
-		// If we already found a matching command, error on duplicate
-		if cc.matchingTaskFile != "" {
-			return fmt.Errorf("multiple command files found with filename=%s.md: %s and %s", commandName, cc.matchingTaskFile, path)
-		}
-
-		cc.matchingTaskFile = path
-
-		return nil
 	}
 }
 
@@ -670,37 +538,6 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path, ext string) err
 	} else {
 		if err := cmd.Run(); err != nil {
 			return err
-		}
-	}
-
-	return nil
-}
-
-// parseTaskFile parses the task file and extracts selector labels from frontmatter.
-// The selectors are added to cc.includes for filtering rules and tools.
-// The parsed task is stored in cc.task.
-func (cc *Context) parseTaskFile() error {
-	var frontMatter TaskFrontMatter
-
-	task, err := ParseMarkdownFile(cc.matchingTaskFile, &frontMatter)
-	if err != nil {
-		return fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, err)
-	}
-
-	cc.task = task
-
-	// Extract selector labels from frontmatter
-	// Look for a "selectors" field that contains a map of key-value pairs
-	// Values can be strings or arrays (for OR logic)
-	for key, value := range cc.task.FrontMatter.Selectors {
-		switch v := value.(type) {
-		case []any:
-			// Convert []any to multiple selector values for OR logic
-			for _, item := range v {
-				cc.includes.SetValue(key, fmt.Sprint(item))
-			}
-		default:
-			cc.includes.SetValue(key, fmt.Sprint(v))
 		}
 	}
 

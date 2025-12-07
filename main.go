@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	yaml "github.com/goccy/go-yaml"
@@ -58,6 +59,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Handle @ prefix for file-based task prompts
+	taskPrompt := args[0]
+	if strings.HasPrefix(taskPrompt, "@") {
+		// Load task from file
+		filePath := strings.TrimPrefix(taskPrompt, "@")
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			logger.Error("Error", "error", fmt.Errorf("failed to read task file %s: %w", filePath, err))
+			os.Exit(1)
+		}
+		taskPrompt = string(content)
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		logger.Error("Error", "error", fmt.Errorf("failed to get user home directory: %w", err))
@@ -77,7 +91,7 @@ func main() {
 		codingcontext.WithManifestURL(manifestURL),
 	)
 
-	result, err := cc.Run(ctx, args[0])
+	result, err := cc.Run(ctx, taskPrompt)
 	if err != nil {
 		logger.Error("Error", "error", err)
 		flag.Usage()
