@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	yaml "github.com/goccy/go-yaml"
@@ -41,11 +40,11 @@ func main() {
 
 	flag.Usage = func() {
 		logger.Info("Usage:")
-		logger.Info("  coding-context [options] <task-prompt>")
+		logger.Info("  coding-context [options] <task-name>")
 		logger.Info("")
-		logger.Info("The task-prompt can be:")
-		logger.Info("  - A free-text prompt (used directly as task content)")
-		logger.Info("  - A prompt containing a slash command (e.g., '/fix-bug 123') which triggers task lookup")
+		logger.Info("The task-name is the name of a task file to look up in task search paths (.agents/tasks).")
+		logger.Info("Task content can contain slash commands (e.g., '/command-name arg') which reference")
+		logger.Info("command files in command search paths (.cursor/commands, .agents/commands, etc.).")
 		logger.Info("")
 		logger.Info("Options:")
 		flag.PrintDefaults()
@@ -54,23 +53,12 @@ func main() {
 
 	args := flag.Args()
 	if len(args) != 1 {
-		logger.Error("Error", "error", fmt.Errorf("invalid usage: expected exactly one task-prompt argument"))
+		logger.Error("Error", "error", fmt.Errorf("invalid usage: expected exactly one task name argument"))
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	// Handle @ prefix for file-based task prompts
-	taskPrompt := args[0]
-	if strings.HasPrefix(taskPrompt, "@") {
-		// Load task from file
-		filePath := strings.TrimPrefix(taskPrompt, "@")
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			logger.Error("Error", "error", fmt.Errorf("failed to read task file %s: %w", filePath, err))
-			os.Exit(1)
-		}
-		taskPrompt = string(content)
-	}
+	taskName := args[0]
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -91,7 +79,7 @@ func main() {
 		codingcontext.WithManifestURL(manifestURL),
 	)
 
-	result, err := cc.Run(ctx, taskPrompt)
+	result, err := cc.Run(ctx, taskName)
 	if err != nil {
 		logger.Error("Error", "error", err)
 		flag.Usage()
