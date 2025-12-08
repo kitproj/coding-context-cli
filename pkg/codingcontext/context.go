@@ -264,7 +264,7 @@ func (cc *Context) expandParams(content string, params map[string]string) string
 
 // Run executes the context assembly for the given taskName and returns the assembled result.
 // The taskName is looked up in task search paths and its content is parsed into blocks.
-// If the taskName cannot be found as a task file, it is treated as free-text content.
+// If the taskName cannot be found as a task file, an error is returned.
 func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	// Parse manifest file first to get additional search paths
 	manifestPaths, err := cc.parseManifestFile(ctx)
