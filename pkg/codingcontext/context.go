@@ -220,6 +220,10 @@ func (cc *Context) findTask(taskName string) error {
 
 		return nil
 	})
+	if cc.task.Content == "" {
+		return fmt.Errorf("task not found: %s", taskName)
+	}
+	return nil
 }
 
 // findCommand searches for a command markdown file and returns it with parameters substituted.
