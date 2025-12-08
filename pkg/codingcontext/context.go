@@ -149,7 +149,7 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 	return nil
 }
 
-// getTask searches for a task markdown file and returns it with parameters substituted
+// findTask searches for a task markdown file and returns it with parameters substituted
 func (cc *Context) findTask(taskName string) error {
 
 	// Add task name to includes so rules can be filtered
