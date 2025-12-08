@@ -213,11 +213,9 @@ func (cc *Context) getMarkdown(searchSubPathsFn func(string) []string, name stri
 			return "", fmt.Errorf("failed to parse file %s: %w", filePath, err)
 		}
 		content = md.Content
-	} else if _, ok := ptrToFrontMatter.(*CommandFrontMatter); ok {
+	} else if cmdFM, ok := ptrToFrontMatter.(*CommandFrontMatter); ok {
 		// For commands: parse without frontmatter
-		type EmptyFrontMatter struct{}
-		var emptyFM EmptyFrontMatter
-		md, err := ParseMarkdownFile[EmptyFrontMatter](filePath, &emptyFM)
+		md, err := ParseMarkdownFile[CommandFrontMatter](filePath, cmdFM)
 		if err != nil {
 			return "", fmt.Errorf("failed to parse file %s: %w", filePath, err)
 		}
@@ -293,22 +291,10 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	// Try to get the task by name
+	// Get the task by name
 	taskMarkdown, err := cc.getTask(taskName, cc.params)
 	if err != nil {
-		// If task not found, treat taskName as free-text content
-		cc.logger.Info("Task file not found, treating as free-text prompt", "taskName", taskName)
-		taskMarkdown = Markdown[TaskFrontMatter]{
-			FrontMatter: TaskFrontMatter{
-				BaseFrontMatter: BaseFrontMatter{
-					Content: map[string]any{
-						"task_name": FreeTextTaskName,
-					},
-				},
-			},
-			Content: cc.substituteParams(taskName, cc.params),
-		}
-		taskName = FreeTextTaskName
+		return nil, fmt.Errorf("task not found: %w", err)
 	}
 
 	// Set the task frontmatter
