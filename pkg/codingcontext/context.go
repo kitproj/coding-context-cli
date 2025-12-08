@@ -16,17 +16,18 @@ import (
 
 // Context holds the configuration and state for assembling coding context
 type Context struct {
-	params      Params
-	includes    Selectors
-	manifestURL string
-	searchPaths []string
-	task        Markdown[TaskFrontMatter]   // Parsed task
-	rules       []Markdown[RuleFrontMatter] // Collected rule files
-	totalTokens int
-	logger      *slog.Logger
-	cmdRunner   func(cmd *exec.Cmd) error
-	resume      bool
-	agent       Agent
+	params          Params
+	includes        Selectors
+	manifestURL     string
+	searchPaths     []string
+	downloadedPaths []string
+	task            Markdown[TaskFrontMatter]   // Parsed task
+	rules           []Markdown[RuleFrontMatter] // Collected rule files
+	totalTokens     int
+	logger          *slog.Logger
+	cmdRunner       func(cmd *exec.Cmd) error
+	resume          bool
+	agent           Agent
 }
 
 // Option is a functional option for configuring a Context
@@ -105,8 +106,8 @@ type markdownVisitor func(path string) error
 func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, visitor markdownVisitor) error {
 
 	var searchDirs []string
-	for _, searchPath := range cc.searchPaths {
-		searchDirs = append(searchDirs, searchDirFn(searchPath)...)
+	for _, path := range cc.downloadedPaths {
+		searchDirs = append(searchDirs, searchDirFn(path)...)
 	}
 
 	for _, dir := range searchDirs {
@@ -128,7 +129,7 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 			// If selectors are provided, check if the file matches
 			// Parse frontmatter to check selectors
 			var fm BaseFrontMatter
-			if _, err := ParseMarkdownFile[BaseFrontMatter](path, &fm); err != nil {
+			if _, err := ParseMarkdownFile(path, &fm); err != nil {
 				// Skip files that can't be parsed
 				return nil
 			}
@@ -162,7 +163,7 @@ func (cc *Context) findTask(taskName string) error {
 		}
 
 		var frontMatter TaskFrontMatter
-		md, err := ParseMarkdownFile[TaskFrontMatter](path, &frontMatter)
+		md, err := ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
 			return err
 		}
@@ -227,7 +228,7 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 	var content *string
 	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
 		var frontMatter CommandFrontMatter
-		md, err := ParseMarkdownFile[CommandFrontMatter](path, &frontMatter)
+		md, err := ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
 			return err
 		}
@@ -365,6 +366,7 @@ func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
 			return fmt.Errorf("failed to download remote directory %s: %w", path, err)
 		}
 		cc.logger.Info("Downloaded to", "path", dst)
+		cc.downloadedPaths = append(cc.downloadedPaths, dst)
 	}
 
 	return nil

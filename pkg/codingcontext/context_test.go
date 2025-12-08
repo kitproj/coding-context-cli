@@ -1,12 +1,10 @@
 package codingcontext
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -87,27 +85,6 @@ func createBootstrapScript(t *testing.T, dir, rulePath, scriptContent string) {
 	if err := os.WriteFile(bootstrapPath, []byte(scriptContent), 0755); err != nil {
 		t.Fatalf("failed to create bootstrap script: %v", err)
 	}
-}
-
-// mockCmdRunner returns a function that can be used to mock command execution
-func mockCmdRunner(t *testing.T, executed *[]string, shouldFail bool) func(cmd *exec.Cmd) error {
-	t.Helper()
-	return func(cmd *exec.Cmd) error {
-		if executed != nil {
-			*executed = append(*executed, cmd.Path)
-		}
-		if shouldFail {
-			return fmt.Errorf("mock command execution failed")
-		}
-		return nil
-	}
-}
-
-// captureLogger creates a logger that writes to a buffer for verification
-func captureLogger() (*slog.Logger, *bytes.Buffer) {
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&buf, nil))
-	return logger, &buf
 }
 
 // TestNew tests the constructor with various options
@@ -266,13 +243,13 @@ func TestNew(t *testing.T) {
 // TestContext_Run_Basic tests basic task execution scenarios
 func TestContext_Run_Basic(t *testing.T) {
 	tests := []struct {
-		name      string
-		setup     func(t *testing.T, dir string)
-		opts      []Option
-		taskName  string
-		wantErr   bool
+		name        string
+		setup       func(t *testing.T, dir string)
+		opts        []Option
+		taskName    string
+		wantErr     bool
 		errContains string
-		check     func(t *testing.T, result *Result)
+		check       func(t *testing.T, result *Result)
 	}{
 		{
 			name: "simple task with plain text",
@@ -427,12 +404,12 @@ func TestContext_Run_Basic(t *testing.T) {
 // TestContext_Run_Rules tests rule discovery and filtering
 func TestContext_Run_Rules(t *testing.T) {
 	tests := []struct {
-		name    string
-		setup   func(t *testing.T, dir string)
-		opts    []Option
+		name     string
+		setup    func(t *testing.T, dir string)
+		opts     []Option
 		taskName string
-		wantErr bool
-		check   func(t *testing.T, result *Result)
+		wantErr  bool
+		check    func(t *testing.T, result *Result)
 	}{
 		{
 			name: "discover rules in standard paths",
@@ -666,13 +643,13 @@ func TestContext_Run_Rules(t *testing.T) {
 // TestContext_Run_Commands tests command substitution in tasks
 func TestContext_Run_Commands(t *testing.T) {
 	tests := []struct {
-		name    string
-		setup   func(t *testing.T, dir string)
-		opts    []Option
-		taskName string
-		wantErr bool
+		name        string
+		setup       func(t *testing.T, dir string)
+		opts        []Option
+		taskName    string
+		wantErr     bool
 		errContains string
-		check   func(t *testing.T, result *Result)
+		check       func(t *testing.T, result *Result)
 	}{
 		{
 			name: "task with single command reference",
@@ -749,8 +726,8 @@ func TestContext_Run_Commands(t *testing.T) {
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "missing-cmd", "", "/nonexistent")
 			},
-			taskName: "missing-cmd",
-			wantErr:  true,
+			taskName:    "missing-cmd",
+			wantErr:     true,
 			errContains: "command not found",
 		},
 		{
@@ -841,12 +818,12 @@ func TestContext_Run_Commands(t *testing.T) {
 // TestContext_Run_Integration tests end-to-end integration scenarios
 func TestContext_Run_Integration(t *testing.T) {
 	tests := []struct {
-		name    string
-		setup   func(t *testing.T, dir string)
-		opts    []Option
+		name     string
+		setup    func(t *testing.T, dir string)
+		opts     []Option
 		taskName string
-		wantErr bool
-		check   func(t *testing.T, result *Result)
+		wantErr  bool
+		check    func(t *testing.T, result *Result)
 	}{
 		{
 			name: "full workflow with task, rules, commands, and parameters",
@@ -946,7 +923,7 @@ func TestContext_Run_Integration(t *testing.T) {
 				// Create first directory with task and rule
 				createTask(t, dir, "multi-path", "", "Multi-path task")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule from first path")
-				
+
 				// Create second directory with additional rule
 				secondDir := filepath.Join(dir, "second")
 				if err := os.MkdirAll(secondDir, 0755); err != nil {
@@ -1046,4 +1023,3 @@ func TestContext_Run_Errors(t *testing.T) {
 		})
 	}
 }
-
