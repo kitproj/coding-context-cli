@@ -247,7 +247,7 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 	return *content, nil
 }
 
-// substituteParams substitutes parameter placeholders in the given content.
+// expandParams substitutes parameter placeholders in the given content.
 func (cc *Context) expandParams(content string, params map[string]string) string {
 	return os.Expand(content, func(key string) string {
 		if val, ok := params[key]; ok {
