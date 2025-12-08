@@ -222,7 +222,7 @@ func (cc *Context) findTask(taskName string) error {
 	})
 }
 
-// getCommand searches for a command markdown file and returns it with parameters substituted.
+// findCommand searches for a command markdown file and returns it with parameters substituted.
 // Commands don't have frontmatter, so only the content is returned.
 func (cc *Context) findCommand(commandName string, params map[string]string) (string, error) {
 	var content *string
