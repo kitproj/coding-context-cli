@@ -268,6 +268,7 @@ func (cc *Context) expandParams(content string) string {
 
 // Run executes the context assembly for the given taskName and returns the assembled result.
 // The taskName is looked up in task search paths and its content is parsed into blocks.
+// If the taskName cannot be found as a task file, it is treated as free-text content.
 func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	// Parse manifest file first to get additional search paths
 	manifestPaths, err := cc.parseManifestFile(ctx)
@@ -292,10 +293,22 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	// Get the task by name
+	// Try to get the task by name
 	taskMarkdown, err := cc.getTask(taskName, cc.params)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get task: %w", err)
+		// If task not found, treat taskName as free-text content
+		cc.logger.Info("Task file not found, treating as free-text prompt", "taskName", taskName)
+		taskMarkdown = Markdown[TaskFrontMatter]{
+			FrontMatter: TaskFrontMatter{
+				BaseFrontMatter: BaseFrontMatter{
+					Content: map[string]any{
+						"task_name": FreeTextTaskName,
+					},
+				},
+			},
+			Content: cc.substituteParams(taskName, cc.params),
+		}
+		taskName = FreeTextTaskName
 	}
 
 	// Set the task frontmatter
