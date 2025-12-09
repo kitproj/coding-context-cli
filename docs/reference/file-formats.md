@@ -45,7 +45,7 @@ task_name: fix-bug
 **Usage:**
 ```bash
 # Task is matched by filename "fix-bug.md", not by task_name field
-coding-context /fix-bug
+coding-context fix-bug
 ```
 
 **Note:** The `task_name` field is optional. If omitted, the task is still matched by its filename.
@@ -199,7 +199,7 @@ agent: cursor
 **Equivalent command-line usage:**
 ```bash
 # These are equivalent:
-coding-context /implement-feature  # (task has agent: cursor)
+coding-context implement-feature  # (task has agent: cursor)
 coding-context -a cursor /implement-feature
 ```
 
@@ -265,7 +265,7 @@ selectors:
 **Usage:**
 ```bash
 # Automatically includes rules with languages=go AND stage=implementation
-coding-context /implement-feature
+coding-context implement-feature
 ```
 
 This is equivalent to:
@@ -370,13 +370,14 @@ All frontmatter fields are optional and used for filtering.
 
 **Standard fields for rules:**
 
-#### `task_name` (rule selector)
+#### `task_names` (rule selector)
 
-Specifies which task(s) this rule applies to. Can be a string or array.
+Specifies which task(s) this rule applies to. Can be a string or array. The field name is `task_names` (plural).
 
 ```yaml
 ---
-task_name: fix-bug
+task_names:
+  - fix-bug
 ---
 # This rule only applies to the 'fix-bug' task
 ```
@@ -384,7 +385,7 @@ task_name: fix-bug
 **Multiple tasks (OR logic):**
 ```yaml
 ---
-task_name:
+task_names:
   - fix-bug
   - implement-feature
   - refactor
@@ -393,9 +394,10 @@ task_name:
 ```
 
 **Behavior:**
-- When a task is run, rules with matching `task_name` are included
-- Rules without `task_name` are included for all tasks (generic rules)
-- The task's own `task_name` is automatically added as a selector
+- When a task is run (e.g., `coding-context fix-bug`), the task name `fix-bug` is automatically added as a selector `task_name=fix-bug` (singular)
+- Rules with `task_names: [ fix-bug ]` (plural) should match this selector
+- Rules without `task_names` are included for all tasks (generic rules)
+- **Note:** The code uses `task_names` (plural) in rule frontmatter, but sets selector as `task_name` (singular)
 
 #### `language` or `languages` (rule selector)
 

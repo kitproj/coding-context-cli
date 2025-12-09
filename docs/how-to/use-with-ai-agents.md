@@ -14,7 +14,7 @@ This guide shows you how to use the Coding Context CLI with various AI agents an
 Pipe the assembled context to any AI agent:
 
 ```bash
-coding-context /fix-bug | your-ai-agent
+coding-context fix-bug | your-ai-agent
 ```
 
 ## With Claude CLI
@@ -29,7 +29,7 @@ coding-context \
 ## With OpenAI API
 
 ```bash
-coding-context /code-review | openai api completions.create \
+coding-context code-review | openai api completions.create \
   -m gpt-4 \
   --stream
 ```
@@ -40,13 +40,13 @@ The [llm](https://llm.datasette.io/) tool supports many models:
 
 ```bash
 # Using Claude
-coding-context /fix-bug | llm -m claude-3-5-sonnet-20241022
+coding-context fix-bug | llm -m claude-3-5-sonnet-20241022
 
 # Using Gemini
-coding-context /code-review | llm -m gemini-pro
+coding-context code-review | llm -m gemini-pro
 
 # Using local models
-coding-context /implement-feature | llm -m llama2
+coding-context implement-feature | llm -m llama2
 ```
 
 ## Saving Context to File
@@ -55,7 +55,7 @@ Save the context for later use or inspection:
 
 ```bash
 # Save to file
-coding-context /fix-bug > context.txt
+coding-context fix-bug > context.txt
 
 # Review the context
 cat context.txt
@@ -84,7 +84,7 @@ If you're using GitHub Copilot, the CLI can prepare context for custom instructi
 
 ```bash
 # Generate context
-coding-context /implement-feature > .github/copilot-context.md
+coding-context implement-feature > .github/copilot-context.md
 
 # Copilot will read this file automatically
 ```
@@ -109,10 +109,10 @@ The CLI prints token estimates to stderr:
 
 ```bash
 # See token count while piping to AI
-coding-context /fix-bug 2>&1 | tee >(grep -i token >&2) | ai-agent
+coding-context fix-bug 2>&1 | tee >(grep -i token >&2) | ai-agent
 
 # Or redirect stderr to file
-coding-context /fix-bug 2> tokens.log | ai-agent
+coding-context fix-bug 2> tokens.log | ai-agent
 ```
 
 ## Batch Processing

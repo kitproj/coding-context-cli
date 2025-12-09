@@ -26,17 +26,18 @@ The Coding Context CLI assembles context from rule files and task prompts, perfo
 **Required.** The task prompt to execute. This can be either:
 
 1. **Free-text prompt**: Used directly as the task content
-2. **Slash command**: A prompt containing `/task-name` which triggers task file lookup
+2. **Task name**: The name of a task file to look up (without `.md` extension)
+3. **Slash command** (quoted): A prompt containing `/task-name` with arguments, which triggers task file lookup and parameter substitution
 
 **Examples:**
 ```bash
 # Free-text prompt (used directly as task content)
 coding-context "Please help me fix the login bug"
 
-# Slash command (looks up fix-bug.md task file)
-coding-context /fix-bug
+# Task name (looks up fix-bug.md task file)
+coding-context fix-bug
 
-# Slash command with arguments
+# Slash command with arguments (must be quoted)
 coding-context "/fix-bug 123"
 ```
 
@@ -98,10 +99,36 @@ coding-context \
 
 # Local directories are automatically included
 # (workDir and homeDir are added automatically)
-coding-context /fix-bug
+coding-context fix-bug
 ```
 
 **See also:** [How to Use Remote Directories](../how-to/use-remote-directories)
+
+### `-m <url>`
+
+**Type:** String (URL)  
+**Default:** (empty)
+
+Load a manifest file containing search paths (one per line). The manifest file is downloaded via go-getter and each line is treated as a search path to be added to the `-d` flag list. Every line is included as-is without trimming.
+
+**Examples:**
+```bash
+# Load search paths from a manifest file
+coding-context -m https://example.com/manifest.txt /fix-bug
+
+# Combine manifest with additional directories
+coding-context \
+  -m https://example.com/manifest.txt \
+  -d git::https://github.com/company/extra-rules.git \
+  /fix-bug
+```
+
+**Manifest file format (`manifest.txt`):**
+```
+git::https://github.com/company/shared-rules.git
+https://cdn.example.com/coding-standards.tar.gz
+file:///path/to/local/rules
+```
 
 ### `-p <key>=<value>`
 
@@ -208,7 +235,7 @@ This output is intended to be piped to an AI agent.
 
 **Example:**
 ```bash
-coding-context /fix-bug 2>errors.log | ai-agent
+coding-context fix-bug 2>errors.log | ai-agent
 ```
 
 ## Environment Variables
@@ -220,7 +247,7 @@ The CLI itself doesn't use environment variables, but bootstrap scripts can acce
 export JIRA_API_KEY="your-key"
 export GITHUB_TOKEN="your-token"
 
-coding-context /fix-bug  # Bootstrap scripts can use these variables
+coding-context fix-bug  # Bootstrap scripts can use these variables
 ```
 
 ## Examples
@@ -232,7 +259,7 @@ coding-context /fix-bug  # Bootstrap scripts can use these variables
 coding-context "Please help me review this code for security issues"
 
 # Slash command to execute a task file
-coding-context /code-review
+coding-context code-review
 
 # Slash command with arguments
 coding-context "/fix-bug 123"
@@ -259,7 +286,7 @@ coding-context -C /path/to/project /fix-bug
 
 # Run from subdirectory
 cd backend
-coding-context /fix-bug  # Uses backend/.agents/ if it exists
+coding-context fix-bug  # Uses backend/.agents/ if it exists
 ```
 
 ### Remote Directories
@@ -297,16 +324,16 @@ coding-context -r /implement-feature | ai-agent
 
 ```bash
 # Claude
-coding-context /fix-bug | claude
+coding-context fix-bug | claude
 
 # LLM tool
-coding-context /fix-bug | llm -m claude-3-5-sonnet-20241022
+coding-context fix-bug | llm -m claude-3-5-sonnet-20241022
 
 # OpenAI
-coding-context /code-review | openai api completions.create -m gpt-4
+coding-context code-review | openai api completions.create -m gpt-4
 
 # Save to file first
-coding-context /fix-bug > context.txt
+coding-context fix-bug > context.txt
 cat context.txt | your-ai-agent
 
 # Free-text prompt
@@ -317,10 +344,10 @@ coding-context "Please help me debug the auth module" | claude
 
 ```bash
 # See token count in stderr
-coding-context /fix-bug 2>&1 | grep -i token
+coding-context fix-bug 2>&1 | grep -i token
 
 # Separate stdout and stderr
-coding-context /fix-bug 2>tokens.log | ai-agent
+coding-context fix-bug 2>tokens.log | ai-agent
 cat tokens.log  # View token information
 ```
 

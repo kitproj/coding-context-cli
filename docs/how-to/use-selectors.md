@@ -100,7 +100,7 @@ coding-context -s stage=testing /test-feature
 coding-context -s priority=high /fix-critical-bug
 
 # Include all priorities (no selector)
-coding-context /fix-bug
+coding-context fix-bug
 ```
 
 ### By Source
@@ -146,7 +146,7 @@ selectors:
 **Usage:**
 ```bash
 # Automatically applies language=go and stage=implementation
-coding-context /implement-feature
+coding-context implement-feature
 ```
 
 This is equivalent to:
@@ -171,7 +171,7 @@ selectors:
 **Usage:**
 ```bash
 # Includes rules matching (go OR python OR javascript) AND refactoring
-coding-context /refactor-code
+coding-context refactor-code
 ```
 
 ### Combining Command-Line and Task Selectors
@@ -211,7 +211,7 @@ coding-context -s environment=production /deploy
 Task frontmatter (including selectors) is automatically included in the output:
 
 ```bash
-coding-context /implement-feature
+coding-context implement-feature
 ```
 
 **Output:**
@@ -303,7 +303,8 @@ coding-context -s languages=go /fix-bug 2>&1 | grep -i token
 - Verify unique frontmatter values across rules
 
 **Task not found:**
-- Ensure `task_name` matches exactly
+- Ensure filename (without `.md` extension) matches the task name exactly
+- Tasks are matched by filename, not by `task_name` in frontmatter
 - Check that selectors don't over-filter (try without selectors)
 
 ## See Also
