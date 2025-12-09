@@ -305,7 +305,7 @@ Implement the feature following Go best practices and implementation guidelines.
 When you run this task, it automatically applies the selectors:
 ```bash
 # This command automatically includes only rules with languages=go and stage=implementation
-coding-context /implement-feature
+coding-context implement-feature
 ```
 
 This is equivalent to:
@@ -564,7 +564,7 @@ This can be useful for:
 
 **Example with selectors in frontmatter:**
 ```bash
-coding-context /implement-feature
+coding-context implement-feature
 ```
 
 If the task has `selectors` in its frontmatter, they will be visible in the output:

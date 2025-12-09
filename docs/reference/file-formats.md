@@ -45,7 +45,7 @@ task_name: fix-bug
 **Usage:**
 ```bash
 # Task is matched by filename "fix-bug.md", not by task_name field
-coding-context /fix-bug
+coding-context fix-bug
 ```
 
 **Note:** The `task_name` field is optional. If omitted, the task is still matched by its filename.
@@ -199,7 +199,7 @@ agent: cursor
 **Equivalent command-line usage:**
 ```bash
 # These are equivalent:
-coding-context /implement-feature  # (task has agent: cursor)
+coding-context implement-feature  # (task has agent: cursor)
 coding-context -a cursor /implement-feature
 ```
 
@@ -265,7 +265,7 @@ selectors:
 **Usage:**
 ```bash
 # Automatically includes rules with languages=go AND stage=implementation
-coding-context /implement-feature
+coding-context implement-feature
 ```
 
 This is equivalent to:
@@ -394,7 +394,7 @@ task_names:
 ```
 
 **Behavior:**
-- When a task is run (e.g., `coding-context /fix-bug`), the task name `fix-bug` is automatically added as a selector `task_name=fix-bug` (singular)
+- When a task is run (e.g., `coding-context fix-bug`), the task name `fix-bug` is automatically added as a selector `task_name=fix-bug` (singular)
 - Rules with `task_names: [ fix-bug ]` (plural) should match this selector
 - Rules without `task_names` are included for all tasks (generic rules)
 - **Note:** The code uses `task_names` (plural) in rule frontmatter, but sets selector as `task_name` (singular)

@@ -29,7 +29,7 @@ Save as `.agents/tasks/code-review.md` (or `.agents/commands/code-review.md`).
 
 Use with:
 ```bash
-coding-context /code-review
+coding-context code-review
 ```
 
 ## Task with Parameters
@@ -187,7 +187,7 @@ Task frontmatter is **always** automatically included in the output when present
 
 **Example:**
 ```bash
-coding-context /implement-feature
+coding-context implement-feature
 ```
 
 **Output:**

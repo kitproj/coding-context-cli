@@ -51,9 +51,9 @@ Project structure:
 ~/.agents/tasks/plan-feature.md       (task file in home directory)
 
 Commands:
-coding-context /fix-bug          → Uses ./.agents/tasks/fix-bug.md (from working directory)
-coding-context /code-review      → Uses ./.agents/tasks/code-review.md (from working directory)
-coding-context /plan-feature     → Uses ~/.agents/tasks/plan-feature.md (from home directory)
+coding-context fix-bug           → Uses ./.agents/tasks/fix-bug.md (from working directory)
+coding-context code-review       → Uses ./.agents/tasks/code-review.md (from working directory)
+coding-context plan-feature      → Uses ~/.agents/tasks/plan-feature.md (from home directory)
 
 # Command files are NOT invoked directly, but referenced inside task content via slash commands like:
 # /deploy-checks arg1 arg2

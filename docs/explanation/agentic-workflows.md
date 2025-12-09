@@ -116,7 +116,7 @@ Scripts fetch current state before agent execution:
 ```bash
 # Fetch JIRA issue details automatically
 export JIRA_ISSUE_KEY="BUG-123"
-coding-context /fix-bug  # Bootstrap fetches latest data
+coding-context fix-bug  # Bootstrap fetches latest data
 ```
 
 ## The Agentic Workflow Ecosystem
