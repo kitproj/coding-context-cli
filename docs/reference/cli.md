@@ -103,6 +103,32 @@ coding-context /fix-bug
 
 **See also:** [How to Use Remote Directories](../how-to/use-remote-directories)
 
+### `-m <url>`
+
+**Type:** String (URL)  
+**Default:** (empty)
+
+Load a manifest file containing search paths (one per line). The manifest file is downloaded via go-getter and each line is treated as a search path to be added to the `-d` flag list. Every line is included as-is without trimming.
+
+**Examples:**
+```bash
+# Load search paths from a manifest file
+coding-context -m https://example.com/manifest.txt /fix-bug
+
+# Combine manifest with additional directories
+coding-context \
+  -m https://example.com/manifest.txt \
+  -d git::https://github.com/company/extra-rules.git \
+  /fix-bug
+```
+
+**Manifest file format (`manifest.txt`):**
+```
+git::https://github.com/company/shared-rules.git
+https://cdn.example.com/coding-standards.tar.gz
+file:///path/to/local/rules
+```
+
 ### `-p <key>=<value>`
 
 **Type:** Key-value pair  

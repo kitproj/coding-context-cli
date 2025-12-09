@@ -20,9 +20,16 @@ All directories (local and remote) are processed via go-getter, which downloads 
 Within each directory, task files are searched in the following locations:
 
 1. `.agents/tasks/`
-2. `.agents/commands/`
-3. `.cursor/commands/`
-4. `.opencode/command/`
+
+**Note:** Task files are matched by filename (without `.md` extension), not by `task_name` in frontmatter.
+
+### Command File Search Paths (for slash commands)
+
+Command files are referenced via slash commands inside task content. Within each directory, command files are searched in:
+
+1. `.agents/commands/`
+2. `.cursor/commands/`
+3. `.opencode/command/`
 
 ### Discovery Rules
 
@@ -38,16 +45,19 @@ Within each directory, task files are searched in the following locations:
 
 ```
 Project structure:
-./.agents/tasks/fix-bug.md            (matched by filename "fix-bug")
-./.opencode/command/review-code.md    (matched by filename "review-code")
-./.opencode/command/deploy.md         (matched by filename "deploy")
-~/.agents/tasks/code-review.md        (matched by filename "code-review")
+./.agents/tasks/fix-bug.md            (task file, matched by filename "fix-bug")
+./.agents/tasks/code-review.md        (task file, matched by filename "code-review")
+./.agents/commands/deploy-checks.md   (command file, referenced via slash command in tasks)
+~/.agents/tasks/plan-feature.md       (task file in home directory)
 
 Commands:
 coding-context /fix-bug          → Uses ./.agents/tasks/fix-bug.md (from working directory)
-coding-context /review-code      → Uses ./.opencode/command/review-code.md (from working directory)
-coding-context /deploy           → Uses ./.opencode/command/deploy.md (from working directory)
-coding-context /code-review      → Uses ~/.agents/tasks/code-review.md (from home directory)
+coding-context /code-review      → Uses ./.agents/tasks/code-review.md (from working directory)
+coding-context /plan-feature     → Uses ~/.agents/tasks/plan-feature.md (from home directory)
+
+# Command files are NOT invoked directly, but referenced inside task content via slash commands like:
+# /deploy-checks arg1 arg2
+```
 ```
 
 **Note:** The working directory and home directory are automatically added to search paths, so tasks in those locations are found automatically.
@@ -110,13 +120,13 @@ The CLI automatically discovers rules from configuration files for these AI codi
 |-------|----------------|
 | **Anthropic Claude** | `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md` |
 | **Codex** | `AGENTS.md`, `.codex/AGENTS.md` |
-| **Cursor** | `.cursor/rules/`, `.cursorrules`, `.cursor/commands/` (tasks) |
+| **Cursor** | `.cursor/rules/`, `.cursorrules`, `.cursor/commands/` (commands, not tasks) |
 | **Augment** | `.augment/rules/`, `.augment/guidelines.md` |
 | **Windsurf** | `.windsurf/rules/`, `.windsurfrules` |
-| **OpenCode.ai** | `.opencode/agent/`, `.opencode/command/` (tasks), `.opencode/rules/` |
+| **OpenCode.ai** | `.opencode/agent/`, `.opencode/rules/`, `.opencode/command/` (commands, not tasks) |
 | **GitHub Copilot** | `.github/copilot-instructions.md`, `.github/agents/` |
 | **Google Gemini** | `GEMINI.md`, `.gemini/styleguide.md` |
-| **Generic** | `AGENTS.md`, `.agents/rules/`, `.agents/commands/` (tasks) |
+| **Generic** | `AGENTS.md`, `.agents/rules/`, `.agents/tasks/` (tasks), `.agents/commands/` (commands) |
 
 ## Discovery Behavior
 
@@ -288,11 +298,12 @@ coding-context -s team=backend fix-bug
 - For remote directories, verify the download succeeded (check stderr logs)
 
 **Task not found:**
-- Verify that `.agents/tasks/`, `.agents/commands/`, `.cursor/commands/`, or `.opencode/command/` directory exists in one of the search path directories
+- Verify that `.agents/tasks/` directory exists in one of the search path directories (working directory or home directory)
 - Check that the filename (without `.md` extension) matches the task name you're using (e.g., `fix-bug.md` for `/fix-bug`)
 - Ensure filename has `.md` extension
 - Verify the directory containing the task is in search paths (working directory and home directory are added automatically)
 - Note: Tasks are matched by filename, not by `task_name` in frontmatter
+- Note: Commands (in `.agents/commands/`, `.cursor/commands/`, `.opencode/command/`) are NOT tasks - they're referenced via slash commands inside task content
 
 **Rules not filtered correctly:**
 - Verify frontmatter YAML is valid
