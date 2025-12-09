@@ -303,7 +303,8 @@ coding-context -s languages=go /fix-bug 2>&1 | grep -i token
 - Verify unique frontmatter values across rules
 
 **Task not found:**
-- Ensure `task_name` matches exactly
+- Ensure filename (without `.md` extension) matches the task name exactly
+- Tasks are matched by filename, not by `task_name` in frontmatter
 - Check that selectors don't over-filter (try without selectors)
 
 ## See Also

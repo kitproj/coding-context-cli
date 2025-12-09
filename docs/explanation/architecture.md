@@ -110,7 +110,7 @@ Rules without frontmatter are always included (unless resume mode).
 
 ### 6. Discover Task Files
 
-Search task file locations for files with matching `task_name`:
+Search task file locations for files with matching filename:
 
 ```
 Search paths:
@@ -119,10 +119,12 @@ Search paths:
 ```
 
 For each `.md` file:
+- Check if filename (without `.md` extension) matches requested task name
 - Parse frontmatter
-- Check if `task_name` matches requested task
 - Check if selectors match (if specified)
 - Store matching tasks
+
+**Note:** Tasks are matched by filename, not by `task_name` in frontmatter. The `task_name` field is optional metadata.
 
 ### 7. Select Task
 
