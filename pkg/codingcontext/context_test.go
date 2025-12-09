@@ -316,16 +316,11 @@ func TestContext_Run_Basic(t *testing.T) {
 			},
 		},
 		{
-			name:     "task not found returns empty task",
-			setup:    func(t *testing.T, dir string) {},
-			taskName: "nonexistent",
-			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				// When task is not found, it returns an empty task
-				if result.Task.Content != "" {
-					t.Errorf("expected empty task content, got %q", result.Task.Content)
-				}
-			},
+			name:        "task not found returns error",
+			setup:       func(t *testing.T, dir string) {},
+			taskName:    "nonexistent",
+			wantErr:     true,
+			errContains: "task not found",
 		},
 		{
 			name: "task with selectors sets includes",
@@ -358,17 +353,13 @@ func TestContext_Run_Basic(t *testing.T) {
 			},
 		},
 		{
-			name: "empty task content",
+			name: "empty task content returns error",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "empty", "", "")
 			},
-			taskName: "empty",
-			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if result.Task.Content != "" {
-					t.Errorf("expected empty content, got %q", result.Task.Content)
-				}
-			},
+			taskName:    "empty",
+			wantErr:     true,
+			errContains: "task not found",
 		},
 	}
 
