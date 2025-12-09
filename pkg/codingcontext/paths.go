@@ -37,6 +37,12 @@ func rulePaths(dir string, home bool) []string {
 func taskSearchPaths(dir string) []string {
 	return []string{
 		filepath.Join(dir, ".agents", "tasks"),
+	}
+}
+
+// commandSearchPaths returns the search paths for command files in a directory
+func commandSearchPaths(dir string) []string {
+	return []string{
 		filepath.Join(dir, ".agents", "commands"),
 		filepath.Join(dir, ".cursor", "commands"),
 		filepath.Join(dir, ".opencode", "command"),

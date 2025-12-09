@@ -16,18 +16,18 @@ import (
 
 // Context holds the configuration and state for assembling coding context
 type Context struct {
-	params           Params
-	includes         Selectors
-	manifestURL      string
-	searchPaths      []string
-	matchingTaskFile string
-	task             Markdown[TaskFrontMatter]   // Parsed task
-	rules            []Markdown[RuleFrontMatter] // Collected rule files
-	totalTokens      int
-	logger           *slog.Logger
-	cmdRunner        func(cmd *exec.Cmd) error
-	resume           bool
-	agent            Agent
+	params          Params
+	includes        Selectors
+	manifestURL     string
+	searchPaths     []string
+	downloadedPaths []string
+	task            Markdown[TaskFrontMatter]   // Parsed task
+	rules           []Markdown[RuleFrontMatter] // Collected rule files
+	totalTokens     int
+	logger          *slog.Logger
+	cmdRunner       func(cmd *exec.Cmd) error
+	resume          bool
+	agent           Agent
 }
 
 // Option is a functional option for configuring a Context
@@ -99,22 +99,180 @@ func New(opts ...Option) *Context {
 	return c
 }
 
-// expandParams expands parameter placeholders in the given content
-func (cc *Context) expandParams(content string) string {
+type markdownVisitor func(path string) error
+
+// findMarkdownFile searches for a markdown file by name in the given directories.
+// Returns the path to the file if found, or an error if not found or multiple files match.
+func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, visitor markdownVisitor) error {
+
+	var searchDirs []string
+	for _, path := range cc.downloadedPaths {
+		searchDirs = append(searchDirs, searchDirFn(path)...)
+	}
+
+	for _, dir := range searchDirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return err
+		}
+
+		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			ext := filepath.Ext(path) // .md or .mdc
+			if info.IsDir() || ext != ".md" && ext != ".mdc" {
+				return nil
+			}
+
+			// If selectors are provided, check if the file matches
+			// Parse frontmatter to check selectors
+			var fm BaseFrontMatter
+			if _, err := ParseMarkdownFile(path, &fm); err != nil {
+				// Skip files that can't be parsed
+				return nil
+			}
+
+			// Skip files that don't match selectors
+			if !cc.includes.MatchesIncludes(fm) {
+				return nil
+			}
+			return visitor(path)
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// findTask searches for a task markdown file and returns it with parameters substituted
+func (cc *Context) findTask(taskName string) error {
+
+	// Add task name to includes so rules can be filtered
+	cc.includes.SetValue("task_name", taskName)
+
+	err := cc.visitMarkdownFiles(taskSearchPaths, func(path string) error {
+		baseName := filepath.Base(path)
+		ext := filepath.Ext(baseName)
+		if strings.TrimSuffix(baseName, ext) != taskName {
+			return nil
+		}
+
+		var frontMatter TaskFrontMatter
+		md, err := ParseMarkdownFile(path, &frontMatter)
+		if err != nil {
+			return err
+		}
+
+		// Extract selector labels from task frontmatter
+		for key, value := range frontMatter.Selectors {
+			switch v := value.(type) {
+			case []any:
+				for _, item := range v {
+					cc.includes.SetValue(key, fmt.Sprint(item))
+				}
+			default:
+				cc.includes.SetValue(key, fmt.Sprint(v))
+			}
+		}
+
+		// Task frontmatter agent field overrides -a flag
+		if frontMatter.Agent != "" {
+			agent, err := ParseAgent(frontMatter.Agent)
+			if err != nil {
+				return err
+			}
+			cc.agent = agent
+		}
+
+		expandedContent := cc.expandParams(md.Content, nil)
+
+		task, err := ParseTask(expandedContent)
+		if err != nil {
+			return err
+		}
+
+		finalContent := strings.Builder{}
+		for _, block := range task {
+			if block.Text != nil {
+				finalContent.WriteString(block.Text.Content())
+			} else if block.SlashCommand != nil {
+				commandContent, err := cc.findCommand(block.SlashCommand.Name, block.SlashCommand.Params())
+				if err != nil {
+					return err
+				}
+				finalContent.WriteString(commandContent)
+			}
+		}
+
+		cc.task = Markdown[TaskFrontMatter]{
+			FrontMatter: frontMatter,
+			Content:     finalContent.String(),
+			Tokens:      estimateTokens(finalContent.String()),
+		}
+		cc.totalTokens += cc.task.Tokens
+
+		cc.logger.Info("Including task", "tokens", cc.task.Tokens)
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to find task: %w", err)
+	}
+	if cc.task.Content == "" {
+		return fmt.Errorf("task not found: %s", taskName)
+	}
+	return nil
+}
+
+// findCommand searches for a command markdown file and returns it with parameters substituted.
+// Commands don't have frontmatter, so only the content is returned.
+func (cc *Context) findCommand(commandName string, params map[string]string) (string, error) {
+	var content *string
+	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
+		var frontMatter CommandFrontMatter
+		md, err := ParseMarkdownFile(path, &frontMatter)
+		if err != nil {
+			return err
+		}
+
+		expanded := cc.expandParams(md.Content, params)
+		content = &expanded
+
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	if content == nil {
+		return "", fmt.Errorf("command not found: %s", commandName)
+	}
+	return *content, nil
+}
+
+// expandParams substitutes parameter placeholders in the given content.
+func (cc *Context) expandParams(content string, params map[string]string) string {
 	return os.Expand(content, func(key string) string {
+		if val, ok := params[key]; ok {
+			return val
+		}
+		// If not in params map, check cc.params
 		if val, ok := cc.params[key]; ok {
 			return val
 		}
-		// this might not exist, in that case, return the original text
+		// Return original placeholder if not found
 		return fmt.Sprintf("${%s}", key)
 	})
 }
 
-// Run executes the context assembly for the given taskPrompt and returns the assembled result.
-// The taskPrompt can be either:
-// - A free-text prompt (used directly as task content)
-// - A prompt containing a slash command (e.g., "/fix-bug 123") which triggers task lookup
-func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) {
+// Run executes the context assembly for the given taskName and returns the assembled result.
+// The taskName is looked up in task search paths and its content is parsed into blocks.
+// If the taskName cannot be found as a task file, an error is returned.
+func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	// Parse manifest file first to get additional search paths
 	manifestPaths, err := cc.parseManifestFile(ctx)
 	if err != nil {
@@ -138,75 +296,23 @@ func (cc *Context) Run(ctx context.Context, taskPrompt string) (*Result, error) 
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	// Expand parameters in taskPrompt to allow slash commands in parameters
-	expandedTaskPrompt := cc.expandParams(taskPrompt)
-
-	// Check if the taskPrompt contains a slash command
-	slashTaskName, slashParams, found, err := parseSlashCommand(expandedTaskPrompt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse slash command in taskPrompt: %w", err)
-	}
-
-	if found {
-		// Slash command found - find and use the corresponding task file
-		cc.logger.Info("Found slash command in taskPrompt", "task", slashTaskName, "params", slashParams)
-
-		// Merge slash command parameters with existing parameters
-		// Slash command parameters take precedence
-		for k, v := range slashParams {
-			cc.params[k] = v
-		}
-
-		// Add task name to includes so rules can be filtered by task
-		cc.includes.SetValue("task_name", slashTaskName)
-
-		// Find the task file
-		if err := cc.findTaskFile(slashTaskName); err != nil {
-			return nil, fmt.Errorf("failed to find slash command task file: %w", err)
-		}
-
-		// Parse task file to extract selector labels for filtering rules and tools
-		if err := cc.parseTaskFile(); err != nil {
-			return nil, fmt.Errorf("failed to parse slash command task file: %w", err)
-		}
-
-		// Task frontmatter agent field overrides -a flag if -a was not set
-		if cc.task.FrontMatter.Agent != "" && !cc.agent.IsSet() {
-			if agent, err := ParseAgent(cc.task.FrontMatter.Agent); err == nil {
-				cc.agent = agent
-			} else {
-				cc.logger.Warn("Invalid agent name in task frontmatter, ignoring", "agent", cc.task.FrontMatter.Agent, "error", err)
-			}
-		}
-	} else {
-		// No slash command - use the taskPrompt directly as an inline task
-		cc.logger.Info("Using taskPrompt as inline task")
-		cc.task = Markdown[TaskFrontMatter]{
-			Content:     expandedTaskPrompt,
-			FrontMatter: TaskFrontMatter{},
-		}
-		cc.matchingTaskFile = "<inline>"
+	// Get the task by name
+	if err := cc.findTask(taskName); err != nil {
+		return nil, fmt.Errorf("task not found: %w", err)
 	}
 
 	if err := cc.findExecuteRuleFiles(ctx, homeDir); err != nil {
 		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
-	// Expand parameters in task content
-	expandedTask := cc.expandParams(cc.task.Content)
-
-	// Estimate tokens for task file
-	taskTokens := estimateTokens(expandedTask)
-	cc.totalTokens += taskTokens
-	cc.logger.Info("Including task file", "path", cc.matchingTaskFile, "tokens", taskTokens)
+	// Estimate tokens for task
 	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
 
 	// Build and return the result
-	cc.task.Content = expandedTask
-	cc.task.Tokens = taskTokens
 	result := &Result{
-		Rules: cc.rules,
-		Task:  cc.task,
+		Rules:  cc.rules,
+		Task:   cc.task,
+		Tokens: cc.totalTokens,
 	}
 
 	return result, nil
@@ -267,6 +373,7 @@ func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
 			return fmt.Errorf("failed to download remote directory %s: %w", path, err)
 		}
 		cc.logger.Info("Downloaded to", "path", dst)
+		cc.downloadedPaths = append(cc.downloadedPaths, dst)
 	}
 
 	return nil
@@ -281,76 +388,6 @@ func (cc *Context) cleanupDownloadedDirectories() {
 	}
 }
 
-func (cc *Context) findTaskFile(taskName string) error {
-
-	var taskSearchDirs []string
-	// Add downloaded remote directories to task search paths
-	for _, path := range cc.searchPaths {
-		dst := downloadDir(path)
-		subPaths := taskSearchPaths(dst)
-		taskSearchDirs = append(taskSearchDirs, subPaths...)
-	}
-
-	for _, dir := range taskSearchDirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("failed to stat task dir %s: %w", dir, err)
-		}
-
-		if err := filepath.Walk(dir, cc.taskFileWalker(taskName)); err != nil {
-			return err
-		}
-	}
-
-	if cc.matchingTaskFile == "" {
-		return fmt.Errorf("no task file found with filename=%s.md matching selectors in frontmatter (searched in %v)", taskName, taskSearchDirs)
-	}
-
-	return nil
-}
-
-func (cc *Context) taskFileWalker(taskName string) func(path string, info os.FileInfo, err error) error {
-	return func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			// Skip errors
-			return err
-		} else if info.IsDir() {
-			// Skip directories
-			return nil
-		} else if filepath.Ext(path) != ".md" {
-			// Only process .md files as task files
-			return nil
-		}
-
-		// Match by filename (without .md extension)
-		baseName := strings.TrimSuffix(filepath.Base(path), ".md")
-		if baseName != taskName {
-			return nil
-		}
-
-		// Parse frontmatter to check selectors
-		var frontmatter TaskFrontMatter
-		if _, err = ParseMarkdownFile(path, &frontmatter); err != nil {
-			return fmt.Errorf("failed to parse task file %s: %w", path, err)
-		}
-
-		// Check if file matches include selectors
-		if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
-			return nil
-		}
-
-		// If we already found a matching task, error on duplicate
-		if cc.matchingTaskFile != "" {
-			return fmt.Errorf("multiple task files found with filename=%s.md: %s and %s", taskName, cc.matchingTaskFile, path)
-		}
-
-		cc.matchingTaskFile = path
-
-		return nil
-	}
-}
-
 func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) error {
 	// Skip rule file discovery if resume mode is enabled
 	// Check cc.resume directly first, then fall back to selector check for backward compatibility
@@ -358,111 +395,43 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 		return nil
 	}
 
-	var ruleSearchDirs []string
-	for _, path := range cc.searchPaths {
-		dst := downloadDir(path)
-		subPaths := rulePaths(dst, path == homeDir)
-		ruleSearchDirs = append(ruleSearchDirs, subPaths...)
-	}
-
-	// Build the list of rule locations (local and remote)
-	for _, rule := range ruleSearchDirs {
-		// Skip if this path should be excluded based on target agent
-		if cc.agent.ShouldExcludePath(rule) {
-			cc.logger.Info("Excluding rule path (target agent filtering)", "path", rule)
-			continue
+	err := cc.visitMarkdownFiles(func(path string) []string { return rulePaths(path, path == homeDir) }, func(path string) error {
+		var frontmatter RuleFrontMatter
+		md, err := ParseMarkdownFile(path, &frontmatter)
+		if err != nil {
+			return fmt.Errorf("failed to parse markdown file: %w", err)
 		}
 
-		// Skip if the path doesn't exist
-		if _, err := os.Stat(rule); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("failed to stat rule path %s: %w", rule, err)
+		expandedContent := cc.expandParams(md.Content, nil)
+		tokens := estimateTokens(expandedContent)
+
+		cc.rules = append(cc.rules, Markdown[RuleFrontMatter]{
+			FrontMatter: frontmatter,
+			Content:     expandedContent,
+			Tokens:      tokens,
+		})
+
+		cc.totalTokens += tokens
+
+		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
+
+		if err := cc.runBootstrapScript(ctx, path); err != nil {
+			return fmt.Errorf("failed to run bootstrap script: %w", err)
 		}
 
-		if err := filepath.Walk(rule, cc.ruleFileWalker(ctx)); err != nil {
-			return fmt.Errorf("failed to walk rule dir: %w", err)
-		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
 	return nil
 }
 
-func (cc *Context) ruleFileWalker(ctx context.Context) func(path string, info os.FileInfo, err error) error {
-	return func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		} else if info.IsDir() {
-			return nil
-		}
-
-		// Only process .md and .mdc files as rule files
-		ext := filepath.Ext(path)
-		if ext != ".md" && ext != ".mdc" {
-			return nil
-		}
-
-		// Skip if this file path should be excluded based on target agent
-		if cc.agent.ShouldExcludePath(path) {
-			cc.logger.Info("Excluding rule file (target agent filtering)", "path", path)
-			return nil
-		}
-
-		// Parse frontmatter to check selectors
-		var frontmatter RuleFrontMatter
-		content, err := ParseMarkdownFile(path, &frontmatter)
-		if err != nil {
-			return fmt.Errorf("failed to parse markdown file: %w", err)
-		}
-
-		// Exclude rules whose frontmatter agent field matches the target agent
-		if cc.agent != "" && frontmatter.Agent != "" {
-			if string(cc.agent) == frontmatter.Agent {
-				cc.logger.Info("Excluding rule file (agent field matches target agent)", "path", path, "agent", frontmatter.Agent)
-				return nil
-			}
-		}
-
-		// Check if file matches include selectors BEFORE running bootstrap script.
-		// Note: Files with duplicate basenames will both be included.
-		if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
-			cc.logger.Info("Excluding rule file (does not match include selectors)", "path", path)
-			return nil
-		}
-
-		if err := cc.runBootstrapScript(ctx, path, ext); err != nil {
-			return fmt.Errorf("failed to run bootstrap script (path: %s): %w", path, err)
-		}
-
-		// Expand parameters in rule content
-		expanded := os.Expand(content.Content, func(key string) string {
-			if val, ok := cc.params[key]; ok {
-				return val
-			}
-			// this might not exist, in that case, return the original text
-			return fmt.Sprintf("${%s}", key)
-		})
-
-		// Estimate tokens for this file
-		tokens := estimateTokens(expanded)
-		cc.totalTokens += tokens
-		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
-
-		// Collect the rule content with frontmatter
-		cc.rules = append(cc.rules, Markdown[RuleFrontMatter]{
-			FrontMatter: frontmatter,
-			Content:     expanded,
-			Tokens:      tokens,
-		})
-
-		return nil
-	}
-}
-
-func (cc *Context) runBootstrapScript(ctx context.Context, path, ext string) error {
+func (cc *Context) runBootstrapScript(ctx context.Context, path string) error {
 	// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
 	// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
-	baseNameWithoutExt := strings.TrimSuffix(path, ext)
+	baseNameWithoutExt := strings.TrimSuffix(path, filepath.Ext(path))
 	bootstrapFilePath := baseNameWithoutExt + "-bootstrap"
 
 	if _, err := os.Stat(bootstrapFilePath); os.IsNotExist(err) {
@@ -483,46 +452,5 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path, ext string) err
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 
-	if cc.cmdRunner != nil {
-		if err := cc.cmdRunner(cmd); err != nil {
-			return err
-		}
-	} else {
-		if err := cmd.Run(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// parseTaskFile parses the task file and extracts selector labels from frontmatter.
-// The selectors are added to cc.includes for filtering rules and tools.
-// The parsed task is stored in cc.task.
-func (cc *Context) parseTaskFile() error {
-	var frontMatter TaskFrontMatter
-
-	task, err := ParseMarkdownFile(cc.matchingTaskFile, &frontMatter)
-	if err != nil {
-		return fmt.Errorf("failed to parse task file %s: %w", cc.matchingTaskFile, err)
-	}
-
-	cc.task = task
-
-	// Extract selector labels from frontmatter
-	// Look for a "selectors" field that contains a map of key-value pairs
-	// Values can be strings or arrays (for OR logic)
-	for key, value := range cc.task.FrontMatter.Selectors {
-		switch v := value.(type) {
-		case []any:
-			// Convert []any to multiple selector values for OR logic
-			for _, item := range v {
-				cc.includes.SetValue(key, fmt.Sprint(item))
-			}
-		default:
-			cc.includes.SetValue(key, fmt.Sprint(v))
-		}
-	}
-
-	return nil
+	return cc.cmdRunner(cmd)
 }

@@ -102,7 +102,7 @@ echo "Running bootstrap"
 	createStandardTask(t, dirs.tasksDir, "test-task")
 
 	// Run the program
-	output := runTool(t, "-C", dirs.tmpDir, "/test-task")
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
 	// Check that bootstrap output appears before rule content
 	bootstrapIdx := strings.Index(output, "Running bootstrap")
@@ -142,7 +142,7 @@ General information about the project.
 	createStandardTask(t, dirs.tasksDir, "test-task")
 
 	// Run the program - should succeed without a bootstrap file
-	output := runTool(t, "-C", dirs.tmpDir, "/test-task")
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
 	// Check that rule content is present
 	if !strings.Contains(output, "# Project Info") {
@@ -201,7 +201,7 @@ echo "Running deploy bootstrap"
 	createStandardTask(t, dirs.tasksDir, "test-task")
 
 	// Run the program
-	output := runTool(t, "-C", dirs.tmpDir, "/test-task")
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
 	// Check that both bootstrap scripts ran
 	if !strings.Contains(output, "Running setup bootstrap") {
@@ -251,7 +251,7 @@ Go specific guidelines.
 	createStandardTask(t, dirs.tasksDir, "test-task")
 
 	// Run the program with selector filtering for Python
-	output := runTool(t, "-C", dirs.tmpDir, "-s", "language=python", "/test-task")
+	output := runTool(t, "-C", dirs.tmpDir, "-s", "language=python", "test-task")
 
 	// Check that only Python guidelines are included
 	if !strings.Contains(output, "# Python Guidelines") {
@@ -284,7 +284,7 @@ Please work on ${component} and fix ${issue}.
 	}
 
 	// Run the program with parameters
-	output := runTool(t, "-C", tmpDir, "-p", "component=auth", "-p", "issue=login bug", "/test-task")
+	output := runTool(t, "-C", tmpDir, "-p", "component=auth", "-p", "issue=login bug", "test-task")
 
 	// Check that template variables were expanded
 	if !strings.Contains(output, "Please work on auth and fix login bug.") {
@@ -310,7 +310,7 @@ This is a .mdc file.
 	createStandardTask(t, dirs.tasksDir, "test-task")
 
 	// Run the program
-	output := runTool(t, "-C", dirs.tmpDir, "/test-task")
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
 	// Check that .mdc file content is present
 	if !strings.Contains(output, "# Custom Rules") {
@@ -345,7 +345,7 @@ echo "Running custom bootstrap"
 	createStandardTask(t, dirs.tasksDir, "test-task")
 
 	// Run the program
-	output := runTool(t, "-C", dirs.tmpDir, "/test-task")
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
 	// Check that bootstrap ran and content is present
 	if !strings.Contains(output, "Running custom bootstrap") {
@@ -394,7 +394,7 @@ echo "Bootstrap executed successfully"
 	createStandardTask(t, dirs.tasksDir, "test-task")
 
 	// Run the program - this should chmod +x the bootstrap file before running it
-	output := runTool(t, "-C", dirs.tmpDir, "/test-task")
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
 	// Check that bootstrap output appears (proving it ran successfully)
 	if !strings.Contains(output, "Bootstrap executed successfully") {
@@ -457,7 +457,7 @@ This is a test task.
 	}
 
 	// Run the program
-	output := runTool(t, "-C", tmpDir, "/test-opencode")
+	output := runTool(t, "-C", tmpDir, "test-opencode")
 
 	// Check that agent rule content is present
 	if !strings.Contains(output, "# Documentation Agent") {
@@ -472,34 +472,35 @@ This is a test task.
 
 func TestOpenCodeCommandTaskSupport(t *testing.T) {
 	tmpDir := t.TempDir()
-	openCodeCommandDir := filepath.Join(tmpDir, ".opencode", "command")
+	// Tasks must be in .agents/tasks directory
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(openCodeCommandDir, 0o755); err != nil {
-		t.Fatalf("failed to create opencode command dir: %v", err)
+	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	// Create a task file in .opencode/command
-	taskFile := filepath.Join(openCodeCommandDir, "fix-bug.md")
+	// Create a task file in the correct location
+	taskFile := filepath.Join(tasksDir, "fix-bug.md")
 	taskContent := `---
 task_name: fix-bug
 ---
-# Fix Bug Command
+# Fix Bug Task
 
-This is an OpenCode command task for fixing bugs.
+This is a task for fixing bugs.
 `
 	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
 	// Run the program
-	output := runTool(t, "-C", tmpDir, "/fix-bug")
+	output := runTool(t, "-C", tmpDir, "fix-bug")
 
 	// Check that task content is present
-	if !strings.Contains(output, "# Fix Bug Command") {
-		t.Errorf("OpenCode command task content not found in stdout")
+	if !strings.Contains(output, "# Fix Bug Task") {
+		t.Errorf("task content not found in stdout")
 	}
-	if !strings.Contains(output, "This is an OpenCode command task for fixing bugs.") {
-		t.Errorf("OpenCode command task description not found in stdout")
+	if !strings.Contains(output, "This is a task for fixing bugs.") {
+		t.Errorf("task description not found in stdout")
 	}
 }
 
@@ -524,7 +525,7 @@ This task name is based on the filename.
 	}
 
 	// Run the program with task name matching the filename
-	output := runTool(t, "-C", tmpDir, "/my-special-task")
+	output := runTool(t, "-C", tmpDir, "my-special-task")
 
 	// Check that task content is present
 	if !strings.Contains(output, "# My Special Task") {
@@ -554,7 +555,7 @@ This file uses the filename as task_name.
 	}
 
 	// Run the program - should succeed using filename as task name
-	output := runTool(t, "-C", tmpDir, "/my-task")
+	output := runTool(t, "-C", tmpDir, "my-task")
 
 	// Check that task content is present
 	if !strings.Contains(output, "# My Task") {
@@ -562,54 +563,6 @@ This file uses the filename as task_name.
 	}
 	if !strings.Contains(output, "This file uses the filename as task_name.") {
 		t.Errorf("task description not found in stdout")
-	}
-}
-
-func TestMultipleTasksWithSameNameError(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
-
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
-		t.Fatalf("failed to create tasks dir: %v", err)
-	}
-
-	// Create two task files with the SAME filename in different directories
-	taskFile1 := filepath.Join(tasksDir, "duplicate-task.md")
-	taskContent1 := `---
----
-# Task File 1
-
-This is the first file.
-`
-	if err := os.WriteFile(taskFile1, []byte(taskContent1), 0o644); err != nil {
-		t.Fatalf("failed to write task file 1: %v", err)
-	}
-
-	// Create another file with same name in a different search directory
-	cursorDir := filepath.Join(tmpDir, ".cursor", "commands")
-	if err := os.MkdirAll(cursorDir, 0o755); err != nil {
-		t.Fatalf("failed to create cursor dir: %v", err)
-	}
-	taskFile2 := filepath.Join(cursorDir, "duplicate-task.md")
-	taskContent2 := `---
----
-# Task File 2
-
-This is the second file.
-`
-	if err := os.WriteFile(taskFile2, []byte(taskContent2), 0o644); err != nil {
-		t.Fatalf("failed to write task file 2: %v", err)
-	}
-
-	// Run the program - should fail with an error about duplicate task names
-	output, err := runToolWithError("-C", tmpDir, "/duplicate-task")
-	if err == nil {
-		t.Fatalf("expected program to fail with duplicate task names, but it succeeded")
-	}
-
-	// Check that error message mentions multiple task files
-	if !strings.Contains(output, "multiple task files found") {
-		t.Errorf("expected error about multiple task files, got: %s", output)
 	}
 }
 
@@ -647,7 +600,7 @@ Deploy to the production environment.
 	}
 
 	// Run the program with selector for staging - use the staging task filename
-	output := runTool(t, "-C", tmpDir, "-s", "environment=staging", "/deploy-staging")
+	output := runTool(t, "-C", tmpDir, "-s", "environment=staging", "deploy-staging")
 
 	// Check that staging task content is present
 	if !strings.Contains(output, "# Deploy to Staging") {
@@ -658,7 +611,7 @@ Deploy to the production environment.
 	}
 
 	// Run the program with selector for production - use the production task filename
-	output = runTool(t, "-C", tmpDir, "-s", "environment=production", "/deploy-production")
+	output = runTool(t, "-C", tmpDir, "-s", "environment=production", "deploy-production")
 
 	// Check that production task content is present
 	if !strings.Contains(output, "# Deploy to Production") {
@@ -724,7 +677,7 @@ This is the resume task prompt for continuing the bug fix.
 	if err != nil {
 		t.Fatalf("failed to get working directory: %v", err)
 	}
-	cmd := exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-s", "resume=false", "/fix-bug")
+	cmd := exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-s", "resume=false", "fix-bug")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -754,7 +707,7 @@ This is the resume task prompt for continuing the bug fix.
 
 	// Test 2: Run in resume mode (with -s resume=true selector)
 	// Capture stdout and stderr separately to verify bootstrap scripts don't run
-	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-s", "resume=true", "/fix-bug-resume")
+	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-s", "resume=true", "fix-bug-resume")
 	stdout.Reset()
 	stderr.Reset()
 	cmd.Stdout = &stdout
@@ -784,7 +737,7 @@ This is the resume task prompt for continuing the bug fix.
 	}
 
 	// Test 3: Run in resume mode (with -r flag)
-	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-r", "/fix-bug-resume")
+	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-r", "fix-bug-resume")
 	stdout.Reset()
 	stderr.Reset()
 	cmd.Stdout = &stdout
@@ -846,7 +799,7 @@ This is a rule loaded from a remote directory.
 
 	// Run the program with remote directory (using file:// URL)
 	remoteURL := "file://" + remoteDir
-	output := runTool(t, "-C", tmpDir, "-d", remoteURL, "/test-task")
+	output := runTool(t, "-C", tmpDir, "-d", remoteURL, "test-task")
 
 	// Check that remote rule content is present
 	if !strings.Contains(output, "# Remote Rule") {
@@ -894,7 +847,7 @@ This is a test task.
 	}
 
 	// Test that frontmatter is always printed
-	output := runTool(t, "-C", dirs.tmpDir, "/test-task")
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
 	lines := strings.Split(output, "\n")
 
@@ -986,7 +939,7 @@ This is a test task.
 	// Note: Tasks no longer have bootstrap scripts - only rules do
 
 	// Run the program
-	output := runTool(t, "-C", dirs.tmpDir, "/test-task")
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
 	// Check that task content is present
 	if !strings.Contains(output, "# Test Task") {
@@ -1011,7 +964,7 @@ This task has no bootstrap script.
 	}
 
 	// Run the program - should succeed without a bootstrap file
-	output := runTool(t, "-C", dirs.tmpDir, "/no-bootstrap-task")
+	output := runTool(t, "-C", dirs.tmpDir, "no-bootstrap-task")
 
 	// Check that task content is present
 	if !strings.Contains(output, "# Task Without Bootstrap") {
@@ -1056,7 +1009,7 @@ Deploy instructions.
 	}
 
 	// Run the program
-	output := runTool(t, "-C", dirs.tmpDir, "/deploy-task")
+	output := runTool(t, "-C", dirs.tmpDir, "deploy-task")
 
 	// Check that rule bootstrap ran (rules still have bootstrap scripts)
 	if !strings.Contains(output, "Running rule bootstrap") {
@@ -1081,69 +1034,6 @@ Deploy instructions.
 	}
 	if ruleContentIdx > taskContentIdx {
 		t.Errorf("rule content should appear before task content")
-	}
-}
-
-func TestFreeTextPromptWithRules(t *testing.T) {
-	dirs := setupTestDirs(t)
-
-	// Create a rule file that should be included
-	ruleFile := filepath.Join(dirs.rulesDir, "coding-standards.md")
-	ruleContent := `---
----
-# Coding Standards
-
-Follow these coding standards.
-`
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
-		t.Fatalf("failed to write rule file: %v", err)
-	}
-
-	// Run with a free-text prompt (no slash command)
-	output := runTool(t, "-C", dirs.tmpDir, "Please help me fix a bug in the login system")
-
-	// Free-text prompt should be output as task content
-	if !strings.Contains(output, "Please help me fix a bug in the login system") {
-		t.Errorf("free-text prompt not found in stdout")
-	}
-
-	// Rules should still be included
-	if !strings.Contains(output, "# Coding Standards") {
-		t.Errorf("rule content not found in stdout")
-	}
-
-	// Test with parameter expansion (combined into same test)
-	output = runTool(t, "-C", dirs.tmpDir, "-p", "component=auth", "Please work on ${component}")
-	if !strings.Contains(output, "Please work on auth") {
-		t.Errorf("parameter expansion not working correctly. Output:\n%s", output)
-	}
-}
-
-func TestSlashCommandWithArguments(t *testing.T) {
-	dirs := setupTestDirs(t)
-
-	// Create a task file that uses positional arguments
-	taskFile := filepath.Join(dirs.tasksDir, "fix-issue.md")
-	taskContent := `---
-task_name: fix-issue
----
-# Fix Issue ${1}
-
-Please fix issue number ${1} with priority ${2}.
-`
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
-		t.Fatalf("failed to write task file: %v", err)
-	}
-
-	// Run with a slash command that includes arguments
-	output := runTool(t, "-C", dirs.tmpDir, "/fix-issue 123 high")
-
-	// Arguments should be substituted into the task content
-	if !strings.Contains(output, "# Fix Issue 123") {
-		t.Errorf("positional argument ${1} not substituted in title. Output:\n%s", output)
-	}
-	if !strings.Contains(output, "Please fix issue number 123 with priority high.") {
-		t.Errorf("positional arguments not substituted in content. Output:\n%s", output)
 	}
 }
 
@@ -1211,7 +1101,7 @@ This rule is from a remote directory.
 	}
 
 	// Run the tool with the manifest file
-	output := runTool(t, "-C", mainDir, "-m", "file://"+manifestFile, "/test-task")
+	output := runTool(t, "-C", mainDir, "-m", "file://"+manifestFile, "test-task")
 
 	// Check that the main rule is included
 	if !strings.Contains(output, "# Main Rule") {

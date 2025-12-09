@@ -67,5 +67,6 @@ func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) 
 	return Markdown[T]{
 		FrontMatter: *frontMatter,
 		Content:     content.String(),
+		Tokens:      estimateTokens(content.String()),
 	}, nil
 }
