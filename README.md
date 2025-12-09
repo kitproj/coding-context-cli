@@ -86,6 +86,8 @@ Options:
     	Change to directory before doing anything. (default ".")
   -d value
     	Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).
+  -m string
+    	Go Getter URL to a manifest file containing search paths (one per line). Every line is included as-is.
   -p value
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
   -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
@@ -166,18 +168,20 @@ The tool looks for task and rule files in the following locations, in order of p
 
 **Tasks:**
 - `./.agents/tasks/*.md` (task name matches filename without `.md` extension)
+- `~/.agents/tasks/*.md`
+
+**Commands** (referenced via slash commands inside task content):
 - `./.agents/commands/*.md`
 - `./.cursor/commands/*.md`
 - `./.opencode/command/*.md`
-- `~/.agents/tasks/*.md`
 
 **Rules:**
 The tool searches for a variety of files and directories, including:
 - `CLAUDE.local.md`
-- `.agents/rules`, `.cursor/rules`, `.augment/rules`, `.windsurf/rules`, `.opencode/agent`, `.opencode/command`
-- `.github/copilot-instructions.md`, `.gemini/styleguide.md`
-- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` (and in parent directories)
-- User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, `~/.opencode/rules`, etc.
+- `.agents/rules`, `.cursor/rules`, `.augment/rules`, `.windsurf/rules`, `.opencode/agent`, `.opencode/rules`
+- `.github/copilot-instructions.md`, `.github/agents`, `.gemini/styleguide.md`
+- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.codex/AGENTS.md`
+- User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`, `~/.opencode/rules`, etc.
 
 ### Remote File System Support
 
@@ -203,7 +207,7 @@ coding-context \
 # Mix local and remote directories
 coding-context \
   -d git::https://github.com/company/shared-rules.git \
-  -s language=Go \
+  -s languages=go \
   /implement-feature
 ```
 
@@ -290,7 +294,7 @@ Task files can include a `selectors` field in their frontmatter to automatically
 ---
 task_name: implement-feature
 selectors:
-  language: Go
+  languages: go
   stage: implementation
 ---
 # Implement Feature
@@ -300,13 +304,13 @@ Implement the feature following Go best practices and implementation guidelines.
 
 When you run this task, it automatically applies the selectors:
 ```bash
-# This command automatically includes only rules with language=Go and stage=implementation
+# This command automatically includes only rules with languages=go and stage=implementation
 coding-context /implement-feature
 ```
 
 This is equivalent to:
 ```bash
-coding-context -s language=Go -s stage=implementation /implement-feature
+coding-context -s languages=go -s stage=implementation /implement-feature
 ```
 
 **Selectors support OR logic for the same key using arrays:**
@@ -314,20 +318,20 @@ coding-context -s language=Go -s stage=implementation /implement-feature
 ---
 task_name: test-code
 selectors:
-  language: [Go, Python]
+  languages: [go, python]
   stage: testing
 ---
 ```
 
-This will include rules that match `(language=Go OR language=Python) AND stage=testing`.
+This will include rules that match `(languages=go OR languages=python) AND stage=testing`.
 
 **Combining task selectors with command-line selectors:**
 
 Selectors from both the task frontmatter and command line are combined (additive):
 ```bash
-# Task has: selectors.language = Go
+# Task has: selectors.languages = go
 # Command adds: -s priority=high
-# Result: includes rules matching language=Go AND priority=high
+# Result: includes rules matching languages=go AND priority=high
 coding-context -s priority=high /implement-feature
 ```
 
@@ -389,7 +393,8 @@ Rule files are Markdown (`.md`) or `.mdc` files, optionally with YAML frontmatte
 **Example (`.agents/rules/backend.md`):**
 ```markdown
 ---
-language: Go
+languages:
+  - go
 ---
 
 # Backend Coding Standards
@@ -398,65 +403,57 @@ language: Go
 - Use the standard logging library.
 ```
 
-To include this rule only when working on Go code, you would use `-s language=Go`:
+To include this rule only when working on Go code, you would use `-s languages=go`:
 
 ```bash
-coding-context -s language=Go /fix-bug
+coding-context -s languages=go /fix-bug
 ```
 
-This will include all rules with `language: Go` in their frontmatter, excluding rules for other languages.
+This will include all rules with `languages: [ go ]` in their frontmatter, excluding rules for other languages.
+
+**Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`). The frontmatter field is `languages` (plural) with array format.
 
 **Example: Language-Specific Rules**
 
 You can create multiple language-specific rule files:
 
-- `.agents/rules/python-standards.md` with `language: Python`
-- `.agents/rules/javascript-standards.md` with `language: JavaScript`
-- `.agents/rules/go-standards.md` with `language: Go`
+- `.agents/rules/python-standards.md` with `languages: [ python ]`
+- `.agents/rules/javascript-standards.md` with `languages: [ javascript ]`
+- `.agents/rules/go-standards.md` with `languages: [ go ]`
 
 Then select only the relevant rules:
 
 ```bash
 # Work on Python code with Python-specific rules
-coding-context -s language=Python /fix-bug
+coding-context -s languages=python /fix-bug
 
 # Work on JavaScript code with JavaScript-specific rules
-coding-context -s language=JavaScript /enhance-feature
+coding-context -s languages=javascript /enhance-feature
 ```
 
-**Common Linguist Languages**
+**Language Values**
 
-When using language selectors, use the exact language names as defined by [GitHub Linguist](https://github.com/github-linguist/linguist/blob/master/lib/linguist/languages.yml). Here are common languages with correct capitalization:
+When using language selectors, language values should be **lowercase** (e.g., `go`, `python`, `javascript`, `java`, `typescript`). The frontmatter field should be `languages` (plural) in array format:
 
-- **C**: `C`
-- **C#**: `C#`
-- **C++**: `C++`
-- **CSS**: `CSS`
-- **Dart**: `Dart`
-- **Elixir**: `Elixir`
-- **Go**: `Go`
-- **Haskell**: `Haskell`
-- **HTML**: `HTML`
-- **Java**: `Java`
-- **JavaScript**: `JavaScript`
-- **Kotlin**: `Kotlin`
-- **Lua**: `Lua`
-- **Markdown**: `Markdown`
-- **Objective-C**: `Objective-C`
-- **PHP**: `PHP`
-- **Python**: `Python`
-- **Ruby**: `Ruby`
-- **Rust**: `Rust`
-- **Scala**: `Scala`
-- **Shell**: `Shell`
-- **Swift**: `Swift`
-- **TypeScript**: `TypeScript`
-- **YAML**: `YAML`
+```yaml
+---
+languages:
+  - go
+  - python
+---
+```
 
-Note the capitalization - for example, use `Go` not `go`, `JavaScript` not `javascript`, and `TypeScript` not `typescript`.
+**Common languages (lowercase):**
+- `c`, `csharp` (C#), `cpp` (C++), `css`
+- `dart`, `elixir`, `go`, `haskell`, `html`
+- `java`, `javascript`, `kotlin`, `lua`, `markdown`
+- `objectivec` (Objective-C), `php`, `python`, `ruby`, `rust`
+- `scala`, `shell`, `swift`, `typescript`, `yaml`
+
+**Note:** Language values should be lowercase in frontmatter and selectors.
 
 **Note:** Frontmatter selectors can only match top-level YAML fields. For example:
-- ✅ Works: `language: Go` matches `-s language=Go`
+- ✅ Works: `languages: [ go ]` matches `-s languages=go`
 - ❌ Doesn't work: Nested fields like `metadata.version: 1.0` cannot be matched with `-s metadata.version=1.0`
 
 If you need to filter on nested data, flatten your frontmatter structure to use top-level fields only.
@@ -575,7 +572,7 @@ If the task has `selectors` in its frontmatter, they will be visible in the outp
 ---
 task_name: implement-feature
 selectors:
-  language: Go
+  languages: go
   stage: implementation
 ---
 # Implementation Task
