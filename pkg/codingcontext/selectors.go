@@ -82,9 +82,11 @@ func (s *Selectors) GetValue(key, value string) bool {
 	return innerMap[value]
 }
 
-// MatchesIncludes returns true if the frontmatter matches all include selectors
-// If a key doesn't exist in frontmatter, it's allowed
-// Multiple values for the same key use OR logic (matches if frontmatter value is in the inner map)
+// MatchesIncludes returns true if the frontmatter matches all include selectors.
+// If a key doesn't exist in frontmatter, it's allowed.
+// Multiple values for the same key use OR logic (matches if frontmatter value is in the inner map).
+// This enables combining CLI selectors (-s flag) with task frontmatter selectors:
+// both are added to the same Selectors map, creating an OR condition for rules to match.
 func (includes *Selectors) MatchesIncludes(frontmatter BaseFrontMatter) bool {
 	for key, values := range *includes {
 		fmValue, exists := frontmatter.Content[key]

@@ -168,7 +168,11 @@ func (cc *Context) findTask(taskName string) error {
 			return err
 		}
 
-		// Extract selector labels from task frontmatter
+		// Extract selector labels from task frontmatter and add them to cc.includes.
+		// This combines CLI selectors (from -s flag) with task selectors using OR logic:
+		// rules match if their frontmatter value matches ANY selector value for a given key.
+		// For example: if CLI has env=development and task has env=production,
+		// rules with either env=development OR env=production will be included.
 		for key, value := range frontMatter.Selectors {
 			switch v := value.(type) {
 			case []any:
