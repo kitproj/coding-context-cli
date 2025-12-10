@@ -43,7 +43,7 @@ task_name: review-component
 
 # Review Component
 
-Review the component in @src/components/Button.tsx.
+Review the component in ${file:src/components/Button.tsx}.
 Check for performance issues and suggest improvements.`
 
 	taskPath := filepath.Join(tasksDir, "review-component.md")
@@ -118,7 +118,7 @@ task_name: review-api
 
 # Review API Configuration
 
-Compare @src/config.ts and @src/api.ts for consistency.`
+Compare ${file:src/config.ts} and ${file:src/api.ts} for consistency.`
 
 	taskPath := filepath.Join(tasksDir, "review-api.md")
 	if err := os.WriteFile(taskPath, []byte(taskContent), 0o644); err != nil {
@@ -171,7 +171,7 @@ task_name: review-missing
 
 # Review Missing File
 
-Review @nonexistent.txt for issues.`
+Review ${file:nonexistent.txt} for issues.`
 
 	taskPath := filepath.Join(tasksDir, "review-missing.md")
 	if err := os.WriteFile(taskPath, []byte(taskContent), 0o644); err != nil {
@@ -184,14 +184,15 @@ Review @nonexistent.txt for issues.`
 	)
 
 	ctx := context.Background()
-	_, err := cc.Run(ctx, "review-missing")
+	result, err := cc.Run(ctx, "review-missing")
 
-	// Should get an error about missing file
-	if err == nil {
-		t.Errorf("Expected error for missing file reference, got nil")
+	// Should succeed but the file reference should remain unexpanded
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if err != nil && !strings.Contains(err.Error(), "failed to read file reference") {
-		t.Errorf("Expected 'failed to read file reference' error, got: %v", err)
+	// The placeholder should remain in the content since the file wasn't found
+	if !strings.Contains(result.Task.Content, "${file:nonexistent.txt}") {
+		t.Errorf("Expected unexpanded placeholder to remain in content, got: %s", result.Task.Content)
 	}
 }
