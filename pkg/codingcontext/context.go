@@ -238,7 +238,7 @@ func (cc *Context) findTask(taskName string) error {
 }
 
 // findCommand searches for a command markdown file and returns its content.
-// Parameters are substituted only if the command's expand_params field is not false.
+// Parameters are substituted unless the command's expand_params field is explicitly set to false.
 func (cc *Context) findCommand(commandName string, params map[string]string) (string, error) {
 	var content *string
 	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
@@ -283,8 +283,8 @@ func (cc *Context) expandParams(content string, params map[string]string) string
 	})
 }
 
-// shouldExpandParams returns true if parameter expansion should occur based on the ExpandParams field.
-// If ExpandParams is nil (not specified), it defaults to true.
+// shouldExpandParams returns true if parameter expansion should occur based on the expandParams field.
+// If expandParams is nil (not specified), it defaults to true.
 func shouldExpandParams(expandParams *bool) bool {
 	if expandParams == nil {
 		return true
