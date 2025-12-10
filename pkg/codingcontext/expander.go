@@ -9,6 +9,72 @@ import (
 	"unicode"
 )
 
+// expander.go implements a text expansion system that supports three types of expansions:
+//
+// 1. Parameter Expansion: ${name}
+//    - Expands to the value of the parameter with the given name
+//    - If the parameter is not found, logs a warning and leaves the placeholder unexpanded
+//    - Parameter names must match: [a-zA-Z_][a-zA-Z0-9_.-]*
+//
+// 2. Command Expansion: !`command`
+//    - Executes the command in a shell and expands to its output
+//    - If the command fails, logs a warning but still substitutes the output (which may be empty)
+//    - Output is trimmed of leading/trailing whitespace
+//
+// 3. File Expansion: @path
+//    - Reads the file at the given path and expands to its contents
+//    - Supports escaped spaces in paths: @path\ with\ spaces.txt
+//    - If the file is not found, logs a warning and leaves the placeholder unexpanded
+//    - Path continues until unescaped whitespace or another expansion marker
+//
+// The parser uses a manual scanning approach rather than participle's lexer to handle
+// the complex requirements of literal text mixed with multiple expansion types.
+//
+// Grammar (EBNF):
+//
+// (* Top-level construct: A string containing zero or more segments *)
+// String          = { Segment } ;
+//
+// (* A segment is either raw text or one of the expansion types *)
+// Segment         = Expansion | Literal ;
+//
+// (* The three supported expansion types *)
+// Expansion       = ParameterExp | CommandExp | FileExp ;
+//
+// (* 1. Parameter Expansion: ${...} *)
+// ParameterExp    = "${" , ParamName , "}" ;
+// ParamName       = Identifier ;
+//
+// (* 2. Command Expansion: !`command` *)
+// CommandExp      = "!" , BacktickString ;
+// BacktickString  = "`" , { CommandChar } , "`" ;
+//
+// (* 3. File Expansion: @path *)
+// (* The path continues until it hits an unescaped whitespace or End of String *)
+// FileExp         = "@" , FilePath ;
+// FilePath        = PathChar , { PathChar } ;
+//
+// (* Low-level definitions *)
+// Literal         = LiteralChar , { LiteralChar } ;
+//
+// (* Identifier for parameters (e.g. valid variable names) *)
+// Identifier      = Letter , { Letter | Digit | "_" | "-" | "." } ;
+//
+// (* Command contents: anything except the backtick delimiter *)
+// CommandChar     = ? all characters except "`" ? ;
+//
+// (* Path logic: Allow normal path chars OR an escaped space *)
+// PathChar        = NormalPathChar | EscapedSpace ;
+// NormalPathChar  = ? any character except whitespace, "$", "!", "@" ? ;
+// EscapedSpace    = "\" , " " ;
+//
+// (* Literal text: anything that doesn't trigger an expansion start *)
+// LiteralChar     = ? all characters except "$", "!", "@" when followed by expansion markers ? ;
+//
+// (* Basic character classes *)
+// Letter          = "a"..."z" | "A"..."Z" ;
+// Digit           = "0"..."9" ;
+
 // Segment represents a part of the string - either literal text or an expansion
 type Segment interface {
 	Expand(params map[string]string, logger *slog.Logger) string
