@@ -299,3 +299,56 @@ func TestNewExpander(t *testing.T) {
 		})
 	}
 }
+
+func TestValidatePath(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		wantErr bool
+	}{
+		{
+			name:    "simple filename",
+			path:    "file.txt",
+			wantErr: false,
+		},
+		{
+			name:    "absolute path",
+			path:    "/tmp/file.txt",
+			wantErr: false,
+		},
+		{
+			name:    "relative path with subdirectory",
+			path:    "subdir/file.txt",
+			wantErr: false,
+		},
+		{
+			name:    "path with null byte - rejected",
+			path:    "file\x00.txt",
+			wantErr: true,
+		},
+		{
+			name:    "path with directory traversal - allowed (legitimate use case)",
+			path:    "../../../etc/passwd",
+			wantErr: false,
+		},
+		{
+			name:    "path with .. - allowed",
+			path:    "dir/../file.txt",
+			wantErr: false,
+		},
+		{
+			name:    "simple path",
+			path:    "file.txt",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePath(tt.path)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validatePath() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

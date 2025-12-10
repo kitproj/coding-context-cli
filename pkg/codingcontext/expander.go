@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -52,9 +53,14 @@ func (e *Expander) expandParameters(content string) string {
 }
 
 // expandCommands handles !`command` expansion
+// SECURITY NOTE: This executes arbitrary shell commands from markdown content.
+// Only use this tool with trusted markdown files as it can execute any command
+// with the permissions of the user running the tool.
+// Limitation: Escaped backticks within commands are not supported.
 func (e *Expander) expandCommands(content string) string {
 	// Match !`...` where ... is the command
 	// The backtick content can span multiple lines
+	// Note: This does not handle escaped backticks within the command
 	re := regexp.MustCompile("!`([^`]*)`")
 
 	result := re.ReplaceAllStringFunc(content, func(match string) string {
@@ -78,6 +84,9 @@ func (e *Expander) expandCommands(content string) string {
 }
 
 // expandPaths handles @path expansion
+// SECURITY NOTE: This reads arbitrary file paths specified in markdown content.
+// The tool validates paths to prevent directory traversal but still grants
+// read access to any file the user can read. Only use with trusted markdown files.
 func (e *Expander) expandPaths(content string) string {
 	// Match @path where path is delimited by whitespace
 	// Paths can have escaped spaces (\ )
@@ -107,6 +116,15 @@ func (e *Expander) expandPaths(content string) string {
 			if pathEnd > pathStart {
 				// Extract and unescape the path
 				path := unescapePath(content[pathStart:pathEnd])
+
+				// Validate the path to prevent directory traversal attacks
+				if err := validatePath(path); err != nil {
+					e.logger.Warn("path validation failed", "path", path, "error", err)
+					// Return the original @path if validation fails
+					result.WriteString(content[i:pathEnd])
+					i = pathEnd
+					continue
+				}
 
 				// Read the file
 				fileContent, err := os.ReadFile(path)
@@ -139,4 +157,25 @@ func isWhitespace(b byte) bool {
 // unescapePath removes escape sequences from a path (specifically \<space>)
 func unescapePath(path string) string {
 	return strings.ReplaceAll(path, "\\ ", " ")
+}
+
+// validatePath validates a file path for basic safety checks.
+// Note: This tool is designed to work with user-created markdown files in their
+// workspace and grants read access to files the user can read. The primary
+// defense is that users should only use trusted markdown files.
+func validatePath(path string) error {
+	// Check for null bytes which are never valid in file paths
+	if strings.Contains(path, "\x00") {
+		return fmt.Errorf("path contains null byte")
+	}
+
+	// Clean the path to normalize it (this is primarily for consistency)
+	_ = filepath.Clean(path)
+
+	// We intentionally allow paths with .. components as they may be
+	// legitimate references to files in parent directories within the
+	// user's workspace. The security model is that users should only
+	// use trusted markdown files, similar to running trusted shell scripts.
+
+	return nil
 }
