@@ -579,6 +579,104 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 		},
 		{
+			name: "CLI selectors combined with task selectors use OR logic",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "or-task", "selectors:\n  env: production", "Task with env=production")
+				createRule(t, dir, ".agents/rules/prod-rule.md", "env: production", "Production rule")
+				createRule(t, dir, ".agents/rules/dev-rule.md", "env: development", "Development rule")
+				createRule(t, dir, ".agents/rules/test-rule.md", "env: test", "Test rule")
+			},
+			opts: []Option{
+				WithSelectors(Selectors{"env": {"development": true}}), // CLI selector for development
+			},
+			taskName: "or-task",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				// Should include both prod-rule (from task) and dev-rule (from CLI)
+				// Should exclude test-rule (matches neither)
+				// This demonstrates OR logic: rules match if env is production OR development
+				if len(result.Rules) != 2 {
+					t.Errorf("expected 2 rules (prod and dev via OR logic), got %d", len(result.Rules))
+				}
+				foundProd := false
+				foundDev := false
+				foundTest := false
+				for _, rule := range result.Rules {
+					if strings.Contains(rule.Content, "Production rule") {
+						foundProd = true
+					}
+					if strings.Contains(rule.Content, "Development rule") {
+						foundDev = true
+					}
+					if strings.Contains(rule.Content, "Test rule") {
+						foundTest = true
+					}
+				}
+				if !foundProd {
+					t.Error("expected to find production rule (from task selector)")
+				}
+				if !foundDev {
+					t.Error("expected to find development rule (from CLI selector)")
+				}
+				if foundTest {
+					t.Error("did not expect to find test rule (matches neither selector)")
+				}
+			},
+		},
+		{
+			name: "CLI selectors combined with array task selectors use OR logic",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "array-or", "selectors:\n  env:\n    - production\n    - staging", "Task with array selectors")
+				createRule(t, dir, ".agents/rules/prod-rule.md", "env: production", "Production rule")
+				createRule(t, dir, ".agents/rules/staging-rule.md", "env: staging", "Staging rule")
+				createRule(t, dir, ".agents/rules/dev-rule.md", "env: development", "Development rule")
+				createRule(t, dir, ".agents/rules/test-rule.md", "env: test", "Test rule")
+			},
+			opts: []Option{
+				WithSelectors(Selectors{"env": {"development": true}}), // CLI adds development
+			},
+			taskName: "array-or",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				// Should include prod, staging (from task array), and dev (from CLI)
+				// Should exclude test (matches none)
+				// This demonstrates OR logic with array selectors: env is production OR staging OR development
+				if len(result.Rules) != 3 {
+					t.Errorf("expected 3 rules (prod, staging, dev via OR logic), got %d", len(result.Rules))
+				}
+				foundProd := false
+				foundStaging := false
+				foundDev := false
+				foundTest := false
+				for _, rule := range result.Rules {
+					if strings.Contains(rule.Content, "Production rule") {
+						foundProd = true
+					}
+					if strings.Contains(rule.Content, "Staging rule") {
+						foundStaging = true
+					}
+					if strings.Contains(rule.Content, "Development rule") {
+						foundDev = true
+					}
+					if strings.Contains(rule.Content, "Test rule") {
+						foundTest = true
+					}
+				}
+				if !foundProd {
+					t.Error("expected to find production rule (from task array selector)")
+				}
+				if !foundStaging {
+					t.Error("expected to find staging rule (from task array selector)")
+				}
+				if !foundDev {
+					t.Error("expected to find development rule (from CLI selector)")
+				}
+				if foundTest {
+					t.Error("did not expect to find test rule (matches no selector)")
+				}
+			},
+		},
+		{
 			name: "token counting for rules",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "token-task", "", "Task content")
