@@ -270,6 +270,8 @@ func (cc *Context) expandParams(content string, params map[string]string) string
 			filePath := strings.TrimPrefix(key, "file:")
 
 			// Determine base directory for file resolution
+			// The first downloadedPath is always the working directory (passed via -C flag or default ".")
+			// This is set in main.go where workDir is added as the first search path
 			baseDir := "."
 			if len(cc.downloadedPaths) > 0 {
 				baseDir = cc.downloadedPaths[0]
