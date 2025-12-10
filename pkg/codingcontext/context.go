@@ -195,6 +195,9 @@ func (cc *Context) findTask(taskName string) error {
 
 		expandedContent := cc.expandParams(md.Content, nil)
 
+		// Trim leading/trailing whitespace to avoid parser issues with empty lines
+		expandedContent = strings.TrimSpace(expandedContent)
+
 		task, err := ParseTask(expandedContent)
 		if err != nil {
 			return err
@@ -213,10 +216,21 @@ func (cc *Context) findTask(taskName string) error {
 			}
 		}
 
+		// Expand file references (e.g., @path/to/file.txt)
+		// Use the first downloaded path (working directory) as the base directory for resolving relative paths
+		baseDir := "."
+		if len(cc.downloadedPaths) > 0 {
+			baseDir = cc.downloadedPaths[0]
+		}
+		contentWithFiles, err := expandFileReferences(finalContent.String(), baseDir)
+		if err != nil {
+			return fmt.Errorf("failed to expand file references: %w", err)
+		}
+
 		cc.task = Markdown[TaskFrontMatter]{
 			FrontMatter: frontMatter,
-			Content:     finalContent.String(),
-			Tokens:      estimateTokens(finalContent.String()),
+			Content:     contentWithFiles,
+			Tokens:      estimateTokens(contentWithFiles),
 		}
 		cc.totalTokens += cc.task.Tokens
 
