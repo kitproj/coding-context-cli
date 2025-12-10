@@ -25,7 +25,7 @@ task_name: <optional-task-identifier>
 
 Content can include:
 - ${parameter_name} - Parameter substitution
-- ${!shell-command} - Shell command output injection
+- !`shell-command` - Shell command output injection
 - /command-name - Slash command (reference to another markdown file)
 ```
 
@@ -343,9 +343,9 @@ coding-context \
 
 ### Shell Command Output
 
-Use `${!command}` syntax to inject shell command output.
+Use `!`command`` syntax to inject shell command output.
 
-**Syntax:** `${!shell-command}`
+**Syntax:** `!`shell-command``
 
 **Example:**
 ```markdown
@@ -355,7 +355,7 @@ task_name: analyze-coverage
 # Test Coverage Analysis
 
 Current test results:
-${!npm test}
+!`npm test`
 
 Please analyze and suggest improvements.
 ```
@@ -368,10 +368,10 @@ Please analyze and suggest improvements.
 - If command fails, error is logged and placeholder remains unchanged
 
 **Common patterns:**
-- Test output: `${!go test -v ./...}`
-- Git history: `${!git log --oneline -10}`
-- File listings: `${!ls -la | head -20}`
-- System info: `${!uname -a}`
+- Test output: `!`go test -v ./...``
+- Git history: `!`git log --oneline -10``
+- File listings: `!`ls -la | head -20``
+- System info: `!`uname -a``
 
 **Security:** Commands run with same permissions as `coding-context`. Avoid untrusted input in commands.
 

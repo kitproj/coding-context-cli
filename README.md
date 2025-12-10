@@ -14,7 +14,7 @@ This tool collects context from predefined rule files and a task-specific prompt
 - **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors (matches top-level YAML fields only).
 - **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically.
 - **Parameter Substitution**: Inject values into your task prompts using `${parameter}` syntax.
-- **Shell Command Output**: Include live command output using `${!command}` syntax.
+- **Shell Command Output**: Include live command output using `!`command`` syntax.
 - **Token Estimation**: Get an estimate of the total token count for the generated context.
 
 ## Supported Coding Agents
