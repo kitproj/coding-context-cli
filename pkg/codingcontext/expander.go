@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 )
 
@@ -26,85 +25,77 @@ func NewExpander(params Params, logger *slog.Logger) *Expander {
 	}
 }
 
-// Expand performs all types of expansion on the content:
+// Expand performs all types of expansion on the content in a single pass:
 // 1. Parameter expansion: ${param_name}
 // 2. Command expansion: !`command`
 // 3. Path expansion: @path
+// SECURITY: Processes rune-by-rune to prevent injection attacks where expanded
+// content contains further expansion sequences (e.g., command output with ${param}).
 func (e *Expander) Expand(content string) string {
-	// First expand commands, then paths, then parameters
-	// This order allows commands and paths to generate parameter references
-	content = e.expandCommands(content)
-	content = e.expandPaths(content)
-	content = e.expandParameters(content)
-	return content
-}
-
-// expandParameters handles ${param_name} expansion
-func (e *Expander) expandParameters(content string) string {
-	return os.Expand(content, func(key string) string {
-		if val, ok := e.params[key]; ok {
-			return val
-		}
-		// Return original placeholder if not found and log warning
-		e.logger.Warn("parameter not found", "param", key)
-		return fmt.Sprintf("${%s}", key)
-	})
-}
-
-// expandCommands handles !`command` expansion
-// SECURITY NOTE: This executes arbitrary shell commands from markdown content.
-// Only use this tool with trusted markdown files as it can execute any command
-// with the permissions of the user running the tool.
-// Limitation: Escaped backticks within commands are not supported.
-func (e *Expander) expandCommands(content string) string {
-	// Match !`...` where ... is the command
-	// The backtick content can span multiple lines
-	// Note: This does not handle escaped backticks within the command
-	re := regexp.MustCompile("!`([^`]*)`")
-
-	result := re.ReplaceAllStringFunc(content, func(match string) string {
-		// Extract command from !`command`
-		command := match[2 : len(match)-1] // Remove !` and `
-
-		// Execute the command using sh -c
-		cmd := exec.Command("sh", "-c", command)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			e.logger.Warn("command expansion failed", "command", command, "error", err)
-			// Return the original match if command fails
-			return match
-		}
-
-		// Return the command output, trimming trailing newline if present
-		return strings.TrimSuffix(string(output), "\n")
-	})
-
-	return result
-}
-
-// expandPaths handles @path expansion
-// SECURITY NOTE: This reads arbitrary file paths specified in markdown content.
-// The tool validates paths to prevent directory traversal but still grants
-// read access to any file the user can read. Only use with trusted markdown files.
-func (e *Expander) expandPaths(content string) string {
-	// Match @path where path is delimited by whitespace
-	// Paths can have escaped spaces (\ )
 	var result strings.Builder
+	runes := []rune(content)
 	i := 0
 
-	for i < len(content) {
-		if content[i] == '@' && (i == 0 || isWhitespace(content[i-1])) {
+	for i < len(runes) {
+		// Check for parameter expansion: ${...}
+		if i+2 < len(runes) && runes[i] == '$' && runes[i+1] == '{' {
+			// Find the closing }
+			end := i + 2
+			for end < len(runes) && runes[end] != '}' {
+				end++
+			}
+			if end < len(runes) {
+				// Extract parameter name
+				paramName := string(runes[i+2 : end])
+				if val, ok := e.params[paramName]; ok {
+					result.WriteString(val)
+				} else {
+					e.logger.Warn("parameter not found", "param", paramName)
+					result.WriteString("${" + paramName + "}")
+				}
+				i = end + 1
+				continue
+			}
+		}
+
+		// Check for command expansion: !`...`
+		if i+2 < len(runes) && runes[i] == '!' && runes[i+1] == '`' {
+			// Find the closing `
+			end := i + 2
+			for end < len(runes) && runes[end] != '`' {
+				end++
+			}
+			if end < len(runes) {
+				// Extract command
+				command := string(runes[i+2 : end])
+				cmd := exec.Command("sh", "-c", command)
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					e.logger.Warn("command expansion failed", "command", command, "error", err)
+					// Return the original !`command` if command fails
+					result.WriteString("!`" + command + "`")
+				} else {
+					// Write command output (trimming trailing newline)
+					result.WriteString(strings.TrimSuffix(string(output), "\n"))
+				}
+				i = end + 1
+				continue
+			}
+		}
+
+		// Check for path expansion: @path
+		if runes[i] == '@' && (i == 0 || isWhitespaceRune(runes[i-1])) {
 			// Found potential path expansion at start or after whitespace
 			pathStart := i + 1
 			pathEnd := pathStart
 
 			// Scan for the end of the path (whitespace or end of string)
 			// Handle escaped spaces
-			for pathEnd < len(content) {
-				if content[pathEnd] == '\\' && pathEnd+1 < len(content) && content[pathEnd+1] == ' ' {
+			for pathEnd < len(runes) {
+				if runes[pathEnd] == '\\' && pathEnd+1 < len(runes) && runes[pathEnd+1] == ' ' {
 					// Escaped space, skip both characters
 					pathEnd += 2
-				} else if isWhitespace(content[pathEnd]) {
+				} else if isWhitespaceRune(runes[pathEnd]) {
 					// Unescaped whitespace marks end of path
 					break
 				} else {
@@ -114,13 +105,13 @@ func (e *Expander) expandPaths(content string) string {
 
 			if pathEnd > pathStart {
 				// Extract and unescape the path
-				path := unescapePath(content[pathStart:pathEnd])
+				path := unescapePath(string(runes[pathStart:pathEnd]))
 
-				// Validate the path to prevent directory traversal attacks
+				// Validate the path
 				if err := validatePath(path); err != nil {
 					e.logger.Warn("path validation failed", "path", path, "error", err)
 					// Return the original @path if validation fails
-					result.WriteString(content[i:pathEnd])
+					result.WriteString(string(runes[i:pathEnd]))
 					i = pathEnd
 					continue
 				}
@@ -130,7 +121,7 @@ func (e *Expander) expandPaths(content string) string {
 				if err != nil {
 					e.logger.Warn("path expansion failed", "path", path, "error", err)
 					// Return the original @path if file doesn't exist
-					result.WriteString(content[i:pathEnd])
+					result.WriteString(string(runes[i:pathEnd]))
 				} else {
 					// Expand to file content
 					result.Write(fileContent)
@@ -141,16 +132,17 @@ func (e *Expander) expandPaths(content string) string {
 			}
 		}
 
-		result.WriteByte(content[i])
+		// No expansion found, write the current rune
+		result.WriteRune(runes[i])
 		i++
 	}
 
 	return result.String()
 }
 
-// isWhitespace checks if a byte is whitespace (space, tab, newline, carriage return)
-func isWhitespace(b byte) bool {
-	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+// isWhitespaceRune checks if a rune is whitespace (space, tab, newline, carriage return)
+func isWhitespaceRune(r rune) bool {
+	return r == ' ' || r == '\t' || r == '\n' || r == '\r'
 }
 
 // unescapePath removes escape sequences from a path (specifically \<space>)

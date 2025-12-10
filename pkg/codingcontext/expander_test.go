@@ -56,9 +56,9 @@ func TestExpandParameters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			expander := NewExpander(tt.params, slog.New(slog.NewTextHandler(os.Stderr, nil)))
-			result := expander.expandParameters(tt.content)
+			result := expander.Expand(tt.content)
 			if result != tt.expected {
-				t.Errorf("expandParameters() = %q, want %q", result, tt.expected)
+				t.Errorf("Expand() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
@@ -116,14 +116,14 @@ func TestExpandCommands(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			expander := NewExpander(Params{}, slog.New(slog.NewTextHandler(os.Stderr, nil)))
-			result := expander.expandCommands(tt.content)
+			result := expander.Expand(tt.content)
 			if tt.contains != "" {
 				if !strings.Contains(result, tt.contains) {
-					t.Errorf("expandCommands() = %q, should contain %q", result, tt.contains)
+					t.Errorf("Expand() = %q, should contain %q", result, tt.contains)
 				}
 			} else {
 				if result != tt.expected {
-					t.Errorf("expandCommands() = %q, want %q", result, tt.expected)
+					t.Errorf("Expand() = %q, want %q", result, tt.expected)
 				}
 			}
 		})
@@ -195,9 +195,9 @@ func TestExpandPaths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			expander := NewExpander(Params{}, slog.New(slog.NewTextHandler(os.Stderr, nil)))
-			result := expander.expandPaths(tt.content)
+			result := expander.Expand(tt.content)
 			if result != tt.expected {
-				t.Errorf("expandPaths() = %q, want %q", result, tt.expected)
+				t.Errorf("Expand() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
@@ -225,16 +225,16 @@ func TestExpand(t *testing.T) {
 			expected: "Hello World from file-${param}",
 		},
 		{
-			name:     "parameter expansion in file content",
+			name:     "file content NOT re-expanded (security fix)",
 			params:   Params{"param": "replaced"},
 			content:  "@" + testFile,
-			expected: "file-replaced",
+			expected: "file-${param}", // Changed: file content is not re-expanded
 		},
 		{
-			name:     "command generates parameter reference",
+			name:     "command output NOT re-expanded (security fix)",
 			params:   Params{"dynamic": "value"},
 			content:  "!`echo '${dynamic}'`",
-			expected: "value",
+			expected: "${dynamic}", // Changed: command output is not re-expanded
 		},
 		{
 			name:     "all expansion types together",
@@ -343,6 +343,55 @@ func TestValidatePath(t *testing.T) {
 			err := validatePath(tt.path)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validatePath() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestExpandSecurityNoReExpansion(t *testing.T) {
+	tests := []struct {
+		name     string
+		params   Params
+		content  string
+		expected string
+		desc     string
+	}{
+		{
+			name:     "parameter value with command syntax not expanded",
+			params:   Params{"evil": "!`echo INJECTED`"},
+			content:  "Value: ${evil}",
+			expected: "Value: !`echo INJECTED`",
+			desc:     "Parameter containing command syntax should not be executed",
+		},
+		{
+			name:     "parameter value with path syntax not expanded",
+			params:   Params{"path": "@/etc/passwd"},
+			content:  "Path: ${path}",
+			expected: "Path: @/etc/passwd",
+			desc:     "Parameter containing path syntax should not be read",
+		},
+		{
+			name:     "command output with parameter syntax not expanded",
+			params:   Params{"secret": "SECRET"},
+			content:  "!`echo '${secret}'`",
+			expected: "${secret}",
+			desc:     "Command output containing parameter syntax should not be expanded",
+		},
+		{
+			name:     "command output with path syntax not expanded",
+			params:   Params{},
+			content:  "!`echo '@/etc/passwd'`",
+			expected: "@/etc/passwd",
+			desc:     "Command output containing path syntax should not be read",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expander := NewExpander(tt.params, slog.New(slog.NewTextHandler(os.Stderr, nil)))
+			result := expander.Expand(tt.content)
+			if result != tt.expected {
+				t.Errorf("Security test failed: %s\nExpand() = %q, want %q", tt.desc, result, tt.expected)
 			}
 		})
 	}
