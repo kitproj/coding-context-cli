@@ -37,6 +37,10 @@ type TaskFrontMatter struct {
 
 	// Selectors contains additional custom selectors for filtering rules
 	Selectors map[string]any `yaml:"selectors,omitempty" json:"selectors,omitempty"`
+
+	// ExpandParams controls whether parameter expansion should occur
+	// Defaults to true if not specified
+	ExpandParams *bool `yaml:"expand_params,omitempty" json:"expand_params,omitempty"`
 }
 
 // UnmarshalJSON custom unmarshaler that populates both typed fields and Content map

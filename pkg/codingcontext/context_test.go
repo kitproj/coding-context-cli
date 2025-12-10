@@ -1112,3 +1112,308 @@ func TestContext_Run_Errors(t *testing.T) {
 		})
 	}
 }
+
+// TestContext_Run_ExpandParams tests parameter expansion opt-out functionality
+func TestContext_Run_ExpandParams(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func(t *testing.T, dir string)
+		opts        []Option
+		taskName    string
+		wantErr     bool
+		errContains string
+		check       func(t *testing.T, result *Result)
+	}{
+		{
+			name: "task with expand_params: false preserves parameters",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "no-expand", "expand_params: false", "Issue: ${issue_number}\nTitle: ${issue_title}")
+			},
+			opts: []Option{
+				WithParams(Params{"issue_number": "123", "issue_title": "Bug fix"}),
+			},
+			taskName: "no-expand",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "${issue_number}") {
+					t.Errorf("expected ${issue_number} to be preserved, got %q", result.Task.Content)
+				}
+				if !strings.Contains(result.Task.Content, "${issue_title}") {
+					t.Errorf("expected ${issue_title} to be preserved, got %q", result.Task.Content)
+				}
+			},
+		},
+		{
+			name: "task with expand_params: true expands parameters",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "expand", "expand_params: true", "Issue: ${issue_number}\nTitle: ${issue_title}")
+			},
+			opts: []Option{
+				WithParams(Params{"issue_number": "123", "issue_title": "Bug fix"}),
+			},
+			taskName: "expand",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "Issue: 123") {
+					t.Errorf("expected 'Issue: 123', got %q", result.Task.Content)
+				}
+				if !strings.Contains(result.Task.Content, "Title: Bug fix") {
+					t.Errorf("expected 'Title: Bug fix', got %q", result.Task.Content)
+				}
+			},
+		},
+		{
+			name: "task without expand_params defaults to expanding",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "default", "", "Env: ${env}")
+			},
+			opts: []Option{
+				WithParams(Params{"env": "production"}),
+			},
+			taskName: "default",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "Env: production") {
+					t.Errorf("expected 'Env: production', got %q", result.Task.Content)
+				}
+			},
+		},
+		{
+			name: "command with expand_params: false preserves parameters",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "cmd-no-expand", "", "/deploy")
+				createCommand(t, dir, "deploy", "expand_params: false", "Deploying to ${env}")
+			},
+			opts: []Option{
+				WithParams(Params{"env": "staging"}),
+			},
+			taskName: "cmd-no-expand",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "${env}") {
+					t.Errorf("expected ${env} to be preserved, got %q", result.Task.Content)
+				}
+			},
+		},
+		{
+			name: "command with expand_params: true expands parameters",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "cmd-expand", "", "/deploy")
+				createCommand(t, dir, "deploy", "expand_params: true", "Deploying to ${env}")
+			},
+			opts: []Option{
+				WithParams(Params{"env": "staging"}),
+			},
+			taskName: "cmd-expand",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "Deploying to staging") {
+					t.Errorf("expected 'Deploying to staging', got %q", result.Task.Content)
+				}
+			},
+		},
+		{
+			name: "command without expand_params defaults to expanding",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "cmd-default", "", "/info")
+				createCommand(t, dir, "info", "", "Project: ${project}")
+			},
+			opts: []Option{
+				WithParams(Params{"project": "myapp"}),
+			},
+			taskName: "cmd-default",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "Project: myapp") {
+					t.Errorf("expected 'Project: myapp', got %q", result.Task.Content)
+				}
+			},
+		},
+		{
+			name: "rule with expand_params: false preserves parameters",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "rule-no-expand", "", "Task content")
+				createRule(t, dir, ".agents/rules/rule1.md", "expand_params: false", "Version: ${version}")
+			},
+			opts: []Option{
+				WithParams(Params{"version": "1.0.0"}),
+			},
+			taskName: "rule-no-expand",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if len(result.Rules) != 1 {
+					t.Fatalf("expected 1 rule, got %d", len(result.Rules))
+				}
+				if !strings.Contains(result.Rules[0].Content, "${version}") {
+					t.Errorf("expected ${version} to be preserved in rule, got %q", result.Rules[0].Content)
+				}
+			},
+		},
+		{
+			name: "rule with expand_params: true expands parameters",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "rule-expand", "", "Task content")
+				createRule(t, dir, ".agents/rules/rule1.md", "expand_params: true", "Version: ${version}")
+			},
+			opts: []Option{
+				WithParams(Params{"version": "1.0.0"}),
+			},
+			taskName: "rule-expand",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if len(result.Rules) != 1 {
+					t.Fatalf("expected 1 rule, got %d", len(result.Rules))
+				}
+				if !strings.Contains(result.Rules[0].Content, "Version: 1.0.0") {
+					t.Errorf("expected 'Version: 1.0.0' in rule, got %q", result.Rules[0].Content)
+				}
+			},
+		},
+		{
+			name: "rule without expand_params defaults to expanding",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "rule-default", "", "Task content")
+				createRule(t, dir, ".agents/rules/rule1.md", "", "App: ${app}")
+			},
+			opts: []Option{
+				WithParams(Params{"app": "service"}),
+			},
+			taskName: "rule-default",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if len(result.Rules) != 1 {
+					t.Fatalf("expected 1 rule, got %d", len(result.Rules))
+				}
+				if !strings.Contains(result.Rules[0].Content, "App: service") {
+					t.Errorf("expected 'App: service' in rule, got %q", result.Rules[0].Content)
+				}
+			},
+		},
+		{
+			name: "mixed: task no expand, command with expand",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "mixed1", "expand_params: false", "Task ${task_var}\n/cmd")
+				createCommand(t, dir, "cmd", "expand_params: true", "Command ${cmd_var}")
+			},
+			opts: []Option{
+				WithParams(Params{"task_var": "task_value", "cmd_var": "cmd_value"}),
+			},
+			taskName: "mixed1",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				content := result.Task.Content
+				if !strings.Contains(content, "${task_var}") {
+					t.Errorf("expected task param to be preserved, got %q", content)
+				}
+				if !strings.Contains(content, "Command cmd_value") {
+					t.Errorf("expected command param to be expanded, got %q", content)
+				}
+			},
+		},
+		{
+			name: "mixed: task with expand, command no expand",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "mixed2", "expand_params: true", "Task ${task_var}\n/cmd")
+				createCommand(t, dir, "cmd", "expand_params: false", "Command ${cmd_var}")
+			},
+			opts: []Option{
+				WithParams(Params{"task_var": "task_value", "cmd_var": "cmd_value"}),
+			},
+			taskName: "mixed2",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				content := result.Task.Content
+				if !strings.Contains(content, "Task task_value") {
+					t.Errorf("expected task param to be expanded, got %q", content)
+				}
+				if !strings.Contains(content, "${cmd_var}") {
+					t.Errorf("expected command param to be preserved, got %q", content)
+				}
+			},
+		},
+		{
+			name: "command with inline parameters and expand_params: false",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "inline-no-expand", "", "/greet name=\"Alice\"")
+				createCommand(t, dir, "greet", "expand_params: false", "Hello, ${name}! Your ID: ${id}")
+			},
+			opts: []Option{
+				WithParams(Params{"id": "123"}),
+			},
+			taskName: "inline-no-expand",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				// Both inline and context params should be preserved
+				if !strings.Contains(result.Task.Content, "${name}") {
+					t.Errorf("expected ${name} to be preserved, got %q", result.Task.Content)
+				}
+				if !strings.Contains(result.Task.Content, "${id}") {
+					t.Errorf("expected ${id} to be preserved, got %q", result.Task.Content)
+				}
+			},
+		},
+		{
+			name: "multiple rules with different expand_params settings",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "multi-rules", "", "Task")
+				createRule(t, dir, ".agents/rules/rule1.md", "expand_params: false", "Rule1: ${var1}")
+				createRule(t, dir, ".agents/rules/rule2.md", "expand_params: true", "Rule2: ${var2}")
+				createRule(t, dir, ".agents/rules/rule3.md", "", "Rule3: ${var3}")
+			},
+			opts: []Option{
+				WithParams(Params{"var1": "val1", "var2": "val2", "var3": "val3"}),
+			},
+			taskName: "multi-rules",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if len(result.Rules) != 3 {
+					t.Fatalf("expected 3 rules, got %d", len(result.Rules))
+				}
+				// Find each rule and check content
+				for _, rule := range result.Rules {
+					if strings.Contains(rule.Content, "Rule1:") {
+						if !strings.Contains(rule.Content, "${var1}") {
+							t.Errorf("expected ${var1} in rule1, got %q", rule.Content)
+						}
+					} else if strings.Contains(rule.Content, "Rule2:") {
+						if !strings.Contains(rule.Content, "Rule2: val2") {
+							t.Errorf("expected 'Rule2: val2', got %q", rule.Content)
+						}
+					} else if strings.Contains(rule.Content, "Rule3:") {
+						if !strings.Contains(rule.Content, "Rule3: val3") {
+							t.Errorf("expected 'Rule3: val3', got %q", rule.Content)
+						}
+					}
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			tt.setup(t, tmpDir)
+
+			opts := append([]Option{WithSearchPaths(tmpDir)}, tt.opts...)
+			c := New(opts...)
+
+			result, err := c.Run(context.Background(), tt.taskName)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("expected error to contain %q, got %v", tt.errContains, err)
+				}
+				return
+			}
+
+			if !tt.wantErr && tt.check != nil {
+				tt.check(t, result)
+			}
+		})
+	}
+}

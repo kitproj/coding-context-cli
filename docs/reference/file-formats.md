@@ -313,6 +313,52 @@ selectors:
 
 This would only include the rules from `security-standards.md` and `go-best-practices.md`.
 
+#### `expand_params` (optional)
+
+**Type:** Boolean  
+**Purpose:** Controls whether parameter expansion should occur in the task content. Defaults to `true` if not specified.
+
+When set to `false`, parameter placeholders like `${variable}` are preserved as-is in the output, rather than being replaced with values from `-p` flags.
+
+**Example (with parameter expansion disabled):**
+```yaml
+---
+task_name: preserve-template
+expand_params: false
+---
+
+Issue: ${issue_number}
+Title: ${issue_title}
+```
+
+**Usage:**
+```bash
+# Even with -p flags, parameters won't be expanded
+coding-context -p issue_number=123 -p issue_title="Bug" preserve-template
+# Output will contain: ${issue_number} and ${issue_title}
+```
+
+**Use cases:**
+- Passing templates to AI agents that handle their own parameter substitution
+- Preserving template syntax that conflicts with the parameter expansion format
+- Keeping templates intact for later processing
+
+**Default behavior (expand_params: true or omitted):**
+```yaml
+---
+task_name: normal-task
+# expand_params defaults to true
+---
+
+Issue: ${issue_number}
+Title: ${issue_title}
+```
+
+```bash
+coding-context -p issue_number=123 -p issue_title="Bug" normal-task
+# Output will contain: Issue: 123 and Title: Bug
+```
+
 ### Parameter Substitution
 
 Use `${parameter_name}` syntax for dynamic values.
@@ -347,6 +393,92 @@ Task files must be in one of these directories:
 - `~/.agents/tasks/`
 
 Tasks are matched by filename (without `.md` extension). The `task_name` field in frontmatter is optional and used only for metadata. For example, a file named `fix-bug.md` is matched by the command `/fix-bug`, regardless of whether it has `task_name` in its frontmatter.
+
+## Command Files
+
+Command files are reusable content blocks that can be referenced from task files using slash command syntax (e.g., `/command-name`). They are Markdown files with optional YAML frontmatter.
+
+### Format
+
+```markdown
+---
+<optional-frontmatter-fields>
+---
+
+# Command content in Markdown
+
+This content will be substituted when the command is referenced.
+```
+
+### Frontmatter Fields (optional)
+
+#### `expand_params` (optional)
+
+**Type:** Boolean  
+**Purpose:** Controls whether parameter expansion should occur in the command content. Defaults to `true` if not specified.
+
+When set to `false`, parameter placeholders like `${variable}` are preserved as-is in the output.
+
+**Example:**
+```yaml
+---
+expand_params: false
+---
+
+Deploy to ${environment} with version ${version}
+```
+
+**Usage in a task:**
+```yaml
+---
+task_name: my-task
+---
+
+/deploy-steps
+```
+
+**Command line:**
+```bash
+coding-context -p environment=prod -p version=1.0 my-task
+# Command output will contain: ${environment} and ${version} (not expanded)
+```
+
+This is useful when commands contain template syntax that should be preserved.
+
+### Slash Command Syntax
+
+Commands are referenced from tasks using slash command syntax:
+
+```markdown
+---
+task_name: deploy-app
+---
+
+# Deployment Steps
+
+/pre-deploy
+
+/deploy
+
+/post-deploy
+```
+
+Commands can also receive inline parameters:
+
+```markdown
+/greet name="Alice"
+/deploy env="production" version="1.2.3"
+```
+
+### File Locations
+
+Command files must be in one of these directories:
+- `./.agents/commands/`
+- `./.cursor/commands/`
+- `./.opencode/command/`
+- `~/.agents/commands/`
+
+Commands are matched by filename (without `.md` extension). For example, a file named `deploy.md` is matched by the slash command `/deploy`.
 
 ## Rule Files
 
@@ -465,6 +597,32 @@ mcp_servers:
 ```
 
 **Note:** This field is informational and does not affect rule selection.
+
+#### `expand_params` (optional)
+
+**Type:** Boolean  
+**Purpose:** Controls whether parameter expansion should occur in the rule content. Defaults to `true` if not specified.
+
+When set to `false`, parameter placeholders like `${variable}` are preserved as-is in the output.
+
+**Example:**
+```yaml
+---
+languages:
+  - go
+expand_params: false
+---
+
+Use version ${version} when building the project.
+```
+
+**Usage:**
+```bash
+coding-context -p version=1.2.3 my-task
+# Rule output will contain: ${version} (not expanded)
+```
+
+This is useful when rules contain template syntax that should be preserved for the AI agent to process.
 
 **Other common fields:**
 ```yaml
