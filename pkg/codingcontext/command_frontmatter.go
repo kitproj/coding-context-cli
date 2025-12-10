@@ -1,6 +1,10 @@
 package codingcontext
 
-// CommandFrontMatter is an empty struct used as a placeholder for commands.
-// Commands don't have frontmatter, but we use this type to maintain consistency
-// in the getMarkdown API instead of passing nil.
-type CommandFrontMatter struct{}
+// CommandFrontMatter represents the frontmatter fields for command files
+type CommandFrontMatter struct {
+	BaseFrontMatter `yaml:",inline"`
+
+	// ExpandParams controls whether parameter expansion should occur
+	// Defaults to true if not specified
+	ExpandParams *bool `yaml:"expand_params,omitempty" json:"expand_params,omitempty"`
+}

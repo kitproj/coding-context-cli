@@ -193,9 +193,13 @@ func (cc *Context) findTask(taskName string) error {
 			cc.agent = agent
 		}
 
-		expandedContent := cc.expandParams(md.Content, nil)
+		// Expand parameters only if expand_params is not explicitly set to false
+		contentToProcess := md.Content
+		if shouldExpandParams(frontMatter.ExpandParams) {
+			contentToProcess = cc.expandParams(md.Content, nil)
+		}
 
-		task, err := ParseTask(expandedContent)
+		task, err := ParseTask(contentToProcess)
 		if err != nil {
 			return err
 		}
@@ -234,7 +238,6 @@ func (cc *Context) findTask(taskName string) error {
 }
 
 // findCommand searches for a command markdown file and returns it with parameters substituted.
-// Commands don't have frontmatter, so only the content is returned.
 func (cc *Context) findCommand(commandName string, params map[string]string) (string, error) {
 	var content *string
 	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
@@ -244,8 +247,14 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 			return err
 		}
 
-		expanded := cc.expandParams(md.Content, params)
-		content = &expanded
+		// Expand parameters only if expand_params is not explicitly set to false
+		var processedContent string
+		if shouldExpandParams(frontMatter.ExpandParams) {
+			processedContent = cc.expandParams(md.Content, params)
+		} else {
+			processedContent = md.Content
+		}
+		content = &processedContent
 
 		return nil
 	})
@@ -271,6 +280,15 @@ func (cc *Context) expandParams(content string, params map[string]string) string
 		// Return original placeholder if not found
 		return fmt.Sprintf("${%s}", key)
 	})
+}
+
+// shouldExpandParams returns true if parameter expansion should occur based on the ExpandParams field.
+// If ExpandParams is nil (not specified), it defaults to true.
+func shouldExpandParams(expandParams *bool) bool {
+	if expandParams == nil {
+		return true
+	}
+	return *expandParams
 }
 
 // Run executes the context assembly for the given taskName and returns the assembled result.
@@ -406,12 +424,18 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 			return fmt.Errorf("failed to parse markdown file: %w", err)
 		}
 
-		expandedContent := cc.expandParams(md.Content, nil)
-		tokens := estimateTokens(expandedContent)
+		// Expand parameters only if expand_params is not explicitly set to false
+		var processedContent string
+		if shouldExpandParams(frontmatter.ExpandParams) {
+			processedContent = cc.expandParams(md.Content, nil)
+		} else {
+			processedContent = md.Content
+		}
+		tokens := estimateTokens(processedContent)
 
 		cc.rules = append(cc.rules, Markdown[RuleFrontMatter]{
 			FrontMatter: frontmatter,
-			Content:     expandedContent,
+			Content:     processedContent,
 			Tokens:      tokens,
 		})
 

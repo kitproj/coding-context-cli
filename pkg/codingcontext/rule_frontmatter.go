@@ -25,6 +25,10 @@ type RuleFrontMatter struct {
 
 	// RuleName is an optional identifier for the rule file
 	RuleName string `yaml:"rule_name,omitempty" json:"rule_name,omitempty"`
+
+	// ExpandParams controls whether parameter expansion should occur
+	// Defaults to true if not specified
+	ExpandParams *bool `yaml:"expand_params,omitempty" json:"expand_params,omitempty"`
 }
 
 // UnmarshalJSON custom unmarshaler that populates both typed fields and Content map
