@@ -239,7 +239,8 @@ func (cc *Context) findTask(taskName string) error {
 
 // findCommand searches for a command markdown file and returns its content.
 // Commands now support optional frontmatter with the expand_params field.
-// Parameters are substituted unless the command's expand_params field is explicitly set to false.
+// Parameters are substituted by default (when expand_params is nil or true).
+// Substitution is skipped only when expand_params is explicitly set to false.
 func (cc *Context) findCommand(commandName string, params map[string]string) (string, error) {
 	var content *string
 	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
