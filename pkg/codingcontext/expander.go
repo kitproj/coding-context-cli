@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -168,9 +167,6 @@ func validatePath(path string) error {
 	if strings.Contains(path, "\x00") {
 		return fmt.Errorf("path contains null byte")
 	}
-
-	// Clean the path to normalize it (this is primarily for consistency)
-	_ = filepath.Clean(path)
 
 	// We intentionally allow paths with .. components as they may be
 	// legitimate references to files in parent directories within the

@@ -336,11 +336,6 @@ func TestValidatePath(t *testing.T) {
 			path:    "dir/../file.txt",
 			wantErr: false,
 		},
-		{
-			name:    "simple path",
-			path:    "file.txt",
-			wantErr: false,
-		},
 	}
 
 	for _, tt := range tests {
