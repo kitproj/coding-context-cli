@@ -23,7 +23,10 @@ task_name: <optional-task-identifier>
 
 # Task content in Markdown
 
-Content can include ${parameter_placeholders}.
+Content can include:
+- ${parameter_name} - Parameter substitution
+- ${!shell-command} - Shell command output injection
+- /command-name - Slash command (reference to another markdown file)
 ```
 
 **Note:** The `task_name` field is optional. Tasks are matched by filename (without `.md` extension), not by `task_name` in frontmatter. The `task_name` field is useful for metadata and appears in the frontmatter output.
@@ -337,6 +340,40 @@ coding-context \
   -p severity=critical \
   /fix-bug
 ```
+
+### Shell Command Output
+
+Use `${!command}` syntax to inject shell command output.
+
+**Syntax:** `${!shell-command}`
+
+**Example:**
+```markdown
+---
+task_name: analyze-coverage
+---
+# Test Coverage Analysis
+
+Current test results:
+${!npm test}
+
+Please analyze and suggest improvements.
+```
+
+**Features:**
+- Commands execute in the working directory (where `coding-context` runs)
+- Both stdout and stderr are captured
+- Supports shell features: pipes, redirects, etc. via `sh -c`
+- Works in both tasks AND commands (slash command files)
+- If command fails, error is logged and placeholder remains unchanged
+
+**Common patterns:**
+- Test output: `${!go test -v ./...}`
+- Git history: `${!git log --oneline -10}`
+- File listings: `${!ls -la | head -20}`
+- System info: `${!uname -a}`
+
+**Security:** Commands run with same permissions as `coding-context`. Avoid untrusted input in commands.
 
 ### File Location
 

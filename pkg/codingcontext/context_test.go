@@ -918,7 +918,7 @@ func TestContext_Run_ShellCommands(t *testing.T) {
 		{
 			name: "task with simple shell command",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "with-shell", "", "Output:\n!`echo hello`\nDone")
+				createTask(t, dir, "with-shell", "", "Output:\n${!echo hello}\nDone")
 			},
 			taskName: "with-shell",
 			wantErr:  false,
@@ -935,27 +935,25 @@ func TestContext_Run_ShellCommands(t *testing.T) {
 			},
 		},
 		{
-			name: "task with shell command using git",
+			name: "task with shell command using echo",
 			setup: func(t *testing.T, dir string) {
-				// Create a git repo in the test dir
-				createTask(t, dir, "git-info", "", "Branch:\n!`git branch --show-current || echo main`")
+				createTask(t, dir, "echo-info", "", "Value:\n${!echo test123}")
 			},
-			taskName: "git-info",
+			taskName: "echo-info",
 			wantErr:  false,
 			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Branch:") {
+				if !strings.Contains(result.Task.Content, "Value:") {
 					t.Error("expected task content before shell command")
 				}
-				// The command should at least run without error
-				if result.Task.Content == "" {
-					t.Error("expected non-empty result")
+				if !strings.Contains(result.Task.Content, "test123") {
+					t.Errorf("expected shell command output 'test123', got %q", result.Task.Content)
 				}
 			},
 		},
 		{
 			name: "multiple shell commands",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "multi-shell", "", "First: !`echo one`\nSecond: !`echo two`")
+				createTask(t, dir, "multi-shell", "", "First: ${!echo one}\nSecond: ${!echo two}")
 			},
 			taskName: "multi-shell",
 			wantErr:  false,
@@ -969,19 +967,19 @@ func TestContext_Run_ShellCommands(t *testing.T) {
 			},
 		},
 		{
-			name: "shell command with complex output",
+			name: "shell command in slash command",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "complex-shell", "", "Files:\n!`ls -la | head -5`")
+				createTask(t, dir, "task-with-cmd", "", "/test-cmd")
+				createCommand(t, dir, "test-cmd", "", "Command output: ${!echo from-command}")
 			},
-			taskName: "complex-shell",
+			taskName: "task-with-cmd",
 			wantErr:  false,
 			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Files:") {
-					t.Error("expected task content before shell command")
+				if !strings.Contains(result.Task.Content, "Command output:") {
+					t.Error("expected command content")
 				}
-				// ls output should contain at least something
-				if len(result.Task.Content) < 10 {
-					t.Errorf("expected substantial output from ls command, got %q", result.Task.Content)
+				if !strings.Contains(result.Task.Content, "from-command") {
+					t.Errorf("expected shell command output in command file, got %q", result.Task.Content)
 				}
 			},
 		},

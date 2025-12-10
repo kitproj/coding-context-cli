@@ -16,10 +16,9 @@ type Input struct {
 // Task represents a parsed task, which is a sequence of blocks
 type Task []Block
 
-// Block represents either a slash command, shell command, or text content
+// Block represents either a slash command or text content
 type Block struct {
 	SlashCommand *SlashCommand `parser:"@@"`
-	ShellCommand *ShellCommand `parser:"| @@"`
 	Text         *Text         `parser:"| @@"`
 }
 
@@ -28,12 +27,6 @@ type Block struct {
 type SlashCommand struct {
 	Name      string     `parser:"Slash @Term"`
 	Arguments []Argument `parser:"(Whitespace @@)* Whitespace? Newline?"`
-}
-
-// ShellCommand represents a shell command starting with "!`" and ending with "`"
-// The command output will be injected into the prompt
-type ShellCommand struct {
-	FullCommand string `parser:"@ShellCommand"`
 }
 
 // Params converts the slash command's arguments into a parameter map
@@ -101,43 +94,37 @@ type Text struct {
 	Lines []TextLine `parser:"@@+"`
 }
 
-// TextLine is a single line of text content (not starting with a slash or shell command)
-// It matches tokens until the end of the line, or just a newline by itself
+// TextLine is a single line of text content (not starting with a slash)
+// It matches tokens until the end of the line
 type TextLine struct {
-	JustNewline   string   `parser:"@Newline"`                                                     // A line that's just a newline
-	NonSlashStart []string `parser:"| (@Term | @String | @Assign | @Whitespace)"`                  // First token can't be Slash or ShellCommand
-	RestOfLine    []string `parser:"(@Term | @String | @Slash | @Assign | @Whitespace)*"`          // Rest can include Slash
-	NewlineOpt    string   `parser:"@Newline?"`                                                    // Optional newline at end
+	NonSlashStart []string `parser:"(@Term | @String | @Assign | @Whitespace)"`           // First token can't be Slash
+	RestOfLine    []string `parser:"(@Term | @String | @Slash | @Assign | @Whitespace)*"` // Rest can include Slash
+	NewlineOpt    string   `parser:"@Newline?"`
 }
 
 // Content returns the text content with all lines concatenated
 func (t *Text) Content() string {
 	var sb strings.Builder
 	for _, line := range t.Lines {
-		if line.JustNewline != "" {
-			sb.WriteString(line.JustNewline)
-		} else {
-			for _, tok := range line.NonSlashStart {
-				sb.WriteString(tok)
-			}
-			for _, tok := range line.RestOfLine {
-				sb.WriteString(tok)
-			}
-			sb.WriteString(line.NewlineOpt)
+		for _, tok := range line.NonSlashStart {
+			sb.WriteString(tok)
 		}
+		for _, tok := range line.RestOfLine {
+			sb.WriteString(tok)
+		}
+		sb.WriteString(line.NewlineOpt)
 	}
 	return sb.String()
 }
 
 // Define the lexer using participle's lexer.MustSimple
 var taskLexer = lexer.MustSimple([]lexer.SimpleRule{
-	{Name: "ShellCommand", Pattern: "!`[^`]+`"},  // Shell command: !`command`
 	{Name: "Slash", Pattern: `/`},                // Any "/"
 	{Name: "Assign", Pattern: `=`},               // "="
 	{Name: "String", Pattern: `"(?:\\.|[^"])*"`}, // Quoted strings with escapes
 	{Name: "Whitespace", Pattern: `[ \t]+`},      // Spaces and tabs (horizontal only)
 	{Name: "Newline", Pattern: `[\n\r]+`},        // Newlines
-	{Name: "Term", Pattern: "[^ \\t\\n\\r/\"=]+"},    // Any char except space, newline, /, ", =
+	{Name: "Term", Pattern: `[^ \t\n\r/"=]+`},    // Any char except space, newline, /, ", =
 })
 
 var parser = participle.MustBuild[Input](
@@ -168,9 +155,6 @@ func (b Block) String() string {
 	if b.SlashCommand != nil {
 		return b.SlashCommand.String()
 	}
-	if b.ShellCommand != nil {
-		return b.ShellCommand.String()
-	}
 	if b.Text != nil {
 		return b.Text.String()
 	}
@@ -196,20 +180,6 @@ func (a Argument) String() string {
 		return a.Key + "=" + a.Value
 	}
 	return a.Value
-}
-
-// Command extracts the command string from the full shell command token
-func (s *ShellCommand) Command() string {
-	// Strip the !` prefix and ` suffix
-	if len(s.FullCommand) > 3 && s.FullCommand[:2] == "!`" && s.FullCommand[len(s.FullCommand)-1] == '`' {
-		return s.FullCommand[2 : len(s.FullCommand)-1]
-	}
-	return s.FullCommand
-}
-
-// String returns the original text representation of a shell command
-func (s ShellCommand) String() string {
-	return s.FullCommand
 }
 
 // String returns the original text representation of text

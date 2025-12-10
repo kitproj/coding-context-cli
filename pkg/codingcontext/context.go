@@ -193,7 +193,7 @@ func (cc *Context) findTask(ctx context.Context, taskName string) error {
 			cc.agent = agent
 		}
 
-		expandedContent := cc.expandParams(md.Content, nil)
+		expandedContent := cc.expandParams(ctx, md.Content, nil)
 
 		task, err := ParseTask(expandedContent)
 		if err != nil {
@@ -205,17 +205,11 @@ func (cc *Context) findTask(ctx context.Context, taskName string) error {
 			if block.Text != nil {
 				finalContent.WriteString(block.Text.Content())
 			} else if block.SlashCommand != nil {
-				commandContent, err := cc.findCommand(block.SlashCommand.Name, block.SlashCommand.Params())
+				commandContent, err := cc.findCommand(ctx, block.SlashCommand.Name, block.SlashCommand.Params())
 				if err != nil {
 					return err
 				}
 				finalContent.WriteString(commandContent)
-			} else if block.ShellCommand != nil {
-				output, err := cc.executeShellCommand(ctx, block.ShellCommand.Command())
-				if err != nil {
-					return fmt.Errorf("failed to execute shell command %q: %w", block.ShellCommand.Command(), err)
-				}
-				finalContent.WriteString(output)
 			}
 		}
 
@@ -241,7 +235,7 @@ func (cc *Context) findTask(ctx context.Context, taskName string) error {
 
 // findCommand searches for a command markdown file and returns it with parameters substituted.
 // Commands don't have frontmatter, so only the content is returned.
-func (cc *Context) findCommand(commandName string, params map[string]string) (string, error) {
+func (cc *Context) findCommand(ctx context.Context, commandName string, params map[string]string) (string, error) {
 	var content *string
 	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
 		var frontMatter CommandFrontMatter
@@ -250,7 +244,7 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 			return err
 		}
 
-		expanded := cc.expandParams(md.Content, params)
+		expanded := cc.expandParams(ctx, md.Content, params)
 		content = &expanded
 
 		return nil
@@ -291,9 +285,22 @@ func (cc *Context) executeShellCommand(ctx context.Context, command string) (str
 	return string(output), nil
 }
 
-// expandParams substitutes parameter placeholders in the given content.
-func (cc *Context) expandParams(content string, params map[string]string) string {
+// expandParams substitutes parameter placeholders and shell commands in the given content.
+// Parameters use ${name} syntax, shell commands use ${!command} syntax.
+func (cc *Context) expandParams(ctx context.Context, content string, params map[string]string) string {
 	return os.Expand(content, func(key string) string {
+		// Check if this is a shell command (starts with !)
+		if strings.HasPrefix(key, "!") {
+			command := strings.TrimPrefix(key, "!")
+			output, err := cc.executeShellCommand(ctx, command)
+			if err != nil {
+				cc.logger.Error("Shell command failed", "command", command, "error", err)
+				return fmt.Sprintf("${!%s}", command) // Return placeholder on error
+			}
+			return output
+		}
+
+		// Regular parameter expansion
 		if val, ok := params[key]; ok {
 			return val
 		}
@@ -439,7 +446,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 			return fmt.Errorf("failed to parse markdown file: %w", err)
 		}
 
-		expandedContent := cc.expandParams(md.Content, nil)
+		expandedContent := cc.expandParams(ctx, md.Content, nil)
 		tokens := estimateTokens(expandedContent)
 
 		cc.rules = append(cc.rules, Markdown[RuleFrontMatter]{

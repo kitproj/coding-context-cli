@@ -60,6 +60,47 @@ coding-context \
   /implement-feature
 ```
 
+## Task with Shell Command Output
+
+Include live command output in your tasks using `${!command}` syntax:
+
+```markdown
+---
+task_name: analyze-coverage
+description: Analyze test coverage
+---
+
+Here are the current test results:
+${!npm test}
+
+Based on these results, suggest improvements to increase coverage.
+```
+
+**Another example - Review recent changes:**
+```markdown
+---
+task_name: review-changes
+---
+
+Recent commits:
+${!git log --oneline -10}
+
+Review these changes and suggest improvements.
+```
+
+**How it works:**
+- Commands run in the project's working directory
+- Output (stdout and stderr) is injected into the task content
+- Commands use `sh -c`, so pipes and redirects work: `${!ls -la | head -5}`
+- Works in both task files AND command files (slash commands)
+- If a command fails, an error is logged and the placeholder is left unchanged
+
+**Common use cases:**
+- Test results: `${!go test -v ./...}`
+- Git info: `${!git status --short}`
+- File listings: `${!find . -name "*.go" | head -20}`
+- System info: `${!uname -a}`
+
 ## Multiple Tasks with Selectors
 
 Create multiple variations of the same task using selectors:
