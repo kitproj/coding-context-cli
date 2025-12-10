@@ -260,6 +260,10 @@ func (cc *Context) findCommand(ctx context.Context, commandName string, params m
 
 // executeShellCommand executes a shell command and returns its output.
 // Commands are executed in the working directory (first search path that's a local file).
+//
+// SECURITY NOTE: This function executes arbitrary shell commands with the same permissions
+// as the coding-context process. Commands are specified in markdown files that should be
+// under source control. Do not use this with untrusted input.
 func (cc *Context) executeShellCommand(ctx context.Context, command string) (string, error) {
 	// Find the working directory from search paths (use the first local file:// path)
 	workDir := "."
@@ -282,7 +286,8 @@ func (cc *Context) executeShellCommand(ctx context.Context, command string) (str
 		return "", fmt.Errorf("command failed: %w (output: %s)", err, string(output))
 	}
 
-	return string(output), nil
+	// Trim trailing whitespace for cleaner output
+	return strings.TrimSpace(string(output)), nil
 }
 
 // expandParams substitutes parameter placeholders and shell commands in the given content.
@@ -295,7 +300,8 @@ func (cc *Context) expandParams(ctx context.Context, content string, params map[
 			output, err := cc.executeShellCommand(ctx, command)
 			if err != nil {
 				cc.logger.Error("Shell command failed", "command", command, "error", err)
-				return fmt.Sprintf("${!%s}", command) // Return placeholder on error
+				// Return clear error message instead of placeholder
+				return fmt.Sprintf("[ERROR: command '%s' failed: %v]", command, err)
 			}
 			return output
 		}
