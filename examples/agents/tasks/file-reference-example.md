@@ -5,40 +5,44 @@ description: Example task demonstrating file reference feature
 
 # File Reference Example
 
-This task demonstrates how to include file contents in your prompts using the `${file:path}` syntax.
+This task demonstrates how to include file contents in your prompts using the `@path` syntax.
 
 ## Basic Usage
 
-You can reference files using `${file:filepath}` syntax, similar to parameter expansion. The file content will be automatically included in the prompt.
+You can reference files using `@filepath` syntax. The file content will be automatically included in the prompt.
 
 For example, to review a Go file:
 
-Review the implementation in ${file:pkg/codingcontext/file_reference.go} for code quality and potential improvements.
+Review the implementation in @pkg/codingcontext/file_reference.go for code quality and potential improvements.
 
 ## Multiple File References
 
 You can reference multiple files in the same task:
 
-Compare the implementations in ${file:pkg/codingcontext/file_reference.go} and ${file:pkg/codingcontext/file_reference_test.go} to ensure comprehensive test coverage.
+Compare the implementations in @pkg/codingcontext/file_reference.go and @pkg/codingcontext/file_reference_test.go to ensure comprehensive test coverage.
+
+## Paths with Spaces
+
+If your file path contains spaces, escape them with a backslash:
+
+Review the component in @src/components/My\ Component.tsx for issues.
 
 ## How It Works
 
-- File references use the same expansion mechanism as parameters
-- File references are expanded during parameter substitution using the `file:` prefix
+- File references start with `@` and end at the first unescaped space or end of line
 - File paths are resolved relative to the working directory (where you run the command)
 - The file content is wrapped in a code block with the filename as a header
-- If a file cannot be read, the placeholder remains unexpanded and a warning is logged
+- If a file cannot be read, the `@path` reference remains in the output
 
 ## File Reference Patterns
 
 Valid patterns:
-- `${file:filename.ext}` - Simple filename
-- `${file:./relative/path/file.txt}` - Relative path starting with ./
-- `${file:../parent/file.txt}` - Parent directory reference
-- `${file:src/components/Button.tsx}` - Path with directory separator
+- `@filename.ext` - Simple filename
+- `@./relative/path/file.txt` - Relative path starting with ./
+- `@../parent/file.txt` - Parent directory reference
+- `@src/components/Button.tsx` - Path with directory separator
+- `@src/My\ File.tsx` - Path with escaped spaces
 
-## Combining with Parameters
+## Email Addresses
 
-You can combine file references with regular parameters:
-
-Review ${file:${source_file}} and check if it matches the requirements in ${file:docs/requirements.md}.
+Email addresses like user@example.com are not treated as file references.

@@ -43,7 +43,7 @@ task_name: review-component
 
 # Review Component
 
-Review the component in ${file:src/components/Button.tsx}.
+Review the component in @src/components/Button.tsx.
 Check for performance issues and suggest improvements.`
 
 	taskPath := filepath.Join(tasksDir, "review-component.md")
@@ -118,7 +118,7 @@ task_name: review-api
 
 # Review API Configuration
 
-Compare ${file:src/config.ts} and ${file:src/api.ts} for consistency.`
+Compare @src/config.ts and @src/api.ts for consistency.`
 
 	taskPath := filepath.Join(tasksDir, "review-api.md")
 	if err := os.WriteFile(taskPath, []byte(taskContent), 0o644); err != nil {
@@ -171,7 +171,7 @@ task_name: review-missing
 
 # Review Missing File
 
-Review ${file:nonexistent.txt} for issues.`
+Review @nonexistent.txt for issues.`
 
 	taskPath := filepath.Join(tasksDir, "review-missing.md")
 	if err := os.WriteFile(taskPath, []byte(taskContent), 0o644); err != nil {
@@ -192,7 +192,62 @@ Review ${file:nonexistent.txt} for issues.`
 	}
 
 	// The placeholder should remain in the content since the file wasn't found
-	if !strings.Contains(result.Task.Content, "${file:nonexistent.txt}") {
+	if !strings.Contains(result.Task.Content, "@nonexistent.txt") {
 		t.Errorf("Expected unexpanded placeholder to remain in content, got: %s", result.Task.Content)
+	}
+}
+
+func TestFileReferenceWithSpaces(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+
+	// Create a file with spaces in the name
+	srcDir := filepath.Join(tmpDir, "src")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatalf("Failed to create src directory: %v", err)
+	}
+
+	fileContent := "Content of file with spaces"
+	filePath := filepath.Join(srcDir, "My Component.tsx")
+	if err := os.WriteFile(filePath, []byte(fileContent), 0o644); err != nil {
+		t.Fatalf("Failed to create file: %v", err)
+	}
+
+	// Create .agents directory structure
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+		t.Fatalf("Failed to create tasks directory: %v", err)
+	}
+
+	// Create a task file that references the file with escaped spaces
+	taskContent := `---
+task_name: review-spaced
+---
+
+Review @src/My\ Component.tsx please.`
+
+	taskPath := filepath.Join(tasksDir, "review-spaced.md")
+	if err := os.WriteFile(taskPath, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("Failed to create task file: %v", err)
+	}
+
+	// Create the context and run it
+	cc := New(
+		WithSearchPaths("file://" + tmpDir),
+	)
+
+	ctx := context.Background()
+	result, err := cc.Run(ctx, "review-spaced")
+	if err != nil {
+		t.Fatalf("Failed to run context: %v", err)
+	}
+
+	// Verify the file content is included
+	if !strings.Contains(result.Task.Content, fileContent) {
+		t.Errorf("Expected file content to be included, got: %s", result.Task.Content)
+	}
+
+	if !strings.Contains(result.Task.Content, "File: src/My Component.tsx") {
+		t.Errorf("Expected file header with unescaped name, got: %s", result.Task.Content)
 	}
 }

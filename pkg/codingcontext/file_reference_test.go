@@ -7,6 +7,154 @@ import (
 	"testing"
 )
 
+func TestUnescapePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "no escaping",
+			input:    "path/to/file.txt",
+			expected: "path/to/file.txt",
+		},
+		{
+			name:     "escaped space",
+			input:    "path/to/My\\ File.txt",
+			expected: "path/to/My File.txt",
+		},
+		{
+			name:     "multiple escaped spaces",
+			input:    "src/My\\ Component\\ Name.tsx",
+			expected: "src/My Component Name.tsx",
+		},
+		{
+			name:     "escaped backslash",
+			input:    "path\\\\to\\\\file",
+			expected: "path\\to\\file",
+		},
+		{
+			name:     "trailing backslash",
+			input:    "path/to/file\\",
+			expected: "path/to/file",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := unescapePath(tt.input)
+			if result != tt.expected {
+				t.Errorf("unescapePath(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExpandFileReferences(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test files
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("test content"), 0o644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	srcDir := filepath.Join(tmpDir, "src")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatalf("Failed to create src directory: %v", err)
+	}
+
+	componentFile := filepath.Join(srcDir, "Button.tsx")
+	if err := os.WriteFile(componentFile, []byte("function Button() {}"), 0o644); err != nil {
+		t.Fatalf("Failed to create component file: %v", err)
+	}
+
+	spacedFile := filepath.Join(srcDir, "My Component.tsx")
+	if err := os.WriteFile(spacedFile, []byte("spaced content"), 0o644); err != nil {
+		t.Fatalf("Failed to create spaced file: %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		input    string
+		expected []string // Strings that should be present in output
+		notIn    []string // Strings that should NOT be present
+	}{
+		{
+			name:     "no file references",
+			input:    "This is plain text without any file references.",
+			expected: []string{"This is plain text"},
+			notIn:    []string{"File:"},
+		},
+		{
+			name:     "single file reference",
+			input:    "Review @test.txt for issues.",
+			expected: []string{"test content", "File: test.txt", "Review", "for issues"},
+			notIn:    []string{"@test.txt"},
+		},
+		{
+			name:     "file reference with path",
+			input:    "Check @src/Button.tsx please.",
+			expected: []string{"function Button()", "File: src/Button.tsx", "Check", "please"},
+		},
+		{
+			name:     "multiple file references",
+			input:    "Compare @test.txt and @src/Button.tsx files.",
+			expected: []string{"test content", "function Button()", "File: test.txt", "File: src/Button.tsx"},
+		},
+		{
+			name:     "file reference with escaped spaces",
+			input:    "Review @src/My\\ Component.tsx now.",
+			expected: []string{"spaced content", "File: src/My Component.tsx", "Review", "now"},
+		},
+		{
+			name:     "email addresses not expanded",
+			input:    "Contact user@example.com for help.",
+			expected: []string{"Contact user@example.com for help"},
+			notIn:    []string{"File:"},
+		},
+		{
+			name:     "file reference at start",
+			input:    "@test.txt is important.",
+			expected: []string{"test content", "File: test.txt", "is important"},
+		},
+		{
+			name:     "file reference at end",
+			input:    "Check this: @test.txt",
+			expected: []string{"test content", "File: test.txt", "Check this:"},
+		},
+		{
+			name:     "file reference followed by punctuation",
+			input:    "Review @test.txt, @src/Button.tsx.",
+			expected: []string{"test content", "function Button()", "File: test.txt", "File: src/Button.tsx"},
+		},
+		{
+			name:     "nonexistent file keeps reference",
+			input:    "Review @nonexistent.txt please.",
+			expected: []string{"@nonexistent.txt", "Review", "please"},
+			notIn:    []string{"File: nonexistent.txt"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := expandFileReferences(tt.input, tmpDir)
+
+			for _, check := range tt.expected {
+				if !strings.Contains(result, check) {
+					t.Errorf("Expected result to contain %q, got: %s", check, result)
+				}
+			}
+
+			for _, check := range tt.notIn {
+				if strings.Contains(result, check) {
+					t.Errorf("Expected result NOT to contain %q, got: %s", check, result)
+				}
+			}
+		})
+	}
+}
+
 func TestReadFileReference(t *testing.T) {
 	tmpDir := t.TempDir()
 

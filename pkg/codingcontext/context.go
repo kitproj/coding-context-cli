@@ -216,10 +216,18 @@ func (cc *Context) findTask(taskName string) error {
 			}
 		}
 
+		// Expand file references (@path syntax)
+		// Determine base directory for file resolution
+		baseDir := "."
+		if len(cc.downloadedPaths) > 0 {
+			baseDir = cc.downloadedPaths[0]
+		}
+		contentWithFiles := expandFileReferences(finalContent.String(), baseDir)
+
 		cc.task = Markdown[TaskFrontMatter]{
 			FrontMatter: frontMatter,
-			Content:     finalContent.String(),
-			Tokens:      estimateTokens(finalContent.String()),
+			Content:     contentWithFiles,
+			Tokens:      estimateTokens(contentWithFiles),
 		}
 		cc.totalTokens += cc.task.Tokens
 
@@ -262,33 +270,8 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 }
 
 // expandParams substitutes parameter placeholders in the given content.
-// Supports both regular parameters (${param_name}) and file references (${file:path/to/file.txt})
 func (cc *Context) expandParams(content string, params map[string]string) string {
 	return os.Expand(content, func(key string) string {
-		// Check if this is a file reference (starts with "file:")
-		if strings.HasPrefix(key, "file:") {
-			filePath := strings.TrimPrefix(key, "file:")
-
-			// Determine base directory for file resolution
-			// The first downloadedPath is always the working directory (passed via -C flag or default ".")
-			// This is set in main.go where workDir is added as the first search path
-			baseDir := "."
-			if len(cc.downloadedPaths) > 0 {
-				baseDir = cc.downloadedPaths[0]
-			}
-
-			// Read and format the file content
-			fileContent, err := readFileReference(filePath, baseDir)
-			if err != nil {
-				cc.logger.Warn("Failed to expand file reference", "file", filePath, "error", err)
-				// Return original placeholder on error
-				return fmt.Sprintf("${%s}", key)
-			}
-
-			return formatFileContent(filePath, fileContent)
-		}
-
-		// Regular parameter expansion
 		if val, ok := params[key]; ok {
 			return val
 		}
