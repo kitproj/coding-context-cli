@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 )
 
-// CommandFrontMatter represents the frontmatter fields for command files
+// CommandFrontMatter represents the frontmatter fields for command files.
+// Previously this was an empty placeholder struct, but now supports the expand_params field
+// to control parameter expansion behavior in command content.
 type CommandFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
 
