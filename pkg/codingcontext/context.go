@@ -150,7 +150,7 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 }
 
 // findTask searches for a task markdown file and returns it with parameters substituted
-func (cc *Context) findTask(taskName string) error {
+func (cc *Context) findTask(ctx context.Context, taskName string) error {
 
 	// Add task name to includes so rules can be filtered
 	cc.includes.SetValue("task_name", taskName)
@@ -210,6 +210,12 @@ func (cc *Context) findTask(taskName string) error {
 					return err
 				}
 				finalContent.WriteString(commandContent)
+			} else if block.ShellCommand != nil {
+				output, err := cc.executeShellCommand(ctx, block.ShellCommand.Command())
+				if err != nil {
+					return fmt.Errorf("failed to execute shell command %q: %w", block.ShellCommand.Command(), err)
+				}
+				finalContent.WriteString(output)
 			}
 		}
 
@@ -258,6 +264,33 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 	return *content, nil
 }
 
+// executeShellCommand executes a shell command and returns its output.
+// Commands are executed in the working directory (first search path that's a local file).
+func (cc *Context) executeShellCommand(ctx context.Context, command string) (string, error) {
+	// Find the working directory from search paths (use the first local file:// path)
+	workDir := "."
+	for _, sp := range cc.searchPaths {
+		if strings.HasPrefix(sp, "file://") {
+			workDir = strings.TrimPrefix(sp, "file://")
+			break
+		}
+	}
+
+	cc.logger.Info("Executing shell command", "command", command, "workDir", workDir)
+
+	// Create the command with the shell
+	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	cmd.Dir = workDir
+
+	// Capture stdout and stderr
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("command failed: %w (output: %s)", err, string(output))
+	}
+
+	return string(output), nil
+}
+
 // expandParams substitutes parameter placeholders in the given content.
 func (cc *Context) expandParams(content string, params map[string]string) string {
 	return os.Expand(content, func(key string) string {
@@ -301,7 +334,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	}
 
 	// Get the task by name
-	if err := cc.findTask(taskName); err != nil {
+	if err := cc.findTask(ctx, taskName); err != nil {
 		return nil, fmt.Errorf("task not found: %w", err)
 	}
 

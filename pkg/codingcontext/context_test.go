@@ -904,6 +904,122 @@ func TestContext_Run_Commands(t *testing.T) {
 	}
 }
 
+// TestContext_Run_ShellCommands tests shell command execution in tasks
+func TestContext_Run_ShellCommands(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func(t *testing.T, dir string)
+		opts        []Option
+		taskName    string
+		wantErr     bool
+		errContains string
+		check       func(t *testing.T, result *Result)
+	}{
+		{
+			name: "task with simple shell command",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "with-shell", "", "Output:\n!`echo hello`\nDone")
+			},
+			taskName: "with-shell",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "Output:") {
+					t.Error("expected task content before shell command")
+				}
+				if !strings.Contains(result.Task.Content, "hello") {
+					t.Errorf("expected shell command output 'hello', got %q", result.Task.Content)
+				}
+				if !strings.Contains(result.Task.Content, "Done") {
+					t.Error("expected task content after shell command")
+				}
+			},
+		},
+		{
+			name: "task with shell command using git",
+			setup: func(t *testing.T, dir string) {
+				// Create a git repo in the test dir
+				createTask(t, dir, "git-info", "", "Branch:\n!`git branch --show-current || echo main`")
+			},
+			taskName: "git-info",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "Branch:") {
+					t.Error("expected task content before shell command")
+				}
+				// The command should at least run without error
+				if result.Task.Content == "" {
+					t.Error("expected non-empty result")
+				}
+			},
+		},
+		{
+			name: "multiple shell commands",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "multi-shell", "", "First: !`echo one`\nSecond: !`echo two`")
+			},
+			taskName: "multi-shell",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "one") {
+					t.Errorf("expected first command output 'one', got %q", result.Task.Content)
+				}
+				if !strings.Contains(result.Task.Content, "two") {
+					t.Errorf("expected second command output 'two', got %q", result.Task.Content)
+				}
+			},
+		},
+		{
+			name: "shell command with complex output",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "complex-shell", "", "Files:\n!`ls -la | head -5`")
+			},
+			taskName: "complex-shell",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "Files:") {
+					t.Error("expected task content before shell command")
+				}
+				// ls output should contain at least something
+				if len(result.Task.Content) < 10 {
+					t.Errorf("expected substantial output from ls command, got %q", result.Task.Content)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			tt.setup(t, tmpDir)
+
+			opts := append([]Option{
+				WithSearchPaths("file://" + tmpDir),
+				WithLogger(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))),
+			}, tt.opts...)
+
+			c := New(opts...)
+
+			result, err := c.Run(context.Background(), tt.taskName)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("expected error to contain %q, got %v", tt.errContains, err)
+				}
+				return
+			}
+
+			if !tt.wantErr && tt.check != nil {
+				tt.check(t, result)
+			}
+		})
+	}
+}
+
 // TestContext_Run_Integration tests end-to-end integration scenarios
 func TestContext_Run_Integration(t *testing.T) {
 	tests := []struct {
