@@ -270,19 +270,24 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 	return *content, nil
 }
 
-// expandParams substitutes parameter placeholders in the given content.
+// expandParams performs all types of content expansion:
+// - Parameter expansion: ${param_name}
+// - Command expansion: !`command`
+// - Path expansion: @path
+// If params is provided, it is merged with cc.params (with params taking precedence).
 func (cc *Context) expandParams(content string, params map[string]string) string {
-	return os.Expand(content, func(key string) string {
-		if val, ok := params[key]; ok {
-			return val
-		}
-		// If not in params map, check cc.params
-		if val, ok := cc.params[key]; ok {
-			return val
-		}
-		// Return original placeholder if not found
-		return fmt.Sprintf("${%s}", key)
-	})
+	// Merge params with cc.params
+	mergedParams := make(Params)
+	for k, v := range cc.params {
+		mergedParams[k] = v
+	}
+	for k, v := range params {
+		mergedParams[k] = v
+	}
+
+	// Use the new Expander to handle all expansion types
+	expander := NewExpander(mergedParams, cc.logger)
+	return expander.Expand(content)
 }
 
 // shouldExpandParams returns true if parameter expansion should occur based on the expandParams field.

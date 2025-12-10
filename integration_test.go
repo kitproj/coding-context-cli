@@ -292,6 +292,60 @@ Please work on ${component} and fix ${issue}.
 	}
 }
 
+func TestExpanderIntegration(t *testing.T) {
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a test file for path expansion
+	dataFile := filepath.Join(tmpDir, "data.txt")
+	if err := os.WriteFile(dataFile, []byte("file content"), 0o644); err != nil {
+		t.Fatalf("failed to write data file: %v", err)
+	}
+
+	// Create a task file with all three expansion types
+	taskFile := filepath.Join(tasksDir, "test-expander.md")
+	taskContent := fmt.Sprintf(`---
+task_name: test-expander
+---
+# Test Expander
+
+Parameter: ${component}
+Command: !`+"`echo hello`"+`
+Path: @%s
+Combined: ${component} !`+"`echo world`"+`
+`, dataFile)
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the program with parameters
+	output := runTool(t, "-C", tmpDir, "-p", "component=auth", "test-expander")
+
+	// Check parameter expansion
+	if !strings.Contains(output, "Parameter: auth") {
+		t.Errorf("parameter expansion failed. Output:\n%s", output)
+	}
+
+	// Check command expansion
+	if !strings.Contains(output, "Command: hello") {
+		t.Errorf("command expansion failed. Output:\n%s", output)
+	}
+
+	// Check path expansion
+	if !strings.Contains(output, "Path: file content") {
+		t.Errorf("path expansion failed. Output:\n%s", output)
+	}
+
+	// Check combined expansion
+	if !strings.Contains(output, "Combined: auth world") {
+		t.Errorf("combined expansion failed. Output:\n%s", output)
+	}
+}
+
 func TestMdcFileSupport(t *testing.T) {
 	dirs := setupTestDirs(t)
 
