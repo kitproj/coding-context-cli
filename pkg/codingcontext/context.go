@@ -237,7 +237,8 @@ func (cc *Context) findTask(taskName string) error {
 	return nil
 }
 
-// findCommand searches for a command markdown file and returns it with parameters substituted.
+// findCommand searches for a command markdown file and returns its content.
+// Parameters are substituted only if the command's expand_params field is not false.
 func (cc *Context) findCommand(commandName string, params map[string]string) (string, error) {
 	var content *string
 	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
