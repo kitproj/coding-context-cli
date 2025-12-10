@@ -21,6 +21,7 @@ type Context struct {
 	manifestURL     string
 	searchPaths     []string
 	downloadedPaths []string
+	workspaceDir    string                      // Working directory for shell commands
 	task            Markdown[TaskFrontMatter]   // Parsed task
 	rules           []Markdown[RuleFrontMatter] // Collected rule files
 	totalTokens     int
@@ -79,6 +80,13 @@ func WithResume(resume bool) Option {
 func WithAgent(agent Agent) Option {
 	return func(c *Context) {
 		c.agent = agent
+	}
+}
+
+// WithWorkspaceDir sets the workspace directory for shell command execution
+func WithWorkspaceDir(dir string) Option {
+	return func(c *Context) {
+		c.workspaceDir = dir
 	}
 }
 
@@ -265,15 +273,11 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 }
 
 // executeShellCommand executes a shell command and returns its output.
-// Commands are executed in the working directory (first search path that's a local file).
+// Commands are executed in the workspace directory.
 func (cc *Context) executeShellCommand(ctx context.Context, command string) (string, error) {
-	// Find the working directory from search paths (use the first local file:// path)
-	workDir := "."
-	for _, sp := range cc.searchPaths {
-		if strings.HasPrefix(sp, "file://") {
-			workDir = strings.TrimPrefix(sp, "file://")
-			break
-		}
+	workDir := cc.workspaceDir
+	if workDir == "" {
+		workDir = "."
 	}
 
 	cc.logger.Info("Executing shell command", "command", command, "workDir", workDir)

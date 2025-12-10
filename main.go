@@ -77,6 +77,7 @@ func main() {
 		codingcontext.WithResume(resume),
 		codingcontext.WithAgent(agent),
 		codingcontext.WithManifestURL(manifestURL),
+		codingcontext.WithWorkspaceDir(workDir),
 	)
 
 	result, err := cc.Run(ctx, taskName)
