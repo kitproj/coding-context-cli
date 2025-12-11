@@ -384,8 +384,6 @@ func TestAgent_IsSet(t *testing.T) {
 }
 
 func TestAgent_UserRulePath(t *testing.T) {
-	homeDir := "/home/user"
-
 	tests := []struct {
 		name     string
 		agent    Agent
@@ -394,42 +392,42 @@ func TestAgent_UserRulePath(t *testing.T) {
 		{
 			name:     "cursor agent",
 			agent:    AgentCursor,
-			wantPath: filepath.Join(homeDir, ".cursor", "rules", "AGENTS.md"),
+			wantPath: filepath.Join(".cursor", "rules", "AGENTS.md"),
 		},
 		{
 			name:     "opencode agent",
 			agent:    AgentOpenCode,
-			wantPath: filepath.Join(homeDir, ".opencode", "rules", "AGENTS.md"),
+			wantPath: filepath.Join(".opencode", "rules", "AGENTS.md"),
 		},
 		{
 			name:     "copilot agent",
 			agent:    AgentCopilot,
-			wantPath: filepath.Join(homeDir, ".github", "agents", "AGENTS.md"),
+			wantPath: filepath.Join(".github", "agents", "AGENTS.md"),
 		},
 		{
 			name:     "claude agent",
 			agent:    AgentClaude,
-			wantPath: filepath.Join(homeDir, ".claude", "CLAUDE.md"),
+			wantPath: filepath.Join(".claude", "CLAUDE.md"),
 		},
 		{
 			name:     "gemini agent",
 			agent:    AgentGemini,
-			wantPath: filepath.Join(homeDir, ".gemini", "GEMINI.md"),
+			wantPath: filepath.Join(".gemini", "GEMINI.md"),
 		},
 		{
 			name:     "augment agent",
 			agent:    AgentAugment,
-			wantPath: filepath.Join(homeDir, ".augment", "rules", "AGENTS.md"),
+			wantPath: filepath.Join(".augment", "rules", "AGENTS.md"),
 		},
 		{
 			name:     "windsurf agent",
 			agent:    AgentWindsurf,
-			wantPath: filepath.Join(homeDir, ".windsurf", "rules", "AGENTS.md"),
+			wantPath: filepath.Join(".windsurf", "rules", "AGENTS.md"),
 		},
 		{
 			name:     "codex agent",
 			agent:    AgentCodex,
-			wantPath: filepath.Join(homeDir, ".codex", "AGENTS.md"),
+			wantPath: filepath.Join(".codex", "AGENTS.md"),
 		},
 		{
 			name:     "empty agent",
@@ -440,7 +438,7 @@ func TestAgent_UserRulePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.agent.UserRulePath(homeDir)
+			got := tt.agent.UserRulePath()
 			if got != tt.wantPath {
 				t.Errorf("UserRulePath() = %q, want %q", got, tt.wantPath)
 			}

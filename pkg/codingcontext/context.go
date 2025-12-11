@@ -343,10 +343,10 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 	// Build and return the result
 	result := &Result{
-		Rules:        cc.rules,
-		Task:         cc.task,
-		Tokens:       cc.totalTokens,
-		UserRulePath: cc.agent.UserRulePath(homeDir),
+		Rules:  cc.rules,
+		Task:   cc.task,
+		Tokens: cc.totalTokens,
+		Agent:  cc.agent,
 	}
 
 	return result, nil

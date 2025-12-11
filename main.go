@@ -62,13 +62,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Validate that -w flag requires -a flag
-	if writeRules && !agent.IsSet() {
-		logger.Error("Error", "error", fmt.Errorf("-w flag requires -a flag to specify an agent"))
-		flag.Usage()
-		os.Exit(1)
-	}
-
 	taskName := args[0]
 
 	homeDir, err := os.UserHomeDir()
@@ -99,13 +92,20 @@ func main() {
 
 	// If writeRules flag is set, write rules to UserRulePath and only output task
 	if writeRules {
-		if result.UserRulePath == "" {
+		// Get the user rule path from the agent (could be from task or -a flag)
+		if !result.Agent.IsSet() {
+			logger.Error("Error", "error", fmt.Errorf("-w flag requires an agent to be specified (via task 'agent' field or -a flag)"))
+			os.Exit(1)
+		}
+
+		relativePath := result.Agent.UserRulePath()
+		if relativePath == "" {
 			logger.Error("Error", "error", fmt.Errorf("no user rule path available for agent"))
 			os.Exit(1)
 		}
 
-		// UserRulePath is always a file path (e.g., .claude/CLAUDE.md or .cursor/rules/AGENTS.md)
-		rulesFile := result.UserRulePath
+		// Construct full path by joining with home directory
+		rulesFile := filepath.Join(homeDir, relativePath)
 		rulesDir := filepath.Dir(rulesFile)
 
 		// Create directory if it doesn't exist

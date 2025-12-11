@@ -1384,17 +1384,17 @@ This is the task prompt.
 func TestWriteRulesOptionWithoutAgent(t *testing.T) {
 	dirs := setupTestDirs(t)
 
-	// Create a simple task file
+	// Create a simple task file without agent field
 	createStandardTask(t, dirs.tasksDir, "test-task")
 
-	// Run with -w flag but WITHOUT -a flag (should fail)
+	// Run with -w flag but WITHOUT -a flag and task has no agent field (should fail)
 	output, err := runToolWithError("-C", dirs.tmpDir, "-w", "test-task")
 	if err == nil {
-		t.Errorf("expected error when using -w without -a flag, but command succeeded")
+		t.Errorf("expected error when using -w without agent (from task or -a flag), but command succeeded")
 	}
 
 	// Verify error message
-	if !strings.Contains(output, "-w flag requires -a flag") {
-		t.Errorf("expected error message about requiring -a flag, got: %s", output)
+	if !strings.Contains(output, "-w flag requires an agent") {
+		t.Errorf("expected error message about requiring an agent, got: %s", output)
 	}
 }
