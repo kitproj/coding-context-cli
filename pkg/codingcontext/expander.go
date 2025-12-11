@@ -16,6 +16,7 @@ import (
 // content contains further expansion sequences (e.g., command output with ${param}).
 func expand(content string, params map[string]string, logger *slog.Logger) string {
 	var result strings.Builder
+	result.Grow(len(content))
 	runes := []rune(content)
 	i := 0
 
