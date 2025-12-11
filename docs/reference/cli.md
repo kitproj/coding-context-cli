@@ -196,6 +196,78 @@ coding-context -s environment=production /deploy
 
 **Note:** When filtering by language, use `-s languages=go` (plural). The selector key is `languages` (plural), matching the frontmatter field name.
 
+### `-a <agent>`
+
+**Type:** String (agent name)  
+**Default:** (empty)
+
+Specify the default agent to use. This acts as a fallback if the task doesn't specify an agent in its frontmatter.
+
+**Supported agents:**
+- `cursor` - [Cursor](https://cursor.sh/)
+- `opencode` - [OpenCode.ai](https://opencode.ai/)
+- `copilot` - [GitHub Copilot](https://github.com/features/copilot)
+- `claude` - [Anthropic Claude](https://claude.ai/)
+- `gemini` - [Google Gemini](https://gemini.google.com/)
+- `augment` - [Augment](https://augmentcode.com/)
+- `windsurf` - [Windsurf](https://codeium.com/windsurf)
+- `codex` - [Codex](https://codex.ai/)
+
+**Agent Precedence:**
+- If the task specifies an `agent` field in its frontmatter, that agent **overrides** the `-a` flag
+- The `-a` flag serves as a **default** agent when the task doesn't specify one
+- This allows tasks to specify their preferred agent while supporting a command-line default
+
+**Examples:**
+```bash
+# Use copilot as the default agent
+coding-context -a copilot fix-bug
+
+# Task with agent field will override -a flag
+# If fix-bug.md has "agent: claude", it will use claude instead of copilot
+coding-context -a copilot fix-bug
+```
+
+### `-w`
+
+**Type:** Boolean flag  
+**Default:** False
+
+Write rules mode. When enabled:
+1. Rules are written to the agent's user-specific file (e.g., `~/.github/agents/AGENTS.md` for copilot)
+2. Only the task prompt (with frontmatter) is output to stdout
+3. Rules are not included in stdout
+
+This is useful for separating rules from task prompts, allowing AI agents to read rules from their standard configuration files while keeping the task prompt clean.
+
+**Requirements:**
+- Requires an agent to be specified (via task's `agent` field or `-a` flag)
+
+**Agent-specific file paths:**
+- `cursor`: `~/.cursor/rules/AGENTS.md`
+- `opencode`: `~/.opencode/rules/AGENTS.md`
+- `copilot`: `~/.github/agents/AGENTS.md`
+- `claude`: `~/.claude/CLAUDE.md`
+- `gemini`: `~/.gemini/GEMINI.md`
+- `augment`: `~/.augment/rules/AGENTS.md`
+- `windsurf`: `~/.windsurf/rules/AGENTS.md`
+- `codex`: `~/.codex/AGENTS.md`
+
+**Examples:**
+```bash
+# Write rules to copilot's config, output only task to stdout
+coding-context -a copilot -w fix-bug
+
+# Task specifies agent field (agent: claude), rules written to ~/.claude/CLAUDE.md
+coding-context -w fix-bug
+
+# Combine with other options
+coding-context -a copilot -w -s languages=go -p issue=123 fix-bug
+```
+
+**Use case:**
+This mode is particularly useful when working with AI coding agents that read rules from specific configuration files. Instead of including all rules in the prompt (consuming tokens), you can write them to the agent's config file once and only send the task prompt.
+
 ## Exit Codes
 
 - `0` - Success

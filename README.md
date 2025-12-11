@@ -84,6 +84,8 @@ Usage:
 Options:
   -C string
     	Change to directory before doing anything. (default ".")
+  -a value
+    	Default agent to use if task doesn't specify one. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
   -d value
     	Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).
   -m string
@@ -94,8 +96,7 @@ Options:
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
-  -a value
-    	Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
+  -w	Write rules to agent's config file and output only task to stdout. Requires agent (via task or -a flag).
 ```
 
 ### Examples
@@ -134,6 +135,31 @@ The `-d` flag supports various protocols via go-getter:
 - `s3::` - S3 buckets
 - `file://` - Local file paths
 - And more (see go-getter documentation)
+
+**Write-rules mode (separate rules from tasks):**
+```bash
+# Write rules to agent's config file, output only task to stdout
+coding-context -a copilot -w fix-bug | llm -m claude-3-5-sonnet
+
+# This will:
+# 1. Write all rules to ~/.github/agents/AGENTS.md
+# 2. Output only the task prompt to stdout
+# 3. The AI agent reads rules from its standard config file
+```
+
+This mode is useful when:
+- You want to avoid including rules in every prompt (saves tokens)
+- Your AI agent reads rules from a specific configuration file
+- You want to update rules once and reuse them across multiple tasks
+
+**Task-specified agent (agent precedence):**
+```bash
+# If fix-bug.md has "agent: claude" in its frontmatter
+coding-context -w fix-bug  # Uses claude, writes to ~/.claude/CLAUDE.md
+
+# Task agent overrides -a flag
+coding-context -a copilot -w fix-bug  # Still uses claude from task
+```
 
 ### Example Tasks
 
