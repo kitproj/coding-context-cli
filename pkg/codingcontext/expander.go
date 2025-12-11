@@ -51,7 +51,7 @@ func (e *expander) Expand(content string) string {
 					result.WriteString(val)
 				} else {
 					e.logger.Warn("parameter not found", "param", paramName)
-					result.WriteString("${" + paramName + "}")
+					result.WriteString(string(runes[i : end+1]))
 				}
 				i = end + 1
 				continue
@@ -73,7 +73,7 @@ func (e *expander) Expand(content string) string {
 				if err != nil {
 					e.logger.Warn("command expansion failed", "command", command, "error", err)
 					// Return the original !`command` if command fails
-					result.WriteString("!`" + command + "`")
+					result.WriteString(string(runes[i : end+1]))
 				} else {
 					// Write command output (trimming trailing newline)
 					result.WriteString(strings.TrimSuffix(string(output), "\n"))
