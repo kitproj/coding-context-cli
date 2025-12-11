@@ -29,12 +29,12 @@ First, download and install the Coding Context CLI:
 ```bash
 # For Linux
 sudo curl -fsL -o /usr/local/bin/coding-context \
-  https://github.com/kitproj/coding-context-cli/releases/download/v0.0.16/coding-context_v0.0.16_linux_amd64
+  https://github.com/kitproj/coding-context-cli/releases/download/v0.0.23/coding-context_v0.0.23_linux_amd64
 sudo chmod +x /usr/local/bin/coding-context
 
 # For macOS
 sudo curl -fsL -o /usr/local/bin/coding-context \
-  https://github.com/kitproj/coding-context-cli/releases/download/v0.0.16/coding-context_v0.0.16_darwin_amd64
+  https://github.com/kitproj/coding-context-cli/releases/download/v0.0.23/coding-context_v0.0.23_darwin_amd64
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
