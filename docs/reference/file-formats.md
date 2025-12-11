@@ -17,7 +17,6 @@ Task files define what the AI agent should do. They are Markdown files with YAML
 
 ```markdown
 ---
-task_name: <optional-task-identifier>
 <optional-frontmatter-fields>
 ---
 
@@ -38,7 +37,6 @@ Content can include ${parameter_placeholders}.
 **Example:**
 ```yaml
 ---
-task_name: fix-bug
 ---
 ```
 
@@ -60,7 +58,6 @@ The `languages` field is a **standard frontmatter field** that provides metadata
 **Recommended format (array with lowercase values):**
 ```yaml
 ---
-task_name: implement-feature
 languages:
   - go
 ---
@@ -69,7 +66,6 @@ languages:
 **Example (multiple languages):**
 ```yaml
 ---
-task_name: polyglot-task
 languages:
   - go
   - python
@@ -88,7 +84,6 @@ languages:
 **In task frontmatter selectors:**
 ```yaml
 ---
-task_name: implement-feature
 selectors:
   languages: go
 ---
@@ -96,7 +91,7 @@ selectors:
 
 **On the command line:**
 ```bash
-coding-context -s languages=go /implement-feature
+coding-context -s languages=go implement-feature
 ```
 
 **Note:** 
@@ -114,7 +109,6 @@ The `single_shot` field is a **standard frontmatter field** that provides metada
 **Example:**
 ```yaml
 ---
-task_name: deploy
 single_shot: true
 ---
 ```
@@ -133,7 +127,6 @@ The `timeout` field is a **standard frontmatter field** that provides metadata a
 **Example:**
 ```yaml
 ---
-task_name: long-running-analysis
 timeout: 10m
 ---
 ```
@@ -154,7 +147,6 @@ The `mcp_servers` field is a **standard frontmatter field** following the indust
 **Example:**
 ```yaml
 ---
-task_name: file-operations
 mcp_servers:
   filesystem:
     type: stdio
@@ -184,7 +176,6 @@ The `agent` field is a **standard frontmatter field** that acts as a default sel
 **Example:**
 ```yaml
 ---
-task_name: implement-feature
 agent: cursor
 ---
 ```
@@ -200,7 +191,7 @@ agent: cursor
 ```bash
 # These are equivalent:
 coding-context implement-feature  # (task has agent: cursor)
-coding-context -a cursor /implement-feature
+coding-context -a cursor implement-feature
 ```
 
 #### `model` (optional, standard field)
@@ -213,7 +204,6 @@ The `model` field is a **standard frontmatter field** that provides metadata abo
 **Example:**
 ```yaml
 ---
-task_name: code-review
 agent: copilot
 model: anthropic.claude-sonnet-4-20250514-v1-0
 ---
@@ -234,7 +224,6 @@ Any additional YAML fields can be used for selector-based filtering.
 **Example:**
 ```yaml
 ---
-task_name: deploy
 environment: production
 region: us-east-1
 ---
@@ -242,7 +231,7 @@ region: us-east-1
 
 **Usage:**
 ```bash
-coding-context -s environment=production -s region=us-east-1 /deploy
+coding-context -s environment=production -s region=us-east-1 deploy
 ```
 
 #### `selectors` (optional)
@@ -255,7 +244,6 @@ The `selectors` field allows a task to specify which rules should be included wh
 **Example:**
 ```yaml
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation
@@ -270,7 +258,7 @@ coding-context implement-feature
 
 This is equivalent to:
 ```bash
-coding-context -s languages=go -s stage=implementation /implement-feature
+coding-context -s languages=go -s stage=implementation implement-feature
 ```
 
 **OR Logic with Arrays:**
@@ -279,7 +267,6 @@ You can specify multiple values for the same key using YAML arrays for OR logic:
 
 ```yaml
 ---
-task_name: test-code
 selectors:
   languages: [go, python, javascript]
   stage: testing
@@ -296,7 +283,7 @@ Selectors from the task frontmatter and command-line `-s` flags are combined (ad
 # Task frontmatter has: selectors.languages = go
 # Command line adds: -s priority=high
 # Result: Rules must match languages=go AND priority=high
-coding-context -s priority=high /implement-feature
+coding-context -s priority=high implement-feature
 ```
 
 **Special Selector: `rule_name`**
@@ -305,7 +292,6 @@ You can filter to specific rule files by their base filename (without extension)
 
 ```yaml
 ---
-task_name: my-task
 selectors:
   rule_name: [security-standards, go-best-practices]
 ---
@@ -323,7 +309,6 @@ When set to `false`, parameter placeholders like `${variable}` are preserved as-
 **Example (with parameter expansion disabled):**
 ```yaml
 ---
-task_name: preserve-template
 expand: false
 ---
 
@@ -346,7 +331,6 @@ coding-context -p issue_number=123 -p issue_title="Bug" preserve-template
 **Default behavior (expand: true or omitted):**
 ```yaml
 ---
-task_name: normal-task
 # expand defaults to true
 ---
 
@@ -371,9 +355,6 @@ Use `${parameter_name}` syntax to substitute parameter values from `-p` flags.
 
 **Example:**
 ```markdown
----
-task_name: fix-bug
----
 # Fix Bug: ${issue_key}
 
 Issue: ${issue_key}
@@ -400,9 +381,6 @@ Use `` !`command` `` syntax to execute shell commands and include their output.
 
 **Example:**
 ```markdown
----
-task_name: system-info
----
 # System Information
 
 Current date: !`date +%Y-%m-%d`
@@ -432,9 +410,6 @@ Use `@path` syntax to include the contents of a file.
 
 **Example:**
 ```markdown
----
-task_name: include-config
----
 # Current Configuration
 
 @config.yaml
@@ -512,7 +487,6 @@ Deploy to ${environment} with version ${version}
 **Usage in a task:**
 ```yaml
 ---
-task_name: my-task
 ---
 
 /deploy-steps
@@ -531,10 +505,6 @@ This is useful when commands contain template syntax that should be preserved.
 Commands are referenced from tasks using slash command syntax:
 
 ```markdown
----
-task_name: deploy-app
----
-
 # Deployment Steps
 
 /pre-deploy
@@ -714,7 +684,6 @@ stage: implementation
 priority: high
 team: backend
 agent: cursor
-task_name: implement-feature
 ---
 ```
 
@@ -821,10 +790,10 @@ metadata:
 **Selectors match top-level only:**
 ```bash
 # Works with top-level fields
-coding-context -s languages=go /fix-bug
+coding-context -s languages=go fix-bug
 
 # Doesn't work with nested fields
-coding-context -s metadata.language=go /fix-bug  # Won't match
+coding-context -s metadata.language=go fix-bug  # Won't match
 ```
 
 ### Data Types
@@ -842,9 +811,9 @@ languages:
 
 ```bash
 # All values are matched as strings
-coding-context -s priority=1 /task       # Matches priority: 1
-coding-context -s enabled=true /task     # Matches enabled: true
-coding-context -s languages=go /task      # Matches languages: [ go ]
+coding-context -s priority=1 task       # Matches priority: 1
+coding-context -s enabled=true task     # Matches enabled: true
+coding-context -s languages=go task      # Matches languages: [ go ]
 ```
 
 ## Special Behaviors
@@ -882,8 +851,8 @@ The `-r` flag:
 **Equivalent commands:**
 ```bash
 # These are NOT exactly equivalent:
-coding-context -r /fix-bug                    # Skips rules
-coding-context -s resume=true /fix-bug        # Includes rules
+coding-context -r fix-bug                    # Skips rules
+coding-context -s resume=true fix-bug        # Includes rules
 ```
 
 ## Validation

@@ -15,7 +15,7 @@ Include only rules matching a specific frontmatter field:
 
 ```bash
 # Include only Go rules
-coding-context -s languages=go /fix-bug
+coding-context -s languages=go fix-bug
 ```
 
 This includes only rules with `languages: [ go ]` in their frontmatter.
@@ -26,7 +26,7 @@ Combine multiple selectors - all must match:
 
 ```bash
 # Include only Go testing rules
-coding-context -s languages=go -s stage=testing /implement-feature
+coding-context -s stage=testing implement-feature
 ```
 
 This includes only rules with BOTH `languages: [ go ]` AND `stage: testing`.
@@ -40,7 +40,6 @@ Use selectors to choose between multiple task files with the same `task_name`:
 **Staging task (`.agents/tasks/deploy-staging.md`):**
 ```markdown
 ---
-task_name: deploy
 environment: staging
 ---
 Deploy to staging environment.
@@ -49,7 +48,6 @@ Deploy to staging environment.
 **Production task (`.agents/tasks/deploy-production.md`):**
 ```markdown
 ---
-task_name: deploy
 environment: production
 ---
 Deploy to production environment.
@@ -58,10 +56,10 @@ Deploy to production environment.
 **Usage:**
 ```bash
 # Select staging task
-coding-context -s environment=staging /deploy
+coding-context -s environment=staging deploy
 
 # Select production task
-coding-context -s environment=production /deploy
+coding-context -s environment=production deploy
 ```
 
 ## Common Selector Patterns
@@ -70,34 +68,34 @@ coding-context -s environment=production /deploy
 
 ```bash
 # Python project
-coding-context -s languages=python /fix-bug
+coding-context -s languages=python fix-bug
 
 # JavaScript project
-coding-context -s languages=javascript /code-review
+coding-context -s languages=javascript code-review
 
 # Multi-language (run separately)
-coding-context -s languages=go /implement-backend
-coding-context -s languages=javascript /implement-frontend
+coding-context -s languages=go implement-backend
+coding-context -s languages=javascript implement-frontend
 ```
 
 ### By Stage
 
 ```bash
 # Planning phase
-coding-context -s stage=planning /plan-feature
+coding-context -s stage=planning plan-feature
 
 # Implementation phase
-coding-context -s stage=implementation /implement-feature
+coding-context -s stage=implementation implement-feature
 
 # Testing phase
-coding-context -s stage=testing /test-feature
+coding-context -s stage=testing test-feature
 ```
 
 ### By Priority
 
 ```bash
 # High priority rules only
-coding-context -s priority=high /fix-critical-bug
+coding-context -s priority=high fix-critical-bug
 
 # Include all priorities (no selector)
 coding-context fix-bug
@@ -107,10 +105,10 @@ coding-context fix-bug
 
 ```bash
 # Include JIRA context
-coding-context -s source=jira /fix-bug
+coding-context -s source=jira fix-bug
 
 # Include GitHub context
-coding-context -s source=github /code-review
+coding-context -s source=github code-review
 ```
 
 ## Resume Mode
@@ -119,8 +117,8 @@ The `-r` flag is shorthand for `-s resume=true` plus skipping all rules:
 
 ```bash
 # These are equivalent:
-coding-context -r /fix-bug
-coding-context -s resume=true /fix-bug  # but also skips rules
+coding-context -r fix-bug
+coding-context -s resume=true fix-bug  # but also skips rules
 ```
 
 Use resume mode when continuing work in a new session to save tokens.
@@ -134,7 +132,6 @@ Instead of specifying selectors on the command line every time, you can embed th
 **Task file (`.agents/tasks/implement-go-feature.md`):**
 ```markdown
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation
@@ -151,7 +148,7 @@ coding-context implement-feature
 
 This is equivalent to:
 ```bash
-coding-context -s languages=go -s stage=implementation /implement-feature
+coding-context -s stage=implementation implement-feature
 ```
 
 ### Array Selectors (OR Logic)
@@ -161,7 +158,6 @@ Use arrays for OR logic within the same selector key:
 **Task file:**
 ```markdown
 ---
-task_name: refactor-code
 selectors:
   language: [go, python, javascript]
   stage: refactoring
@@ -181,7 +177,6 @@ Selectors from task frontmatter and the command line are combined (additive):
 **Task file with embedded selectors:**
 ```markdown
 ---
-task_name: deploy
 selectors:
   stage: deployment
 ---
@@ -191,7 +186,7 @@ selectors:
 ```bash
 # Combines task selectors with command-line selectors
 # Result: stage=deployment AND environment=production
-coding-context -s environment=production /deploy
+coding-context -s environment=production deploy
 ```
 
 ### When to Use Task Frontmatter Selectors
@@ -217,7 +212,6 @@ coding-context implement-feature
 **Output:**
 ```yaml
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation
@@ -261,13 +255,13 @@ team: backend
 **Matching selectors:**
 ```bash
 # Matches
-coding-context -s languages=go /fix-bug
-coding-context -s languages=go -s stage=testing /fix-bug
-coding-context -s priority=high /fix-bug
+coding-context -s languages=go fix-bug
+coding-context -s stage=testing fix-bug
+coding-context -s priority=high fix-bug
 
 # Does NOT match
-coding-context -s languages=python /fix-bug
-coding-context -s languages=go -s stage=planning /fix-bug
+coding-context -s languages=python fix-bug
+coding-context -s stage=planning fix-bug
 ```
 
 ## Debugging Selectors
@@ -276,11 +270,11 @@ Check which rules are included:
 
 ```bash
 # Output to file and review
-coding-context -s languages=go /fix-bug > output.txt
+coding-context -s languages=go fix-bug > output.txt
 less output.txt
 
 # Check token count
-coding-context -s languages=go /fix-bug 2>&1 | grep -i token
+coding-context -s languages=go fix-bug 2>&1 | grep -i token
 ```
 
 ## Best Practices

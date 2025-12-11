@@ -14,9 +14,6 @@ This guide shows you how to create task files for different scenarios.
 Create a simple task without parameters:
 
 ```markdown
----
-task_name: code-review
----
 # Code Review Task
 
 Please review the code changes with focus on:
@@ -37,9 +34,6 @@ coding-context code-review
 Create a task that accepts dynamic values:
 
 ```markdown
----
-task_name: implement-feature
----
 # Feature Implementation: ${feature_name}
 
 Implement the following feature: ${feature_name}
@@ -67,7 +61,6 @@ Create multiple variations of the same task using selectors:
 **For staging environment (`.agents/tasks/deploy-staging.md`):**
 ```markdown
 ---
-task_name: deploy
 environment: staging
 ---
 # Deploy to Staging
@@ -78,7 +71,6 @@ Deploy with extra validation and monitoring.
 **For production environment (`.agents/tasks/deploy-production.md`):**
 ```markdown
 ---
-task_name: deploy
 environment: production
 ---
 # Deploy to Production
@@ -89,10 +81,10 @@ Deploy with all safety checks and rollback plan.
 Use with:
 ```bash
 # Deploy to staging
-coding-context -s environment=staging /deploy
+coding-context -s environment=staging deploy
 
 # Deploy to production
-coding-context -s environment=production /deploy
+coding-context -s environment=production deploy
 ```
 
 ## Resume Mode Tasks
@@ -102,7 +94,6 @@ Create separate tasks for initial and resume sessions:
 **Initial task (`.agents/tasks/refactor-initial.md`):**
 ```markdown
 ---
-task_name: refactor
 resume: false
 ---
 # Refactoring Task
@@ -113,7 +104,6 @@ Analyze the code and create a refactoring plan.
 **Resume task (`.agents/tasks/refactor-resume.md`):**
 ```markdown
 ---
-task_name: refactor
 resume: true
 ---
 # Continue Refactoring
@@ -124,10 +114,10 @@ Continue with the refactoring work from your previous session.
 Use with:
 ```bash
 # Initial session
-coding-context -s resume=false /refactor
+coding-context -s resume=false refactor
 
 # Resume session (uses -r flag to skip rules and select resume task)
-coding-context -r /refactor
+coding-context -r refactor
 ```
 
 ## Tasks with Embedded Selectors
@@ -137,7 +127,6 @@ Instead of requiring `-s` flags on every invocation, you can embed selectors dir
 **Example (`.agents/tasks/implement-go-feature.md`):**
 ```markdown
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation
@@ -153,13 +142,12 @@ Requirements: ${requirements}
 **Usage:**
 ```bash
 # Automatically applies languages=go and stage=implementation selectors
-coding-context -p feature_name="User Auth" /implement-feature
+coding-context -p feature_name="User Auth" implement-feature
 ```
 
 **Example with OR logic using arrays:**
 ```markdown
 ---
-task_name: write-tests
 selectors:
   languages: [go, python]
   stage: testing
@@ -176,7 +164,7 @@ This matches rules where `(languages=go OR languages=python) AND stage=testing`.
 # Task has: selectors.languages = go
 # Command adds: -s priority=high
 # Result: Includes rules matching languages=go AND priority=high
-coding-context -s priority=high /implement-feature
+coding-context -s priority=high implement-feature
 ```
 
 **Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).
@@ -193,7 +181,6 @@ coding-context implement-feature
 **Output:**
 ```yaml
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation
