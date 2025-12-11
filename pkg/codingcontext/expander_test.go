@@ -200,7 +200,7 @@ func TestExpandPaths(t *testing.T) {
 	}
 }
 
-func TestExpand(t *testing.T) {
+func TestExpandCombined(t *testing.T) {
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 
