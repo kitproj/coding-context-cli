@@ -313,7 +313,7 @@ selectors:
 
 This would only include the rules from `security-standards.md` and `go-best-practices.md`.
 
-#### `expand_params` (optional)
+#### `expand` (optional)
 
 **Type:** Boolean  
 **Purpose:** Controls whether parameter expansion should occur in the task content. Defaults to `true` if not specified.
@@ -324,7 +324,7 @@ When set to `false`, parameter placeholders like `${variable}` are preserved as-
 ```yaml
 ---
 task_name: preserve-template
-expand_params: false
+expand: false
 ---
 
 Issue: ${issue_number}
@@ -343,11 +343,11 @@ coding-context -p issue_number=123 -p issue_title="Bug" preserve-template
 - Preserving template syntax that conflicts with the parameter expansion format
 - Keeping templates intact for later processing
 
-**Default behavior (expand_params: true or omitted):**
+**Default behavior (expand: true or omitted):**
 ```yaml
 ---
 task_name: normal-task
-# expand_params defaults to true
+# expand defaults to true
 ---
 
 Issue: ${issue_number}
@@ -493,7 +493,7 @@ This content will be substituted when the command is referenced.
 
 ### Frontmatter Fields (optional)
 
-#### `expand_params` (optional)
+#### `expand` (optional)
 
 **Type:** Boolean  
 **Purpose:** Controls whether parameter expansion should occur in the command content. Defaults to `true` if not specified.
@@ -503,7 +503,7 @@ When set to `false`, parameter placeholders like `${variable}` are preserved as-
 **Example:**
 ```yaml
 ---
-expand_params: false
+expand: false
 ---
 
 Deploy to ${environment} with version ${version}
@@ -679,7 +679,7 @@ mcp_servers:
 
 **Note:** This field is informational and does not affect rule selection.
 
-#### `expand_params` (optional)
+#### `expand` (optional)
 
 **Type:** Boolean  
 **Purpose:** Controls whether parameter expansion should occur in the rule content. Defaults to `true` if not specified.
@@ -691,7 +691,7 @@ When set to `false`, parameter placeholders like `${variable}` are preserved as-
 ---
 languages:
   - go
-expand_params: false
+expand: false
 ---
 
 Use version ${version} when building the project.
