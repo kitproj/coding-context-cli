@@ -104,30 +104,34 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Create directory if it doesn't exist
-		rulesDir := result.UserRulePath
-		// If the path points to a specific file (not a directory), use its parent directory
-		if filepath.Ext(rulesDir) != "" {
-			rulesDir = filepath.Dir(rulesDir)
+		// Determine the rules file path
+		// UserRulePath can be either a file path (e.g., .claude/CLAUDE.md) or a directory path (e.g., .cursor/rules)
+		rulesFile := result.UserRulePath
+		rulesDir := filepath.Dir(rulesFile)
+
+		// Check if UserRulePath is meant to be a directory by checking if it has no extension
+		// Paths ending with .md are files, paths without extension are directories
+		if filepath.Ext(result.UserRulePath) == "" {
+			// It's a directory path, append default filename
+			rulesFile = filepath.Join(result.UserRulePath, "rules.md")
+			rulesDir = result.UserRulePath
 		}
 
+		// Create directory if it doesn't exist
 		if err := os.MkdirAll(rulesDir, 0o755); err != nil {
 			logger.Error("Error", "error", fmt.Errorf("failed to create rules directory %s: %w", rulesDir, err))
 			os.Exit(1)
 		}
 
-		// Write rules to the user rule path
-		rulesFile := result.UserRulePath
-		// If it's a directory, create a default file name
-		if filepath.Ext(rulesFile) == "" {
-			rulesFile = filepath.Join(rulesFile, "rules.md")
-		}
-
+		// Build rules content, trimming each rule and joining with consistent spacing
 		var rulesContent strings.Builder
-		for _, rule := range result.Rules {
-			rulesContent.WriteString(rule.Content)
-			rulesContent.WriteString("\n\n")
+		for i, rule := range result.Rules {
+			if i > 0 {
+				rulesContent.WriteString("\n\n")
+			}
+			rulesContent.WriteString(strings.TrimSpace(rule.Content))
 		}
+		rulesContent.WriteString("\n")
 
 		if err := os.WriteFile(rulesFile, []byte(rulesContent.String()), 0o644); err != nil {
 			logger.Error("Error", "error", fmt.Errorf("failed to write rules to %s: %w", rulesFile, err))
