@@ -79,7 +79,7 @@ sudo chmod +x /usr/local/bin/coding-context
 
 ```
 Usage:
-  coding-context [options] <task-prompt>
+  coding-context [options] <task-name>
 
 Options:
   -C string
@@ -94,15 +94,16 @@ Options:
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
-  -a value
-    	Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
+  -a string
+    	Target agent to use (excludes rules from that specific agent). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
+    	When set, excludes that agent's own rule paths (since the agent reads those itself) while including rules from other agents and generic rules.
 ```
 
 ### Examples
 
 **Basic usage with local files:**
 ```bash
-coding-context -p jira_issue_key=PROJ-1234 /fix-bug | llm -m gemini-pro
+coding-context -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
 ```
 
 This command will:
@@ -119,7 +120,7 @@ This command will:
 coding-context \
   -d git::https://github.com/company/shared-rules.git \
   -d s3::https://s3.amazonaws.com/my-bucket/coding-standards \
-  /fix-bug | llm -m gemini-pro
+  fix-bug | llm -m gemini-pro
 ```
 
 This command will:
@@ -134,6 +135,30 @@ The `-d` flag supports various protocols via go-getter:
 - `s3::` - S3 buckets
 - `file://` - Local file paths
 - And more (see go-getter documentation)
+
+### Content Expansion Features
+
+Task and rule content supports three types of dynamic expansion:
+
+1. **Parameter Expansion**: Use `${parameter_name}` syntax to substitute parameter values from `-p` flags
+   ```markdown
+   Issue: ${issue_key}
+   Description: ${description}
+   ```
+
+2. **Command Expansion**: Use `` !`command` `` syntax to execute shell commands and include their output
+   ```markdown
+   Current date: !`date +%Y-%m-%d`
+   Git branch: !`git rev-parse --abbrev-ref HEAD`
+   ```
+
+3. **Path Expansion**: Use `@path` syntax to include file contents
+   ```markdown
+   Current configuration:
+   @config.yaml
+   ```
+
+**Security Note:** All expansions are processed in a single pass to prevent injection attacks. Expanded content is never re-processed.
 
 ### Example Tasks
 
@@ -170,7 +195,7 @@ The tool looks for task and rule files in the following locations, in order of p
 - `./.agents/tasks/*.md` (task name matches filename without `.md` extension)
 - `~/.agents/tasks/*.md`
 
-**Commands** (referenced via slash commands inside task content):
+**Commands** (reusable content blocks referenced via slash commands like `/command-name` inside task content):
 - `./.agents/commands/*.md`
 - `./.cursor/commands/*.md`
 - `./.opencode/command/*.md`
@@ -335,6 +360,33 @@ Selectors from both the task frontmatter and command line are combined (additive
 coding-context -s priority=high /implement-feature
 ```
 
+### Parameter Expansion Control
+
+By default, parameter expansion occurs in all task and rule content. You can disable this behavior using the `expand_params` frontmatter field.
+
+**Example (task with expansion disabled):**
+```yaml
+---
+task_name: preserve-template
+expand_params: false
+---
+
+Issue: ${issue_number}
+Title: ${issue_title}
+```
+
+When `expand_params: false` is set, parameter placeholders like `${variable}` are preserved as-is in the output, rather than being replaced with values from `-p` flags.
+
+**Use cases:**
+- Passing templates to AI agents that handle their own parameter substitution
+- Preserving template syntax for later processing
+- Avoiding conflicts with other templating systems
+
+The `expand_params` field works in:
+- Task files (`.agents/tasks/*.md`)
+- Command files (`.agents/commands/*.md`)
+- Rule files (`.agents/rules/*.md`)
+
 ### Resume Mode
 
 Resume mode is designed for continuing work on a task where you've already established context. When using the `-r` flag:
@@ -497,10 +549,25 @@ agent: cursor
 Use Cursor-specific features...
 ```
 
+**Agent field in task frontmatter:**
+
+Tasks can specify an `agent` field in their frontmatter, which overrides the `-a` command-line flag:
+
+```markdown
+---
+task_name: cursor-specific-task
+agent: cursor
+---
+# This task automatically sets the agent to cursor
+```
+
+This is useful for tasks designed for specific agents, ensuring the correct agent context is used regardless of command-line flags.
+
 **Use cases:**
 - **Avoid duplication**: The agent reads its own config, so exclude it from the context
 - **Cross-agent rules**: Include rules from other agents that might be relevant
 - **Generic rules**: Always include generic rules, with optional agent-specific filtering
+- **Task-specific agents**: Tasks can enforce a specific agent context
 
 The exclusion happens before rule processing, so excluded paths are never loaded or counted toward token estimates.
 
@@ -535,6 +602,41 @@ fi
 # This script fetches the latest issue details before the task runs.
 echo "Fetching issue information..." >&2
 # Fetch and prepare issue data
+```
+
+### Command Files (Slash Commands)
+
+Command files are reusable content blocks that can be referenced from task files using slash command syntax (e.g., `/command-name`). They enable modular, composable task definitions.
+
+**Example command file (`.agents/commands/pre-deploy.md`):**
+```markdown
+---
+expand_params: true
+---
+# Pre-deployment Checklist
+
+Run tests: !`npm test`
+Build status: !`git status`
+```
+
+**Using commands in a task (`.agents/tasks/deploy.md`):**
+```markdown
+---
+task_name: deploy
+---
+# Deployment Task
+
+/pre-deploy
+
+Deploy the application to ${environment}.
+
+/post-deploy
+```
+
+Commands can also receive inline parameters:
+```markdown
+/greet name="Alice"
+/deploy env="production" version="1.2.3"
 ```
 
 ### Task Frontmatter
