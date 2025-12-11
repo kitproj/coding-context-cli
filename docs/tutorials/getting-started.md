@@ -66,7 +66,6 @@ Create a simple bug fix task. Task files define what you want the AI agent to do
 ```bash
 cat > tasks/fix-bug.md << 'EOF'
 ---
-task_name: fix-bug
 ---
 # Task: Fix Bug
 

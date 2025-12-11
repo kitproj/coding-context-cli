@@ -63,10 +63,10 @@ languages:
 Use with:
 ```bash
 # Include only Go rules
-coding-context -s languages=go /fix-bug
+coding-context -s languages=go fix-bug
 
 # Include only Python rules
-coding-context -s languages=python /fix-bug
+coding-context -s languages=python fix-bug
 ```
 
 **Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).
@@ -95,7 +95,7 @@ When writing tests:
 Use with:
 ```bash
 # Include rules for Go testing
-coding-context -s languages=go -s stage=testing /implement-feature
+coding-context -s stage=testing implement-feature
 ```
 
 **Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).
@@ -135,10 +135,10 @@ stage: implementation
 Use with:
 ```bash
 # Planning phase
-coding-context -s stage=planning /plan-feature
+coding-context -s stage=planning plan-feature
 
 # Implementation phase
-coding-context -s stage=implementation /implement-feature
+coding-context -s stage=implementation implement-feature
 ```
 
 ## Rules with Bootstrap Scripts
@@ -179,7 +179,7 @@ Use with:
 export JIRA_ISSUE_KEY="PROJ-123"
 export JIRA_API_TOKEN="your-token"
 
-coding-context -s source=jira /fix-bug
+coding-context -s source=jira fix-bug
 ```
 
 ## Best Practices

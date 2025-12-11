@@ -70,11 +70,11 @@ Use context in iterative workflows:
 
 ```bash
 # Step 1: Initial analysis
-coding-context -s resume=false /fix-bug > context-initial.txt
+coding-context -s resume=false fix-bug > context-initial.txt
 cat context-initial.txt | ai-agent > analysis.txt
 
 # Step 2: Implementation (skip rules with -r)
-coding-context -r /fix-bug > context-resume.txt
+coding-context -r fix-bug > context-resume.txt
 cat context-resume.txt analysis.txt | ai-agent > implementation.txt
 ```
 
@@ -177,7 +177,7 @@ export GITHUB_TOKEN="your-token"
 export DATABASE_URL="your-db-url"
 
 # Bootstrap scripts can access these
-coding-context -s source=jira /fix-bug | ai-agent
+coding-context -s source=jira fix-bug | ai-agent
 ```
 
 ## Token Count Monitoring
@@ -236,21 +236,21 @@ If your context exceeds token limits:
 
 1. **Use selectors to reduce included rules:**
    ```bash
-   coding-context -s languages=go -s priority=high /fix-bug
+   coding-context -s priority=high fix-bug
    ```
 
 2. **Use resume mode to skip rules:**
    ```bash
-   coding-context -r /fix-bug
+   coding-context -r fix-bug
    ```
 
 3. **Split into multiple requests:**
    ```bash
    # First request: Planning
-   coding-context -s stage=planning /plan-feature | ai-agent
+   coding-context -s stage=planning plan-feature | ai-agent
    
    # Second request: Implementation
-   coding-context -s stage=implementation /implement-feature | ai-agent
+   coding-context -s stage=implementation implement-feature | ai-agent
    ```
 
 ## See Also

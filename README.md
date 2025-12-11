@@ -79,7 +79,7 @@ sudo chmod +x /usr/local/bin/coding-context
 
 ```
 Usage:
-  coding-context [options] <task-prompt>
+  coding-context [options] <task-name>
 
 Options:
   -C string
@@ -96,6 +96,8 @@ Options:
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
+  -a string
+    	Default agent to use if task doesn't specify one. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
   -w	Write rules to agent's config file and output only task to stdout. Requires agent (via task or -a flag).
 ```
 
@@ -103,7 +105,7 @@ Options:
 
 **Basic usage with local files:**
 ```bash
-coding-context -p jira_issue_key=PROJ-1234 /fix-bug | llm -m gemini-pro
+coding-context -p jira_issue_key=PROJ-1234 fix-bug | llm -m gemini-pro
 ```
 
 This command will:
@@ -120,7 +122,7 @@ This command will:
 coding-context \
   -d git::https://github.com/company/shared-rules.git \
   -d s3::https://s3.amazonaws.com/my-bucket/coding-standards \
-  /fix-bug | llm -m gemini-pro
+  fix-bug | llm -m gemini-pro
 ```
 
 This command will:
@@ -135,6 +137,30 @@ The `-d` flag supports various protocols via go-getter:
 - `s3::` - S3 buckets
 - `file://` - Local file paths
 - And more (see go-getter documentation)
+
+### Content Expansion Features
+
+Task and rule content supports three types of dynamic expansion:
+
+1. **Parameter Expansion**: Use `${parameter_name}` syntax to substitute parameter values from `-p` flags
+   ```markdown
+   Issue: ${issue_key}
+   Description: ${description}
+   ```
+
+2. **Command Expansion**: Use `` !`command` `` syntax to execute shell commands and include their output
+   ```markdown
+   Current date: !`date +%Y-%m-%d`
+   Git branch: !`git rev-parse --abbrev-ref HEAD`
+   ```
+
+3. **Path Expansion**: Use `@path` syntax to include file contents
+   ```markdown
+   Current configuration:
+   @config.yaml
+   ```
+
+**Security Note:** All expansions are processed in a single pass to prevent injection attacks. Expanded content is never re-processed.
 
 **Write-rules mode (separate rules from tasks):**
 ```bash
@@ -196,7 +222,7 @@ The tool looks for task and rule files in the following locations, in order of p
 - `./.agents/tasks/*.md` (task name matches filename without `.md` extension)
 - `~/.agents/tasks/*.md`
 
-**Commands** (referenced via slash commands inside task content):
+**Commands** (reusable content blocks referenced via slash commands like `/command-name` inside task content):
 - `./.agents/commands/*.md`
 - `./.cursor/commands/*.md`
 - `./.opencode/command/*.md`
@@ -272,9 +298,6 @@ Task files are Markdown files located in task search directories (e.g., `.agents
 
 **Example (`.agents/tasks/fix-bug.md`):**
 ```markdown
----
-task_name: fix-bug
----
 # Task: Fix Bug in ${jira_issue_key}
 
 Here is the context for the bug. Please analyze the following files and provide a fix.
@@ -283,7 +306,6 @@ Here is the context for the bug. Please analyze the following files and provide 
 **Example with selectors for multiple prompts (`.agents/tasks/deploy-staging.md`):**
 ```markdown
 ---
-task_name: deploy
 environment: staging
 ---
 # Deploy to Staging
@@ -294,7 +316,6 @@ Deploy the application to the staging environment with extra validation.
 **Example for production (`.agents/tasks/deploy-prod.md`):**
 ```markdown
 ---
-task_name: deploy
 environment: production
 ---
 # Deploy to Production
@@ -318,7 +339,6 @@ Task files can include a `selectors` field in their frontmatter to automatically
 **Example (`.agents/tasks/implement-go-feature.md`):**
 ```markdown
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation
@@ -342,7 +362,6 @@ coding-context -s languages=go -s stage=implementation /implement-feature
 **Selectors support OR logic for the same key using arrays:**
 ```markdown
 ---
-task_name: test-code
 selectors:
   languages: [go, python]
   stage: testing
@@ -358,8 +377,34 @@ Selectors from both the task frontmatter and command line are combined (additive
 # Task has: selectors.languages = go
 # Command adds: -s priority=high
 # Result: includes rules matching languages=go AND priority=high
-coding-context -s priority=high /implement-feature
+coding-context -s priority=high implement-feature
 ```
+
+### Parameter Expansion Control
+
+By default, parameter expansion occurs in all task and rule content. You can disable this behavior using the `expand` frontmatter field.
+
+**Example (task with expansion disabled):**
+```yaml
+---
+expand: false
+---
+
+Issue: ${issue_number}
+Title: ${issue_title}
+```
+
+When `expand: false` is set, parameter placeholders like `${variable}` are preserved as-is in the output, rather than being replaced with values from `-p` flags.
+
+**Use cases:**
+- Passing templates to AI agents that handle their own parameter substitution
+- Preserving template syntax for later processing
+- Avoiding conflicts with other templating systems
+
+The `expand` field works in:
+- Task files (`.agents/tasks/*.md`)
+- Command files (`.agents/commands/*.md`)
+- Rule files (`.agents/rules/*.md`)
 
 ### Resume Mode
 
@@ -389,7 +434,6 @@ coding-context -r /fix-bug | ai-agent
 Initial task (`.agents/tasks/fix-bug-initial.md`):
 ```markdown
 ---
-task_name: fix-bug
 resume: false
 ---
 # Fix Bug
@@ -401,7 +445,6 @@ Follow the coding standards and write tests.
 Resume task (`.agents/tasks/fix-bug-resume.md`):
 ```markdown
 ---
-task_name: fix-bug
 resume: true
 ---
 # Fix Bug - Continue
@@ -523,10 +566,24 @@ agent: cursor
 Use Cursor-specific features...
 ```
 
+**Agent field in task frontmatter:**
+
+Tasks can specify an `agent` field in their frontmatter, which overrides the `-a` command-line flag:
+
+```markdown
+---
+agent: cursor
+---
+# This task automatically sets the agent to cursor
+```
+
+This is useful for tasks designed for specific agents, ensuring the correct agent context is used regardless of command-line flags.
+
 **Use cases:**
 - **Avoid duplication**: The agent reads its own config, so exclude it from the context
 - **Cross-agent rules**: Include rules from other agents that might be relevant
 - **Generic rules**: Always include generic rules, with optional agent-specific filtering
+- **Task-specific agents**: Tasks can enforce a specific agent context
 
 The exclusion happens before rule processing, so excluded paths are never loaded or counted toward token estimates.
 
@@ -563,19 +620,50 @@ echo "Fetching issue information..." >&2
 # Fetch and prepare issue data
 ```
 
+### Command Files (Slash Commands)
+
+Command files are reusable content blocks that can be referenced from task files using slash command syntax (e.g., `/command-name`). They enable modular, composable task definitions.
+
+**Example command file (`.agents/commands/pre-deploy.md`):**
+```markdown
+---
+expand: true
+---
+# Pre-deployment Checklist
+
+Run tests: !`npm test`
+Build status: !`git status`
+```
+
+**Using commands in a task (`.agents/tasks/deploy.md`):**
+```markdown
+# Deployment Task
+
+/pre-deploy
+
+Deploy the application to ${environment}.
+
+/post-deploy
+```
+
+Commands can also receive inline parameters:
+```markdown
+/greet name="Alice"
+/deploy env="production" version="1.2.3"
+```
+
 ### Task Frontmatter
 
 Task frontmatter is **always** automatically included at the beginning of the output when a task file has frontmatter. This allows the AI agent or downstream tool to access metadata about the task being executed. There is no flag needed to enable this - it happens automatically.
 
 **Example usage:**
 ```bash
-coding-context -p issue_number=123 /fix-bug
+coding-context -p issue_number=123 fix-bug
 ```
 
 **Output format:**
 ```yaml
 ---
-task_name: fix-bug
 resume: false
 ---
 # Fix Bug Task
@@ -596,7 +684,6 @@ coding-context implement-feature
 If the task has `selectors` in its frontmatter, they will be visible in the output:
 ```yaml
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation

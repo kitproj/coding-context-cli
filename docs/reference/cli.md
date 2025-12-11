@@ -12,7 +12,7 @@ Complete reference for the `coding-context` command-line interface.
 ## Synopsis
 
 ```
-coding-context [options] <task-prompt>
+coding-context [options] <task-name>
 ```
 
 ## Description
@@ -21,24 +21,22 @@ The Coding Context CLI assembles context from rule files and task prompts, perfo
 
 ## Arguments
 
-### `<task-prompt>`
+### `<task-name>`
 
-**Required.** The task prompt to execute. This can be either:
+**Required.** The name of a task file to look up (without `.md` extension). The task file is searched in task search paths (`.agents/tasks/`, etc.).
 
-1. **Free-text prompt**: Used directly as the task content
-2. **Task name**: The name of a task file to look up (without `.md` extension)
-3. **Slash command** (quoted): A prompt containing `/task-name` with arguments, which triggers task file lookup and parameter substitution
+Task files can contain slash commands (e.g., `/command-name arg`) which reference command files for modular content reuse.
 
 **Examples:**
 ```bash
-# Free-text prompt (used directly as task content)
-coding-context "Please help me fix the login bug"
-
 # Task name (looks up fix-bug.md task file)
 coding-context fix-bug
 
-# Slash command with arguments (must be quoted)
-coding-context "/fix-bug 123"
+# With parameters
+coding-context -p issue_key=BUG-123 fix-bug
+
+# With selectors
+coding-context -s languages=go fix-bug
 ```
 
 ## Options
@@ -73,29 +71,29 @@ Supports various protocols via [go-getter](https://github.com/hashicorp/go-gette
 **Examples:**
 ```bash
 # Load from Git repository
-coding-context -d git::https://github.com/company/shared-rules.git /fix-bug
+coding-context -d git::https://github.com/company/shared-rules.git fix-bug
 
 # Use specific branch or tag
-coding-context -d 'git::https://github.com/company/shared-rules.git?ref=v1.0' /fix-bug
+coding-context -d 'git::https://github.com/company/shared-rules.git?ref=v1.0' fix-bug
 
 # Use subdirectory within repository (note the double slash)
-coding-context -d 'git::https://github.com/company/mono-repo.git//standards' /fix-bug
+coding-context -d 'git::https://github.com/company/mono-repo.git//standards' fix-bug
 
 # Load from HTTP archive
-coding-context -d https://example.com/coding-rules.tar.gz /fix-bug
+coding-context -d https://example.com/coding-rules.tar.gz fix-bug
 
 # Multiple remote sources
 coding-context \
   -d git::https://github.com/company/shared-rules.git \
   -d https://cdn.example.com/team-rules.zip \
-  /fix-bug
+  fix-bug
 
 # Mix local and remote
 coding-context \
   -d git::https://github.com/company/org-standards.git \
   -d file:///path/to/local/rules \
   -s languages=go \
-  /fix-bug
+  fix-bug
 
 # Local directories are automatically included
 # (workDir and homeDir are added automatically)
@@ -114,13 +112,13 @@ Load a manifest file containing search paths (one per line). The manifest file i
 **Examples:**
 ```bash
 # Load search paths from a manifest file
-coding-context -m https://example.com/manifest.txt /fix-bug
+coding-context -m https://example.com/manifest.txt fix-bug
 
 # Combine manifest with additional directories
 coding-context \
   -m https://example.com/manifest.txt \
   -d git::https://github.com/company/extra-rules.git \
-  /fix-bug
+  fix-bug
 ```
 
 **Manifest file format (`manifest.txt`):**
@@ -140,15 +138,43 @@ Define a parameter for substitution in task prompts. Variables in task files usi
 **Examples:**
 ```bash
 # Single parameter
-coding-context -p issue_key=BUG-123 /fix-bug
+coding-context -p issue_key=BUG-123 fix-bug
 
 # Multiple parameters
 coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes" \
   -p severity=critical \
-  /fix-bug
+  fix-bug
 ```
+
+### `-a <agent>`
+
+**Type:** String  
+**Default:** (empty)
+
+Specify the target agent being used. When set, this excludes that agent's own rule paths (since the agent reads those itself) while including rules from other agents and generic rules.
+
+**Supported agents:** `cursor`, `opencode`, `copilot`, `claude`, `gemini`, `augment`, `windsurf`, `codex`
+
+**How it works:**
+- When `-a cursor` is specified, paths like `.cursor/rules` and `.cursorrules` are excluded
+- Rules from other agents (e.g., `.opencode/agent`, `.github/copilot-instructions.md`) are included
+- Generic rules from `.agents/rules` are always included
+- The agent name is automatically added as a selector for rule filtering
+
+**Example:**
+```bash
+# Using Cursor - excludes .cursor/ paths, includes others
+coding-context -a cursor fix-bug
+
+# Using GitHub Copilot - excludes .github/copilot-instructions.md, includes others
+coding-context -a copilot implement-feature
+```
+
+**Note:** Task files can override this with an `agent` field in their frontmatter.
+
+**See also:** [Targeting a Specific Agent](../../README.md#targeting-a-specific-agent) in README
 
 ### `-r`
 
@@ -164,10 +190,10 @@ Use this when continuing work in a new session where context has already been es
 **Example:**
 ```bash
 # Initial session
-coding-context -s resume=false /fix-bug | ai-agent
+coding-context -s resume=false fix-bug | ai-agent
 
 # Resume session
-coding-context -r /fix-bug | ai-agent
+coding-context -r fix-bug | ai-agent
 ```
 
 ### `-s <key>=<value>`
@@ -185,13 +211,13 @@ Filter rules and tasks by frontmatter fields. Only rules and tasks where ALL spe
 **Examples:**
 ```bash
 # Single selector
-coding-context -s languages=go /fix-bug
+coding-context -s languages=go fix-bug
 
 # Multiple selectors (AND logic)
-coding-context -s languages=go -s priority=high /fix-bug
+coding-context -s languages=go -s priority=high fix-bug
 
 # Select specific task variant
-coding-context -s environment=production /deploy
+coding-context -s environment=production deploy
 ```
 
 **Note:** When filtering by language, use `-s languages=go` (plural). The selector key is `languages` (plural), matching the frontmatter field name.
@@ -287,7 +313,6 @@ Task frontmatter is automatically included at the beginning of the output when p
 **Example output:**
 ```yaml
 ---
-task_name: fix-bug
 resume: false
 ---
 # Rule content here...
@@ -330,31 +355,28 @@ coding-context fix-bug  # Bootstrap scripts can use these variables
 # Free-text prompt (used directly as task content)
 coding-context "Please help me review this code for security issues"
 
-# Slash command to execute a task file
+# Task name lookup
 coding-context code-review
 
-# Slash command with arguments
-coding-context "/fix-bug 123"
-
 # With parameters
-coding-context -p pr_number=123 /code-review
+coding-context -p pr_number=123 code-review
 
 # With selectors
-coding-context -s languages=python /fix-bug
+coding-context -s languages=python fix-bug
 
 # Multiple parameters and selectors
 coding-context \
   -s languages=go \
   -s stage=implementation \
   -p feature_name="Authentication" \
-  /implement-feature
+  implement-feature
 ```
 
 ### Working Directory
 
 ```bash
 # Run from different directory
-coding-context -C /path/to/project /fix-bug
+coding-context -C /path/to/project fix-bug
 
 # Run from subdirectory
 cd backend
@@ -365,31 +387,31 @@ coding-context fix-bug  # Uses backend/.agents/ if it exists
 
 ```bash
 # Load from Git repository
-coding-context -d git::https://github.com/company/shared-rules.git /fix-bug
+coding-context -d git::https://github.com/company/shared-rules.git fix-bug
 
 # Use specific version
-coding-context -d 'git::https://github.com/company/rules.git?ref=v1.0.0' /fix-bug
+coding-context -d 'git::https://github.com/company/rules.git?ref=v1.0.0' fix-bug
 
 # Combine multiple sources
 coding-context \
   -d git::https://github.com/company/org-standards.git \
   -d git::https://github.com/team/project-rules.git \
   -s languages=go \
-  /implement-feature
+  implement-feature
 
 # Load from HTTP archive
-coding-context -d https://cdn.company.com/rules.tar.gz /code-review
+coding-context -d https://cdn.company.com/rules.tar.gz code-review
 ```
 
 ### Resume Mode
 
 ```bash
 # Initial invocation
-coding-context -s resume=false /implement-feature > context.txt
+coding-context -s resume=false implement-feature > context.txt
 cat context.txt | ai-agent > plan.txt
 
 # Continue work (skips rules)
-coding-context -r /implement-feature | ai-agent
+coding-context -r implement-feature | ai-agent
 ```
 
 ### Piping to AI Agents
@@ -440,7 +462,7 @@ stage: testing
 ---
 ```
 ```bash
-coding-context -s languages=go -s stage=testing /fix-bug
+coding-context -s languages=go -s stage=testing fix-bug
 ```
 
 **Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`). Use `languages:` (plural) with array format in frontmatter.
@@ -455,119 +477,131 @@ metadata:
 ```
 ```bash
 # This WON'T match nested fields
-coding-context -s metadata.language=go /fix-bug
+coding-context -s metadata.language=go fix-bug
 ```
 
-## Slash Commands
+## Slash Commands in Task Files
 
-When you provide a task-prompt containing a slash command (e.g., `/task-name arg1 "arg 2"`), the CLI will automatically:
+Task files can contain slash commands (e.g., `/command-name arg`) to reference reusable command files. This enables modular, composable task definitions.
 
-1. Extract the task name and arguments from the slash command
-2. Load the referenced task file
-3. Pass the slash command arguments as parameters (`$1`, `$2`, `$ARGUMENTS`, etc.)
-4. Merge with any existing parameters (slash command parameters take precedence)
+### How Slash Commands Work
 
-This enables dynamic task execution with inline arguments.
+When a task file contains a slash command like `/pre-deploy` or `/greet name="Alice"`, the CLI:
 
-### Slash Command Format
+1. Looks up the command file (e.g., `pre-deploy.md`) in command search paths
+2. Processes any arguments passed to the slash command
+3. Substitutes the slash command with the command file's content
+4. Passes arguments as parameters to the command file
 
-```
-/task-name arg1 "arg with spaces" arg3
+### Slash Command Format in Task Files
+
+```markdown
+---
+---
+# My Task
+
+/command-name
+
+/another-command arg1 "arg with spaces"
+
+/command-with-params key="value" count="42"
 ```
 
 ### Positional Parameters
 
 Positional arguments are automatically numbered starting from 1:
-- `/fix-bug 123` → `$1` = `123`
-- `/task arg1 arg2 arg3` → `$1` = `arg1`, `$2` = `arg2`, `$3` = `arg3`
+- `/greet Alice` → `${1}` = `Alice` (in command file)
+- `/deploy staging 1.2.3` → `${1}` = `staging`, `${2}` = `1.2.3`
 
 Quoted arguments preserve spaces:
-- `/code-review "PR #42"` → `$1` = `PR #42`
+- `/notify "Build failed"` → `${1}` = `Build failed`
+
+The special parameter `${ARGUMENTS}` contains all arguments as a space-separated string.
 
 ### Named Parameters
 
 Named parameters use the format `key="value"` with **mandatory double quotes**:
-- `/fix-bug issue="PROJ-123"` → `$1` = `issue="PROJ-123"`, `$issue` = `PROJ-123`
-- `/deploy env="production" version="1.2.3"` → `$1` = `env="production"`, `$2` = `version="1.2.3"`, `$env` = `production`, `$version` = `1.2.3`
+- `/deploy env="production"` → `${env}` = `production`, `${1}` = `env="production"`
+- `/notify message="Hello, World!"` → `${message}` = `Hello, World!`, `${1}` = `message="Hello, World!"`
 
-Named parameters are counted as positional arguments (retaining their original form) while also being available by their key name:
-- `/task arg1 key="value" arg2` → `$1` = `arg1`, `$2` = `key="value"`, `$3` = `arg2`, `$key` = `value`
-
-Named parameter values can contain spaces and special characters:
-- `/run message="Hello, World!"` → `$1` = `message="Hello, World!"`, `$message` = `Hello, World!`
-- `/config query="x=y+z"` → `$1` = `query="x=y+z"`, `$query` = `x=y+z`
+Named parameters are also available as positional parameters (retaining their original form):
+- `/task arg1 key="value" arg2` → `${1}` = `arg1`, `${2}` = `key="value"`, `${3}` = `arg2`, `${key}` = `value`
 
 **Note:** Unquoted values (e.g., `key=value`) or single-quoted values (e.g., `key='value'`) are treated as regular positional arguments, not named parameters.
 
 ### Example with Positional Parameters
 
-Create a task file (`implement-feature.md`):
-```yaml
+Create a command file (`.agents/commands/greet.md`):
+```markdown
 ---
-task_name: implement-feature
+# greet command
 ---
-# Feature: ${1}
+Hello, ${1}! Welcome to the project.
+```
 
-Description: ${2}
+Use it in a task file (`.agents/tasks/welcome.md`):
+```markdown
+---
+---
+# Welcome Task
+
+/greet Alice
+
+/greet Bob
 ```
 
 When you run:
 ```bash
-coding-context '/implement-feature login "Add OAuth support"'
+coding-context welcome
 ```
 
-It will:
-1. Parse the slash command `/implement-feature login "Add OAuth support"`
-2. Load the `implement-feature` task
-3. Substitute `${1}` with `login` and `${2}` with `Add OAuth support`
-
-The output will be:
+The output will include:
 ```
-# Feature: login
+Hello, Alice! Welcome to the project.
 
-Description: Add OAuth support
-```
-
-This is equivalent to manually running:
-```bash
-coding-context -p 1=login -p 2="Add OAuth support" /implement-feature
+Hello, Bob! Welcome to the project.
 ```
 
 ### Example with Named Parameters
 
-Create a wrapper task (`fix-issue-wrapper.md`):
-```yaml
+Create a command file (`.agents/commands/deploy-step.md`):
+```markdown
 ---
-task_name: fix-issue-wrapper
+# deploy-step command
 ---
-/fix-bug issue="PROJ-456" priority="high"
+## Deploy to ${env}
+
+Version: ${version}
+Environment: ${env}
 ```
 
-The target task (`fix-bug.md`):
-```yaml
+Use it in a task file (`.agents/tasks/deploy.md`):
+```markdown
 ---
-task_name: fix-bug
 ---
-# Fix Bug: ${issue}
+# Deployment Task
 
-Priority: ${priority}
+/deploy-step env="staging" version="1.2.3"
+
+/deploy-step env="production" version="1.2.3"
 ```
 
 When you run:
 ```bash
-coding-context fix-issue-wrapper
+coding-context deploy
 ```
 
-The output will be:
+The output will include:
 ```
-# Fix Bug: PROJ-456
+## Deploy to staging
 
-Priority: high
-```
+Version: 1.2.3
+Environment: staging
 
-This is equivalent to manually running:
-```bash
-coding-context -p issue=PROJ-456 -p priority=high fix-bug
+## Deploy to production
+
+Version: 1.2.3
+Environment: production
 ```
 
 ## See Also
