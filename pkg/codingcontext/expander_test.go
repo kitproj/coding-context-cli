@@ -55,10 +55,9 @@ func TestExpandParameters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expander := NewExpander(tt.params, slog.New(slog.NewTextHandler(os.Stderr, nil)))
-			result := expander.Expand(tt.content)
+			result := expand(tt.content, tt.params, slog.New(slog.NewTextHandler(os.Stderr, nil)))
 			if result != tt.expected {
-				t.Errorf("Expand() = %q, want %q", result, tt.expected)
+				t.Errorf("expand() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
@@ -115,15 +114,14 @@ func TestExpandCommands(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expander := NewExpander(Params{}, slog.New(slog.NewTextHandler(os.Stderr, nil)))
-			result := expander.Expand(tt.content)
+			result := expand(tt.content, Params{}, slog.New(slog.NewTextHandler(os.Stderr, nil)))
 			if tt.contains != "" {
 				if !strings.Contains(result, tt.contains) {
-					t.Errorf("Expand() = %q, should contain %q", result, tt.contains)
+					t.Errorf("expand() = %q, should contain %q", result, tt.contains)
 				}
 			} else {
 				if result != tt.expected {
-					t.Errorf("Expand() = %q, want %q", result, tt.expected)
+					t.Errorf("expand() = %q, want %q", result, tt.expected)
 				}
 			}
 		})
@@ -194,10 +192,9 @@ func TestExpandPaths(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expander := NewExpander(Params{}, slog.New(slog.NewTextHandler(os.Stderr, nil)))
-			result := expander.Expand(tt.content)
+			result := expand(tt.content, Params{}, slog.New(slog.NewTextHandler(os.Stderr, nil)))
 			if result != tt.expected {
-				t.Errorf("Expand() = %q, want %q", result, tt.expected)
+				t.Errorf("expand() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
@@ -252,51 +249,24 @@ func TestExpand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expander := NewExpander(tt.params, slog.New(slog.NewTextHandler(os.Stderr, nil)))
-			result := expander.Expand(tt.content)
+			result := expand(tt.content, tt.params, slog.New(slog.NewTextHandler(os.Stderr, nil)))
 			if result != tt.expected {
-				t.Errorf("Expand() = %q, want %q", result, tt.expected)
+				t.Errorf("expand() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
 }
 
-func TestNewExpander(t *testing.T) {
-	tests := []struct {
-		name   string
-		params Params
-		logger *slog.Logger
-	}{
-		{
-			name:   "with params and logger",
-			params: Params{"key": "value"},
-			logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
-		},
-		{
-			name:   "with nil logger - should create default",
-			params: Params{},
-			logger: nil,
-		},
-		{
-			name:   "with empty params",
-			params: Params{},
-			logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
-		},
-	}
+func TestExpandWithNilLogger(t *testing.T) {
+	// Test that expand handles nil logger without panicking
+	content := "Hello ${name}!"
+	params := Params{"name": "World"}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			expander := NewExpander(tt.params, tt.logger)
-			if expander == nil {
-				t.Error("NewExpander() returned nil")
-			}
-			if expander.params == nil {
-				t.Error("expander.params is nil")
-			}
-			if expander.logger == nil {
-				t.Error("expander.logger is nil")
-			}
-		})
+	// Should not panic with nil logger
+	result := expand(content, params, nil)
+	expected := "Hello World!"
+	if result != expected {
+		t.Errorf("expand() with nil logger = %q, want %q", result, expected)
 	}
 }
 
@@ -388,10 +358,9 @@ func TestExpandSecurityNoReExpansion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expander := NewExpander(tt.params, slog.New(slog.NewTextHandler(os.Stderr, nil)))
-			result := expander.Expand(tt.content)
+			result := expand(tt.content, tt.params, slog.New(slog.NewTextHandler(os.Stderr, nil)))
 			if result != tt.expected {
-				t.Errorf("Security test failed: %s\nExpand() = %q, want %q", tt.desc, result, tt.expected)
+				t.Errorf("Security test failed: %s\nexpand() = %q, want %q", tt.desc, result, tt.expected)
 			}
 		})
 	}

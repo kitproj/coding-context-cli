@@ -277,7 +277,7 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 // If params is provided, it is merged with cc.params (with params taking precedence).
 func (cc *Context) expandParams(content string, params map[string]string) string {
 	// Merge params with cc.params
-	mergedParams := make(Params)
+	mergedParams := make(map[string]string)
 	for k, v := range cc.params {
 		mergedParams[k] = v
 	}
@@ -285,9 +285,8 @@ func (cc *Context) expandParams(content string, params map[string]string) string
 		mergedParams[k] = v
 	}
 
-	// Use the new Expander to handle all expansion types
-	expander := NewExpander(mergedParams, cc.logger)
-	return expander.Expand(content)
+	// Use the expand function to handle all expansion types
+	return expand(content, mergedParams, cc.logger)
 }
 
 // shouldExpandParams returns true if parameter expansion should occur based on the expandParams field.

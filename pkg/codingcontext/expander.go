@@ -8,30 +8,16 @@ import (
 	"strings"
 )
 
-// expander handles content expansion for parameters, commands, and file paths
-type expander struct {
-	params map[string]string
-	logger *slog.Logger
-}
-
-// NewExpander creates a new expander with the given parameters and logger
-func NewExpander(params Params, logger *slog.Logger) *expander {
-	if logger == nil {
-		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
-	}
-	return &expander{
-		params: params,
-		logger: logger,
-	}
-}
-
-// Expand performs all types of expansion on the content in a single pass:
+// expand performs all types of expansion on the content in a single pass:
 // 1. Parameter expansion: ${param_name}
 // 2. Command expansion: !`command`
 // 3. Path expansion: @path
 // SECURITY: Processes rune-by-rune to prevent injection attacks where expanded
 // content contains further expansion sequences (e.g., command output with ${param}).
-func (e *expander) Expand(content string) string {
+func expand(content string, params map[string]string, logger *slog.Logger) string {
+	if logger == nil {
+		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
+	}
 	var result strings.Builder
 	runes := []rune(content)
 	i := 0
@@ -47,10 +33,10 @@ func (e *expander) Expand(content string) string {
 			if end < len(runes) {
 				// Extract parameter name
 				paramName := string(runes[i+2 : end])
-				if val, ok := e.params[paramName]; ok {
+				if val, ok := params[paramName]; ok {
 					result.WriteString(val)
 				} else {
-					e.logger.Warn("parameter not found", "param", paramName)
+					logger.Warn("parameter not found", "param", paramName)
 					result.WriteString(string(runes[i : end+1]))
 				}
 				i = end + 1
@@ -71,7 +57,7 @@ func (e *expander) Expand(content string) string {
 				cmd := exec.Command("sh", "-c", command)
 				output, err := cmd.CombinedOutput()
 				if err != nil {
-					e.logger.Warn("command expansion failed", "command", command, "error", err)
+					logger.Warn("command expansion failed", "command", command, "error", err)
 					// Return the original !`command` if command fails
 					result.WriteString(string(runes[i : end+1]))
 				} else {
@@ -109,7 +95,7 @@ func (e *expander) Expand(content string) string {
 
 				// Validate the path
 				if err := validatePath(path); err != nil {
-					e.logger.Warn("path validation failed", "path", path, "error", err)
+					logger.Warn("path validation failed", "path", path, "error", err)
 					// Return the original @path if validation fails
 					result.WriteString(string(runes[i:pathEnd]))
 					i = pathEnd
@@ -119,7 +105,7 @@ func (e *expander) Expand(content string) string {
 				// Read the file
 				fileContent, err := os.ReadFile(path)
 				if err != nil {
-					e.logger.Warn("path expansion failed", "path", path, "error", err)
+					logger.Warn("path expansion failed", "path", path, "error", err)
 					// Return the original @path if file doesn't exist
 					result.WriteString(string(runes[i:pathEnd]))
 				} else {
