@@ -1338,8 +1338,16 @@ This is the task prompt.
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	// Set HOME for the command
-	cmd.Env = []string{"HOME=" + tmpHome, "PATH=" + os.Getenv("PATH"), "GOPATH=" + os.Getenv("GOPATH"), "GOCACHE=" + os.Getenv("GOCACHE")}
+	// Build a clean environment that explicitly sets GOMODCACHE outside tmpDir
+	// to avoid permission issues during cleanup
+	gomodcache := os.Getenv("GOMODCACHE")
+	if gomodcache == "" {
+		gomodcache = filepath.Join(os.Getenv("HOME"), "go", "pkg", "mod")
+	}
+	cmd.Env = append(os.Environ(),
+		"HOME="+tmpHome,
+		"GOMODCACHE="+gomodcache,
+	)
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to run binary: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
 	}
