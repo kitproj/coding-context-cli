@@ -89,10 +89,10 @@ Deploy with all safety checks and rollback plan.
 Use with:
 ```bash
 # Deploy to staging
-coding-context -s environment=staging /deploy
+coding-context -s environment=staging deploy
 
 # Deploy to production
-coding-context -s environment=production /deploy
+coding-context -s environment=production deploy
 ```
 
 ## Resume Mode Tasks
@@ -124,10 +124,10 @@ Continue with the refactoring work from your previous session.
 Use with:
 ```bash
 # Initial session
-coding-context -s resume=false /refactor
+coding-context -s resume=false refactor
 
 # Resume session (uses -r flag to skip rules and select resume task)
-coding-context -r /refactor
+coding-context -r refactor
 ```
 
 ## Tasks with Embedded Selectors
@@ -153,7 +153,7 @@ Requirements: ${requirements}
 **Usage:**
 ```bash
 # Automatically applies languages=go and stage=implementation selectors
-coding-context -p feature_name="User Auth" /implement-feature
+coding-context -p feature_name="User Auth" implement-feature
 ```
 
 **Example with OR logic using arrays:**
@@ -176,7 +176,7 @@ This matches rules where `(languages=go OR languages=python) AND stage=testing`.
 # Task has: selectors.languages = go
 # Command adds: -s priority=high
 # Result: Includes rules matching languages=go AND priority=high
-coding-context -s priority=high /implement-feature
+coding-context -s priority=high implement-feature
 ```
 
 **Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).

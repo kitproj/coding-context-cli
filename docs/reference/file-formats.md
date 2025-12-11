@@ -96,7 +96,7 @@ selectors:
 
 **On the command line:**
 ```bash
-coding-context -s languages=go /implement-feature
+coding-context -s languages=go implement-feature
 ```
 
 **Note:** 
@@ -200,7 +200,7 @@ agent: cursor
 ```bash
 # These are equivalent:
 coding-context implement-feature  # (task has agent: cursor)
-coding-context -a cursor /implement-feature
+coding-context -a cursor implement-feature
 ```
 
 #### `model` (optional, standard field)
@@ -242,7 +242,7 @@ region: us-east-1
 
 **Usage:**
 ```bash
-coding-context -s environment=production -s region=us-east-1 /deploy
+coding-context -s environment=production -s region=us-east-1 deploy
 ```
 
 #### `selectors` (optional)
@@ -270,7 +270,7 @@ coding-context implement-feature
 
 This is equivalent to:
 ```bash
-coding-context -s languages=go -s stage=implementation /implement-feature
+coding-context -s languages=go -s stage=implementation implement-feature
 ```
 
 **OR Logic with Arrays:**
@@ -296,7 +296,7 @@ Selectors from the task frontmatter and command-line `-s` flags are combined (ad
 # Task frontmatter has: selectors.languages = go
 # Command line adds: -s priority=high
 # Result: Rules must match languages=go AND priority=high
-coding-context -s priority=high /implement-feature
+coding-context -s priority=high implement-feature
 ```
 
 **Special Selector: `rule_name`**
@@ -821,10 +821,10 @@ metadata:
 **Selectors match top-level only:**
 ```bash
 # Works with top-level fields
-coding-context -s languages=go /fix-bug
+coding-context -s languages=go fix-bug
 
 # Doesn't work with nested fields
-coding-context -s metadata.language=go /fix-bug  # Won't match
+coding-context -s metadata.language=go fix-bug  # Won't match
 ```
 
 ### Data Types
@@ -842,9 +842,9 @@ languages:
 
 ```bash
 # All values are matched as strings
-coding-context -s priority=1 /task       # Matches priority: 1
-coding-context -s enabled=true /task     # Matches enabled: true
-coding-context -s languages=go /task      # Matches languages: [ go ]
+coding-context -s priority=1 task       # Matches priority: 1
+coding-context -s enabled=true task     # Matches enabled: true
+coding-context -s languages=go task      # Matches languages: [ go ]
 ```
 
 ## Special Behaviors
@@ -882,8 +882,8 @@ The `-r` flag:
 **Equivalent commands:**
 ```bash
 # These are NOT exactly equivalent:
-coding-context -r /fix-bug                    # Skips rules
-coding-context -s resume=true /fix-bug        # Includes rules
+coding-context -r fix-bug                    # Skips rules
+coding-context -s resume=true fix-bug        # Includes rules
 ```
 
 ## Validation

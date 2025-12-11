@@ -15,7 +15,7 @@ Include only rules matching a specific frontmatter field:
 
 ```bash
 # Include only Go rules
-coding-context -s languages=go /fix-bug
+coding-context -s languages=go fix-bug
 ```
 
 This includes only rules with `languages: [ go ]` in their frontmatter.
@@ -26,7 +26,7 @@ Combine multiple selectors - all must match:
 
 ```bash
 # Include only Go testing rules
-coding-context -s languages=go -s stage=testing /implement-feature
+coding-context -s stage=testing implement-feature
 ```
 
 This includes only rules with BOTH `languages: [ go ]` AND `stage: testing`.
@@ -58,10 +58,10 @@ Deploy to production environment.
 **Usage:**
 ```bash
 # Select staging task
-coding-context -s environment=staging /deploy
+coding-context -s environment=staging deploy
 
 # Select production task
-coding-context -s environment=production /deploy
+coding-context -s environment=production deploy
 ```
 
 ## Common Selector Patterns
@@ -70,34 +70,34 @@ coding-context -s environment=production /deploy
 
 ```bash
 # Python project
-coding-context -s languages=python /fix-bug
+coding-context -s languages=python fix-bug
 
 # JavaScript project
-coding-context -s languages=javascript /code-review
+coding-context -s languages=javascript code-review
 
 # Multi-language (run separately)
-coding-context -s languages=go /implement-backend
-coding-context -s languages=javascript /implement-frontend
+coding-context -s languages=go implement-backend
+coding-context -s languages=javascript implement-frontend
 ```
 
 ### By Stage
 
 ```bash
 # Planning phase
-coding-context -s stage=planning /plan-feature
+coding-context -s stage=planning plan-feature
 
 # Implementation phase
-coding-context -s stage=implementation /implement-feature
+coding-context -s stage=implementation implement-feature
 
 # Testing phase
-coding-context -s stage=testing /test-feature
+coding-context -s stage=testing test-feature
 ```
 
 ### By Priority
 
 ```bash
 # High priority rules only
-coding-context -s priority=high /fix-critical-bug
+coding-context -s priority=high fix-critical-bug
 
 # Include all priorities (no selector)
 coding-context fix-bug
@@ -107,10 +107,10 @@ coding-context fix-bug
 
 ```bash
 # Include JIRA context
-coding-context -s source=jira /fix-bug
+coding-context -s source=jira fix-bug
 
 # Include GitHub context
-coding-context -s source=github /code-review
+coding-context -s source=github code-review
 ```
 
 ## Resume Mode
@@ -119,8 +119,8 @@ The `-r` flag is shorthand for `-s resume=true` plus skipping all rules:
 
 ```bash
 # These are equivalent:
-coding-context -r /fix-bug
-coding-context -s resume=true /fix-bug  # but also skips rules
+coding-context -r fix-bug
+coding-context -s resume=true fix-bug  # but also skips rules
 ```
 
 Use resume mode when continuing work in a new session to save tokens.
@@ -151,7 +151,7 @@ coding-context implement-feature
 
 This is equivalent to:
 ```bash
-coding-context -s languages=go -s stage=implementation /implement-feature
+coding-context -s stage=implementation implement-feature
 ```
 
 ### Array Selectors (OR Logic)
@@ -191,7 +191,7 @@ selectors:
 ```bash
 # Combines task selectors with command-line selectors
 # Result: stage=deployment AND environment=production
-coding-context -s environment=production /deploy
+coding-context -s environment=production deploy
 ```
 
 ### When to Use Task Frontmatter Selectors
@@ -261,13 +261,13 @@ team: backend
 **Matching selectors:**
 ```bash
 # Matches
-coding-context -s languages=go /fix-bug
-coding-context -s languages=go -s stage=testing /fix-bug
-coding-context -s priority=high /fix-bug
+coding-context -s languages=go fix-bug
+coding-context -s stage=testing fix-bug
+coding-context -s priority=high fix-bug
 
 # Does NOT match
-coding-context -s languages=python /fix-bug
-coding-context -s languages=go -s stage=planning /fix-bug
+coding-context -s languages=python fix-bug
+coding-context -s stage=planning fix-bug
 ```
 
 ## Debugging Selectors
@@ -276,11 +276,11 @@ Check which rules are included:
 
 ```bash
 # Output to file and review
-coding-context -s languages=go /fix-bug > output.txt
+coding-context -s languages=go fix-bug > output.txt
 less output.txt
 
 # Check token count
-coding-context -s languages=go /fix-bug 2>&1 | grep -i token
+coding-context -s languages=go fix-bug 2>&1 | grep -i token
 ```
 
 ## Best Practices
