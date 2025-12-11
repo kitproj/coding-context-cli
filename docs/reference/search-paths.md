@@ -230,7 +230,7 @@ Regardless of where rules are found, they can be filtered using selectors:
 
 ```bash
 # Include only Go rules (from any location)
-coding-context -s languages=go /fix-bug
+coding-context -s languages=go fix-bug
 
 # Include only planning rules
 coding-context -s stage=planning plan-feature
@@ -249,10 +249,10 @@ coding-context -s stage=planning plan-feature
     └── javascript-frontend.md      (languages: [ javascript ])
 
 Commands:
-coding-context -s languages=go /fix-bug
+coding-context -s languages=go fix-bug
   → Includes: general-standards.md, go-backend.md
 
-coding-context -s languages=python /train-model
+coding-context -s languages=python train-model
   → Includes: general-standards.md, python-ml.md
 
 **Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).
@@ -299,7 +299,7 @@ coding-context -s team=backend fix-bug
 
 **Task not found:**
 - Verify that `.agents/tasks/` directory exists in one of the search path directories (working directory or home directory)
-- Check that the filename (without `.md` extension) matches the task name you're using (e.g., `fix-bug.md` for `/fix-bug`)
+- Check that the filename (without `.md` extension) matches the task name you're using (e.g., `fix-bug.md` for `fix-bug`)
 - Ensure filename has `.md` extension
 - Verify the directory containing the task is in search paths (working directory and home directory are added automatically)
 - Note: Tasks are matched by filename, not by `task_name` in frontmatter

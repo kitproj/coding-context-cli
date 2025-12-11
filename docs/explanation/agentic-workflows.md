@@ -91,10 +91,10 @@ Context is assembled at runtime based on the specific task:
 
 ```bash
 # Bug fix: Include only relevant rules
-coding-context -s languages=go -s priority=high /fix-bug
+coding-context -s priority=high fix-bug
 
 # Code review: Different context
-coding-context -s stage=review /code-review
+coding-context -s stage=review code-review
 ```
 
 ### 3. Parameter Injection
