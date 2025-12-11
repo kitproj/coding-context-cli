@@ -193,21 +193,25 @@ func (cc *Context) findTask(taskName string) error {
 			cc.agent = agent
 		}
 
-		// Expand parameters only if expand_params is not explicitly set to false
-		contentToProcess := md.Content
-		if shouldExpandParams(frontMatter.ExpandParams) {
-			contentToProcess = cc.expandParams(md.Content, nil)
-		}
-
-		task, err := ParseTask(contentToProcess)
+		// Parse the task content first to separate text blocks from slash commands
+		task, err := ParseTask(md.Content)
 		if err != nil {
 			return err
 		}
 
+		// Build the final content by processing each block
+		// Text blocks are expanded if expand_params is not false
+		// Slash command arguments are NOT expanded here - they are passed as literals
+		// to command files where they may be substituted via ${param} templates
 		finalContent := strings.Builder{}
 		for _, block := range task {
 			if block.Text != nil {
-				finalContent.WriteString(block.Text.Content())
+				textContent := block.Text.Content()
+				// Expand parameters in text blocks only if expand_params is not explicitly set to false
+				if shouldExpandParams(frontMatter.ExpandParams) {
+					textContent = cc.expandParams(textContent, nil)
+				}
+				finalContent.WriteString(textContent)
 			} else if block.SlashCommand != nil {
 				commandContent, err := cc.findCommand(block.SlashCommand.Name, block.SlashCommand.Params())
 				if err != nil {
