@@ -15,9 +15,6 @@ import (
 // SECURITY: Processes rune-by-rune to prevent injection attacks where expanded
 // content contains further expansion sequences (e.g., command output with ${param}).
 func expand(content string, params map[string]string, logger *slog.Logger) string {
-	if logger == nil {
-		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
-	}
 	var result strings.Builder
 	runes := []rune(content)
 	i := 0
@@ -61,8 +58,8 @@ func expand(content string, params map[string]string, logger *slog.Logger) strin
 					// Return the original !`command` if command fails
 					result.WriteString(string(runes[i : end+1]))
 				} else {
-					// Write command output (trimming trailing newline)
-					result.WriteString(strings.TrimSuffix(string(output), "\n"))
+					// Write command output
+					result.WriteString(string(output))
 				}
 				i = end + 1
 				continue

@@ -359,9 +359,15 @@ coding-context -p issue_number=123 -p issue_title="Bug" normal-task
 # Output will contain: Issue: 123 and Title: Bug
 ```
 
-### Parameter Substitution
+### Content Expansion
 
-Use `${parameter_name}` syntax for dynamic values.
+Task and command content supports three types of dynamic expansion, processed in a single pass to prevent injection attacks.
+
+#### Parameter Expansion
+
+Use `${parameter_name}` syntax to substitute parameter values from `-p` flags.
+
+**Syntax:** `${parameter_name}`
 
 **Example:**
 ```markdown
@@ -383,6 +389,81 @@ coding-context \
   -p severity=critical \
   /fix-bug
 ```
+
+**Behavior:** If a parameter is not found, the placeholder remains unchanged (e.g., `${missing}` stays as `${missing}`) and a warning is logged.
+
+#### Command Expansion
+
+Use `` !`command` `` syntax to execute shell commands and include their output.
+
+**Syntax:** `` !`command` ``
+
+**Example:**
+```markdown
+---
+task_name: system-info
+---
+# System Information
+
+Current date: !`date +%Y-%m-%d`
+Current user: !`whoami`
+Git branch: !`git rev-parse --abbrev-ref HEAD`
+```
+
+**Output:**
+```
+Current date: 2025-12-11
+Current user: alex
+Git branch: main
+```
+
+**Behavior:** 
+- Command output is included as-is (including any trailing newlines)
+- If the command fails, the original syntax remains unchanged (e.g., `` !`false` `` stays as `` !`false` ``) and a warning is logged
+- Commands are executed using `sh -c`
+
+**Security Note:** Only use with trusted task files, as commands are executed with your user permissions.
+
+#### Path Expansion
+
+Use `@path` syntax to include the contents of a file.
+
+**Syntax:** `@path` (delimited by whitespace; use `\ ` to escape spaces in filenames)
+
+**Example:**
+```markdown
+---
+task_name: include-config
+---
+# Current Configuration
+
+@config.yaml
+
+# API Documentation
+
+@docs/api.md
+```
+
+**With spaces in filenames:**
+```markdown
+Content from file: @my\ file\ with\ spaces.txt
+```
+
+**Behavior:**
+- File content is included verbatim
+- If the file is not found, the original syntax remains unchanged (e.g., `@missing.txt` stays as `@missing.txt`) and a warning is logged
+- Path can be absolute or relative to the current directory
+
+#### Security: Single-Pass Expansion
+
+All three expansion types are processed in a **single pass, rune-by-rune** to prevent injection attacks:
+
+- Expanded content is **never re-processed** for further expansions
+- Command output containing `${param}` will not be expanded
+- File content containing `` !`command` `` will not be executed
+- Parameter values containing `@path` will not be read as files
+
+This prevents command injection where expanded content could trigger further, unintended expansions.
 
 ### File Location
 

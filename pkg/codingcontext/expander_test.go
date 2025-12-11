@@ -73,17 +73,17 @@ func TestExpandCommands(t *testing.T) {
 		{
 			name:     "simple echo command",
 			content:  "Output: !`echo hello`",
-			expected: "Output: hello",
+			expected: "Output: hello\n",
 		},
 		{
 			name:     "command with multiple words",
 			content:  "!`echo hello world`",
-			expected: "hello world",
+			expected: "hello world\n",
 		},
 		{
 			name:     "multiple commands in content",
 			content:  "!`echo foo` and !`echo bar`",
-			expected: "foo and bar",
+			expected: "foo\n and bar\n",
 		},
 		{
 			name:     "command that fails - returns unchanged",
@@ -93,7 +93,7 @@ func TestExpandCommands(t *testing.T) {
 		{
 			name:     "command with pipes",
 			content:  "!`echo test | tr a-z A-Z`",
-			expected: "TEST",
+			expected: "TEST\n",
 		},
 		{
 			name:     "no commands to expand",
@@ -106,7 +106,7 @@ func TestExpandCommands(t *testing.T) {
 			expected: "line1\nline2",
 		},
 		{
-			name:     "command output trimmed trailing newline",
+			name:     "command output not trimmed",
 			content:  "!`echo -n hello` world",
 			expected: "hello world",
 		},
@@ -219,7 +219,7 @@ func TestExpand(t *testing.T) {
 			name:     "combined expansions - command, path, parameter",
 			params:   Params{"name": "World"},
 			content:  "!`echo Hello` ${name} from @" + testFile,
-			expected: "Hello World from file-${param}",
+			expected: "Hello\n World from file-${param}",
 		},
 		{
 			name:     "file content NOT re-expanded (security fix)",
@@ -231,13 +231,13 @@ func TestExpand(t *testing.T) {
 			name:     "command output NOT re-expanded (security fix)",
 			params:   Params{"dynamic": "value"},
 			content:  "!`echo '${dynamic}'`",
-			expected: "${dynamic}", // Changed: command output is not re-expanded
+			expected: "${dynamic}\n", // Changed: command output is not re-expanded
 		},
 		{
 			name:     "all expansion types together",
 			params:   Params{"x": "X", "y": "Y"},
 			content:  "${x} !`echo middle` ${y}",
-			expected: "X middle Y",
+			expected: "X middle\n Y",
 		},
 		{
 			name:     "no expansions needed",
@@ -257,16 +257,16 @@ func TestExpand(t *testing.T) {
 	}
 }
 
-func TestExpandWithNilLogger(t *testing.T) {
-	// Test that expand handles nil logger without panicking
+func TestExpandBasic(t *testing.T) {
+	// Test basic expansion functionality
 	content := "Hello ${name}!"
 	params := Params{"name": "World"}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
-	// Should not panic with nil logger
-	result := expand(content, params, nil)
+	result := expand(content, params, logger)
 	expected := "Hello World!"
 	if result != expected {
-		t.Errorf("expand() with nil logger = %q, want %q", result, expected)
+		t.Errorf("expand() = %q, want %q", result, expected)
 	}
 }
 
@@ -344,14 +344,14 @@ func TestExpandSecurityNoReExpansion(t *testing.T) {
 			name:     "command output with parameter syntax not expanded",
 			params:   Params{"secret": "SECRET"},
 			content:  "!`echo '${secret}'`",
-			expected: "${secret}",
+			expected: "${secret}\n",
 			desc:     "Command output containing parameter syntax should not be expanded",
 		},
 		{
 			name:     "command output with path syntax not expanded",
 			params:   Params{},
 			content:  "!`echo '@/etc/passwd'`",
-			expected: "@/etc/passwd",
+			expected: "@/etc/passwd\n",
 			desc:     "Command output containing path syntax should not be read",
 		},
 	}
