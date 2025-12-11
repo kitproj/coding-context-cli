@@ -15,9 +15,10 @@ type RuleMarkdown = Markdown[RuleFrontMatter]
 
 // Result holds the assembled context from running a task
 type Result struct {
-	Rules  []Markdown[RuleFrontMatter] // List of included rule files
-	Task   Markdown[TaskFrontMatter]   // Task file with frontmatter and content
-	Tokens int                         // Total token count
+	Rules        []Markdown[RuleFrontMatter] // List of included rule files
+	Task         Markdown[TaskFrontMatter]   // Task file with frontmatter and content
+	Tokens       int                         // Total token count
+	UserRulePath string                      // Path to the selected agent's user rules
 }
 
 // MCPServers returns all MCP servers from both rules and the task.

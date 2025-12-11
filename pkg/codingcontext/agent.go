@@ -125,3 +125,33 @@ func (a Agent) ShouldExcludePath(path string) bool {
 func (a Agent) IsSet() bool {
 	return a != ""
 }
+
+// UserRulePath returns the primary user-level rules path for this agent in the given home directory.
+// Returns an empty string if the agent is not set.
+func (a Agent) UserRulePath(homeDir string) string {
+	if !a.IsSet() {
+		return ""
+	}
+
+	// Map each agent to its primary user rules path
+	switch a {
+	case AgentCursor:
+		return filepath.Join(homeDir, ".cursor", "rules")
+	case AgentOpenCode:
+		return filepath.Join(homeDir, ".opencode", "rules")
+	case AgentCopilot:
+		return filepath.Join(homeDir, ".github", "agents")
+	case AgentClaude:
+		return filepath.Join(homeDir, ".claude", "CLAUDE.md")
+	case AgentGemini:
+		return filepath.Join(homeDir, ".gemini", "GEMINI.md")
+	case AgentAugment:
+		return filepath.Join(homeDir, ".augment", "rules")
+	case AgentWindsurf:
+		return filepath.Join(homeDir, ".windsurf", "rules")
+	case AgentCodex:
+		return filepath.Join(homeDir, ".codex", "AGENTS.md")
+	default:
+		return ""
+	}
+}
