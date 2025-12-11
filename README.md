@@ -665,3 +665,23 @@ selectors:
 # Implementation Task
 ...
 ```
+
+## Presentations
+
+A comprehensive slide deck is available for presenting and learning about the Coding Context CLI:
+
+- **[View Slide Deck](./SLIDES.md)** - Full presentation with 50+ slides
+- **[Presentation Guide](./SLIDES_README.md)** - How to view, export, and present
+- **[Example Usage](./examples/PRESENTATION.md)** - Presentation scenarios and tips
+
+The slides are written in [Marp](https://marp.app/) format and can be:
+- Viewed in VS Code with the Marp extension
+- Exported to HTML, PDF, or PowerPoint
+- Presented directly from a browser
+- Customized for your audience
+
+Perfect for:
+- **Team onboarding** - Introduce the tool to new team members
+- **Tech talks** - Present at meetups or conferences
+- **Workshops** - Run hands-on training sessions
+- **Documentation** - Visual reference for features
