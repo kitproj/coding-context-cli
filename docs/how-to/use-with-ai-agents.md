@@ -136,7 +136,6 @@ Tasks can specify their preferred agent in frontmatter:
 **Task file (`deploy.md`):**
 ```yaml
 ---
-task_name: deploy
 agent: claude
 ---
 # Deploy to Production
