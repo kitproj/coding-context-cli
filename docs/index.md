@@ -85,6 +85,7 @@ See [Search Paths Reference](./reference/search-paths) for complete list.
 ## Quick Links
 
 - [GitHub Repository](https://github.com/kitproj/coding-context-cli) - Source code and releases
+- [Slide Deck](https://github.com/kitproj/coding-context-cli/blob/main/SLIDES.md) - Presentation explaining the tool
 - [Report Issues](https://github.com/kitproj/coding-context-cli/issues) - Bug reports and feature requests
 - [License](https://github.com/kitproj/coding-context-cli/blob/main/LICENSE) - MIT License
 
