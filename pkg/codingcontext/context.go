@@ -201,7 +201,8 @@ func (cc *Context) findTask(taskName string) error {
 
 		// Build the final content by processing each block
 		// Text blocks are expanded if expand_params is not false
-		// Slash command arguments are NOT expanded (they are literal parameter values)
+		// Slash command arguments are NOT expanded here - they are passed as literals
+		// to command files where they may be substituted via ${param} templates
 		finalContent := strings.Builder{}
 		for _, block := range task {
 			if block.Text != nil {

@@ -1233,66 +1233,66 @@ This rule is from a remote directory.
 
 // TestSingleExpansion verifies that content is expanded only once in the full flow
 func TestSingleExpansion(t *testing.T) {
-dirs := setupTestDirs(t)
+	dirs := setupTestDirs(t)
 
-// Create a task that uses a parameter with expansion syntax
-taskFile := filepath.Join(dirs.tasksDir, "test-expand.md")
-taskContent := `Task with parameter: ${param1}
+	// Create a task that uses a parameter with expansion syntax
+	taskFile := filepath.Join(dirs.tasksDir, "test-expand.md")
+	taskContent := `Task with parameter: ${param1}
 
 And a value that looks like expansion syntax but should not be expanded: ${"nested"}`
-if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
-t.Fatalf("failed to create task file: %v", err)
-}
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to create task file: %v", err)
+	}
 
-// Run with param1 set to a value that contains expansion syntax
-output := runTool(t, "-C", dirs.tmpDir, "-p", "param1=!`echo hello`", "test-expand")
+	// Run with param1 set to a value that contains expansion syntax
+	output := runTool(t, "-C", dirs.tmpDir, "-p", "param1=!`echo hello`", "test-expand")
 
-// The param1 should be replaced with the literal string "!`echo hello`"
-// It should NOT be expanded again (that would execute the command)
-if !strings.Contains(output, "!`echo hello`") {
-t.Errorf("Expected param1 to be replaced with literal value, got: %s", output)
-}
+	// The param1 should be replaced with the literal string "!`echo hello`"
+	// It should NOT be expanded again (that would execute the command)
+	if !strings.Contains(output, "!`echo hello`") {
+		t.Errorf("Expected param1 to be replaced with literal value, got: %s", output)
+	}
 
-// Verify "hello" is not in output (which would indicate the command was executed)
-// Note: there may be other "hello" strings, so check for the specific context
-if strings.Contains(output, "Task with parameter: hello") {
-t.Errorf("Parameter value was re-expanded (command was executed), got: %s", output)
-}
+	// Verify "hello" is not in output (which would indicate the command was executed)
+	// Note: there may be other "hello" strings, so check for the specific context
+	if strings.Contains(output, "Task with parameter: hello") {
+		t.Errorf("Parameter value was re-expanded (command was executed), got: %s", output)
+	}
 }
 
 // TestCommandExpansionOnce verifies that command files are expanded only once
 func TestCommandExpansionOnce(t *testing.T) {
-dirs := setupTestDirs(t)
-commandsDir := filepath.Join(dirs.tmpDir, ".agents", "commands")
-if err := os.MkdirAll(commandsDir, 0o755); err != nil {
-t.Fatalf("failed to create commands dir: %v", err)
-}
+	dirs := setupTestDirs(t)
+	commandsDir := filepath.Join(dirs.tmpDir, ".agents", "commands")
+	if err := os.MkdirAll(commandsDir, 0o755); err != nil {
+		t.Fatalf("failed to create commands dir: %v", err)
+	}
 
-// Create a command file with a parameter
-commandFile := filepath.Join(commandsDir, "test-cmd.md")
-commandContent := `Command param: ${cmd_param}`
-if err := os.WriteFile(commandFile, []byte(commandContent), 0644); err != nil {
-t.Fatalf("failed to create command file: %v", err)
-}
+	// Create a command file with a parameter
+	commandFile := filepath.Join(commandsDir, "test-cmd.md")
+	commandContent := `Command param: ${cmd_param}`
+	if err := os.WriteFile(commandFile, []byte(commandContent), 0644); err != nil {
+		t.Fatalf("failed to create command file: %v", err)
+	}
 
-// Create a task that calls the command with a param containing expansion syntax
-taskFile := filepath.Join(dirs.tasksDir, "test-cmd-task.md")
-taskContent := `/test-cmd cmd_param="!` + "`echo injected`" + `"`
-if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
-t.Fatalf("failed to create task file: %v", err)
-}
+	// Create a task that calls the command with a param containing expansion syntax
+	taskFile := filepath.Join(dirs.tasksDir, "test-cmd-task.md")
+	taskContent := `/test-cmd cmd_param="!` + "`echo injected`" + `"`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+		t.Fatalf("failed to create task file: %v", err)
+	}
 
-// Run the task
-output := runTool(t, "-C", dirs.tmpDir, "test-cmd-task")
+	// Run the task
+	output := runTool(t, "-C", dirs.tmpDir, "test-cmd-task")
 
-// The command parameter should be replaced with the literal string "!`echo injected`"
-// It should NOT be expanded again (that would execute the command)
-if !strings.Contains(output, "!`echo injected`") {
-t.Errorf("Expected command param to be replaced with literal value, got: %s", output)
-}
+	// The command parameter should be replaced with the literal string "!`echo injected`"
+	// It should NOT be expanded again (that would execute the command)
+	if !strings.Contains(output, "!`echo injected`") {
+		t.Errorf("Expected command param to be replaced with literal value, got: %s", output)
+	}
 
-// Verify "injected" is not in output (which would indicate the command was executed)
-if strings.Contains(output, "Command param: injected") {
-t.Errorf("Command parameter value was re-expanded (command was executed), got: %s", output)
-}
+	// Verify "injected" is not in output (which would indicate the command was executed)
+	if strings.Contains(output, "Command param: injected") {
+		t.Errorf("Command parameter value was re-expanded (command was executed), got: %s", output)
+	}
 }
