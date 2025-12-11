@@ -357,32 +357,32 @@ Selectors from both the task frontmatter and command line are combined (additive
 # Task has: selectors.languages = go
 # Command adds: -s priority=high
 # Result: includes rules matching languages=go AND priority=high
-coding-context -s priority=high /implement-feature
+coding-context -s priority=high implement-feature
 ```
 
 ### Parameter Expansion Control
 
-By default, parameter expansion occurs in all task and rule content. You can disable this behavior using the `expand_params` frontmatter field.
+By default, parameter expansion occurs in all task and rule content. You can disable this behavior using the `expand` frontmatter field.
 
 **Example (task with expansion disabled):**
 ```yaml
 ---
 task_name: preserve-template
-expand_params: false
+expand: false
 ---
 
 Issue: ${issue_number}
 Title: ${issue_title}
 ```
 
-When `expand_params: false` is set, parameter placeholders like `${variable}` are preserved as-is in the output, rather than being replaced with values from `-p` flags.
+When `expand: false` is set, parameter placeholders like `${variable}` are preserved as-is in the output, rather than being replaced with values from `-p` flags.
 
 **Use cases:**
 - Passing templates to AI agents that handle their own parameter substitution
 - Preserving template syntax for later processing
 - Avoiding conflicts with other templating systems
 
-The `expand_params` field works in:
+The `expand` field works in:
 - Task files (`.agents/tasks/*.md`)
 - Command files (`.agents/commands/*.md`)
 - Rule files (`.agents/rules/*.md`)
@@ -611,7 +611,7 @@ Command files are reusable content blocks that can be referenced from task files
 **Example command file (`.agents/commands/pre-deploy.md`):**
 ```markdown
 ---
-expand_params: true
+expand: true
 ---
 # Pre-deployment Checklist
 
