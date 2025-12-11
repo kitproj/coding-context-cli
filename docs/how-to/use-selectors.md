@@ -40,7 +40,6 @@ Use selectors to choose between multiple task files with the same `task_name`:
 **Staging task (`.agents/tasks/deploy-staging.md`):**
 ```markdown
 ---
-task_name: deploy
 environment: staging
 ---
 Deploy to staging environment.
@@ -49,7 +48,6 @@ Deploy to staging environment.
 **Production task (`.agents/tasks/deploy-production.md`):**
 ```markdown
 ---
-task_name: deploy
 environment: production
 ---
 Deploy to production environment.
@@ -134,7 +132,6 @@ Instead of specifying selectors on the command line every time, you can embed th
 **Task file (`.agents/tasks/implement-go-feature.md`):**
 ```markdown
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation
@@ -161,7 +158,6 @@ Use arrays for OR logic within the same selector key:
 **Task file:**
 ```markdown
 ---
-task_name: refactor-code
 selectors:
   language: [go, python, javascript]
   stage: refactoring
@@ -181,7 +177,6 @@ Selectors from task frontmatter and the command line are combined (additive):
 **Task file with embedded selectors:**
 ```markdown
 ---
-task_name: deploy
 selectors:
   stage: deployment
 ---
@@ -217,7 +212,6 @@ coding-context implement-feature
 **Output:**
 ```yaml
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation

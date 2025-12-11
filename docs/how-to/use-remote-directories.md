@@ -229,10 +229,6 @@ languages:
 
 **`.agents/tasks/code-review.md`:**
 ```markdown
----
-task_name: code-review
----
-
 # Code Review Task
 
 Review the code changes for:

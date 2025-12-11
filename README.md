@@ -271,9 +271,6 @@ Task files are Markdown files located in task search directories (e.g., `.agents
 
 **Example (`.agents/tasks/fix-bug.md`):**
 ```markdown
----
-task_name: fix-bug
----
 # Task: Fix Bug in ${jira_issue_key}
 
 Here is the context for the bug. Please analyze the following files and provide a fix.
@@ -282,7 +279,6 @@ Here is the context for the bug. Please analyze the following files and provide 
 **Example with selectors for multiple prompts (`.agents/tasks/deploy-staging.md`):**
 ```markdown
 ---
-task_name: deploy
 environment: staging
 ---
 # Deploy to Staging
@@ -293,7 +289,6 @@ Deploy the application to the staging environment with extra validation.
 **Example for production (`.agents/tasks/deploy-prod.md`):**
 ```markdown
 ---
-task_name: deploy
 environment: production
 ---
 # Deploy to Production
@@ -317,7 +312,6 @@ Task files can include a `selectors` field in their frontmatter to automatically
 **Example (`.agents/tasks/implement-go-feature.md`):**
 ```markdown
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation
@@ -341,7 +335,6 @@ coding-context -s languages=go -s stage=implementation /implement-feature
 **Selectors support OR logic for the same key using arrays:**
 ```markdown
 ---
-task_name: test-code
 selectors:
   languages: [go, python]
   stage: testing
@@ -367,7 +360,6 @@ By default, parameter expansion occurs in all task and rule content. You can dis
 **Example (task with expansion disabled):**
 ```yaml
 ---
-task_name: preserve-template
 expand: false
 ---
 
@@ -415,7 +407,6 @@ coding-context -r /fix-bug | ai-agent
 Initial task (`.agents/tasks/fix-bug-initial.md`):
 ```markdown
 ---
-task_name: fix-bug
 resume: false
 ---
 # Fix Bug
@@ -427,7 +418,6 @@ Follow the coding standards and write tests.
 Resume task (`.agents/tasks/fix-bug-resume.md`):
 ```markdown
 ---
-task_name: fix-bug
 resume: true
 ---
 # Fix Bug - Continue
@@ -555,7 +545,6 @@ Tasks can specify an `agent` field in their frontmatter, which overrides the `-a
 
 ```markdown
 ---
-task_name: cursor-specific-task
 agent: cursor
 ---
 # This task automatically sets the agent to cursor
@@ -621,9 +610,6 @@ Build status: !`git status`
 
 **Using commands in a task (`.agents/tasks/deploy.md`):**
 ```markdown
----
-task_name: deploy
----
 # Deployment Task
 
 /pre-deploy
@@ -645,13 +631,12 @@ Task frontmatter is **always** automatically included at the beginning of the ou
 
 **Example usage:**
 ```bash
-coding-context -p issue_number=123 /fix-bug
+coding-context -p issue_number=123 fix-bug
 ```
 
 **Output format:**
 ```yaml
 ---
-task_name: fix-bug
 resume: false
 ---
 # Fix Bug Task
@@ -672,7 +657,6 @@ coding-context implement-feature
 If the task has `selectors` in its frontmatter, they will be visible in the output:
 ```yaml
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation

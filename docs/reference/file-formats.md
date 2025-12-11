@@ -17,7 +17,6 @@ Task files define what the AI agent should do. They are Markdown files with YAML
 
 ```markdown
 ---
-task_name: <optional-task-identifier>
 <optional-frontmatter-fields>
 ---
 
@@ -38,7 +37,6 @@ Content can include ${parameter_placeholders}.
 **Example:**
 ```yaml
 ---
-task_name: fix-bug
 ---
 ```
 
@@ -60,7 +58,6 @@ The `languages` field is a **standard frontmatter field** that provides metadata
 **Recommended format (array with lowercase values):**
 ```yaml
 ---
-task_name: implement-feature
 languages:
   - go
 ---
@@ -69,7 +66,6 @@ languages:
 **Example (multiple languages):**
 ```yaml
 ---
-task_name: polyglot-task
 languages:
   - go
   - python
@@ -88,7 +84,6 @@ languages:
 **In task frontmatter selectors:**
 ```yaml
 ---
-task_name: implement-feature
 selectors:
   languages: go
 ---
@@ -114,7 +109,6 @@ The `single_shot` field is a **standard frontmatter field** that provides metada
 **Example:**
 ```yaml
 ---
-task_name: deploy
 single_shot: true
 ---
 ```
@@ -133,7 +127,6 @@ The `timeout` field is a **standard frontmatter field** that provides metadata a
 **Example:**
 ```yaml
 ---
-task_name: long-running-analysis
 timeout: 10m
 ---
 ```
@@ -154,7 +147,6 @@ The `mcp_servers` field is a **standard frontmatter field** following the indust
 **Example:**
 ```yaml
 ---
-task_name: file-operations
 mcp_servers:
   filesystem:
     type: stdio
@@ -184,7 +176,6 @@ The `agent` field is a **standard frontmatter field** that acts as a default sel
 **Example:**
 ```yaml
 ---
-task_name: implement-feature
 agent: cursor
 ---
 ```
@@ -213,7 +204,6 @@ The `model` field is a **standard frontmatter field** that provides metadata abo
 **Example:**
 ```yaml
 ---
-task_name: code-review
 agent: copilot
 model: anthropic.claude-sonnet-4-20250514-v1-0
 ---
@@ -234,7 +224,6 @@ Any additional YAML fields can be used for selector-based filtering.
 **Example:**
 ```yaml
 ---
-task_name: deploy
 environment: production
 region: us-east-1
 ---
@@ -255,7 +244,6 @@ The `selectors` field allows a task to specify which rules should be included wh
 **Example:**
 ```yaml
 ---
-task_name: implement-feature
 selectors:
   languages: go
   stage: implementation
@@ -279,7 +267,6 @@ You can specify multiple values for the same key using YAML arrays for OR logic:
 
 ```yaml
 ---
-task_name: test-code
 selectors:
   languages: [go, python, javascript]
   stage: testing
@@ -305,7 +292,6 @@ You can filter to specific rule files by their base filename (without extension)
 
 ```yaml
 ---
-task_name: my-task
 selectors:
   rule_name: [security-standards, go-best-practices]
 ---
@@ -323,7 +309,6 @@ When set to `false`, parameter placeholders like `${variable}` are preserved as-
 **Example (with parameter expansion disabled):**
 ```yaml
 ---
-task_name: preserve-template
 expand: false
 ---
 
@@ -346,7 +331,6 @@ coding-context -p issue_number=123 -p issue_title="Bug" preserve-template
 **Default behavior (expand: true or omitted):**
 ```yaml
 ---
-task_name: normal-task
 # expand defaults to true
 ---
 
@@ -371,9 +355,6 @@ Use `${parameter_name}` syntax to substitute parameter values from `-p` flags.
 
 **Example:**
 ```markdown
----
-task_name: fix-bug
----
 # Fix Bug: ${issue_key}
 
 Issue: ${issue_key}
@@ -400,9 +381,6 @@ Use `` !`command` `` syntax to execute shell commands and include their output.
 
 **Example:**
 ```markdown
----
-task_name: system-info
----
 # System Information
 
 Current date: !`date +%Y-%m-%d`
@@ -432,9 +410,6 @@ Use `@path` syntax to include the contents of a file.
 
 **Example:**
 ```markdown
----
-task_name: include-config
----
 # Current Configuration
 
 @config.yaml
@@ -512,7 +487,6 @@ Deploy to ${environment} with version ${version}
 **Usage in a task:**
 ```yaml
 ---
-task_name: my-task
 ---
 
 /deploy-steps
@@ -531,10 +505,6 @@ This is useful when commands contain template syntax that should be preserved.
 Commands are referenced from tasks using slash command syntax:
 
 ```markdown
----
-task_name: deploy-app
----
-
 # Deployment Steps
 
 /pre-deploy
@@ -714,7 +684,6 @@ stage: implementation
 priority: high
 team: backend
 agent: cursor
-task_name: implement-feature
 ---
 ```
 

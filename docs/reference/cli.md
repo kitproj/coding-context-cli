@@ -241,7 +241,6 @@ Task frontmatter is automatically included at the beginning of the output when p
 **Example output:**
 ```yaml
 ---
-task_name: fix-bug
 resume: false
 ---
 # Rule content here...
@@ -426,7 +425,6 @@ When a task file contains a slash command like `/pre-deploy` or `/greet name="Al
 
 ```markdown
 ---
-task_name: my-task
 ---
 # My Task
 
@@ -472,7 +470,6 @@ Hello, ${1}! Welcome to the project.
 Use it in a task file (`.agents/tasks/welcome.md`):
 ```markdown
 ---
-task_name: welcome
 ---
 # Welcome Task
 
@@ -509,7 +506,6 @@ Environment: ${env}
 Use it in a task file (`.agents/tasks/deploy.md`):
 ```markdown
 ---
-task_name: deploy
 ---
 # Deployment Task
 
