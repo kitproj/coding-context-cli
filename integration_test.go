@@ -1361,7 +1361,7 @@ This is the task prompt.
 	}
 
 	// Verify that rules were written to the user rules path
-	expectedRulesPath := filepath.Join(tmpHome, ".github", "agents", "rules.md")
+	expectedRulesPath := filepath.Join(tmpHome, ".github", "agents", "AGENTS.md")
 	rulesFileContent, err := os.ReadFile(expectedRulesPath)
 	if err != nil {
 		t.Fatalf("failed to read rules file at %s: %v", expectedRulesPath, err)
