@@ -8,18 +8,18 @@ import (
 	"strings"
 )
 
-// Expander handles content expansion for parameters, commands, and file paths
-type Expander struct {
-	params Params
+// expander handles content expansion for parameters, commands, and file paths
+type expander struct {
+	params map[string]string
 	logger *slog.Logger
 }
 
-// NewExpander creates a new Expander with the given parameters and logger
-func NewExpander(params Params, logger *slog.Logger) *Expander {
+// NewExpander creates a new expander with the given parameters and logger
+func NewExpander(params Params, logger *slog.Logger) *expander {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 	}
-	return &Expander{
+	return &expander{
 		params: params,
 		logger: logger,
 	}
@@ -31,7 +31,7 @@ func NewExpander(params Params, logger *slog.Logger) *Expander {
 // 3. Path expansion: @path
 // SECURITY: Processes rune-by-rune to prevent injection attacks where expanded
 // content contains further expansion sequences (e.g., command output with ${param}).
-func (e *Expander) Expand(content string) string {
+func (e *expander) Expand(content string) string {
 	var result strings.Builder
 	runes := []rune(content)
 	i := 0
