@@ -394,17 +394,17 @@ func TestAgent_UserRulePath(t *testing.T) {
 		{
 			name:     "cursor agent",
 			agent:    AgentCursor,
-			wantPath: filepath.Join(homeDir, ".cursor", "rules"),
+			wantPath: filepath.Join(homeDir, ".cursor", "rules", "AGENTS.md"),
 		},
 		{
 			name:     "opencode agent",
 			agent:    AgentOpenCode,
-			wantPath: filepath.Join(homeDir, ".opencode", "rules"),
+			wantPath: filepath.Join(homeDir, ".opencode", "rules", "AGENTS.md"),
 		},
 		{
 			name:     "copilot agent",
 			agent:    AgentCopilot,
-			wantPath: filepath.Join(homeDir, ".github", "agents"),
+			wantPath: filepath.Join(homeDir, ".github", "agents", "AGENTS.md"),
 		},
 		{
 			name:     "claude agent",
@@ -419,12 +419,12 @@ func TestAgent_UserRulePath(t *testing.T) {
 		{
 			name:     "augment agent",
 			agent:    AgentAugment,
-			wantPath: filepath.Join(homeDir, ".augment", "rules"),
+			wantPath: filepath.Join(homeDir, ".augment", "rules", "AGENTS.md"),
 		},
 		{
 			name:     "windsurf agent",
 			agent:    AgentWindsurf,
-			wantPath: filepath.Join(homeDir, ".windsurf", "rules"),
+			wantPath: filepath.Join(homeDir, ".windsurf", "rules", "AGENTS.md"),
 		},
 		{
 			name:     "codex agent",

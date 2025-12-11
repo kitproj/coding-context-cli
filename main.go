@@ -104,18 +104,9 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Determine the rules file path
-		// UserRulePath can be either a file path (e.g., .claude/CLAUDE.md) or a directory path (e.g., .cursor/rules)
+		// UserRulePath is always a file path (e.g., .claude/CLAUDE.md or .cursor/rules/AGENTS.md)
 		rulesFile := result.UserRulePath
 		rulesDir := filepath.Dir(rulesFile)
-
-		// Check if UserRulePath is meant to be a directory by checking if it has no extension
-		// Paths ending with .md are files, paths without extension are directories
-		if filepath.Ext(result.UserRulePath) == "" {
-			// It's a directory path, append default filename
-			rulesFile = filepath.Join(result.UserRulePath, "rules.md")
-			rulesDir = result.UserRulePath
-		}
 
 		// Create directory if it doesn't exist
 		if err := os.MkdirAll(rulesDir, 0o755); err != nil {

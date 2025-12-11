@@ -134,21 +134,22 @@ func (a Agent) UserRulePath(homeDir string) string {
 	}
 
 	// Map each agent to its primary user rules path
+	// All paths are files (not directories)
 	switch a {
 	case AgentCursor:
-		return filepath.Join(homeDir, ".cursor", "rules")
+		return filepath.Join(homeDir, ".cursor", "rules", "AGENTS.md")
 	case AgentOpenCode:
-		return filepath.Join(homeDir, ".opencode", "rules")
+		return filepath.Join(homeDir, ".opencode", "rules", "AGENTS.md")
 	case AgentCopilot:
-		return filepath.Join(homeDir, ".github", "agents")
+		return filepath.Join(homeDir, ".github", "agents", "AGENTS.md")
 	case AgentClaude:
 		return filepath.Join(homeDir, ".claude", "CLAUDE.md")
 	case AgentGemini:
 		return filepath.Join(homeDir, ".gemini", "GEMINI.md")
 	case AgentAugment:
-		return filepath.Join(homeDir, ".augment", "rules")
+		return filepath.Join(homeDir, ".augment", "rules", "AGENTS.md")
 	case AgentWindsurf:
-		return filepath.Join(homeDir, ".windsurf", "rules")
+		return filepath.Join(homeDir, ".windsurf", "rules", "AGENTS.md")
 	case AgentCodex:
 		return filepath.Join(homeDir, ".codex", "AGENTS.md")
 	default:
