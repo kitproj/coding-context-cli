@@ -56,12 +56,9 @@ func expand(content string, params map[string]string, logger *slog.Logger) strin
 				output, err := cmd.CombinedOutput()
 				if err != nil {
 					logger.Warn("command expansion failed", "command", command, "error", err)
-					// Return the original !`command` if command fails
-					result.WriteString(string(runes[i : end+1]))
-				} else {
-					// Write command output
-					result.WriteString(string(output))
 				}
+				// Write command output (even if command failed, output may contain error info)
+				result.WriteString(string(output))
 				i = end + 1
 				continue
 			}

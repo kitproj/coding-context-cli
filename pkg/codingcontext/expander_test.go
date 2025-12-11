@@ -51,6 +51,30 @@ func TestExpandParameters(t *testing.T) {
 			content:  "File: ${path}",
 			expected: "File: /tmp/file.txt",
 		},
+		{
+			name:     "unclosed parameter - treated as literal",
+			params:   Params{"name": "value"},
+			content:  "Text ${name and more",
+			expected: "Text ${name and more",
+		},
+		{
+			name:     "empty parameter name - expands to empty",
+			params:   Params{"": "value"},
+			content:  "Text ${} more",
+			expected: "Text value more",
+		},
+		{
+			name:     "parameter at end of string",
+			params:   Params{"end": "final"},
+			content:  "Start ${end}",
+			expected: "Start final",
+		},
+		{
+			name:     "nested braces - outer takes precedence",
+			params:   Params{"outer": "value"},
+			content:  "${outer{inner}}",
+			expected: "${outer{inner}}",
+		},
 	}
 
 	for _, tt := range tests {
@@ -86,9 +110,9 @@ func TestExpandCommands(t *testing.T) {
 			expected: "foo\n and bar\n",
 		},
 		{
-			name:     "command that fails - returns unchanged",
+			name:     "command that fails - returns output (empty for false)",
 			content:  "!`false` failed",
-			expected: "!`false` failed",
+			expected: " failed",
 		},
 		{
 			name:     "command with pipes",
@@ -109,6 +133,26 @@ func TestExpandCommands(t *testing.T) {
 			name:     "command output not trimmed",
 			content:  "!`echo -n hello` world",
 			expected: "hello world",
+		},
+		{
+			name:     "unclosed backtick - treated as literal",
+			content:  "Text !`echo test more",
+			expected: "Text !`echo test more",
+		},
+		{
+			name:     "empty command",
+			content:  "Text !`` more",
+			expected: "Text  more",
+		},
+		{
+			name:     "command at end of string",
+			content:  "Start !`echo end`",
+			expected: "Start end\n",
+		},
+		{
+			name:     "command with error output",
+			content:  "Error: !`cat /nonexistent/file 2>&1`",
+			contains: "No such file or directory",
 		},
 	}
 
@@ -187,6 +231,26 @@ func TestExpandPaths(t *testing.T) {
 			name:     "@ after newline",
 			content:  "line1\n@" + testFile1,
 			expected: "line1\ncontent1",
+		},
+		{
+			name:     "path at end without trailing whitespace",
+			content:  "End: @" + testFile1,
+			expected: "End: content1",
+		},
+		{
+			name:     "lone @ with no path",
+			content:  "Text @ more",
+			expected: "Text @ more",
+		},
+		{
+			name:     "multiple consecutive @ symbols",
+			content:  "Text @@ more",
+			expected: "Text @@ more",
+		},
+		{
+			name:     "path with backslash not escaping space - whole path not found",
+			content:  "Path: @" + testFile1 + "\\notspace",
+			expected: "Path: @" + testFile1 + "\\notspace",
 		},
 	}
 
