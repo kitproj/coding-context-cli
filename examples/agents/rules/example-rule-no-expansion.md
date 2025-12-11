@@ -1,5 +1,5 @@
 ---
-expand_params: false
+expand: false
 ---
 
 # Example Rule Without Parameter Expansion

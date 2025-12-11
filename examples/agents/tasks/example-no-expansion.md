@@ -1,15 +1,15 @@
 ---
 task_name: example-no-expansion
-expand_params: false
+expand: false
 ---
 
 # Example Task Without Parameter Expansion
 
-This task demonstrates how to disable parameter expansion using the `expand_params: false` frontmatter field.
+This task demonstrates how to disable parameter expansion using the `expand: false` frontmatter field.
 
 ## Usage
 
-When `expand_params` is set to `false`, parameter placeholders are preserved as-is:
+When `expand` is set to `false`, parameter placeholders are preserved as-is:
 
 - Issue Number: ${issue_number}
 - Issue Title: ${issue_title}

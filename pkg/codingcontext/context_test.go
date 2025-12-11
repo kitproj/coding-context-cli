@@ -1125,9 +1125,9 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 		check       func(t *testing.T, result *Result)
 	}{
 		{
-			name: "task with expand_params: false preserves parameters",
+			name: "task with expand: false preserves parameters",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "no-expand", "expand_params: false", "Issue: ${issue_number}\nTitle: ${issue_title}")
+				createTask(t, dir, "no-expand", "expand: false", "Issue: ${issue_number}\nTitle: ${issue_title}")
 			},
 			opts: []Option{
 				WithParams(Params{"issue_number": "123", "issue_title": "Bug fix"}),
@@ -1144,9 +1144,9 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 		},
 		{
-			name: "task with expand_params: true expands parameters",
+			name: "task with expand: true expands parameters",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "expand", "expand_params: true", "Issue: ${issue_number}\nTitle: ${issue_title}")
+				createTask(t, dir, "expand", "expand: true", "Issue: ${issue_number}\nTitle: ${issue_title}")
 			},
 			opts: []Option{
 				WithParams(Params{"issue_number": "123", "issue_title": "Bug fix"}),
@@ -1163,7 +1163,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 		},
 		{
-			name: "task without expand_params defaults to expanding",
+			name: "task without expand defaults to expanding",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "default", "", "Env: ${env}")
 			},
@@ -1179,10 +1179,10 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 		},
 		{
-			name: "command with expand_params: false preserves parameters",
+			name: "command with expand: false preserves parameters",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "cmd-no-expand", "", "/deploy")
-				createCommand(t, dir, "deploy", "expand_params: false", "Deploying to ${env}")
+				createCommand(t, dir, "deploy", "expand: false", "Deploying to ${env}")
 			},
 			opts: []Option{
 				WithParams(Params{"env": "staging"}),
@@ -1196,10 +1196,10 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 		},
 		{
-			name: "command with expand_params: true expands parameters",
+			name: "command with expand: true expands parameters",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "cmd-expand", "", "/deploy")
-				createCommand(t, dir, "deploy", "expand_params: true", "Deploying to ${env}")
+				createCommand(t, dir, "deploy", "expand: true", "Deploying to ${env}")
 			},
 			opts: []Option{
 				WithParams(Params{"env": "staging"}),
@@ -1213,7 +1213,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 		},
 		{
-			name: "command without expand_params defaults to expanding",
+			name: "command without expand defaults to expanding",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "cmd-default", "", "/info")
 				createCommand(t, dir, "info", "", "Project: ${project}")
@@ -1230,10 +1230,10 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 		},
 		{
-			name: "rule with expand_params: false preserves parameters",
+			name: "rule with expand: false preserves parameters",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "rule-no-expand", "", "Task content")
-				createRule(t, dir, ".agents/rules/rule1.md", "expand_params: false", "Version: ${version}")
+				createRule(t, dir, ".agents/rules/rule1.md", "expand: false", "Version: ${version}")
 			},
 			opts: []Option{
 				WithParams(Params{"version": "1.0.0"}),
@@ -1250,10 +1250,10 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 		},
 		{
-			name: "rule with expand_params: true expands parameters",
+			name: "rule with expand: true expands parameters",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "rule-expand", "", "Task content")
-				createRule(t, dir, ".agents/rules/rule1.md", "expand_params: true", "Version: ${version}")
+				createRule(t, dir, ".agents/rules/rule1.md", "expand: true", "Version: ${version}")
 			},
 			opts: []Option{
 				WithParams(Params{"version": "1.0.0"}),
@@ -1270,7 +1270,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 		},
 		{
-			name: "rule without expand_params defaults to expanding",
+			name: "rule without expand defaults to expanding",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "rule-default", "", "Task content")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "App: ${app}")
@@ -1292,8 +1292,8 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 		{
 			name: "mixed: task no expand, command with expand",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "mixed1", "expand_params: false", "Task ${task_var}\n/cmd")
-				createCommand(t, dir, "cmd", "expand_params: true", "Command ${cmd_var}")
+				createTask(t, dir, "mixed1", "expand: false", "Task ${task_var}\n/cmd")
+				createCommand(t, dir, "cmd", "expand: true", "Command ${cmd_var}")
 			},
 			opts: []Option{
 				WithParams(Params{"task_var": "task_value", "cmd_var": "cmd_value"}),
@@ -1313,8 +1313,8 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 		{
 			name: "mixed: task with expand, command no expand",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "mixed2", "expand_params: true", "Task ${task_var}\n/cmd")
-				createCommand(t, dir, "cmd", "expand_params: false", "Command ${cmd_var}")
+				createTask(t, dir, "mixed2", "expand: true", "Task ${task_var}\n/cmd")
+				createCommand(t, dir, "cmd", "expand: false", "Command ${cmd_var}")
 			},
 			opts: []Option{
 				WithParams(Params{"task_var": "task_value", "cmd_var": "cmd_value"}),
@@ -1332,10 +1332,10 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 		},
 		{
-			name: "command with inline parameters and expand_params: false",
+			name: "command with inline parameters and expand: false",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "inline-no-expand", "", "/greet name=\"Alice\"")
-				createCommand(t, dir, "greet", "expand_params: false", "Hello, ${name}! Your ID: ${id}")
+				createCommand(t, dir, "greet", "expand: false", "Hello, ${name}! Your ID: ${id}")
 			},
 			opts: []Option{
 				WithParams(Params{"id": "123"}),
@@ -1353,11 +1353,11 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple rules with different expand_params settings",
+			name: "multiple rules with different expand settings",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "multi-rules", "", "Task")
-				createRule(t, dir, ".agents/rules/rule1.md", "expand_params: false", "Rule1: ${var1}")
-				createRule(t, dir, ".agents/rules/rule2.md", "expand_params: true", "Rule2: ${var2}")
+				createRule(t, dir, ".agents/rules/rule1.md", "expand: false", "Rule1: ${var1}")
+				createRule(t, dir, ".agents/rules/rule2.md", "expand: true", "Rule2: ${var2}")
 				createRule(t, dir, ".agents/rules/rule3.md", "", "Rule3: ${var3}")
 			},
 			opts: []Option{
