@@ -200,14 +200,14 @@ func (cc *Context) findTask(taskName string) error {
 		}
 
 		// Build the final content by processing each block
-		// Text blocks are expanded if expand_params is not false
+		// Text blocks are expanded if expand is not false
 		// Slash command arguments are NOT expanded here - they are passed as literals
 		// to command files where they may be substituted via ${param} templates
 		finalContent := strings.Builder{}
 		for _, block := range task {
 			if block.Text != nil {
 				textContent := block.Text.Content()
-				// Expand parameters in text blocks only if expand_params is not explicitly set to false
+				// Expand parameters in text blocks only if expand is not explicitly set to false
 				if shouldExpandParams(frontMatter.ExpandParams) {
 					textContent = cc.expandParams(textContent, nil)
 				}
@@ -242,9 +242,9 @@ func (cc *Context) findTask(taskName string) error {
 }
 
 // findCommand searches for a command markdown file and returns its content.
-// Commands now support optional frontmatter with the expand_params field.
-// Parameters are substituted by default (when expand_params is nil or true).
-// Substitution is skipped only when expand_params is explicitly set to false.
+// Commands now support optional frontmatter with the expand field.
+// Parameters are substituted by default (when expand is nil or true).
+// Substitution is skipped only when expand is explicitly set to false.
 func (cc *Context) findCommand(commandName string, params map[string]string) (string, error) {
 	var content *string
 	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
@@ -254,7 +254,7 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 			return err
 		}
 
-		// Expand parameters only if expand_params is not explicitly set to false
+		// Expand parameters only if expand is not explicitly set to false
 		var processedContent string
 		if shouldExpandParams(frontMatter.ExpandParams) {
 			processedContent = cc.expandParams(md.Content, params)
@@ -435,7 +435,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 			return fmt.Errorf("failed to parse markdown file: %w", err)
 		}
 
-		// Expand parameters only if expand_params is not explicitly set to false
+		// Expand parameters only if expand is not explicitly set to false
 		var processedContent string
 		if shouldExpandParams(frontmatter.ExpandParams) {
 			processedContent = cc.expandParams(md.Content, nil)

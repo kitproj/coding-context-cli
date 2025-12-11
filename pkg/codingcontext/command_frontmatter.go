@@ -5,14 +5,14 @@ import (
 )
 
 // CommandFrontMatter represents the frontmatter fields for command files.
-// Previously this was an empty placeholder struct, but now supports the expand_params field
+// Previously this was an empty placeholder struct, but now supports the expand field
 // to control parameter expansion behavior in command content.
 type CommandFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
 
 	// ExpandParams controls whether parameter expansion should occur
 	// Defaults to true if not specified
-	ExpandParams *bool `yaml:"expand_params,omitempty" json:"expand_params,omitempty"`
+	ExpandParams *bool `yaml:"expand,omitempty" json:"expand,omitempty"`
 }
 
 // UnmarshalJSON custom unmarshaler that populates both typed fields and Content map
