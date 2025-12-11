@@ -292,6 +292,118 @@ Please work on ${component} and fix ${issue}.
 	}
 }
 
+func TestExpanderIntegration(t *testing.T) {
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a test file for path expansion
+	dataFile := filepath.Join(tmpDir, "data.txt")
+	if err := os.WriteFile(dataFile, []byte("file content"), 0o644); err != nil {
+		t.Fatalf("failed to write data file: %v", err)
+	}
+
+	// Create a task file with all three expansion types
+	taskFile := filepath.Join(tasksDir, "test-expander.md")
+	taskContent := fmt.Sprintf(`---
+task_name: test-expander
+---
+# Test Expander
+
+Parameter: ${component}
+Command: !`+"`echo hello`"+`
+Path: @%s
+Combined: ${component} !`+"`echo world`"+`
+`, dataFile)
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the program with parameters
+	output := runTool(t, "-C", tmpDir, "-p", "component=auth", "test-expander")
+
+	// Check parameter expansion
+	if !strings.Contains(output, "Parameter: auth") {
+		t.Errorf("parameter expansion failed. Output:\n%s", output)
+	}
+
+	// Check command expansion
+	if !strings.Contains(output, "Command: hello") {
+		t.Errorf("command expansion failed. Output:\n%s", output)
+	}
+
+	// Check path expansion
+	if !strings.Contains(output, "Path: file content") {
+		t.Errorf("path expansion failed. Output:\n%s", output)
+	}
+
+	// Check combined expansion
+	if !strings.Contains(output, "Combined: auth world") {
+		t.Errorf("combined expansion failed. Output:\n%s", output)
+	}
+}
+
+func TestExpanderSecurityIntegration(t *testing.T) {
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	// Create a file that contains expansion syntax (should not be re-expanded)
+	dataFile := filepath.Join(tmpDir, "injection.txt")
+	if err := os.WriteFile(dataFile, []byte("${injected} and !`echo hacked`"), 0o644); err != nil {
+		t.Fatalf("failed to write data file: %v", err)
+	}
+
+	// Create a task file that tests security (no re-expansion)
+	taskFile := filepath.Join(tasksDir, "test-security.md")
+	taskContent := fmt.Sprintf(`---
+task_name: test-security
+---
+# Test Security
+
+File content: @%s
+Param with command: ${evil}
+Command with param: !`+"`echo '${secret}'`"+`
+`, dataFile)
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the program with parameters that contain expansion syntax
+	output := runTool(t, "-C", tmpDir, "-p", "evil=!`echo INJECTED`", "-p", "secret=TOPSECRET", "test-security")
+
+	// Check that file content with expansion syntax is NOT re-expanded
+	if !strings.Contains(output, "File content: ${injected} and !`echo hacked`") {
+		t.Errorf("file content was re-expanded (security issue). Output:\n%s", output)
+	}
+
+	// Check that parameter value with command syntax is NOT executed
+	if !strings.Contains(output, "Param with command: !`echo INJECTED`") {
+		t.Errorf("parameter with command syntax was executed (security issue). Output:\n%s", output)
+	}
+
+	// Check that command output with parameter syntax is NOT re-expanded
+	if !strings.Contains(output, "Command with param: ${secret}") {
+		t.Errorf("command output was re-expanded (security issue). Output:\n%s", output)
+	}
+
+	// Verify that sensitive data is NOT in output (unless it's part of literal text)
+	if strings.Contains(output, "TOPSECRET") {
+		t.Errorf("parameter was re-expanded from command output (security issue). Output:\n%s", output)
+	}
+	// Check that the literal command syntax is preserved (not executed)
+	// The word "hacked" appears in the literal text, so we check for the full context
+	if !strings.Contains(output, "!`echo hacked`") {
+		t.Errorf("file content was re-expanded (security issue). Output:\n%s", output)
+	}
+}
+
 func TestMdcFileSupport(t *testing.T) {
 	dirs := setupTestDirs(t)
 
