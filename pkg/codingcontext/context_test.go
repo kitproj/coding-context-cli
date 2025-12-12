@@ -1417,3 +1417,223 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 		})
 	}
 }
+
+// TestUserPrompt tests the user_prompt parameter functionality
+func TestUserPrompt(t *testing.T) {
+tests := []struct {
+name        string
+setup       func(t *testing.T, dir string)
+opts        []Option
+taskName    string
+wantErr     bool
+errContains string
+check       func(t *testing.T, result *Result)
+}{
+{
+name: "simple user_prompt appended to task",
+setup: func(t *testing.T, dir string) {
+createTask(t, dir, "simple", "", "Task content\n")
+},
+opts: []Option{
+WithParams(Params{"user_prompt": "User prompt content"}),
+},
+taskName: "simple",
+wantErr:  false,
+check: func(t *testing.T, result *Result) {
+if !strings.Contains(result.Task.Content, "Task content") {
+t.Error("expected task content to contain 'Task content'")
+}
+if !strings.Contains(result.Task.Content, "User prompt content") {
+t.Error("expected task content to contain 'User prompt content'")
+}
+// Check that user_prompt comes after task content
+taskIdx := strings.Index(result.Task.Content, "Task content")
+userIdx := strings.Index(result.Task.Content, "User prompt content")
+if taskIdx >= userIdx {
+t.Error("expected user_prompt to come after task content")
+}
+},
+},
+{
+name: "user_prompt with slash command",
+setup: func(t *testing.T, dir string) {
+createTask(t, dir, "with-command", "", "Task content\n")
+createCommand(t, dir, "greet", "", "Hello from command!")
+},
+opts: []Option{
+WithParams(Params{"user_prompt": "User says:\n/greet\n"}),
+},
+taskName: "with-command",
+wantErr:  false,
+check: func(t *testing.T, result *Result) {
+if !strings.Contains(result.Task.Content, "Task content") {
+t.Error("expected task content to contain 'Task content'")
+}
+if !strings.Contains(result.Task.Content, "User says:") {
+t.Error("expected task content to contain 'User says: '")
+}
+if !strings.Contains(result.Task.Content, "Hello from command!") {
+t.Error("expected slash command in user_prompt to be expanded")
+}
+},
+},
+{
+name: "user_prompt with parameter substitution",
+setup: func(t *testing.T, dir string) {
+createTask(t, dir, "with-params", "", "Task content\n")
+},
+opts: []Option{
+WithParams(Params{
+"user_prompt": "Issue: ${issue_number}",
+"issue_number": "123",
+}),
+},
+taskName: "with-params",
+wantErr:  false,
+check: func(t *testing.T, result *Result) {
+if !strings.Contains(result.Task.Content, "Issue: 123") {
+t.Error("expected parameter substitution in user_prompt")
+}
+},
+},
+{
+name: "user_prompt with slash command and parameters",
+setup: func(t *testing.T, dir string) {
+createTask(t, dir, "complex", "", "Task content\n")
+createCommand(t, dir, "issue-info", "", "Issue ${issue_number}: ${issue_title}")
+},
+opts: []Option{
+WithParams(Params{
+"user_prompt": "Please fix:\n/issue-info\n",
+"issue_number": "456",
+"issue_title": "Fix bug",
+}),
+},
+taskName: "complex",
+wantErr:  false,
+check: func(t *testing.T, result *Result) {
+if !strings.Contains(result.Task.Content, "Please fix:") {
+t.Error("expected task content to contain 'Please fix: '")
+}
+if !strings.Contains(result.Task.Content, "Issue 456: Fix bug") {
+t.Error("expected slash command to be expanded with parameter substitution")
+}
+},
+},
+{
+name: "empty user_prompt should not affect task",
+setup: func(t *testing.T, dir string) {
+createTask(t, dir, "empty", "", "Task content\n")
+},
+opts: []Option{
+WithParams(Params{"user_prompt": ""}),
+},
+taskName: "empty",
+wantErr:  false,
+check: func(t *testing.T, result *Result) {
+if result.Task.Content != "Task content\n" {
+t.Errorf("expected task content to be unchanged, got %q", result.Task.Content)
+}
+},
+},
+{
+name: "no user_prompt parameter should not affect task",
+setup: func(t *testing.T, dir string) {
+createTask(t, dir, "no-prompt", "", "Task content\n")
+},
+opts:     []Option{},
+taskName: "no-prompt",
+wantErr:  false,
+check: func(t *testing.T, result *Result) {
+if result.Task.Content != "Task content\n" {
+t.Errorf("expected task content to be unchanged, got %q", result.Task.Content)
+}
+},
+},
+{
+name: "user_prompt with multiple slash commands",
+setup: func(t *testing.T, dir string) {
+createTask(t, dir, "multi", "", "Task content\n")
+createCommand(t, dir, "cmd1", "", "Command 1")
+createCommand(t, dir, "cmd2", "", "Command 2")
+},
+opts: []Option{
+WithParams(Params{"user_prompt": "/cmd1\n/cmd2\n"}),
+},
+taskName: "multi",
+wantErr:  false,
+check: func(t *testing.T, result *Result) {
+if !strings.Contains(result.Task.Content, "Command 1") {
+t.Error("expected first slash command to be expanded")
+}
+if !strings.Contains(result.Task.Content, "Command 2") {
+t.Error("expected second slash command to be expanded")
+}
+},
+},
+{
+name: "user_prompt respects task expand setting",
+setup: func(t *testing.T, dir string) {
+createTask(t, dir, "no-expand", "expand: false", "Task content\n")
+},
+opts: []Option{
+WithParams(Params{
+"user_prompt": "Issue ${issue_number}",
+"issue_number": "789",
+}),
+},
+taskName: "no-expand",
+wantErr:  false,
+check: func(t *testing.T, result *Result) {
+if !strings.Contains(result.Task.Content, "${issue_number}") {
+t.Error("expected parameter to NOT be expanded when expand: false")
+}
+},
+},
+{
+name: "user_prompt with invalid slash command",
+setup: func(t *testing.T, dir string) {
+createTask(t, dir, "invalid", "", "Task content\n")
+},
+opts: []Option{
+WithParams(Params{"user_prompt": "/nonexistent-command\n"}),
+},
+taskName:    "invalid",
+wantErr:     true,
+errContains: "command not found",
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+tmpDir := t.TempDir()
+
+tt.setup(t, tmpDir)
+
+allOpts := append([]Option{
+WithLogger(slog.New(slog.NewTextHandler(os.Stderr, nil))),
+WithSearchPaths("file://" + tmpDir),
+}, tt.opts...)
+
+c := New(allOpts...)
+
+result, err := c.Run(context.Background(), tt.taskName)
+
+if (err != nil) != tt.wantErr {
+t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
+return
+}
+
+if tt.wantErr && tt.errContains != "" {
+if !strings.Contains(err.Error(), tt.errContains) {
+t.Errorf("expected error to contain %q, got %v", tt.errContains, err)
+}
+return
+}
+
+if !tt.wantErr && tt.check != nil {
+tt.check(t, result)
+}
+})
+}
+}

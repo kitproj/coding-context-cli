@@ -221,6 +221,46 @@ func (cc *Context) findTask(taskName string) error {
 			}
 		}
 
+		// Check if user_prompt parameter exists and process it
+		if userPrompt, ok := cc.params["user_prompt"]; ok && userPrompt != "" {
+			// Parse the user_prompt to extract slash commands
+			userPromptTask, err := ParseTask(userPrompt)
+			if err != nil {
+				return fmt.Errorf("failed to parse user_prompt: %w", err)
+			}
+
+			// Process user_prompt blocks (text and slash commands)
+			// This allows slash commands in user_prompt to be expanded
+			userPromptContent := strings.Builder{}
+			for _, block := range userPromptTask {
+				if block.Text != nil {
+					textContent := block.Text.Content()
+					// Expand parameters in user_prompt text blocks
+					if shouldExpandParams(frontMatter.ExpandParams) {
+						textContent = cc.expandParams(textContent, nil)
+					}
+					userPromptContent.WriteString(textContent)
+				} else if block.SlashCommand != nil {
+					commandContent, err := cc.findCommand(block.SlashCommand.Name, block.SlashCommand.Params())
+					if err != nil {
+						return fmt.Errorf("failed to expand slash command in user_prompt: %w", err)
+					}
+					userPromptContent.WriteString(commandContent)
+				}
+			}
+
+			// Append user_prompt content to task content
+			if userPromptContent.Len() > 0 {
+				// Add a newline separator if the task content doesn't end with one
+				taskContent := finalContent.String()
+				if len(taskContent) > 0 && !strings.HasSuffix(taskContent, "\n") {
+					finalContent.WriteString("\n")
+				}
+				finalContent.WriteString(userPromptContent.String())
+				cc.logger.Info("Appended user_prompt to task", "user_prompt_length", userPromptContent.Len())
+			}
+		}
+
 		cc.task = Markdown[TaskFrontMatter]{
 			FrontMatter: frontMatter,
 			Content:     finalContent.String(),
@@ -248,6 +288,12 @@ func (cc *Context) findTask(taskName string) error {
 func (cc *Context) findCommand(commandName string, params map[string]string) (string, error) {
 	var content *string
 	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
+		baseName := filepath.Base(path)
+		ext := filepath.Ext(baseName)
+		if strings.TrimSuffix(baseName, ext) != commandName {
+			return nil
+		}
+
 		var frontMatter CommandFrontMatter
 		md, err := ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
