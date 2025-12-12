@@ -382,3 +382,66 @@ func TestAgent_IsSet(t *testing.T) {
 		t.Errorf("IsSet() on set agent = false, want true")
 	}
 }
+
+func TestAgent_UserRulePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		agent    Agent
+		wantPath string
+	}{
+		{
+			name:     "cursor agent",
+			agent:    AgentCursor,
+			wantPath: filepath.Join(".cursor", "rules", "AGENTS.md"),
+		},
+		{
+			name:     "opencode agent",
+			agent:    AgentOpenCode,
+			wantPath: filepath.Join(".opencode", "rules", "AGENTS.md"),
+		},
+		{
+			name:     "copilot agent",
+			agent:    AgentCopilot,
+			wantPath: filepath.Join(".github", "agents", "AGENTS.md"),
+		},
+		{
+			name:     "claude agent",
+			agent:    AgentClaude,
+			wantPath: filepath.Join(".claude", "CLAUDE.md"),
+		},
+		{
+			name:     "gemini agent",
+			agent:    AgentGemini,
+			wantPath: filepath.Join(".gemini", "GEMINI.md"),
+		},
+		{
+			name:     "augment agent",
+			agent:    AgentAugment,
+			wantPath: filepath.Join(".augment", "rules", "AGENTS.md"),
+		},
+		{
+			name:     "windsurf agent",
+			agent:    AgentWindsurf,
+			wantPath: filepath.Join(".windsurf", "rules", "AGENTS.md"),
+		},
+		{
+			name:     "codex agent",
+			agent:    AgentCodex,
+			wantPath: filepath.Join(".codex", "AGENTS.md"),
+		},
+		{
+			name:     "empty agent",
+			agent:    Agent(""),
+			wantPath: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.agent.UserRulePath()
+			if got != tt.wantPath {
+				t.Errorf("UserRulePath() = %q, want %q", got, tt.wantPath)
+			}
+		})
+	}
+}

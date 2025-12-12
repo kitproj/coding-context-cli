@@ -1296,3 +1296,113 @@ func TestCommandExpansionOnce(t *testing.T) {
 		t.Errorf("Command parameter value was re-expanded (command was executed), got: %s", output)
 	}
 }
+
+func TestWriteRulesOption(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a rule file
+	ruleFile := filepath.Join(dirs.rulesDir, "test-rule.md")
+	ruleContent := `---
+language: go
+---
+# Test Rule
+
+This is a test rule that should be written to the user rules path.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	// Create a task file
+	taskFile := filepath.Join(dirs.tasksDir, "test-task.md")
+	taskContent := `---
+task_name: test-task
+---
+# Test Task
+
+This is the task prompt.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Create a temporary home directory for this test
+	tmpHome := t.TempDir()
+
+	// Run with -w flag and -a copilot
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	cmd := exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-a", "copilot", "-w", "test-task")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	// Build a clean environment that explicitly sets GOMODCACHE outside tmpDir
+	// to avoid permission issues during cleanup
+	gomodcache := os.Getenv("GOMODCACHE")
+	if gomodcache == "" {
+		gomodcache = filepath.Join(os.Getenv("HOME"), "go", "pkg", "mod")
+	}
+	cmd.Env = append(os.Environ(),
+		"HOME="+tmpHome,
+		"GOMODCACHE="+gomodcache,
+	)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to run binary: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
+	}
+
+	output := stdout.String()
+	stderrOutput := stderr.String()
+
+	// Verify that the rules were NOT printed to stdout
+	if strings.Contains(output, "# Test Rule") {
+		t.Errorf("rules should not be in stdout when using -w flag")
+	}
+
+	// Verify that the task IS printed to stdout
+	if !strings.Contains(output, "# Test Task") {
+		t.Errorf("task content not found in stdout")
+	}
+	if !strings.Contains(output, "This is the task prompt.") {
+		t.Errorf("task description not found in stdout")
+	}
+
+	// Verify that rules were written to the user rules path
+	expectedRulesPath := filepath.Join(tmpHome, ".github", "agents", "AGENTS.md")
+	rulesFileContent, err := os.ReadFile(expectedRulesPath)
+	if err != nil {
+		t.Fatalf("failed to read rules file at %s: %v", expectedRulesPath, err)
+	}
+
+	rulesStr := string(rulesFileContent)
+	if !strings.Contains(rulesStr, "# Test Rule") {
+		t.Errorf("rules file does not contain rule content")
+	}
+	if !strings.Contains(rulesStr, "This is a test rule that should be written to the user rules path.") {
+		t.Errorf("rules file does not contain rule description")
+	}
+
+	// Verify that the logger reported where rules were written
+	if !strings.Contains(stderrOutput, "Rules written") {
+		t.Errorf("stderr should contain 'Rules written' message")
+	}
+}
+
+func TestWriteRulesOptionWithoutAgent(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a simple task file without agent field
+	createStandardTask(t, dirs.tasksDir, "test-task")
+
+	// Run with -w flag but WITHOUT -a flag and task has no agent field (should fail)
+	output, err := runToolWithError("-C", dirs.tmpDir, "-w", "test-task")
+	if err == nil {
+		t.Errorf("expected error when using -w without agent (from task or -a flag), but command succeeded")
+	}
+
+	// Verify error message
+	if !strings.Contains(output, "-w flag requires an agent") {
+		t.Errorf("expected error message about requiring an agent, got: %s", output)
+	}
+}

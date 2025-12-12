@@ -95,8 +95,8 @@ Options:
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
   -a string
-    	Target agent to use (excludes rules from that specific agent). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
-    	When set, excludes that agent's own rule paths (since the agent reads those itself) while including rules from other agents and generic rules.
+    	Default agent to use if task doesn't specify one. Excludes that agent's own rule paths (since the agent reads those itself). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
+  -w	Write rules to agent's config file and output only task to stdout. Requires agent (via task or -a flag).
 ```
 
 ### Examples
