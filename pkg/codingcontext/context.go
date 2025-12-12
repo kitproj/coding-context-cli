@@ -201,8 +201,20 @@ func (cc *Context) findTask(taskName string) error {
 			cc.agent = agent
 		}
 
-		// Parse the task content first to separate text blocks from slash commands
-		task, err := ParseTask(md.Content)
+		// Append user_prompt to task content before parsing
+		// This allows user_prompt to be processed uniformly with task content
+		taskContent := md.Content
+		if cc.userPrompt != "" {
+			// Add a newline separator if the task content doesn't end with one
+			if len(taskContent) > 0 && !strings.HasSuffix(taskContent, "\n") {
+				taskContent += "\n"
+			}
+			taskContent += cc.userPrompt
+			cc.logger.Info("Appended user_prompt to task", "user_prompt_length", len(cc.userPrompt))
+		}
+
+		// Parse the task content (including user_prompt) to separate text blocks from slash commands
+		task, err := ParseTask(taskContent)
 		if err != nil {
 			return err
 		}
@@ -226,46 +238,6 @@ func (cc *Context) findTask(taskName string) error {
 					return err
 				}
 				finalContent.WriteString(commandContent)
-			}
-		}
-
-		// Check if user_prompt is provided and process it
-		if cc.userPrompt != "" {
-			// Parse the user_prompt to extract slash commands
-			userPromptTask, err := ParseTask(cc.userPrompt)
-			if err != nil {
-				return fmt.Errorf("failed to parse user_prompt: %w", err)
-			}
-
-			// Process user_prompt blocks (text and slash commands)
-			// This allows slash commands in user_prompt to be expanded
-			userPromptContent := strings.Builder{}
-			for _, block := range userPromptTask {
-				if block.Text != nil {
-					textContent := block.Text.Content()
-					// Expand parameters in user_prompt text blocks
-					if shouldExpandParams(frontMatter.ExpandParams) {
-						textContent = cc.expandParams(textContent, nil)
-					}
-					userPromptContent.WriteString(textContent)
-				} else if block.SlashCommand != nil {
-					commandContent, err := cc.findCommand(block.SlashCommand.Name, block.SlashCommand.Params())
-					if err != nil {
-						return fmt.Errorf("failed to expand slash command in user_prompt: %w", err)
-					}
-					userPromptContent.WriteString(commandContent)
-				}
-			}
-
-			// Append user_prompt content to task content
-			if userPromptContent.Len() > 0 {
-				// Add a newline separator if the task content doesn't end with one
-				taskContent := finalContent.String()
-				if len(taskContent) > 0 && !strings.HasSuffix(taskContent, "\n") {
-					finalContent.WriteString("\n")
-				}
-				finalContent.WriteString(userPromptContent.String())
-				cc.logger.Info("Appended user_prompt to task", "user_prompt_length", userPromptContent.Len())
 			}
 		}
 
