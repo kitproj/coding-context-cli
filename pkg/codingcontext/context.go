@@ -163,6 +163,7 @@ func (cc *Context) findTask(taskName string) error {
 	// Add task name to includes so rules can be filtered
 	cc.includes.SetValue("task_name", taskName)
 
+	taskFound := false
 	err := cc.visitMarkdownFiles(taskSearchPaths, func(path string) error {
 		baseName := filepath.Base(path)
 		ext := filepath.Ext(baseName)
@@ -170,6 +171,7 @@ func (cc *Context) findTask(taskName string) error {
 			return nil
 		}
 
+		taskFound = true
 		var frontMatter TaskFrontMatter
 		md, err := ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
@@ -255,7 +257,7 @@ func (cc *Context) findTask(taskName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to find task: %w", err)
 	}
-	if cc.task.Content == "" {
+	if !taskFound {
 		return fmt.Errorf("task not found: %s", taskName)
 	}
 	return nil

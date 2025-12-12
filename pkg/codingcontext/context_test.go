@@ -352,15 +352,6 @@ func TestContext_Run_Basic(t *testing.T) {
 				}
 			},
 		},
-		{
-			name: "empty task content returns error",
-			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "empty", "", "")
-			},
-			taskName:    "empty",
-			wantErr:     true,
-			errContains: "task not found",
-		},
 	}
 
 	for _, tt := range tests {
