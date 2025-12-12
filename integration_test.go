@@ -1406,3 +1406,88 @@ func TestWriteRulesOptionWithoutAgent(t *testing.T) {
 		t.Errorf("expected error message about requiring an agent, got: %s", output)
 	}
 }
+
+func TestWriteRulesOptionWithResumeMode(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a rule file
+	ruleFile := filepath.Join(dirs.rulesDir, "test-rule.md")
+	ruleContent := `---
+language: go
+---
+# Test Rule
+
+This is a test rule that should NOT be written in resume mode.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	// Create a resume task file
+	taskFile := filepath.Join(dirs.tasksDir, "test-task-resume.md")
+	taskContent := `---
+resume: true
+---
+# Test Task Resume
+
+This is the task prompt for resume mode.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Create a temporary home directory for this test
+	tmpHome := t.TempDir()
+
+	// Run with -w flag, -r flag (resume mode), and -a copilot
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	cmd := exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-a", "copilot", "-w", "-r", "test-task-resume")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	// Build a clean environment that explicitly sets GOMODCACHE outside tmpDir
+	// to avoid permission issues during cleanup
+	gomodcache := os.Getenv("GOMODCACHE")
+	if gomodcache == "" {
+		gomodcache = filepath.Join(os.Getenv("HOME"), "go", "pkg", "mod")
+	}
+	cmd.Env = append(os.Environ(),
+		"HOME="+tmpHome,
+		"GOMODCACHE="+gomodcache,
+	)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to run binary: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
+	}
+
+	output := stdout.String()
+	stderrOutput := stderr.String()
+
+	// Verify that the rules were NOT printed to stdout
+	if strings.Contains(output, "# Test Rule") {
+		t.Errorf("rules should not be in stdout when using -w flag with resume mode")
+	}
+
+	// Verify that the task IS printed to stdout
+	if !strings.Contains(output, "# Test Task Resume") {
+		t.Errorf("task content not found in stdout")
+	}
+	if !strings.Contains(output, "This is the task prompt for resume mode.") {
+		t.Errorf("task description not found in stdout")
+	}
+
+	// Verify that NO rules file was created in resume mode
+	expectedRulesPath := filepath.Join(tmpHome, ".github", "agents", "AGENTS.md")
+	if _, err := os.Stat(expectedRulesPath); err == nil {
+		t.Errorf("rules file should NOT be created in resume mode with -w flag, but found at %s", expectedRulesPath)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("unexpected error checking for rules file: %v", err)
+	}
+
+	// Verify that the logger did NOT report writing rules
+	if strings.Contains(stderrOutput, "Rules written") {
+		t.Errorf("stderr should NOT contain 'Rules written' message in resume mode")
+	}
+}

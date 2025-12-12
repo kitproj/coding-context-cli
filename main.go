@@ -98,38 +98,41 @@ func main() {
 			os.Exit(1)
 		}
 
-		relativePath := result.Agent.UserRulePath()
-		if relativePath == "" {
-			logger.Error("Error", "error", fmt.Errorf("no user rule path available for agent"))
-			os.Exit(1)
-		}
-
-		// Construct full path by joining with home directory
-		rulesFile := filepath.Join(homeDir, relativePath)
-		rulesDir := filepath.Dir(rulesFile)
-
-		// Create directory if it doesn't exist
-		if err := os.MkdirAll(rulesDir, 0o755); err != nil {
-			logger.Error("Error", "error", fmt.Errorf("failed to create rules directory %s: %w", rulesDir, err))
-			os.Exit(1)
-		}
-
-		// Build rules content, trimming each rule and joining with consistent spacing
-		var rulesContent strings.Builder
-		for i, rule := range result.Rules {
-			if i > 0 {
-				rulesContent.WriteString("\n\n")
+		// Skip writing rules file in resume mode since no rules are collected
+		if !resume {
+			relativePath := result.Agent.UserRulePath()
+			if relativePath == "" {
+				logger.Error("Error", "error", fmt.Errorf("no user rule path available for agent"))
+				os.Exit(1)
 			}
-			rulesContent.WriteString(strings.TrimSpace(rule.Content))
-		}
-		rulesContent.WriteString("\n")
 
-		if err := os.WriteFile(rulesFile, []byte(rulesContent.String()), 0o644); err != nil {
-			logger.Error("Error", "error", fmt.Errorf("failed to write rules to %s: %w", rulesFile, err))
-			os.Exit(1)
-		}
+			// Construct full path by joining with home directory
+			rulesFile := filepath.Join(homeDir, relativePath)
+			rulesDir := filepath.Dir(rulesFile)
 
-		logger.Info("Rules written", "path", rulesFile)
+			// Create directory if it doesn't exist
+			if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+				logger.Error("Error", "error", fmt.Errorf("failed to create rules directory %s: %w", rulesDir, err))
+				os.Exit(1)
+			}
+
+			// Build rules content, trimming each rule and joining with consistent spacing
+			var rulesContent strings.Builder
+			for i, rule := range result.Rules {
+				if i > 0 {
+					rulesContent.WriteString("\n\n")
+				}
+				rulesContent.WriteString(strings.TrimSpace(rule.Content))
+			}
+			rulesContent.WriteString("\n")
+
+			if err := os.WriteFile(rulesFile, []byte(rulesContent.String()), 0o644); err != nil {
+				logger.Error("Error", "error", fmt.Errorf("failed to write rules to %s: %w", rulesFile, err))
+				os.Exit(1)
+			}
+
+			logger.Info("Rules written", "path", rulesFile)
+		}
 
 		// Output only task frontmatter and content
 		if taskContent := result.Task.FrontMatter.Content; taskContent != nil {
