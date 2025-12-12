@@ -2,13 +2,21 @@
 
 This directory contains a presentation slide deck for the Coding Context CLI tool.
 
-## File
+## Files
 
 - **[SLIDES.md](./SLIDES.md)** - Main slide deck in Marp format
+- **[SLIDES.pdf](./SLIDES.pdf)** - Pre-generated PDF (ready to use)
 
 ## Viewing the Slides
 
-The slides are written in [Marp](https://marp.app/) markdown format. You have several options to view them:
+### Quick Start: Download the PDF
+
+The easiest way to view or present the slides is to download the pre-generated PDF:
+- **[SLIDES.pdf](./SLIDES.pdf)** - Ready to open in any PDF viewer
+
+### Generate Your Own
+
+The slides are written in [Marp](https://marp.app/) markdown format. You have several options to generate or view them:
 
 ### Option 1: Marp CLI (Recommended)
 

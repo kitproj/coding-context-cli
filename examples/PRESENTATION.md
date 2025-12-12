@@ -4,11 +4,23 @@ This example demonstrates how to use the slide deck for presentations about the 
 
 ## Quick Start
 
-The main slide deck is located at [`../SLIDES.md`](../SLIDES.md) and contains a comprehensive presentation about the Coding Context CLI tool.
+The main slide deck is available in two formats:
+- [`../SLIDES.md`](../SLIDES.md) - Marp markdown format (editable)
+- [`../SLIDES.pdf`](../SLIDES.pdf) - Pre-generated PDF (ready to use)
+
+**For immediate use:** Download and open [`SLIDES.pdf`](../SLIDES.pdf) in any PDF viewer.
 
 ## Viewing Options
 
-### 1. VS Code (Easiest)
+### 1. PDF Viewer (Easiest)
+
+Simply open [`../SLIDES.pdf`](../SLIDES.pdf) in any PDF viewer:
+- Adobe Acrobat Reader
+- Preview (macOS)
+- Edge, Chrome, or Firefox
+- Your system's default PDF viewer
+
+### 2. VS Code (For Editing)
 
 1. Install the [Marp for VS Code](https://marketplace.visualstudio.com/items?itemName=marp-team.marp-vscode) extension
 2. Open `SLIDES.md` in VS Code
