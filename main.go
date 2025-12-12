@@ -44,9 +44,12 @@ func main() {
 
 	flag.Usage = func() {
 		logger.Info("Usage:")
-		logger.Info("  coding-context [options] <task-name>")
+		logger.Info("  coding-context [options] <task-name> [user-prompt]")
 		logger.Info("")
 		logger.Info("The task-name is the name of a task file to look up in task search paths (.agents/tasks).")
+		logger.Info("The user-prompt is optional text to append to the task. It can contain slash commands")
+		logger.Info("(e.g., '/command-name') which will be expanded, and parameter substitution (${param}).")
+		logger.Info("")
 		logger.Info("Task content can contain slash commands (e.g., '/command-name arg') which reference")
 		logger.Info("command files in command search paths (.cursor/commands, .agents/commands, etc.).")
 		logger.Info("")
@@ -56,13 +59,17 @@ func main() {
 	flag.Parse()
 
 	args := flag.Args()
-	if len(args) != 1 {
-		logger.Error("Error", "error", fmt.Errorf("invalid usage: expected exactly one task name argument"))
+	if len(args) < 1 || len(args) > 2 {
+		logger.Error("Error", "error", fmt.Errorf("invalid usage: expected one task name argument and optional user-prompt"))
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	taskName := args[0]
+	var userPrompt string
+	if len(args) == 2 {
+		userPrompt = args[1]
+	}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -81,6 +88,7 @@ func main() {
 		codingcontext.WithResume(resume),
 		codingcontext.WithAgent(agent),
 		codingcontext.WithManifestURL(manifestURL),
+		codingcontext.WithUserPrompt(userPrompt),
 	)
 
 	result, err := cc.Run(ctx, taskName)

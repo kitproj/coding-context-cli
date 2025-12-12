@@ -28,6 +28,7 @@ type Context struct {
 	cmdRunner       func(cmd *exec.Cmd) error
 	resume          bool
 	agent           Agent
+	userPrompt      string // User-provided prompt to append to task
 }
 
 // Option is a functional option for configuring a Context
@@ -79,6 +80,13 @@ func WithResume(resume bool) Option {
 func WithAgent(agent Agent) Option {
 	return func(c *Context) {
 		c.agent = agent
+	}
+}
+
+// WithUserPrompt sets the user prompt to append to the task
+func WithUserPrompt(userPrompt string) Option {
+	return func(c *Context) {
+		c.userPrompt = userPrompt
 	}
 }
 
@@ -155,6 +163,7 @@ func (cc *Context) findTask(taskName string) error {
 	// Add task name to includes so rules can be filtered
 	cc.includes.SetValue("task_name", taskName)
 
+	taskFound := false
 	err := cc.visitMarkdownFiles(taskSearchPaths, func(path string) error {
 		baseName := filepath.Base(path)
 		ext := filepath.Ext(baseName)
@@ -162,6 +171,7 @@ func (cc *Context) findTask(taskName string) error {
 			return nil
 		}
 
+		taskFound = true
 		var frontMatter TaskFrontMatter
 		md, err := ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
@@ -193,8 +203,20 @@ func (cc *Context) findTask(taskName string) error {
 			cc.agent = agent
 		}
 
-		// Parse the task content first to separate text blocks from slash commands
-		task, err := ParseTask(md.Content)
+		// Append user_prompt to task content before parsing
+		// This allows user_prompt to be processed uniformly with task content
+		taskContent := md.Content
+		if cc.userPrompt != "" {
+			// Add delimiter to separate task from user_prompt
+			if !strings.HasSuffix(taskContent, "\n") {
+				taskContent += "\n"
+			}
+			taskContent += "---\n" + cc.userPrompt
+			cc.logger.Info("Appended user_prompt to task", "user_prompt_length", len(cc.userPrompt))
+		}
+
+		// Parse the task content (including user_prompt) to separate text blocks from slash commands
+		task, err := ParseTask(taskContent)
 		if err != nil {
 			return err
 		}
@@ -235,7 +257,7 @@ func (cc *Context) findTask(taskName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to find task: %w", err)
 	}
-	if cc.task.Content == "" {
+	if !taskFound {
 		return fmt.Errorf("task not found: %s", taskName)
 	}
 	return nil
@@ -248,6 +270,12 @@ func (cc *Context) findTask(taskName string) error {
 func (cc *Context) findCommand(commandName string, params map[string]string) (string, error) {
 	var content *string
 	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
+		baseName := filepath.Base(path)
+		ext := filepath.Ext(baseName)
+		if strings.TrimSuffix(baseName, ext) != commandName {
+			return nil
+		}
+
 		var frontMatter CommandFrontMatter
 		md, err := ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
