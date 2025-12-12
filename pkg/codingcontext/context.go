@@ -205,11 +205,11 @@ func (cc *Context) findTask(taskName string) error {
 		// This allows user_prompt to be processed uniformly with task content
 		taskContent := md.Content
 		if cc.userPrompt != "" {
-			// Add a newline separator if the task content doesn't end with one
-			if len(taskContent) > 0 && !strings.HasSuffix(taskContent, "\n") {
+			// Add delimiter to separate task from user_prompt
+			if !strings.HasSuffix(taskContent, "\n") {
 				taskContent += "\n"
 			}
-			taskContent += cc.userPrompt
+			taskContent += "---\n" + cc.userPrompt
 			cc.logger.Info("Appended user_prompt to task", "user_prompt_length", len(cc.userPrompt))
 		}
 
