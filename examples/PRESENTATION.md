@@ -27,7 +27,7 @@ Simply open [`../SLIDES.pdf`](../SLIDES.pdf) in any PDF viewer:
 3. Press `Ctrl+K V` (Windows/Linux) or `Cmd+K V` (macOS) to open preview
 4. Use the export button to generate HTML, PDF, or PowerPoint
 
-### 2. Command Line
+### 3. Command Line
 
 ```bash
 # Install Marp CLI
@@ -37,26 +37,26 @@ npm install -g @marp-team/marp-cli
 marp SLIDES.md -o slides.html
 
 # Generate PDF
-marp SLIDES.md --pdf -o slides.pdf
+marp SLIDES.md -o slides.pdf
 
 # Generate PowerPoint
-marp SLIDES.md --pptx -o slides.pptx
+marp SLIDES.md -o slides.pptx
 
 # Watch mode (auto-reload)
 marp -w SLIDES.md
 ```
 
-### 3. Docker
+### 4. Docker
 
 ```bash
 # HTML
-docker run --rm -v $PWD:/home/marp/app/ marpteam/marp-cli SLIDES.md
+docker run --rm -v $PWD:/home/marp/app/ -e LANG=en_US.UTF-8 marpteam/marp-cli SLIDES.md -o slides.html
 
 # PDF
-docker run --rm -v $PWD:/home/marp/app/ marpteam/marp-cli --pdf SLIDES.md
+docker run --rm -v $PWD:/home/marp/app/ -e LANG=en_US.UTF-8 marpteam/marp-cli SLIDES.md -o slides.pdf
 
 # PowerPoint
-docker run --rm -v $PWD:/home/marp/app/ marpteam/marp-cli --pptx SLIDES.md
+docker run --rm -v $PWD:/home/marp/app/ -e LANG=en_US.UTF-8 marpteam/marp-cli SLIDES.md -o slides.pptx
 ```
 
 ## Presentation Scenarios
