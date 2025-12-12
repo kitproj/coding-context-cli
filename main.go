@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 
 	yaml "github.com/goccy/go-yaml"
@@ -21,6 +23,7 @@ func main() {
 
 	var workDir string
 	var resume bool
+	var writeRules bool
 	var agent codingcontext.Agent
 	params := make(codingcontext.Params)
 	includes := make(codingcontext.Selectors)
@@ -29,6 +32,7 @@ func main() {
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
+	flag.BoolVar(&writeRules, "w", false, "Write rules to the agent's user rules path and only print the prompt to stdout. Requires -a flag.")
 	flag.Var(&agent, "a", "Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
@@ -86,21 +90,75 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Output task frontmatter (always enabled)
-	if taskContent := result.Task.FrontMatter.Content; taskContent != nil {
-		fmt.Println("---")
-		if err := yaml.NewEncoder(os.Stdout).Encode(taskContent); err != nil {
-			logger.Error("Failed to encode task frontmatter", "error", err)
+	// If writeRules flag is set, write rules to UserRulePath and only output task
+	if writeRules {
+		// Get the user rule path from the agent (could be from task or -a flag)
+		if !result.Agent.IsSet() {
+			logger.Error("Error", "error", fmt.Errorf("-w flag requires an agent to be specified (via task 'agent' field or -a flag)"))
 			os.Exit(1)
 		}
-		fmt.Println("---")
-	}
 
-	// Output all rules
-	for _, rule := range result.Rules {
-		fmt.Println(rule.Content)
-	}
+		relativePath := result.Agent.UserRulePath()
+		if relativePath == "" {
+			logger.Error("Error", "error", fmt.Errorf("no user rule path available for agent"))
+			os.Exit(1)
+		}
 
-	// Output task
-	fmt.Println(result.Task.Content)
+		// Construct full path by joining with home directory
+		rulesFile := filepath.Join(homeDir, relativePath)
+		rulesDir := filepath.Dir(rulesFile)
+
+		// Create directory if it doesn't exist
+		if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+			logger.Error("Error", "error", fmt.Errorf("failed to create rules directory %s: %w", rulesDir, err))
+			os.Exit(1)
+		}
+
+		// Build rules content, trimming each rule and joining with consistent spacing
+		var rulesContent strings.Builder
+		for i, rule := range result.Rules {
+			if i > 0 {
+				rulesContent.WriteString("\n\n")
+			}
+			rulesContent.WriteString(strings.TrimSpace(rule.Content))
+		}
+		rulesContent.WriteString("\n")
+
+		if err := os.WriteFile(rulesFile, []byte(rulesContent.String()), 0o644); err != nil {
+			logger.Error("Error", "error", fmt.Errorf("failed to write rules to %s: %w", rulesFile, err))
+			os.Exit(1)
+		}
+
+		logger.Info("Rules written", "path", rulesFile)
+
+		// Output only task frontmatter and content
+		if taskContent := result.Task.FrontMatter.Content; taskContent != nil {
+			fmt.Println("---")
+			if err := yaml.NewEncoder(os.Stdout).Encode(taskContent); err != nil {
+				logger.Error("Failed to encode task frontmatter", "error", err)
+				os.Exit(1)
+			}
+			fmt.Println("---")
+		}
+		fmt.Println(result.Task.Content)
+	} else {
+		// Normal mode: output everything
+		// Output task frontmatter (always enabled)
+		if taskContent := result.Task.FrontMatter.Content; taskContent != nil {
+			fmt.Println("---")
+			if err := yaml.NewEncoder(os.Stdout).Encode(taskContent); err != nil {
+				logger.Error("Failed to encode task frontmatter", "error", err)
+				os.Exit(1)
+			}
+			fmt.Println("---")
+		}
+
+		// Output all rules
+		for _, rule := range result.Rules {
+			fmt.Println(rule.Content)
+		}
+
+		// Output task
+		fmt.Println(result.Task.Content)
+	}
 }

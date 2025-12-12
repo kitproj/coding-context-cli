@@ -89,6 +89,83 @@ coding-context implement-feature > .github/copilot-context.md
 # Copilot will read this file automatically
 ```
 
+## Write-Rules Mode
+
+Write-rules mode (`-w` flag) separates rules from tasks, allowing AI agents to read rules from their standard configuration files while keeping task prompts clean.
+
+### Benefits
+
+- **Token Savings**: Avoid including all rules in every prompt
+- **Agent Integration**: Write rules to agent-specific config files
+- **Clean Prompts**: Output only the task to stdout
+
+### Basic Usage
+
+```bash
+# Write rules to agent's config file, output task to stdout
+coding-context -a copilot -w fix-bug | llm -m claude-3-5-sonnet
+```
+
+This will:
+1. Write all rules to `~/.github/agents/AGENTS.md`
+2. Output only the task prompt to stdout
+3. The AI agent reads rules from its config file
+
+### Agent-Specific Paths
+
+Each agent has a designated configuration file:
+
+```bash
+# GitHub Copilot
+coding-context -a copilot -w fix-bug  # → ~/.github/agents/AGENTS.md
+
+# Claude
+coding-context -a claude -w fix-bug   # → ~/.claude/CLAUDE.md
+
+# Cursor
+coding-context -a cursor -w fix-bug   # → ~/.cursor/rules/AGENTS.md
+
+# Gemini
+coding-context -a gemini -w fix-bug   # → ~/.gemini/GEMINI.md
+```
+
+### Task-Specified Agent
+
+Tasks can specify their preferred agent in frontmatter:
+
+**Task file (`deploy.md`):**
+```yaml
+---
+agent: claude
+---
+# Deploy to Production
+...
+```
+
+**Usage:**
+```bash
+# Task's agent field is used (writes to ~/.claude/CLAUDE.md)
+coding-context -w deploy
+
+# Task agent overrides -a flag
+coding-context -a copilot -w deploy  # Still uses claude
+```
+
+### Workflow Example
+
+```bash
+# 1. Initial setup: Write rules once
+coding-context -a copilot -w setup-project
+
+# 2. Run multiple tasks without re-including rules
+coding-context -a copilot -w fix-bug | llm
+coding-context -a copilot -w code-review | llm
+coding-context -a copilot -w refactor | llm
+
+# 3. Update rules when needed
+coding-context -a copilot -w -s languages=go update-rules
+```
+
 ## Environment Variables for Bootstrap Scripts
 
 Pass environment variables to bootstrap scripts:

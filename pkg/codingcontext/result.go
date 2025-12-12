@@ -18,6 +18,7 @@ type Result struct {
 	Rules  []Markdown[RuleFrontMatter] // List of included rule files
 	Task   Markdown[TaskFrontMatter]   // Task file with frontmatter and content
 	Tokens int                         // Total token count
+	Agent  Agent                       // The agent used (from task or -a flag)
 }
 
 // MCPServers returns all MCP servers from both rules and the task.

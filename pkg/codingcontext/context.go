@@ -346,6 +346,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		Rules:  cc.rules,
 		Task:   cc.task,
 		Tokens: cc.totalTokens,
+		Agent:  cc.agent,
 	}
 
 	return result, nil
