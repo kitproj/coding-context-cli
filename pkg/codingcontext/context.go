@@ -28,6 +28,7 @@ type Context struct {
 	cmdRunner       func(cmd *exec.Cmd) error
 	resume          bool
 	agent           Agent
+	userPrompt      string // User-provided prompt to append to task
 }
 
 // Option is a functional option for configuring a Context
@@ -79,6 +80,13 @@ func WithResume(resume bool) Option {
 func WithAgent(agent Agent) Option {
 	return func(c *Context) {
 		c.agent = agent
+	}
+}
+
+// WithUserPrompt sets the user prompt to append to the task
+func WithUserPrompt(userPrompt string) Option {
+	return func(c *Context) {
+		c.userPrompt = userPrompt
 	}
 }
 
@@ -221,10 +229,10 @@ func (cc *Context) findTask(taskName string) error {
 			}
 		}
 
-		// Check if user_prompt parameter exists and process it
-		if userPrompt, ok := cc.params["user_prompt"]; ok && userPrompt != "" {
+		// Check if user_prompt is provided and process it
+		if cc.userPrompt != "" {
 			// Parse the user_prompt to extract slash commands
-			userPromptTask, err := ParseTask(userPrompt)
+			userPromptTask, err := ParseTask(cc.userPrompt)
 			if err != nil {
 				return fmt.Errorf("failed to parse user_prompt: %w", err)
 			}

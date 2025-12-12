@@ -1435,7 +1435,7 @@ func TestUserPrompt(t *testing.T) {
 				createTask(t, dir, "simple", "", "Task content\n")
 			},
 			opts: []Option{
-				WithParams(Params{"user_prompt": "User prompt content"}),
+				WithUserPrompt("User prompt content"),
 			},
 			taskName: "simple",
 			wantErr:  false,
@@ -1461,7 +1461,7 @@ func TestUserPrompt(t *testing.T) {
 				createCommand(t, dir, "greet", "", "Hello from command!")
 			},
 			opts: []Option{
-				WithParams(Params{"user_prompt": "User says:\n/greet\n"}),
+				WithUserPrompt("User says:\n/greet\n"),
 			},
 			taskName: "with-command",
 			wantErr:  false,
@@ -1483,8 +1483,8 @@ func TestUserPrompt(t *testing.T) {
 				createTask(t, dir, "with-params", "", "Task content\n")
 			},
 			opts: []Option{
+				WithUserPrompt("Issue: ${issue_number}"),
 				WithParams(Params{
-					"user_prompt":  "Issue: ${issue_number}",
 					"issue_number": "123",
 				}),
 			},
@@ -1503,8 +1503,8 @@ func TestUserPrompt(t *testing.T) {
 				createCommand(t, dir, "issue-info", "", "Issue ${issue_number}: ${issue_title}")
 			},
 			opts: []Option{
+				WithUserPrompt("Please fix:\n/issue-info\n"),
 				WithParams(Params{
-					"user_prompt":  "Please fix:\n/issue-info\n",
 					"issue_number": "456",
 					"issue_title":  "Fix bug",
 				}),
@@ -1526,7 +1526,7 @@ func TestUserPrompt(t *testing.T) {
 				createTask(t, dir, "empty", "", "Task content\n")
 			},
 			opts: []Option{
-				WithParams(Params{"user_prompt": ""}),
+				WithUserPrompt(""),
 			},
 			taskName: "empty",
 			wantErr:  false,
@@ -1558,7 +1558,7 @@ func TestUserPrompt(t *testing.T) {
 				createCommand(t, dir, "cmd2", "", "Command 2")
 			},
 			opts: []Option{
-				WithParams(Params{"user_prompt": "/cmd1\n/cmd2\n"}),
+				WithUserPrompt("/cmd1\n/cmd2\n"),
 			},
 			taskName: "multi",
 			wantErr:  false,
@@ -1577,8 +1577,8 @@ func TestUserPrompt(t *testing.T) {
 				createTask(t, dir, "no-expand", "expand: false", "Task content\n")
 			},
 			opts: []Option{
+				WithUserPrompt("Issue ${issue_number}"),
 				WithParams(Params{
-					"user_prompt":  "Issue ${issue_number}",
 					"issue_number": "789",
 				}),
 			},
@@ -1596,7 +1596,7 @@ func TestUserPrompt(t *testing.T) {
 				createTask(t, dir, "invalid", "", "Task content\n")
 			},
 			opts: []Option{
-				WithParams(Params{"user_prompt": "/nonexistent-command\n"}),
+				WithUserPrompt("/nonexistent-command\n"),
 			},
 			taskName:    "invalid",
 			wantErr:     true,
