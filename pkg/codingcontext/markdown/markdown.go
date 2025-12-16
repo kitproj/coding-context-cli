@@ -1,4 +1,4 @@
-package codingcontext
+package markdown
 
 import (
 	"bufio"
@@ -7,7 +7,21 @@ import (
 	"os"
 
 	yaml "github.com/goccy/go-yaml"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/tokencount"
 )
+
+// Markdown represents a markdown file with frontmatter and content
+type Markdown[T any] struct {
+	FrontMatter T      // Parsed YAML frontmatter
+	Content     string // Expanded content of the markdown
+	Tokens      int    // Estimated token count
+}
+
+// TaskMarkdown is a Markdown with TaskFrontMatter
+type TaskMarkdown = Markdown[TaskFrontMatter]
+
+// RuleMarkdown is a Markdown with RuleFrontMatter
+type RuleMarkdown = Markdown[RuleFrontMatter]
 
 // ParseMarkdownFile parses a markdown file into frontmatter and content
 func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) {
@@ -67,6 +81,6 @@ func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) 
 	return Markdown[T]{
 		FrontMatter: *frontMatter,
 		Content:     content.String(),
-		Tokens:      estimateTokens(content.String()),
+		Tokens:      tokencount.EstimateTokens(content.String()),
 	}, nil
 }

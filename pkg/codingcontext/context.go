@@ -6,23 +6,28 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/go-getter/v2"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/selectors"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparser"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/tokencount"
 )
 
 // Context holds the configuration and state for assembling coding context
 type Context struct {
-	params          Params
-	includes        Selectors
+	params          taskparser.Params
+	includes        selectors.Selectors
 	manifestURL     string
 	searchPaths     []string
 	downloadedPaths []string
-	task            Markdown[TaskFrontMatter]   // Parsed task
-	rules           []Markdown[RuleFrontMatter] // Collected rule files
+	task            markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
+	rules           []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
 	totalTokens     int
 	logger          *slog.Logger
 	cmdRunner       func(cmd *exec.Cmd) error
@@ -31,71 +36,12 @@ type Context struct {
 	userPrompt      string // User-provided prompt to append to task
 }
 
-// Option is a functional option for configuring a Context
-type Option func(*Context)
-
-// WithParams sets the parameters
-func WithParams(params Params) Option {
-	return func(c *Context) {
-		c.params = params
-	}
-}
-
-// WithSelectors sets the selectors
-func WithSelectors(selectors Selectors) Option {
-	return func(c *Context) {
-		c.includes = selectors
-	}
-}
-
-// WithManifestURL sets the manifest URL
-func WithManifestURL(manifestURL string) Option {
-	return func(c *Context) {
-		c.manifestURL = manifestURL
-	}
-}
-
-// WithSearchPaths adds one or more search paths
-func WithSearchPaths(paths ...string) Option {
-	return func(c *Context) {
-		c.searchPaths = append(c.searchPaths, paths...)
-	}
-}
-
-// WithLogger sets the logger
-func WithLogger(logger *slog.Logger) Option {
-	return func(c *Context) {
-		c.logger = logger
-	}
-}
-
-// WithResume enables resume mode, which skips rule discovery and bootstrap scripts
-func WithResume(resume bool) Option {
-	return func(c *Context) {
-		c.resume = resume
-	}
-}
-
-// WithAgent sets the target agent, which excludes that agent's own rules
-func WithAgent(agent Agent) Option {
-	return func(c *Context) {
-		c.agent = agent
-	}
-}
-
-// WithUserPrompt sets the user prompt to append to the task
-func WithUserPrompt(userPrompt string) Option {
-	return func(c *Context) {
-		c.userPrompt = userPrompt
-	}
-}
-
 // New creates a new Context with the given options
 func New(opts ...Option) *Context {
 	c := &Context{
-		params:   make(Params),
-		includes: make(Selectors),
-		rules:    make([]Markdown[RuleFrontMatter], 0),
+		params:   make(taskparser.Params),
+		includes: make(selectors.Selectors),
+		rules:    make([]markdown.Markdown[markdown.RuleFrontMatter], 0),
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
@@ -112,7 +58,6 @@ type markdownVisitor func(path string) error
 // findMarkdownFile searches for a markdown file by name in the given directories.
 // Returns the path to the file if found, or an error if not found or multiple files match.
 func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, visitor markdownVisitor) error {
-
 	var searchDirs []string
 	for _, path := range cc.downloadedPaths {
 		searchDirs = append(searchDirs, searchDirFn(path)...)
@@ -136,8 +81,8 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 
 			// If selectors are provided, check if the file matches
 			// Parse frontmatter to check selectors
-			var fm BaseFrontMatter
-			if _, err := ParseMarkdownFile(path, &fm); err != nil {
+			var fm markdown.BaseFrontMatter
+			if _, err := markdown.ParseMarkdownFile(path, &fm); err != nil {
 				// Skip files that can't be parsed
 				return nil
 			}
@@ -148,7 +93,6 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 			}
 			return visitor(path)
 		})
-
 		if err != nil {
 			return err
 		}
@@ -159,7 +103,6 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 
 // findTask searches for a task markdown file and returns it with parameters substituted
 func (cc *Context) findTask(taskName string) error {
-
 	// Add task name to includes so rules can be filtered
 	cc.includes.SetValue("task_name", taskName)
 
@@ -172,8 +115,8 @@ func (cc *Context) findTask(taskName string) error {
 		}
 
 		taskFound = true
-		var frontMatter TaskFrontMatter
-		md, err := ParseMarkdownFile(path, &frontMatter)
+		var frontMatter markdown.TaskFrontMatter
+		md, err := markdown.ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
 			return err
 		}
@@ -216,7 +159,7 @@ func (cc *Context) findTask(taskName string) error {
 		}
 
 		// Parse the task content (including user_prompt) to separate text blocks from slash commands
-		task, err := ParseTask(taskContent)
+		task, err := taskparser.ParseTask(taskContent)
 		if err != nil {
 			return err
 		}
@@ -231,7 +174,10 @@ func (cc *Context) findTask(taskName string) error {
 				textContent := block.Text.Content()
 				// Expand parameters in text blocks only if expand is not explicitly set to false
 				if shouldExpandParams(frontMatter.ExpandParams) {
-					textContent = cc.expandParams(textContent, nil)
+					textContent, err = cc.expandParams(textContent, nil)
+					if err != nil {
+						return fmt.Errorf("failed to expand parameters: %w", err)
+					}
 				}
 				finalContent.WriteString(textContent)
 			} else if block.SlashCommand != nil {
@@ -243,10 +189,10 @@ func (cc *Context) findTask(taskName string) error {
 			}
 		}
 
-		cc.task = Markdown[TaskFrontMatter]{
+		cc.task = markdown.Markdown[markdown.TaskFrontMatter]{
 			FrontMatter: frontMatter,
 			Content:     finalContent.String(),
-			Tokens:      estimateTokens(finalContent.String()),
+			Tokens:      tokencount.EstimateTokens(finalContent.String()),
 		}
 		cc.totalTokens += cc.task.Tokens
 
@@ -267,7 +213,7 @@ func (cc *Context) findTask(taskName string) error {
 // Commands now support optional frontmatter with the expand field.
 // Parameters are substituted by default (when expand is nil or true).
 // Substitution is skipped only when expand is explicitly set to false.
-func (cc *Context) findCommand(commandName string, params map[string]string) (string, error) {
+func (cc *Context) findCommand(commandName string, params taskparser.Params) (string, error) {
 	var content *string
 	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
 		baseName := filepath.Base(path)
@@ -276,8 +222,8 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 			return nil
 		}
 
-		var frontMatter CommandFrontMatter
-		md, err := ParseMarkdownFile(path, &frontMatter)
+		var frontMatter markdown.CommandFrontMatter
+		md, err := markdown.ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
 			return err
 		}
@@ -285,7 +231,10 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 		// Expand parameters only if expand is not explicitly set to false
 		var processedContent string
 		if shouldExpandParams(frontMatter.ExpandParams) {
-			processedContent = cc.expandParams(md.Content, params)
+			processedContent, err = cc.expandParams(md.Content, params)
+			if err != nil {
+				return fmt.Errorf("failed to expand parameters: %w", err)
+			}
 		} else {
 			processedContent = md.Content
 		}
@@ -307,18 +256,14 @@ func (cc *Context) findCommand(commandName string, params map[string]string) (st
 // - Command expansion: !`command`
 // - Path expansion: @path
 // If params is provided, it is merged with cc.params (with params taking precedence).
-func (cc *Context) expandParams(content string, params map[string]string) string {
+func (cc *Context) expandParams(content string, params taskparser.Params) (string, error) {
 	// Merge params with cc.params
-	mergedParams := make(map[string]string)
-	for k, v := range cc.params {
-		mergedParams[k] = v
-	}
-	for k, v := range params {
-		mergedParams[k] = v
-	}
+	mergedParams := make(taskparser.Params)
+	maps.Copy(mergedParams, cc.params)
+	maps.Copy(mergedParams, params)
 
 	// Use the expand function to handle all expansion types
-	return expand(content, mergedParams, cc.logger)
+	return mergedParams.Expand(content)
 }
 
 // shouldExpandParams returns true if parameter expansion should occur based on the expandParams field.
@@ -458,8 +403,8 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 	}
 
 	err := cc.visitMarkdownFiles(func(path string) []string { return rulePaths(path, path == homeDir) }, func(path string) error {
-		var frontmatter RuleFrontMatter
-		md, err := ParseMarkdownFile(path, &frontmatter)
+		var frontmatter markdown.RuleFrontMatter
+		md, err := markdown.ParseMarkdownFile(path, &frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to parse markdown file: %w", err)
 		}
@@ -467,13 +412,16 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 		// Expand parameters only if expand is not explicitly set to false
 		var processedContent string
 		if shouldExpandParams(frontmatter.ExpandParams) {
-			processedContent = cc.expandParams(md.Content, nil)
+			processedContent, err = cc.expandParams(md.Content, nil)
+			if err != nil {
+				return fmt.Errorf("failed to expand parameters: %w", err)
+			}
 		} else {
 			processedContent = md.Content
 		}
-		tokens := estimateTokens(processedContent)
+		tokens := tokencount.EstimateTokens(processedContent)
 
-		cc.rules = append(cc.rules, Markdown[RuleFrontMatter]{
+		cc.rules = append(cc.rules, markdown.Markdown[markdown.RuleFrontMatter]{
 			FrontMatter: frontmatter,
 			Content:     processedContent,
 			Tokens:      tokens,

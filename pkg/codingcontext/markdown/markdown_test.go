@@ -1,4 +1,4 @@
-package codingcontext
+package markdown
 
 import (
 	"os"
@@ -63,7 +63,7 @@ This is the content.
 			// Create a temporary file
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "test.md")
-			if err := os.WriteFile(tmpFile, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o644); err != nil {
 				t.Fatalf("failed to create temp file: %v", err)
 			}
 
@@ -180,7 +180,7 @@ This task has no frontmatter.
 			// Create a temporary file
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "test.md")
-			if err := os.WriteFile(tmpFile, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o644); err != nil {
 				t.Fatalf("failed to create temp file: %v", err)
 			}
 

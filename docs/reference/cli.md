@@ -135,6 +135,26 @@ file:///path/to/local/rules
 
 Define a parameter for substitution in task prompts. Variables in task files using `${key}` syntax will be replaced with the specified value.
 
+**Parameter Parsing Features:**
+
+The `-p` flag supports flexible parameter parsing with the following features:
+
+- **Basic key-value pairs**: `key=value`
+- **Multiple values per key**: Duplicate keys are collected into a list (e.g., `-p tag=frontend -p tag=backend` results in `tag` having both values)
+- **Quoted values**: Use single (`'`) or double (`"`) quotes for values containing spaces or special characters
+  - `-p description="Application crashes on startup"`
+  - `-p name='John Doe'`
+- **Escape sequences**: Supported in both quoted and unquoted values
+  - Standard: `\n` (newline), `\t` (tab), `\r` (carriage return), `\\` (backslash)
+  - Quotes: `\"` (double quote), `\'` (single quote)
+  - Unicode: `\uXXXX` where XXXX are four hexadecimal digits
+  - Hex: `\xHH` where HH are two hexadecimal digits
+  - Octal: `\OOO` where OOO are up to three octal digits
+- **Case-insensitive keys**: Keys are automatically converted to lowercase
+- **UTF-8 support**: Full Unicode support in keys and values
+- **Flexible separators**: Multiple `-p` flags can be used, or a single flag can contain comma or whitespace-separated pairs
+- **Empty values**: Unquoted empty values (`key=`) result in empty parameter, quoted empty values (`key=""`) result in empty string
+
 **Examples:**
 ```bash
 # Single parameter

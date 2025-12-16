@@ -1,4 +1,4 @@
-package codingcontext
+package taskparser
 
 import (
 	"strings"
@@ -221,6 +221,26 @@ func TestParseTask(t *testing.T) {
 			},
 		},
 		{
+			name:    "non-whitespace before slash prevents command",
+			input:   "text/deploy env=\"production\"\n",
+			wantErr: false,
+			check: func(t *testing.T, task Task) {
+				if len(task) != 1 {
+					t.Fatalf("expected 1 block, got %d", len(task))
+				}
+				if task[0].Text == nil {
+					t.Fatal("expected text block, not command")
+				}
+				// The slash should be part of the text, not a command
+				if task[0].SlashCommand != nil {
+					t.Fatal("expected no slash command when non-whitespace precedes slash")
+				}
+				if !strings.Contains(task[0].Text.Content(), "/deploy") {
+					t.Errorf("expected text to contain '/deploy', got %q", task[0].Text.Content())
+				}
+			},
+		},
+		{
 			name:    "text with equals sign",
 			input:   "This is text with key=value pairs.",
 			wantErr: false,
@@ -322,6 +342,249 @@ func TestTask_String(t *testing.T) {
 			// Note: exact match may not be possible due to whitespace normalization
 			if result == "" && tt.input != "" {
 				t.Errorf("Task.String() returned empty string, expected non-empty")
+			}
+		})
+	}
+}
+
+func TestSlashCommand_Params(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		commandIndex   int // Which block contains the slash command (0-based)
+		expectedName   string
+		expectedParams Params
+		expectedArgs   []string // Positional arguments
+	}{
+		{
+			name:         "simple named parameters",
+			input:        "/deploy env=\"production\" region=\"us-east-1\" version=1.2.3\n",
+			commandIndex: 0,
+			expectedName: "deploy",
+			expectedParams: Params{
+				"env":     {"production"},
+				"region":  {"us-east-1"},
+				"version": {"1.2.3"},
+			},
+			expectedArgs: nil,
+		},
+		{
+			name:         "whitespace before initial slash",
+			input:        "  /deploy env=\"production\" region=\"us-east-1\" version=1.2.3\n",
+			commandIndex: 0,
+			expectedName: "deploy",
+			expectedParams: Params{
+				"env":     {"production"},
+				"region":  {"us-east-1"},
+				"version": {"1.2.3"},
+			},
+			expectedArgs: nil,
+		},
+		{
+			name:         "text before slash command",
+			input:        "Some introduction text\n/deploy env=\"production\"\n",
+			commandIndex: 1,
+			expectedName: "deploy",
+			expectedParams: Params{
+				"env": {"production"},
+			},
+			expectedArgs: nil,
+		},
+		{
+			name:         "positional arguments only",
+			input:        "/fix-bug 123 urgent\n",
+			commandIndex: 0,
+			expectedName: "fix-bug",
+			expectedParams: Params{
+				ArgumentsKey: {"123", "urgent"},
+			},
+			expectedArgs: []string{"123", "urgent"},
+		},
+		{
+			name:         "mixed positional and named arguments",
+			input:        "/task arg1 key=\"value\" arg2 env=\"prod\"\n",
+			commandIndex: 0,
+			expectedName: "task",
+			expectedParams: Params{
+				ArgumentsKey: {"arg1", "arg2"},
+				"key":        {"value"},
+				"env":        {"prod"},
+			},
+			expectedArgs: []string{"arg1", "arg2"},
+		},
+		{
+			name:         "positional before named",
+			input:        "/deploy arg1 arg2 env=\"production\"\n",
+			commandIndex: 0,
+			expectedName: "deploy",
+			expectedParams: Params{
+				ArgumentsKey: {"arg1", "arg2"},
+				"env":        {"production"},
+			},
+			expectedArgs: []string{"arg1", "arg2"},
+		},
+		{
+			name:         "positional after named",
+			input:        "/deploy env=\"production\" arg1 arg2\n",
+			commandIndex: 0,
+			expectedName: "deploy",
+			expectedParams: Params{
+				ArgumentsKey: {"arg1", "arg2"},
+				"env":        {"production"},
+			},
+			expectedArgs: []string{"arg1", "arg2"},
+		},
+		{
+			name:         "positional between named",
+			input:        "/deploy env=\"production\" arg1 region=\"us-east-1\"\n",
+			commandIndex: 0,
+			expectedName: "deploy",
+			expectedParams: Params{
+				ArgumentsKey: {"arg1"},
+				"env":        {"production"},
+				"region":     {"us-east-1"},
+			},
+			expectedArgs: []string{"arg1"},
+		},
+		{
+			name:         "quoted positional arguments",
+			input:        "/deploy \"quoted arg\" 'single quoted' normal\n",
+			commandIndex: 0,
+			expectedName: "deploy",
+			expectedParams: Params{
+				ArgumentsKey: {"quoted arg", "single quoted", "normal"},
+			},
+			expectedArgs: []string{"quoted arg", "single quoted", "normal"},
+		},
+		{
+			name:         "multiple named parameters with spaces",
+			input:        "/deploy env=\"production\" region=\"us-east-1\" version=1.2.3\n",
+			commandIndex: 0,
+			expectedName: "deploy",
+			expectedParams: Params{
+				"env":     {"production"},
+				"region":  {"us-east-1"},
+				"version": {"1.2.3"},
+			},
+			expectedArgs: nil,
+		},
+		{
+			name:         "text before and after slash command",
+			input:        "Before text\n/deploy env=\"production\" arg1\nAfter text",
+			commandIndex: 1,
+			expectedName: "deploy",
+			expectedParams: Params{
+				ArgumentsKey: {"arg1"},
+				"env":        {"production"},
+			},
+			expectedArgs: []string{"arg1"},
+		},
+		{
+			name:           "no arguments",
+			input:          "/deploy\n",
+			commandIndex:   0,
+			expectedName:   "deploy",
+			expectedParams: Params{},
+			expectedArgs:   nil,
+		},
+		{
+			name:         "single quoted named parameter",
+			input:        "/deploy env='production'\n",
+			commandIndex: 0,
+			expectedName: "deploy",
+			expectedParams: Params{
+				"env": {"production"},
+			},
+			expectedArgs: nil,
+		},
+		{
+			name:         "complex mixed arguments",
+			input:        "/deploy arg1 env=\"production\" arg2 region=\"us-east-1\" arg3 version=1.2.3\n",
+			commandIndex: 0,
+			expectedName: "deploy",
+			expectedParams: Params{
+				ArgumentsKey: {"arg1", "arg2", "arg3"},
+				"env":        {"production"},
+				"region":     {"us-east-1"},
+				"version":    {"1.2.3"},
+			},
+			expectedArgs: []string{"arg1", "arg2", "arg3"},
+		},
+		{
+			name:         "multiple slash commands - test second command",
+			input:        "/command1 arg1\n/deploy env=\"production\" arg1 region=\"us-east-1\"\n/command3 arg3\n",
+			commandIndex: 1,
+			expectedName: "deploy",
+			expectedParams: Params{
+				ArgumentsKey: {"arg1"},
+				"env":        {"production"},
+				"region":     {"us-east-1"},
+			},
+			expectedArgs: []string{"arg1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			task, err := ParseTask(tt.input)
+			if err != nil {
+				t.Fatalf("ParseTask() error = %v", err)
+			}
+
+			// Check for SlashCommand at the expected index
+			if len(task) <= tt.commandIndex {
+				t.Fatalf("expected at least %d blocks, got %d", tt.commandIndex+1, len(task))
+			}
+			if task[tt.commandIndex].SlashCommand == nil {
+				t.Fatalf("expected slash command block at index %d", tt.commandIndex)
+			}
+
+			cmd := task[tt.commandIndex].SlashCommand
+			if cmd.Name != tt.expectedName {
+				t.Errorf("expected command name %q, got %q", tt.expectedName, cmd.Name)
+			}
+
+			// Use Params() to validate expectations
+			params := cmd.Params()
+
+			// Validate positional arguments
+			actualArgs := params.Arguments()
+			if len(tt.expectedArgs) != len(actualArgs) {
+				t.Errorf("expected %d positional arguments, got %d: expected=%v, got=%v",
+					len(tt.expectedArgs), len(actualArgs), tt.expectedArgs, actualArgs)
+			} else {
+				for i, expected := range tt.expectedArgs {
+					if i < len(actualArgs) && actualArgs[i] != expected {
+						t.Errorf("positional arg[%d]: expected %q, got %q", i, expected, actualArgs[i])
+					}
+				}
+			}
+
+			// Validate named parameters
+			for key, expectedValues := range tt.expectedParams {
+				if key == ArgumentsKey {
+					continue // Already validated above
+				}
+				actualValues := params.Values(key)
+				if len(expectedValues) != len(actualValues) {
+					t.Errorf("key %q: expected %d values, got %d: expected=%v, got=%v",
+						key, len(expectedValues), len(actualValues), expectedValues, actualValues)
+				} else {
+					for i, expected := range expectedValues {
+						if i < len(actualValues) && actualValues[i] != expected {
+							t.Errorf("key %q[%d]: expected %q, got %q", key, i, expected, actualValues[i])
+						}
+					}
+				}
+			}
+
+			// Verify no unexpected keys (except ArgumentsKey which we handle separately)
+			for key := range params {
+				if key != ArgumentsKey {
+					if _, exists := tt.expectedParams[key]; !exists {
+						t.Errorf("unexpected key in params: %q", key)
+					}
+				}
 			}
 		})
 	}

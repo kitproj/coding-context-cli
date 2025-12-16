@@ -1,6 +1,10 @@
-package codingcontext
+package tokencount_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/tokencount"
+)
 
 func TestEstimateTokens(t *testing.T) {
 	tests := []struct {
@@ -56,7 +60,7 @@ This is content.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := estimateTokens(tt.text)
+			got := tokencount.EstimateTokens(tt.text)
 			if got != tt.want {
 				t.Errorf("estimateTokens() = %d, want %d", got, tt.want)
 			}

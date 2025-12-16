@@ -1,8 +1,7 @@
-package codingcontext
+package taskparser
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -14,7 +13,7 @@ import (
 // 3. Path expansion: @path
 // SECURITY: Processes rune-by-rune to prevent injection attacks where expanded
 // content contains further expansion sequences (e.g., command output with ${param}).
-func expand(content string, params map[string]string, logger *slog.Logger) string {
+func (p Params) Expand(content string) (string, error) {
 	var result strings.Builder
 	result.Grow(len(content))
 	runes := []rune(content)
@@ -31,10 +30,9 @@ func expand(content string, params map[string]string, logger *slog.Logger) strin
 			if end < len(runes) {
 				// Extract parameter name
 				paramName := string(runes[i+2 : end])
-				if val, ok := params[paramName]; ok {
+				if val, ok := p.Lookup(paramName); ok {
 					result.WriteString(val)
 				} else {
-					logger.Warn("parameter not found", "param", paramName)
 					result.WriteString(string(runes[i : end+1]))
 				}
 				i = end + 1
@@ -53,10 +51,7 @@ func expand(content string, params map[string]string, logger *slog.Logger) strin
 				// Extract command
 				command := string(runes[i+2 : end])
 				cmd := exec.Command("sh", "-c", command)
-				output, err := cmd.CombinedOutput()
-				if err != nil {
-					logger.Warn("command expansion failed", "command", command, "error", err)
-				}
+				output, _ := cmd.CombinedOutput()
 				// Write command output (even if command failed, output may contain error info)
 				result.WriteString(string(output))
 				i = end + 1
@@ -89,8 +84,7 @@ func expand(content string, params map[string]string, logger *slog.Logger) strin
 				path := unescapePath(string(runes[pathStart:pathEnd]))
 
 				// Validate the path
-				if err := validatePath(path); err != nil {
-					logger.Warn("path validation failed", "path", path, "error", err)
+				if err := ValidatePath(path); err != nil {
 					// Return the original @path if validation fails
 					result.WriteString(string(runes[i:pathEnd]))
 					i = pathEnd
@@ -100,7 +94,6 @@ func expand(content string, params map[string]string, logger *slog.Logger) strin
 				// Read the file
 				fileContent, err := os.ReadFile(path)
 				if err != nil {
-					logger.Warn("path expansion failed", "path", path, "error", err)
 					// Return the original @path if file doesn't exist
 					result.WriteString(string(runes[i:pathEnd]))
 				} else {
@@ -118,7 +111,7 @@ func expand(content string, params map[string]string, logger *slog.Logger) strin
 		i++
 	}
 
-	return result.String()
+	return result.String(), nil
 }
 
 // isWhitespaceRune checks if a rune is whitespace (space, tab, newline, carriage return)
@@ -131,11 +124,11 @@ func unescapePath(path string) string {
 	return strings.ReplaceAll(path, "\\ ", " ")
 }
 
-// validatePath validates a file path for basic safety checks.
+// ValidatePath validates a file path for basic safety checks.
 // Note: This tool is designed to work with user-created markdown files in their
 // workspace and grants read access to files the user can read. The primary
 // defense is that users should only use trusted markdown files.
-func validatePath(path string) error {
+func ValidatePath(path string) error {
 	// Check for null bytes which are never valid in file paths
 	if strings.Contains(path, "\x00") {
 		return fmt.Errorf("path contains null byte")
