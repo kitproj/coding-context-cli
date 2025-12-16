@@ -127,7 +127,7 @@ func processEscapeSequences(s string) string {
 			result.WriteByte('\'')
 		case 'u':
 			// Unicode escape: \uXXXX
-			if i+4 < len(s) {
+			if i+5 <= len(s) {
 				hexStr := s[i+1 : i+5]
 				if val, err := strconv.ParseInt(hexStr, 16, 32); err == nil {
 					result.WriteRune(rune(val))
@@ -142,7 +142,7 @@ func processEscapeSequences(s string) string {
 			}
 		case 'x':
 			// Hex escape: \xHH
-			if i+2 < len(s) {
+			if i+3 <= len(s) {
 				hexStr := s[i+1 : i+3]
 				if val, err := strconv.ParseInt(hexStr, 16, 8); err == nil {
 					result.WriteByte(byte(val))

@@ -498,12 +498,12 @@ func TestProcessEscapeSequences(t *testing.T) {
 		{
 			name:     "octal with non-octal digits",
 			input:    `\7\8\9`,
-			expected: "\x0789", // \7 is octal 7, \8 and \9 are treated as unknown escapes and output as '8' and '9'
+			expected: "\a89", // \7 is octal 7 (ASCII bell \a), \8 and \9 are treated as unknown escapes and output as '8' and '9'
 		},
 		{
 			name:     "short octal sequences",
 			input:    `\7\77`,
-			expected: "\x07?",
+			expected: "\a?", // \7 is octal 7 (ASCII bell \a), \77 is octal 77 (ASCII '?')
 		},
 	}
 
