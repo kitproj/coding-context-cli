@@ -47,6 +47,11 @@ func (m *MCPServerConfig) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	// Initialize Content map if needed
+	if m.Content == nil {
+		m.Content = make(map[string]any)
+	}
+
 	// Also unmarshal into Content map
 	if err := json.Unmarshal(data, &m.Content); err != nil {
 		return err
