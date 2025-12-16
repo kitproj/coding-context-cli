@@ -101,9 +101,14 @@ func main() {
     fmt.Printf("Total tokens: %d\n", result.Tokens)
     fmt.Printf("Agent: %s\n", result.Agent)
     
-    // Access task metadata
+    // Access task metadata using typed fields
     if len(result.Task.FrontMatter.Languages) > 0 {
         fmt.Printf("Languages: %v\n", result.Task.FrontMatter.Languages)
+    }
+    
+    // You can also access any frontmatter field via the Content map
+    if customField, ok := result.Task.FrontMatter.Content["custom_field"]; ok {
+        fmt.Printf("Custom field: %v\n", customField)
     }
     
     // Access MCP server configurations
@@ -182,17 +187,17 @@ Base frontmatter structure that other frontmatter types embed:
 
 #### `Agent`
 
-Type representing an AI coding agent (string type):
+Type representing an AI coding agent (string type).
 
 **Constants:**
-- `AgentCursor` - Cursor AI agent
-- `AgentOpenCode` - OpenCode agent
-- `AgentCopilot` - GitHub Copilot agent
-- `AgentClaude` - Claude agent
-- `AgentGemini` - Google Gemini agent
-- `AgentAugment` - Augment agent
-- `AgentWindsurf` - Windsurf agent
-- `AgentCodex` - Codex agent
+- `AgentCursor` - Cursor AI (cursor.sh)
+- `AgentOpenCode` - OpenCode.ai agent
+- `AgentCopilot` - GitHub Copilot
+- `AgentClaude` - Anthropic Claude AI
+- `AgentGemini` - Google Gemini AI
+- `AgentAugment` - Augment Code assistant
+- `AgentWindsurf` - Codeium Windsurf
+- `AgentCodex` - Codex AI agent
 
 **Methods:**
 - `String() string` - Returns string representation
@@ -252,14 +257,14 @@ Types for parsing task content with slash commands:
 - `Block` - Contains either `Text` or `SlashCommand`
 - `SlashCommand` - Parsed slash command with name and arguments
 - `Text` - Text content (slice of `TextLine`)
-- `TextLine` - Single line of text or an `Input` placeholder
-- `Input` - Input placeholder in text
-- `Argument` - Slash command argument
+- `TextLine` - Single line of text content
+- `Input` - Top-level wrapper type for parsing
+- `Argument` - Slash command argument (can be positional or named key=value)
 
 **Methods:**
-- `(*SlashCommand) Params() map[string]string` - Returns parsed parameters
+- `(*SlashCommand) Params() map[string]string` - Returns parsed parameters as map
 - `(*Text) Content() string` - Returns text content as string
-- Various `String()` methods for formatting
+- Various `String()` methods for formatting each type
 
 ### Constants
 
@@ -302,10 +307,21 @@ Parses task text content into blocks of text and slash commands.
 #### `ParseParams(s string) (Params, error)`
 
 Parses a string containing key=value pairs with quoted values.
-Examples:
-- `key1="value1" key2="value2"`
-- `key1="value with spaces" key2="value2"`
-- `key1="value with \"escaped\" quotes"`
+
+**Examples:**
+```go
+// Parse quoted key-value pairs
+params, _ := ParseParams(`key1="value1" key2="value2"`)
+// Result: map[string]string{"key1": "value1", "key2": "value2"}
+
+// Parse with spaces in values
+params, _ := ParseParams(`key1="value with spaces" key2="value2"`)
+// Result: map[string]string{"key1": "value with spaces", "key2": "value2"}
+
+// Parse with escaped quotes
+params, _ := ParseParams(`key1="value with \"escaped\" quotes"`)
+// Result: map[string]string{"key1": "value with \"escaped\" quotes"}
+```
 
 #### `ParseAgent(s string) (Agent, error)`
 
