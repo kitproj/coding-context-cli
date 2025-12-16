@@ -70,21 +70,123 @@ func (s *SlashCommand) Params() map[string]string {
 	return params
 }
 
-// stripQuotes removes surrounding double quotes from a string if present.
-// Single quotes are not supported as the grammar only allows double-quoted strings.
+// stripQuotes removes surrounding quotes from a string if present and processes escape sequences.
+// Supports both single (') and double (") quotes.
+// Processes escape sequences: \n, \t, \r, \\, \", \', \uXXXX (Unicode), \xHH (hex), \OOO (octal)
 func stripQuotes(s string) string {
-	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
-		// Remove quotes and handle escaped quotes inside
-		unquoted := s[1 : len(s)-1]
-		return strings.ReplaceAll(unquoted, `\"`, `"`)
+	// Check if the string is quoted
+	if len(s) < 2 {
+		return s
 	}
-	return s
+
+	quoteChar := byte(0)
+	if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') {
+		quoteChar = s[0]
+		s = s[1 : len(s)-1] // Remove surrounding quotes
+	}
+
+	// If not quoted, return as-is (no escape processing for unquoted values in slash commands)
+	if quoteChar == 0 {
+		return s
+	}
+
+	// Process escape sequences
+	return processEscapeSequences(s)
+}
+
+// processEscapeSequences decodes escape sequences in a string.
+// Supports: \n, \t, \r, \\, \", \', \uXXXX (Unicode), \xHH (hex), \OOO (octal)
+func processEscapeSequences(s string) string {
+	if !strings.Contains(s, "\\") {
+		return s // Fast path: no escapes
+	}
+
+	var result strings.Builder
+	result.Grow(len(s))
+
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' || i == len(s)-1 {
+			result.WriteByte(s[i])
+			continue
+		}
+
+		// We have a backslash and there's at least one more character
+		i++ // Move past backslash
+		switch s[i] {
+		case 'n':
+			result.WriteByte('\n')
+		case 't':
+			result.WriteByte('\t')
+		case 'r':
+			result.WriteByte('\r')
+		case '\\':
+			result.WriteByte('\\')
+		case '"':
+			result.WriteByte('"')
+		case '\'':
+			result.WriteByte('\'')
+		case 'u':
+			// Unicode escape: \uXXXX
+			if i+4 < len(s) {
+				hexStr := s[i+1 : i+5]
+				if val, err := strconv.ParseInt(hexStr, 16, 32); err == nil {
+					result.WriteRune(rune(val))
+					i += 4
+				} else {
+					// Invalid Unicode escape, keep as-is
+					result.WriteString("\\u")
+				}
+			} else {
+				// Incomplete Unicode escape
+				result.WriteString("\\u")
+			}
+		case 'x':
+			// Hex escape: \xHH
+			if i+2 < len(s) {
+				hexStr := s[i+1 : i+3]
+				if val, err := strconv.ParseInt(hexStr, 16, 8); err == nil {
+					result.WriteByte(byte(val))
+					i += 2
+				} else {
+					// Invalid hex escape, keep as-is
+					result.WriteString("\\x")
+				}
+			} else {
+				// Incomplete hex escape
+				result.WriteString("\\x")
+			}
+		default:
+			// Check for octal escape: \OOO (up to 3 digits, 0-7)
+			if s[i] >= '0' && s[i] <= '7' {
+				octalStart := i
+				octalEnd := i + 1
+				// Read up to 2 more octal digits
+				for octalEnd-octalStart < 3 && octalEnd < len(s) && s[octalEnd] >= '0' && s[octalEnd] <= '7' {
+					octalEnd++
+				}
+				octalStr := s[octalStart:octalEnd]
+				if val, err := strconv.ParseInt(octalStr, 8, 8); err == nil {
+					result.WriteByte(byte(val))
+					i = octalEnd - 1
+				} else {
+					// Invalid octal, keep as-is
+					result.WriteByte('\\')
+					result.WriteByte(s[i])
+				}
+			} else {
+				// Unknown escape sequence, keep the character after backslash
+				result.WriteByte(s[i])
+			}
+		}
+	}
+
+	return result.String()
 }
 
 // Argument represents either a named (key=value) or positional argument
 type Argument struct {
 	Key   string `parser:"(@Term Assign)?"`
-	Value string `parser:"(@String | @Term)"`
+	Value string `parser:"(@DQString | @SQString | @Term)"`
 }
 
 // Text represents a block of text
@@ -97,8 +199,8 @@ type Text struct {
 // TextLine is a single line of text content (not starting with a slash)
 // It matches tokens until the end of the line
 type TextLine struct {
-	NonSlashStart []string `parser:"(@Term | @String | @Assign | @Whitespace)"`           // First token can't be Slash
-	RestOfLine    []string `parser:"(@Term | @String | @Slash | @Assign | @Whitespace)*"` // Rest can include Slash
+	NonSlashStart []string `parser:"(@Term | @DQString | @SQString | @Assign | @Whitespace)"`           // First token can't be Slash
+	RestOfLine    []string `parser:"(@Term | @DQString | @SQString | @Slash | @Assign | @Whitespace)*"` // Rest can include Slash
 	NewlineOpt    string   `parser:"@Newline?"`
 }
 
@@ -119,12 +221,13 @@ func (t *Text) Content() string {
 
 // Define the lexer using participle's lexer.MustSimple
 var taskLexer = lexer.MustSimple([]lexer.SimpleRule{
-	{Name: "Slash", Pattern: `/`},                // Any "/"
-	{Name: "Assign", Pattern: `=`},               // "="
-	{Name: "String", Pattern: `"(?:\\.|[^"])*"`}, // Quoted strings with escapes
-	{Name: "Whitespace", Pattern: `[ \t]+`},      // Spaces and tabs (horizontal only)
-	{Name: "Newline", Pattern: `[\n\r]+`},        // Newlines
-	{Name: "Term", Pattern: `[^ \t\n\r/"=]+`},    // Any char except space, newline, /, ", =
+	{Name: "Slash", Pattern: `/`},                  // Any "/"
+	{Name: "Assign", Pattern: `=`},                 // "="
+	{Name: "DQString", Pattern: `"(?:\\.|[^"])*"`}, // Double-quoted strings with escapes
+	{Name: "SQString", Pattern: `'(?:\\.|[^'])*'`}, // Single-quoted strings with escapes
+	{Name: "Whitespace", Pattern: `[ \t]+`},        // Spaces and tabs (horizontal only)
+	{Name: "Newline", Pattern: `[\n\r]+`},          // Newlines
+	{Name: "Term", Pattern: `[^ \t\n\r/"=']+`},     // Any char except space, newline, /, ", ', =
 })
 
 var parser = participle.MustBuild[Input](
