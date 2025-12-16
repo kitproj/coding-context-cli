@@ -2,6 +2,9 @@ package codingcontext
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestParseTask_LenientParsing tests the lenient parameter parsing features
@@ -18,26 +21,15 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			input:   "/command 'single quoted value'\n",
 			wantErr: false,
 			check: func(t *testing.T, task Task) {
-				if len(task) != 1 {
-					t.Fatalf("expected 1 block, got %d", len(task))
-				}
+				require.Len(t, task, 1)
 				cmd := task[0].SlashCommand
-				if cmd == nil {
-					t.Fatal("expected slash command block")
-				}
-				if len(cmd.Arguments) != 1 {
-					t.Fatalf("expected 1 argument, got %d", len(cmd.Arguments))
-				}
+				require.NotNil(t, cmd)
+				require.Len(t, cmd.Arguments, 1)
 				// The parser includes quotes in the token
-				expectedValue := `'single quoted value'`
-				if cmd.Arguments[0].Value != expectedValue {
-					t.Errorf("expected argument %q, got %q", expectedValue, cmd.Arguments[0].Value)
-				}
+				assert.Equal(t, `'single quoted value'`, cmd.Arguments[0].Value)
 				// After stripQuotes, it should be unquoted
 				params := cmd.Params()
-				if params["1"] != "single quoted value" {
-					t.Errorf("expected params[1] = %q, got %q", "single quoted value", params["1"])
-				}
+				assert.Equal(t, "single quoted value", params["1"])
 			},
 		},
 		{
@@ -45,17 +37,11 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			input:   `/command "double quoted value"` + "\n",
 			wantErr: false,
 			check: func(t *testing.T, task Task) {
-				if len(task) != 1 {
-					t.Fatalf("expected 1 block, got %d", len(task))
-				}
+				require.Len(t, task, 1)
 				cmd := task[0].SlashCommand
-				if cmd == nil {
-					t.Fatal("expected slash command block")
-				}
+				require.NotNil(t, cmd)
 				params := cmd.Params()
-				if params["1"] != "double quoted value" {
-					t.Errorf("expected params[1] = %q, got %q", "double quoted value", params["1"])
-				}
+				assert.Equal(t, "double quoted value", params["1"])
 			},
 		},
 		{
@@ -65,9 +51,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				if params["key"] != "value" {
-					t.Errorf("expected params[key] = %q, got %q", "value", params["key"])
-				}
+				assert.Equal(t, "value", params["key"])
 			},
 		},
 		{
@@ -77,9 +61,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				if params["key"] != "value" {
-					t.Errorf("expected params[key] = %q, got %q", "value", params["key"])
-				}
+				assert.Equal(t, "value", params["key"])
 			},
 		},
 		{
@@ -89,10 +71,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				expected := "line1\nline2"
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, "line1\nline2", params["1"])
 			},
 		},
 		{
@@ -102,10 +81,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				expected := "col1\tcol2"
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, "col1\tcol2", params["1"])
 			},
 		},
 		{
@@ -115,10 +91,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				expected := "line1\rline2"
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, "line1\rline2", params["1"])
 			},
 		},
 		{
@@ -128,10 +101,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				expected := `path\to\file`
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, `path\to\file`, params["1"])
 			},
 		},
 		{
@@ -141,10 +111,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				expected := `say "hello"`
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, `say "hello"`, params["1"])
 			},
 		},
 		{
@@ -154,10 +121,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				expected := `say 'hello'`
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, `say 'hello'`, params["1"])
 			},
 		},
 		{
@@ -167,10 +131,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				expected := "hello world" // \u0020 is space
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, "hello world", params["1"]) // \u0020 is space
 			},
 		},
 		{
@@ -180,10 +141,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				expected := "ABC" // \x42 is 'B'
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, "ABC", params["1"]) // \x42 is 'B'
 			},
 		},
 		{
@@ -193,10 +151,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				expected := "ABC" // \101=A, \102=B, \103=C in octal
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, "ABC", params["1"]) // \101=A, \102=B, \103=C in octal
 			},
 		},
 		{
@@ -206,10 +161,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				expected := "line1\nline2\ttabbed\rreturned\\backslash"
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, "line1\nline2\ttabbed\rreturned\\backslash", params["1"])
 			},
 		},
 		{
@@ -220,10 +172,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
 				// Unknown escapes keep the character after backslash
-				expected := "zq"
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, "zq", params["1"])
 			},
 		},
 		{
@@ -232,19 +181,11 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			wantErr: false,
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
-				if len(cmd.Arguments) != 3 {
-					t.Fatalf("expected 3 arguments, got %d", len(cmd.Arguments))
-				}
+				require.Len(t, cmd.Arguments, 3)
 				params := cmd.Params()
-				if params["1"] != "double" {
-					t.Errorf("expected params[1] = %q, got %q", "double", params["1"])
-				}
-				if params["2"] != "single" {
-					t.Errorf("expected params[2] = %q, got %q", "single", params["2"])
-				}
-				if params["3"] != "unquoted" {
-					t.Errorf("expected params[3] = %q, got %q", "unquoted", params["3"])
-				}
+				assert.Equal(t, "double", params["1"])
+				assert.Equal(t, "single", params["2"])
+				assert.Equal(t, "unquoted", params["3"])
 			},
 		},
 		{
@@ -254,15 +195,9 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				if params["k1"] != "v1" {
-					t.Errorf("expected params[k1] = %q, got %q", "v1", params["k1"])
-				}
-				if params["k2"] != "v2" {
-					t.Errorf("expected params[k2] = %q, got %q", "v2", params["k2"])
-				}
-				if params["k3"] != "v3" {
-					t.Errorf("expected params[k3] = %q, got %q", "v3", params["k3"])
-				}
+				assert.Equal(t, "v1", params["k1"])
+				assert.Equal(t, "v2", params["k2"])
+				assert.Equal(t, "v3", params["k3"])
 			},
 		},
 		{
@@ -272,12 +207,8 @@ func TestParseTask_LenientParsing(t *testing.T) {
 			check: func(t *testing.T, task Task) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
-				if params["1"] != "こんにちは" {
-					t.Errorf("expected params[1] = %q, got %q", "こんにちは", params["1"])
-				}
-				if params["emoji"] != "🚀" {
-					t.Errorf("expected params[emoji] = %q, got %q", "🚀", params["emoji"])
-				}
+				assert.Equal(t, "こんにちは", params["1"])
+				assert.Equal(t, "🚀", params["emoji"])
 			},
 		},
 		{
@@ -288,10 +219,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
 				// Incomplete escape should be kept as-is
-				expected := "\\u00a"
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, "\\u00a", params["1"])
 			},
 		},
 		{
@@ -302,10 +230,7 @@ func TestParseTask_LenientParsing(t *testing.T) {
 				cmd := task[0].SlashCommand
 				params := cmd.Params()
 				// Incomplete escape should be kept as-is
-				expected := "\\x4"
-				if params["1"] != expected {
-					t.Errorf("expected params[1] = %q, got %q", expected, params["1"])
-				}
+				assert.Equal(t, "\\x4", params["1"])
 			},
 		},
 	}
@@ -313,11 +238,12 @@ func TestParseTask_LenientParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			task, err := ParseTask(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseTask() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
 				return
 			}
-			if !tt.wantErr && tt.check != nil {
+			require.NoError(t, err)
+			if tt.check != nil {
 				tt.check(t, task)
 			}
 		})
@@ -406,9 +332,7 @@ func TestStripQuotes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := stripQuotes(tt.input)
-			if result != tt.expected {
-				t.Errorf("stripQuotes(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -510,9 +434,7 @@ func TestProcessEscapeSequences(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processEscapeSequences(tt.input)
-			if result != tt.expected {
-				t.Errorf("processEscapeSequences(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
