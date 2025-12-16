@@ -23,7 +23,8 @@ type Result struct {
 
 // MCPServer returns the MCP server name from the task.
 // If the task doesn't specify an MCP server, returns an empty string.
-// Rules' MCP servers are ignored in favor of the task's MCP server.
+// Note: MCP servers specified in rules are intentionally ignored - only the task's
+// MCP server is used. This ensures a single, clear source of truth for the MCP server.
 func (r *Result) MCPServer() string {
 	// Return the MCP server from task
 	if r.Task.FrontMatter.MCPServer != "" {
