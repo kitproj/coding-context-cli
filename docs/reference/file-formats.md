@@ -139,25 +139,38 @@ timeout: 10m
 
 #### `mcp_server` (optional, standard field)
 
-**Type:** String  
-**Purpose:** Specifies the name of the MCP (Model Context Protocol) server that the task should use; stored in frontmatter output but does not filter rules
+**Type:** Object (MCP server configuration)  
+**Purpose:** Specifies a single MCP (Model Context Protocol) server configuration for the task; stored in frontmatter output but does not filter rules
 
-The `mcp_server` field is a **standard frontmatter field** that specifies the name of the MCP server to use. The name typically matches the task/rule filename. It does not act as a selector.
+The `mcp_server` field is a **standard frontmatter field** that defines one MCP server configuration. It does not act as a selector. The field is an object with both standard configuration fields and support for arbitrary custom fields.
+
+**Standard configuration fields:**
+- `command`: The executable to run (e.g., "npx", "python", "docker")
+- `args`: Array of command-line arguments
+- `env`: Map of environment variables
+- `type`: Connection protocol - "stdio" (default), "http", or "sse"
+- `url`: Endpoint URL (required for HTTP/SSE types)
+- `headers`: Custom HTTP headers (for HTTP/SSE types)
 
 **Example:**
 ```yaml
 ---
-mcp_server: filesystem
+mcp_server:
+  command: python
+  args: ["-m", "server"]
+  env:
+    PYTHON_PATH: /usr/bin/python3
+  custom_config:
+    host: localhost
+    port: 5432
+    ssl: true
 ---
 ```
 
-**Common server names:**
-- `filesystem` - File system access
-- `git` - Git repository operations
-- `database` - Database access
-- Custom server names based on your application
+**Additional arbitrary fields:**
+You can include any custom fields for your specific server needs (e.g., `custom_config`, `monitoring`, `cache_enabled`, etc.). All fields are preserved in the configuration.
 
-**Note:** The field simply stores the server name as a string. The actual configuration of the server is handled by your AI agent's configuration.
+**Note:** Each task or rule can specify one MCP server configuration. The format supports the standard MCP server fields plus arbitrary custom fields for flexibility.
 
 #### `agent` (optional, standard field)
 
@@ -624,11 +637,18 @@ agent: cursor
 
 #### `mcp_server` (rule metadata)
 
-Specifies the name of the MCP server that needs to be running for this rule. Does not filter rules. The field is a simple string specifying the server name.
+Specifies an MCP server configuration that needs to be running for this rule. Does not filter rules. The field is an object with standard and arbitrary custom fields.
 
 ```yaml
 ---
-mcp_server: filesystem
+mcp_server:
+  command: python
+  args: ["-m", "server"]
+  env:
+    PYTHON_PATH: /usr/bin/python3
+  custom_config:
+    host: localhost
+    port: 5432
 ---
 # Metadata indicating required MCP server
 ```

@@ -1,50 +1,71 @@
 ---
 task_name: example-mcp-arbitrary-fields
 agent: cursor
-mcp_server: filesystem
+mcp_server:
+  command: python
+  args: ["-m", "server"]
+  env:
+    PYTHON_PATH: /usr/bin/python3
+  custom_config:
+    host: localhost
+    port: 5432
+    ssl: true
+    pool:
+      min: 2
+      max: 10
+  monitoring:
+    enabled: true
+    metrics_port: 9090
 ---
 
-# Example Task with MCP Server Field
+# Example Task with MCP Server Configuration
 
-This task demonstrates the simplified MCP server field.
+This task demonstrates the MCP server configuration with arbitrary custom fields.
 
 ## The `mcp_server` Field
 
-Instead of a complex map of server configurations, the `mcp_server` field is now a simple string that specifies the name of the MCP server to use. The name typically matches the filename or task name.
+The `mcp_server` field specifies a single MCP server configuration with both standard and arbitrary custom fields. Each task or rule can specify one MCP server configuration.
 
-**Example:**
-```yaml
----
-mcp_server: filesystem
----
-```
+**Standard fields:**
+- `command`: The executable to run (e.g., "python", "npx", "docker")
+- `args`: Array of command-line arguments
+- `env`: Environment variables for the server process
+- `type`: Connection protocol ("stdio", "http", "sse") - optional, defaults to stdio
+- `url`: Endpoint URL for HTTP/SSE types
+- `headers`: Custom HTTP headers for HTTP/SSE types
 
-## Why Simplify?
+**Arbitrary custom fields:**
+You can add any additional fields for your specific MCP server needs:
+- `custom_config`: Nested configuration objects
+- `monitoring`: Monitoring settings
+- `cache_enabled`, `max_retries`, `timeout_seconds`, etc.
 
-Previously, the `mcp_servers` field was a complex map with detailed configurations:
+## Why Arbitrary Fields?
 
-```yaml
-mcp_servers:
-  filesystem:
-    type: stdio
-    command: filesystem
-  git:
-    type: stdio
-    command: git
-```
+Different MCP servers may need different configuration options beyond the standard fields. Arbitrary fields allow you to:
 
-This was overly complex for most use cases. The new simplified format just specifies the server name:
-
-```yaml
-mcp_server: filesystem
-```
+1. **Add custom metadata**: Version info, regions, endpoints, etc.
+2. **Configure behavior**: Caching, retry policies, timeouts, rate limits
+3. **Include nested config**: Complex configuration objects specific to your server
+4. **Future-proof**: Add new fields without changing the schema
 
 ## How It Works
 
-The `mcp_server` field is a **standard frontmatter field** that provides metadata about which MCP server should be used for the task. It does not act as a selector and does not filter rules.
+The `MCPServerConfig` struct includes a `Content` field that captures all fields from YAML/JSON:
 
-## Example Usage
+```go
+type MCPServerConfig struct {
+    // Standard fields
+    Type    TransportType
+    Command string
+    Args    []string
+    Env     map[string]string
+    URL     string
+    Headers map[string]string
+    
+    // Arbitrary fields via inline map
+    Content map[string]any `yaml:",inline"`
+}
+```
 
-The example above shows a task that uses the `filesystem` MCP server. This is just a name - the actual configuration of the server is handled elsewhere (typically in your AI agent's configuration).
-
-All fields are preserved when the configuration is parsed and appear in the task frontmatter output.
+All fields (both standard and custom) are preserved when the configuration is parsed and can be accessed via the struct fields or the `Content` map.

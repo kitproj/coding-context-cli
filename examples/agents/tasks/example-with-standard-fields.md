@@ -5,7 +5,9 @@ language: go
 model: anthropic.claude-sonnet-4-20250514-v1-0
 single_shot: false
 timeout: 10m
-mcp_server: filesystem
+mcp_server:
+  command: npx
+  args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
 selectors:
   stage: implementation
 ---
@@ -28,7 +30,7 @@ These fields are stored in frontmatter and passed through to output, but do NOT 
 - **model**: `anthropic.claude-sonnet-4-20250514-v1-0` - AI model to use for this task
 - **single_shot**: `false` - Task can be run multiple times
 - **timeout**: `10m` - Task timeout as time.Duration (10 minutes)
-- **mcp_server**: `filesystem` - MCP server name to use for this task
+- **mcp_server**: Configuration for the MCP server required for this task
 
 ## Custom Selectors
 

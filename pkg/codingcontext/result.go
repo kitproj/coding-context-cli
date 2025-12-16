@@ -21,15 +21,24 @@ type Result struct {
 	Agent  Agent                       // The agent used (from task or -a flag)
 }
 
-// MCPServer returns the MCP server name from the task.
-// If the task doesn't specify an MCP server, returns an empty string.
-// Note: MCP servers specified in rules are intentionally ignored - only the task's
-// MCP server is used. This ensures a single, clear source of truth for the MCP server.
-func (r *Result) MCPServer() string {
-	// Return the MCP server from task
-	if r.Task.FrontMatter.MCPServer != "" {
-		return r.Task.FrontMatter.MCPServer
+// MCPServers returns all MCP server configurations from both rules and the task.
+// Each rule and the task can specify one MCP server configuration.
+// Returns a slice of all configured MCP servers.
+func (r *Result) MCPServers() []MCPServerConfig {
+	var servers []MCPServerConfig
+
+	// Add server from each rule that has one
+	for _, rule := range r.Rules {
+		// Check if the MCPServer is not empty (has at least one field set)
+		if rule.FrontMatter.MCPServer.Command != "" || rule.FrontMatter.MCPServer.URL != "" {
+			servers = append(servers, rule.FrontMatter.MCPServer)
+		}
 	}
 
-	return ""
+	// Add server from task if it has one
+	if r.Task.FrontMatter.MCPServer.Command != "" || r.Task.FrontMatter.MCPServer.URL != "" {
+		servers = append(servers, r.Task.FrontMatter.MCPServer)
+	}
+
+	return servers
 }
