@@ -137,34 +137,27 @@ timeout: 10m
 - `1h` - 1 hour
 - `1h30m` - 1 hour 30 minutes
 
-#### `mcp_servers` (optional, standard field)
+#### `mcp_server` (optional, standard field)
 
-**Type:** Map (from server name to server configuration)  
-**Purpose:** Specifies the MCP (Model Context Protocol) servers that the task should use; stored in frontmatter output but does not filter rules
+**Type:** String  
+**Purpose:** Specifies the name of the MCP (Model Context Protocol) server that the task should use; stored in frontmatter output but does not filter rules
 
-The `mcp_servers` field is a **standard frontmatter field** following the industry standard for MCP server definition. It does not act as a selector. The field is a map where keys are server names and values are server configurations.
+The `mcp_server` field is a **standard frontmatter field** that specifies the name of the MCP server to use. The name typically matches the task/rule filename. It does not act as a selector.
 
 **Example:**
 ```yaml
 ---
-mcp_servers:
-  filesystem:
-    type: stdio
-    command: npx
-    args: ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/files"]
-  git:
-    type: stdio
-    command: npx
-    args: ["-y", "@modelcontextprotocol/server-git"]
-  database:
-    type: http
-    url: https://api.example.com/mcp
-    headers:
-      Authorization: Bearer token123
+mcp_server: filesystem
 ---
 ```
 
-**Note:** The format follows the MCP specification for server identification. Each server configuration includes a `type` field (e.g., "stdio", "http", "sse") and other fields specific to that transport type.
+**Common server names:**
+- `filesystem` - File system access
+- `git` - Git repository operations
+- `database` - Database access
+- Custom server names based on your application
+
+**Note:** The field simply stores the server name as a string. The actual configuration of the server is handled by your AI agent's configuration.
 
 #### `agent` (optional, standard field)
 
@@ -629,22 +622,15 @@ agent: cursor
 - If task/CLI specifies `agent: cursor`, only rules with `agent: cursor` or no agent field are included
 - Rules without an agent field are considered generic and always included (unless other selectors exclude them)
 
-#### `mcp_servers` (rule metadata)
+#### `mcp_server` (rule metadata)
 
-Specifies MCP servers that need to be running for this rule. Does not filter rules. The field is a map where keys are server names and values are server configurations.
+Specifies the name of the MCP server that needs to be running for this rule. Does not filter rules. The field is a simple string specifying the server name.
 
 ```yaml
 ---
-mcp_servers:
-  filesystem:
-    type: stdio
-    command: npx
-    args: ["-y", "@modelcontextprotocol/server-filesystem"]
-  database:
-    type: http
-    url: https://api.example.com/mcp
+mcp_server: filesystem
 ---
-# Metadata indicating required MCP servers
+# Metadata indicating required MCP server
 ```
 
 **Note:** This field is informational and does not affect rule selection.

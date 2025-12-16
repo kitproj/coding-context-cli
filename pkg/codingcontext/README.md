@@ -111,10 +111,10 @@ func main() {
         fmt.Printf("Custom field: %v\n", customField)
     }
     
-    // Access MCP server configurations
-    mcpServers := result.MCPServers()
-    for name, config := range mcpServers {
-        fmt.Printf("MCP Server %s: %s\n", name, config.Command)
+    // Access MCP server name
+    mcpServer := result.MCPServer()
+    if mcpServer != "" {
+        fmt.Printf("MCP Server: %s\n", mcpServer)
     }
 }
 ```
@@ -136,7 +136,7 @@ Result holds the assembled context from running a task:
 - `Agent Agent` - The agent used (from task frontmatter or option)
 
 **Methods:**
-- `MCPServers() MCPServerConfigs` - Returns all MCP server configurations from rules and task
+- `MCPServer() string` - Returns the MCP server name from the task (or empty string if not specified)
 
 #### `Markdown[T]`
 

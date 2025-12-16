@@ -21,27 +21,14 @@ type Result struct {
 	Agent  Agent                       // The agent used (from task or -a flag)
 }
 
-// MCPServers returns all MCP servers from both rules and the task.
-// Servers from the task take precedence over servers from rules.
-// If multiple rules define the same server name, the behavior is non-deterministic.
-func (r *Result) MCPServers() MCPServerConfigs {
-	servers := make(MCPServerConfigs)
-
-	// Add servers from rules first (so task can override)
-	for _, rule := range r.Rules {
-		if rule.FrontMatter.MCPServers != nil {
-			for name, config := range rule.FrontMatter.MCPServers {
-				servers[name] = config
-			}
-		}
+// MCPServer returns the MCP server name from the task.
+// If the task doesn't specify an MCP server, returns an empty string.
+// Rules' MCP servers are ignored in favor of the task's MCP server.
+func (r *Result) MCPServer() string {
+	// Return the MCP server from task
+	if r.Task.FrontMatter.MCPServer != "" {
+		return r.Task.FrontMatter.MCPServer
 	}
 
-	// Add servers from task (overriding any from rules)
-	if r.Task.FrontMatter.MCPServers != nil {
-		for name, config := range r.Task.FrontMatter.MCPServers {
-			servers[name] = config
-		}
-	}
-
-	return servers
+	return ""
 }

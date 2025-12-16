@@ -4,56 +4,59 @@ import (
 	"testing"
 )
 
-func TestResult_MCPServers(t *testing.T) {
+func TestResult_MCPServer(t *testing.T) {
 	tests := []struct {
 		name   string
 		result Result
-		want   MCPServerConfigs
+		want   string
 	}{
 		{
-			name: "no MCP servers",
+			name: "no MCP server",
 			result: Result{
 				Rules: []Markdown[RuleFrontMatter]{},
 				Task: Markdown[TaskFrontMatter]{
 					FrontMatter: TaskFrontMatter{},
 				},
 			},
-			want: MCPServerConfigs{},
+			want: "",
 		},
 		{
-			name: "MCP servers from task only",
+			name: "MCP server from task",
 			result: Result{
 				Rules: []Markdown[RuleFrontMatter]{},
 				Task: Markdown[TaskFrontMatter]{
 					FrontMatter: TaskFrontMatter{
-						MCPServers: MCPServerConfigs{
-							"filesystem": {Type: TransportTypeStdio, Command: "filesystem"},
-							"git":        {Type: TransportTypeStdio, Command: "git"},
-						},
+						MCPServer: "filesystem",
 					},
 				},
 			},
-			want: MCPServerConfigs{
-				"filesystem": {Type: TransportTypeStdio, Command: "filesystem"},
-				"git":        {Type: TransportTypeStdio, Command: "git"},
-			},
+			want: "filesystem",
 		},
 		{
-			name: "MCP servers from rules only",
+			name: "task MCP server takes precedence over rules",
 			result: Result{
 				Rules: []Markdown[RuleFrontMatter]{
 					{
 						FrontMatter: RuleFrontMatter{
-							MCPServers: MCPServerConfigs{
-								"jira": {Type: TransportTypeStdio, Command: "jira"},
-							},
+							MCPServer: "git",
 						},
 					},
+				},
+				Task: Markdown[TaskFrontMatter]{
+					FrontMatter: TaskFrontMatter{
+						MCPServer: "filesystem",
+					},
+				},
+			},
+			want: "filesystem",
+		},
+		{
+			name: "rules have MCP server but task doesn't",
+			result: Result{
+				Rules: []Markdown[RuleFrontMatter]{
 					{
 						FrontMatter: RuleFrontMatter{
-							MCPServers: MCPServerConfigs{
-								"api": {Type: TransportTypeHTTP, URL: "https://api.example.com"},
-							},
+							MCPServer: "jira",
 						},
 					},
 				},
@@ -61,123 +64,16 @@ func TestResult_MCPServers(t *testing.T) {
 					FrontMatter: TaskFrontMatter{},
 				},
 			},
-			want: MCPServerConfigs{
-				"jira": {Type: TransportTypeStdio, Command: "jira"},
-				"api":  {Type: TransportTypeHTTP, URL: "https://api.example.com"},
-			},
-		},
-		{
-			name: "MCP servers from both task and rules",
-			result: Result{
-				Rules: []Markdown[RuleFrontMatter]{
-					{
-						FrontMatter: RuleFrontMatter{
-							MCPServers: MCPServerConfigs{
-								"jira": {Type: TransportTypeStdio, Command: "jira"},
-							},
-						},
-					},
-				},
-				Task: Markdown[TaskFrontMatter]{
-					FrontMatter: TaskFrontMatter{
-						MCPServers: MCPServerConfigs{
-							"filesystem": {Type: TransportTypeStdio, Command: "filesystem"},
-						},
-					},
-				},
-			},
-			want: MCPServerConfigs{
-				"filesystem": {Type: TransportTypeStdio, Command: "filesystem"},
-				"jira":       {Type: TransportTypeStdio, Command: "jira"},
-			},
-		},
-		{
-			name: "multiple rules with MCP servers",
-			result: Result{
-				Rules: []Markdown[RuleFrontMatter]{
-					{
-						FrontMatter: RuleFrontMatter{
-							MCPServers: MCPServerConfigs{
-								"server1": {Type: TransportTypeStdio, Command: "server1"},
-							},
-						},
-					},
-					{
-						FrontMatter: RuleFrontMatter{
-							MCPServers: MCPServerConfigs{
-								"server2": {Type: TransportTypeStdio, Command: "server2"},
-							},
-						},
-					},
-					{
-						FrontMatter: RuleFrontMatter{},
-					},
-				},
-				Task: Markdown[TaskFrontMatter]{
-					FrontMatter: TaskFrontMatter{
-						MCPServers: MCPServerConfigs{
-							"task-server": {Type: TransportTypeStdio, Command: "task-server"},
-						},
-					},
-				},
-			},
-			want: MCPServerConfigs{
-				"task-server": {Type: TransportTypeStdio, Command: "task-server"},
-				"server1":     {Type: TransportTypeStdio, Command: "server1"},
-				"server2":     {Type: TransportTypeStdio, Command: "server2"},
-			},
-		},
-		{
-			name: "task overrides rule server with same name",
-			result: Result{
-				Rules: []Markdown[RuleFrontMatter]{
-					{
-						FrontMatter: RuleFrontMatter{
-							MCPServers: MCPServerConfigs{
-								"filesystem": {Type: TransportTypeStdio, Command: "rule-filesystem"},
-							},
-						},
-					},
-				},
-				Task: Markdown[TaskFrontMatter]{
-					FrontMatter: TaskFrontMatter{
-						MCPServers: MCPServerConfigs{
-							"filesystem": {Type: TransportTypeStdio, Command: "task-filesystem"},
-						},
-					},
-				},
-			},
-			want: MCPServerConfigs{
-				"filesystem": {Type: TransportTypeStdio, Command: "task-filesystem"},
-			},
+			want: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.result.MCPServers()
+			got := tt.result.MCPServer()
 
-			if len(got) != len(tt.want) {
-				t.Errorf("MCPServers() returned %d servers, want %d", len(got), len(tt.want))
-				return
-			}
-
-			for name, wantServer := range tt.want {
-				gotServer, exists := got[name]
-				if !exists {
-					t.Errorf("MCPServers() missing server %q", name)
-					continue
-				}
-
-				if gotServer.Type != wantServer.Type {
-					t.Errorf("MCPServers()[%q].Type = %v, want %v", name, gotServer.Type, wantServer.Type)
-				}
-				if gotServer.Command != wantServer.Command {
-					t.Errorf("MCPServers()[%q].Command = %q, want %q", name, gotServer.Command, wantServer.Command)
-				}
-				if gotServer.URL != wantServer.URL {
-					t.Errorf("MCPServers()[%q].URL = %q, want %q", name, gotServer.URL, wantServer.URL)
-				}
+			if got != tt.want {
+				t.Errorf("MCPServer() = %q, want %q", got, tt.want)
 			}
 		})
 	}
