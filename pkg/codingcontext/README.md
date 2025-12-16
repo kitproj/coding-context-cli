@@ -27,7 +27,7 @@ import (
 func main() {
     // Create a new context with options
     ctx := codingcontext.New(
-        codingcontext.WithWorkDir("."),
+        codingcontext.WithSearchPaths("file://.", "file://"+os.Getenv("HOME")),
         codingcontext.WithParams(codingcontext.Params{
             "issue_number": "123",
             "feature":      "authentication",
@@ -73,15 +73,18 @@ func main() {
 
     // Create context with all options
     ctx := codingcontext.New(
-        codingcontext.WithWorkDir("."),
+        codingcontext.WithSearchPaths(
+            "file://.",
+            "git::https://github.com/org/repo//path/to/rules",
+        ),
         codingcontext.WithParams(codingcontext.Params{
             "issue_number": "123",
         }),
         codingcontext.WithSelectors(selectors),
-        codingcontext.WithRemotePaths([]string{
-            "https://github.com/org/repo//path/to/rules",
-        }),
-        codingcontext.WithEmitTaskFrontmatter(true),
+        codingcontext.WithAgent(codingcontext.AgentCursor),
+        codingcontext.WithResume(false),
+        codingcontext.WithUserPrompt("Additional context or instructions"),
+        codingcontext.WithManifestURL("https://example.com/manifest.txt"),
         codingcontext.WithLogger(slog.New(slog.NewTextHandler(os.Stderr, nil))),
     )
 
@@ -95,10 +98,18 @@ func main() {
     // Process the result
     fmt.Printf("Task: %s\n", result.Task.Content)
     fmt.Printf("Rules found: %d\n", len(result.Rules))
+    fmt.Printf("Total tokens: %d\n", result.Tokens)
+    fmt.Printf("Agent: %s\n", result.Agent)
     
     // Access task metadata
-    if taskName, ok := result.Task.FrontMatter["task_name"]; ok {
-        fmt.Printf("Task name from frontmatter: %s\n", taskName)
+    if len(result.Task.FrontMatter.Languages) > 0 {
+        fmt.Printf("Languages: %v\n", result.Task.FrontMatter.Languages)
+    }
+    
+    // Access MCP server configurations
+    mcpServers := result.MCPServers()
+    for name, config := range mcpServers {
+        fmt.Printf("MCP Server %s: %s\n", name, config.Command)
     }
 }
 ```
@@ -114,28 +125,151 @@ The main type for assembling context.
 #### `Result`
 
 Result holds the assembled context from running a task:
-- `Rules []Markdown` - List of included rule files
-- `Task Markdown` - Task file with frontmatter and content
+- `Rules []Markdown[RuleFrontMatter]` - List of included rule files
+- `Task Markdown[TaskFrontMatter]` - Task file with frontmatter and content
+- `Tokens int` - Total estimated token count
+- `Agent Agent` - The agent used (from task frontmatter or option)
 
-#### `Markdown`
+**Methods:**
+- `MCPServers() MCPServerConfigs` - Returns all MCP server configurations from rules and task
 
-Represents a markdown file with frontmatter and content:
-- `Path string` - Path to the markdown file
-- `FrontMatter FrontMatter` - Parsed YAML frontmatter
+#### `Markdown[T]`
+
+Represents a markdown file with frontmatter and content (generic type):
+- `FrontMatter T` - Parsed YAML frontmatter (type depends on usage)
 - `Content string` - Expanded content of the markdown
 - `Tokens int` - Estimated token count
 
+Type aliases:
+- `TaskMarkdown` = `Markdown[TaskFrontMatter]`
+- `RuleMarkdown` = `Markdown[RuleFrontMatter]`
+
+#### `TaskFrontMatter`
+
+Frontmatter structure for task files with fields:
+- `Agent string` - Default agent if not specified via option
+- `Languages []string` - Programming languages for filtering rules
+- `Model string` - AI model identifier (metadata only)
+- `SingleShot bool` - Whether task runs once or multiple times (metadata only)
+- `Timeout string` - Task timeout in time.Duration format (metadata only)
+- `MCPServers MCPServerConfigs` - MCP server configurations (metadata only)
+- `Resume bool` - Whether this task should be resumed
+- `Selectors map[string]any` - Additional custom selectors for filtering rules
+- `ExpandParams *bool` - Controls parameter expansion (defaults to true)
+- `Content map[string]any` - All frontmatter fields as map (from `BaseFrontMatter`)
+
+#### `RuleFrontMatter`
+
+Frontmatter structure for rule files with fields:
+- `TaskNames []string` - Which task(s) this rule applies to
+- `Languages []string` - Which programming language(s) this rule applies to
+- `Agent string` - Which AI agent this rule is intended for
+- `MCPServers MCPServerConfigs` - MCP server configurations (metadata only)
+- `RuleName string` - Optional identifier for the rule file
+- `ExpandParams *bool` - Controls parameter expansion (defaults to true)
+- `Content map[string]any` - All frontmatter fields as map (from `BaseFrontMatter`)
+
+#### `CommandFrontMatter`
+
+Frontmatter structure for command files with fields:
+- `ExpandParams *bool` - Controls parameter expansion (defaults to true)
+- `Content map[string]any` - All frontmatter fields as map (from `BaseFrontMatter`)
+
+#### `BaseFrontMatter`
+
+Base frontmatter structure that other frontmatter types embed:
+- `Content map[string]any` - All frontmatter fields as a map for selector matching
+
+#### `Agent`
+
+Type representing an AI coding agent (string type):
+
+**Constants:**
+- `AgentCursor` - Cursor AI agent
+- `AgentOpenCode` - OpenCode agent
+- `AgentCopilot` - GitHub Copilot agent
+- `AgentClaude` - Claude agent
+- `AgentGemini` - Google Gemini agent
+- `AgentAugment` - Augment agent
+- `AgentWindsurf` - Windsurf agent
+- `AgentCodex` - Codex agent
+
+**Methods:**
+- `String() string` - Returns string representation
+- `PathPatterns() []string` - Returns path patterns for this agent
+- `MatchesPath(path string) bool` - Checks if path matches agent patterns
+- `ShouldExcludePath(path string) bool` - Returns true if path should be excluded
+- `IsSet() bool` - Returns true if agent is set (non-empty)
+- `UserRulePath() string` - Returns user-level rules path for agent
+
+#### `MCPServerConfig`
+
+Configuration for MCP (Model Context Protocol) servers:
+- `Type TransportType` - Connection protocol ("stdio", "sse", "http")
+- `Command string` - Executable to run (for stdio type)
+- `Args []string` - Command arguments
+- `Env map[string]string` - Environment variables
+- `URL string` - Endpoint URL (for http/sse types)
+- `Headers map[string]string` - Custom HTTP headers
+
+#### `MCPServerConfigs`
+
+Type alias: `map[string]MCPServerConfig` - Maps server names to configurations
+
+#### `TransportType`
+
+Type representing MCP transport protocol (string type):
+
+**Constants:**
+- `TransportTypeStdio` - Local process communication
+- `TransportTypeSSE` - Server-Sent Events (remote)
+- `TransportTypeHTTP` - Standard HTTP/POST
+
 #### `Params`
 
-Map of parameter key-value pairs for template substitution.
+Map of parameter key-value pairs for template substitution: `map[string]string`
+
+**Methods:**
+- `String() string` - Returns string representation
+- `Set(value string) error` - Parses and sets key=value pair (implements flag.Value)
 
 #### `Selectors`
 
-Map structure for filtering rules based on frontmatter metadata.
+Map structure for filtering rules based on frontmatter metadata: `map[string]map[string]bool`
 
-#### `FrontMatter`
+**Methods:**
+- `String() string` - Returns string representation
+- `Set(value string) error` - Parses and sets key=value pair (implements flag.Value)
+- `SetValue(key, value string)` - Sets a value for a key
+- `GetValue(key, value string) bool` - Checks if value exists for key
+- `MatchesIncludes(frontmatter BaseFrontMatter) bool` - Tests if frontmatter matches selectors
 
-Map representing parsed YAML frontmatter from markdown files.
+#### Task Parser Types
+
+Types for parsing task content with slash commands:
+
+- `Task` - Slice of `Block` elements representing parsed task content
+- `Block` - Contains either `Text` or `SlashCommand`
+- `SlashCommand` - Parsed slash command with name and arguments
+- `Text` - Text content (slice of `TextLine`)
+- `TextLine` - Single line of text or an `Input` placeholder
+- `Input` - Input placeholder in text
+- `Argument` - Slash command argument
+
+**Methods:**
+- `(*SlashCommand) Params() map[string]string` - Returns parsed parameters
+- `(*Text) Content() string` - Returns text content as string
+- Various `String()` methods for formatting
+
+### Constants
+
+#### `FreeTextTaskName`
+
+Constant: `"free-text"` - Task name used for free-text prompts
+
+#### `FreeTextParamName`
+
+Constant: `"text"` - Parameter name for text content in free-text tasks
 
 ### Functions
 
@@ -144,28 +278,38 @@ Map representing parsed YAML frontmatter from markdown files.
 Creates a new Context with the given options.
 
 **Options:**
-- `WithWorkDir(dir string)` - Set the working directory
-- `WithParams(params Params)` - Set parameters
-- `WithSelectors(selectors Selectors)` - Set selectors for filtering
-- `WithRemotePaths(paths []string)` - Set remote directories to download
-- `WithEmitTaskFrontmatter(emit bool)` - Enable task frontmatter inclusion in result
+- `WithSearchPaths(paths ...string)` - Add search paths (supports go-getter URLs)
+- `WithParams(params Params)` - Set parameters for substitution
+- `WithSelectors(selectors Selectors)` - Set selectors for filtering rules
+- `WithAgent(agent Agent)` - Set target agent (excludes that agent's own rules)
+- `WithResume(resume bool)` - Enable resume mode (skips rules)
+- `WithUserPrompt(userPrompt string)` - Set user prompt to append to task
+- `WithManifestURL(manifestURL string)` - Set manifest URL for additional search paths
 - `WithLogger(logger *slog.Logger)` - Set logger
 
 #### `(*Context) Run(ctx context.Context, taskName string) (*Result, error)`
 
 Executes the context assembly for the given task name and returns the assembled result structure with rule and task markdown files (including frontmatter and content).
 
-#### `ParseMarkdownFile(path string, frontmatter any) (string, error)`
+#### `ParseMarkdownFile[T any](path string, frontmatter *T) (Markdown[T], error)`
 
-Parses a markdown file into frontmatter and content.
+Parses a markdown file into frontmatter and content. Generic function that works with any frontmatter type.
 
-#### `AllTaskSearchPaths(baseDir, homeDir string) []string`
+#### `ParseTask(text string) (Task, error)`
 
-Returns the standard search paths for task files. `baseDir` is the working directory to resolve relative paths from.
+Parses task text content into blocks of text and slash commands.
 
-#### `AllRulePaths(baseDir, homeDir string) []string`
+#### `ParseParams(s string) (Params, error)`
 
-Returns the standard search paths for rule files. `baseDir` is the working directory to resolve relative paths from.
+Parses a string containing key=value pairs with quoted values.
+Examples:
+- `key1="value1" key2="value2"`
+- `key1="value with spaces" key2="value2"`
+- `key1="value with \"escaped\" quotes"`
+
+#### `ParseAgent(s string) (Agent, error)`
+
+Parses a string into an Agent type. Returns error if agent is not supported.
 
 ## See Also
 
