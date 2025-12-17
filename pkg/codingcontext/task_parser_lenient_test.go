@@ -429,6 +429,16 @@ func TestProcessEscapeSequences(t *testing.T) {
 			input:    `\7\77`,
 			expected: "\a?", // \7 is octal 7 (ASCII bell \a), \77 is octal 77 (ASCII '?')
 		},
+		{
+			name:     "octal values above 127",
+			input:    `\200\377`,
+			expected: "\x80\xff", // \200 is 128, \377 is 255
+		},
+		{
+			name:     "octal high byte values",
+			input:    `\240\300\350`,
+			expected: "\xa0\xc0\xe8", // \240 is 160, \300 is 192, \350 is 232
+		},
 	}
 
 	for _, tt := range tests {

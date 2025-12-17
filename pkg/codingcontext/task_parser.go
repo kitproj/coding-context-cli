@@ -73,6 +73,8 @@ func (s *SlashCommand) Params() map[string]string {
 // stripQuotes removes surrounding quotes from a string if present and processes escape sequences.
 // Supports both single (') and double (") quotes.
 // Processes escape sequences: \n, \t, \r, \\, \", \', \uXXXX (Unicode), \xHH (hex), \OOO (octal)
+// Unknown escape sequences (e.g., \z) preserve only the character after the backslash.
+// Incomplete escape sequences (e.g., \u00a, \x4) are preserved literally including the backslash.
 func stripQuotes(s string) string {
 	// Check if the string is quoted
 	if len(s) < 2 {
@@ -96,6 +98,8 @@ func stripQuotes(s string) string {
 
 // processEscapeSequences decodes escape sequences in a string.
 // Supports: \n, \t, \r, \\, \", \', \uXXXX (Unicode), \xHH (hex), \OOO (octal)
+// Unknown escape sequences (e.g., \z) preserve only the character after the backslash.
+// Incomplete escape sequences (e.g., \u00a, \x4) are preserved literally including the backslash.
 func processEscapeSequences(s string) string {
 	if !strings.Contains(s, "\\") {
 		return s // Fast path: no escapes
@@ -165,7 +169,7 @@ func processEscapeSequences(s string) string {
 					octalEnd++
 				}
 				octalStr := s[octalStart:octalEnd]
-				if val, err := strconv.ParseInt(octalStr, 8, 8); err == nil {
+				if val, err := strconv.ParseInt(octalStr, 8, 16); err == nil {
 					result.WriteByte(byte(val))
 					i = octalEnd - 1
 				} else {
