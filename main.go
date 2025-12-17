@@ -34,7 +34,7 @@ func main() {
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
-	flag.BoolVar(&writeRules, "w", false, "Write rules to the agent's user rules path and only print the prompt to stdout. Requires -a flag.")
+	flag.BoolVar(&writeRules, "w", false, "Write rules to the agent's user rules path and only print the prompt to stdout. Requires agent (via task 'agent' field or -a flag).")
 	flag.Var(&agent, "a", "Target agent to use (excludes rules from other agents). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")

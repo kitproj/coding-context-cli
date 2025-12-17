@@ -80,7 +80,17 @@ sudo chmod +x /usr/local/bin/coding-context
 
 ```
 Usage:
-  coding-context [options] <task-name>
+  coding-context [options] <task-name> [user-prompt]
+
+Arguments:
+  <task-name>
+      The name of a task file to look up in task search paths (.agents/tasks).
+      Task files are matched by filename (without .md extension).
+  
+  [user-prompt] (optional)
+      Optional text to append to the task. It can contain slash commands
+      (e.g., '/command-name') which will be expanded, and parameter 
+      substitution (${param}).
 
 Options:
   -C string
@@ -96,7 +106,7 @@ Options:
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
   -a string
-    	Default agent to use if task doesn't specify one. Excludes that agent's own rule paths (since the agent reads those itself). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
+    	Target agent to use (excludes rules from that agent's own paths). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
   -w	Write rules to agent's config file and output only task to stdout. Requires agent (via task or -a flag).
 ```
 
