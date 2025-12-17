@@ -13,6 +13,8 @@ import (
 
 	yaml "github.com/goccy/go-yaml"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/selectors"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparser"
 )
 
 func main() {
@@ -25,8 +27,8 @@ func main() {
 	var resume bool
 	var writeRules bool
 	var agent codingcontext.Agent
-	params := make(codingcontext.Params)
-	includes := make(codingcontext.Selectors)
+	params := make(taskparser.Params)
+	includes := make(selectors.Selectors)
 	var searchPaths []string
 	var manifestURL string
 

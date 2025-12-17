@@ -1,7 +1,9 @@
-package codingcontext
+package selectors
 
 import (
 	"testing"
+
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
 )
 
 func TestSelectorMap_Set(t *testing.T) {
@@ -80,61 +82,61 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		name           string
 		selectors      []string
 		setupSelectors func(s Selectors) // Optional function to set up array selectors directly
-		frontmatter    BaseFrontMatter
+		frontmatter    markdown.BaseFrontMatter
 		wantMatch      bool
 	}{
 		{
 			name:        "single selector - match",
 			selectors:   []string{"env=production"},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "production"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "production"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "single selector - no match",
 			selectors:   []string{"env=production"},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "development"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "development"}},
 			wantMatch:   false,
 		},
 		{
 			name:        "single selector - key missing (allowed)",
 			selectors:   []string{"env=production"},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"language": "go"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"language": "go"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "multiple selectors - all match",
 			selectors:   []string{"env=production", "language=go"},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "production", "language": "go"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "production", "language": "go"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "multiple selectors - one doesn't match",
 			selectors:   []string{"env=production", "language=go"},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "production", "language": "python"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "production", "language": "python"}},
 			wantMatch:   false,
 		},
 		{
 			name:        "multiple selectors - one key missing (allowed)",
 			selectors:   []string{"env=production", "language=go"},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "production"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "production"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "empty selectors - always match",
 			selectors:   []string{},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "production"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "production"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "boolean value conversion - match",
 			selectors:   []string{"is_active=true"},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"is_active": true}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"is_active": true}},
 			wantMatch:   true,
 		},
 		{
 			name:        "array selector - match",
 			selectors:   []string{},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"rule_name": "rule2"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"rule_name": "rule2"}},
 			wantMatch:   true,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -145,7 +147,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "array selector - no match",
 			selectors:   []string{},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"rule_name": "rule4"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"rule_name": "rule4"}},
 			wantMatch:   false,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -156,7 +158,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "array selector - key missing (allowed)",
 			selectors:   []string{},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "prod"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "prod"}},
 			wantMatch:   true,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -166,7 +168,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "mixed selectors - array and string both match",
 			selectors:   []string{"env=prod"},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "prod", "rule_name": "rule1"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "prod", "rule_name": "rule1"}},
 			wantMatch:   true,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -176,7 +178,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "mixed selectors - string doesn't match",
 			selectors:   []string{"env=dev"},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "prod", "rule_name": "rule1"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "prod", "rule_name": "rule1"}},
 			wantMatch:   false,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -186,7 +188,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "multiple array selectors - both match",
 			selectors:   []string{},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"rule_name": "rule1", "language": "go"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"rule_name": "rule1", "language": "go"}},
 			wantMatch:   true,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -198,7 +200,7 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "multiple array selectors - one doesn't match",
 			selectors:   []string{},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"rule_name": "rule1", "language": "java"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"rule_name": "rule1", "language": "java"}},
 			wantMatch:   false,
 			setupSelectors: func(s Selectors) {
 				s.SetValue("rule_name", "rule1")
@@ -210,25 +212,25 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 		{
 			name:        "OR logic - same key multiple values matches",
 			selectors:   []string{"env=prod", "env=dev"},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "dev"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "dev"}},
 			wantMatch:   true,
 		},
 		{
 			name:        "OR logic - same key multiple values no match",
 			selectors:   []string{"env=prod", "env=dev"},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "staging"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "staging"}},
 			wantMatch:   false,
 		},
 		{
 			name:        "empty value selector - key exists in frontmatter (no match)",
 			selectors:   []string{"env="},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"env": "production"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "production"}},
 			wantMatch:   false,
 		},
 		{
 			name:        "empty value selector - key missing in frontmatter (match)",
 			selectors:   []string{"env="},
-			frontmatter: BaseFrontMatter{Content: map[string]any{"language": "go"}},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"language": "go"}},
 			wantMatch:   true,
 		},
 	}
