@@ -27,18 +27,13 @@ type Result struct {
 func (r *Result) MCPServers() []MCPServerConfig {
 	var servers []MCPServerConfig
 
-	// Add server from each rule that has one
+	// Add server from each rule
 	for _, rule := range r.Rules {
-		// Check if the MCPServer is not empty (has at least one field set)
-		if rule.FrontMatter.MCPServer.Command != "" || rule.FrontMatter.MCPServer.URL != "" {
-			servers = append(servers, rule.FrontMatter.MCPServer)
-		}
+		servers = append(servers, rule.FrontMatter.MCPServer)
 	}
 
-	// Add server from task if it has one
-	if r.Task.FrontMatter.MCPServer.Command != "" || r.Task.FrontMatter.MCPServer.URL != "" {
-		servers = append(servers, r.Task.FrontMatter.MCPServer)
-	}
+	// Add server from task
+	servers = append(servers, r.Task.FrontMatter.MCPServer)
 
 	return servers
 }

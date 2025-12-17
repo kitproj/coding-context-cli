@@ -18,7 +18,9 @@ func TestResult_MCPServers(t *testing.T) {
 					FrontMatter: TaskFrontMatter{},
 				},
 			},
-			want: []MCPServerConfig{},
+			want: []MCPServerConfig{
+				{}, // Empty task MCP server
+			},
 		},
 		{
 			name: "MCP server from task only",
@@ -56,6 +58,7 @@ func TestResult_MCPServers(t *testing.T) {
 			want: []MCPServerConfig{
 				{Type: TransportTypeStdio, Command: "jira"},
 				{Type: TransportTypeHTTP, URL: "https://api.example.com"},
+				{}, // Empty task MCP server
 			},
 		},
 		{
@@ -106,6 +109,7 @@ func TestResult_MCPServers(t *testing.T) {
 			want: []MCPServerConfig{
 				{Type: TransportTypeStdio, Command: "server1"},
 				{Type: TransportTypeStdio, Command: "server2"},
+				{}, // Empty rule MCP server
 				{Type: TransportTypeStdio, Command: "task-server"},
 			},
 		},
@@ -124,6 +128,7 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 			},
 			want: []MCPServerConfig{
+				{}, // Empty rule MCP server
 				{Type: TransportTypeStdio, Command: "filesystem"},
 			},
 		},
