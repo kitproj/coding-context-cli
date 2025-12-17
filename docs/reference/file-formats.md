@@ -442,13 +442,10 @@ This prevents command injection where expanded content could trigger further, un
 
 ### File Location
 
-Task files must be in one of these directories:
-- `./.agents/tasks/`
-- `./.cursor/commands/`
-- `./.opencode/command/`
-- `~/.agents/tasks/`
+Task files must be in these directories within any search path directory:
+- `.agents/tasks/`
 
-Tasks are matched by filename (without `.md` extension). The `task_name` field in frontmatter is optional and used only for metadata. For example, a file named `fix-bug.md` is matched by the command `/fix-bug`, regardless of whether it has `task_name` in its frontmatter.
+Tasks are matched by filename (without `.md` extension). The `task_name` field in frontmatter is optional and used only for metadata. For example, a file named `fix-bug.md` is matched by the task name `fix-bug`, regardless of whether it has `task_name` in its frontmatter.
 
 ## Command Files
 
@@ -523,11 +520,10 @@ Commands can also receive inline parameters:
 
 ### File Locations
 
-Command files must be in one of these directories:
-- `./.agents/commands/`
-- `./.cursor/commands/`
-- `./.opencode/command/`
-- `~/.agents/commands/`
+Command files must be in these directories within any search path directory:
+- `.agents/commands/`
+- `.cursor/commands/`
+- `.opencode/command/`
 
 Commands are matched by filename (without `.md` extension). For example, a file named `deploy.md` is matched by the slash command `/deploy`.
 
