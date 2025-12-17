@@ -507,11 +507,11 @@ If you need to filter on nested data, flatten your frontmatter structure to use 
 
 ### Targeting a Specific Agent
 
-The `-a` flag specifies which AI coding agent you're using. This information is used in two ways:
+The `-a` flag specifies which AI coding agent you're using. This information is currently used in one way:
 
-1. **Rule Filtering**: The agent name is automatically added as a selector, allowing rules to filter themselves based on the agent
-2. **Write Rules Mode**: With the `-w` flag, determines where to write rules (e.g., `~/.github/agents/AGENTS.md` for copilot)
+1. **Write Rules Mode**: With the `-w` flag, determines where to write rules (e.g., `~/.github/agents/AGENTS.md` for `copilot`)
 
+> Note: Agent-based rule filtering is not implemented. All rules are currently included regardless of the `-a` value.
 **Supported agents:**
 - `cursor` - Cursor IDE
 - `opencode` - OpenCode.ai  
