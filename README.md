@@ -310,10 +310,10 @@ Deploy the application to production with all safety checks.
 You can then select the appropriate task using:
 ```bash
 # Deploy to staging
-coding-context -s environment=staging /deploy
+coding-context -s environment=staging deploy
 
 # Deploy to production
-coding-context -s environment=production /deploy
+coding-context -s environment=production deploy
 ```
 
 #### Task Frontmatter Selectors
@@ -336,11 +336,6 @@ When you run this task, it automatically applies the selectors:
 ```bash
 # This command automatically includes only rules with languages=go and stage=implementation
 coding-context implement-feature
-```
-
-This is equivalent to:
-```bash
-coding-context -s languages=go -s stage=implementation /implement-feature
 ```
 
 **Selectors support OR logic for the same key using arrays:**
@@ -404,13 +399,12 @@ This is particularly useful in agentic workflows where an AI agent has already b
 - Skipping all rules output
 
 **Example usage:**
-
 ```bash
 # Initial task invocation (includes all rules, uses task with resume: false)
-coding-context -s resume=false /fix-bug | ai-agent
+coding-context -s resume=false fix-bug | ai-agent
 
 # Resume the task (skips rules, uses task with resume: true)
-coding-context -r /fix-bug | ai-agent
+coding-context -r fix-bug | ai-agent
 ```
 
 **Example task files for resume mode:**
@@ -459,7 +453,7 @@ languages:
 To include this rule only when working on Go code, you would use `-s languages=go`:
 
 ```bash
-coding-context -s languages=go /fix-bug
+coding-context -s languages=go fix-bug
 ```
 
 This will include all rules with `languages: [ go ]` in their frontmatter, excluding rules for other languages.
@@ -478,10 +472,10 @@ Then select only the relevant rules:
 
 ```bash
 # Work on Python code with Python-specific rules
-coding-context -s languages=python /fix-bug
+coding-context -s languages=python fix-bug
 
 # Work on JavaScript code with JavaScript-specific rules
-coding-context -s languages=javascript /enhance-feature
+coding-context -s languages=javascript enhance-feature
 ```
 
 **Language Values**
@@ -530,7 +524,7 @@ When working with a specific AI coding agent, the agent itself will read its own
 ```bash
 # When using Cursor, exclude .cursor/ and .cursorrules (Cursor reads those itself)
 # But include rules from other agents and generic rules
-coding-context -a cursor /fix-bug
+coding-context -a cursor fix-bug
 ```
 
 **How it works:**

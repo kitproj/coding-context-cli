@@ -22,7 +22,7 @@ Please review the code changes with focus on:
 - Security implications
 ```
 
-Save as `.agents/tasks/code-review.md` (or `.agents/commands/code-review.md`).
+Save as `.agents/tasks/code-review.md`.
 
 Use with:
 ```bash
@@ -51,7 +51,7 @@ coding-context \
   -p feature_name="User Authentication" \
   -p requirements="OAuth2 support, secure password storage" \
   -p success_criteria="All tests pass, security audit clean" \
-  /implement-feature
+  implement-feature
 ```
 
 ## Multiple Tasks with Selectors
