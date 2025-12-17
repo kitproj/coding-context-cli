@@ -507,11 +507,12 @@ If you need to filter on nested data, flatten your frontmatter structure to use 
 
 ### Targeting a Specific Agent
 
-The `-a` flag specifies which AI coding agent you're using. This information is currently used in one way:
+The `-a` flag specifies which AI coding agent you're using. This information is currently used for:
 
 1. **Write Rules Mode**: With the `-w` flag, determines where to write rules (e.g., `~/.github/agents/AGENTS.md` for `copilot`)
 
-> Note: Agent-based rule filtering is not implemented. All rules are currently included regardless of the `-a` value.
+> **Note:** Agent-based rule filtering is not currently implemented. All rules are included regardless of the `-a` value.
+
 **Supported agents:**
 - `cursor` - Cursor IDE
 - `opencode` - OpenCode.ai  
@@ -522,28 +523,18 @@ The `-a` flag specifies which AI coding agent you're using. This information is 
 - `windsurf` - Windsurf
 - `codex` - Codex
 
-**Example: Agent-specific rules:**
+**Example:**
 
 ```bash
-# Specify the agent
-coding-context -a cursor fix-bug
+# Use with write rules mode
+coding-context -a copilot -w fix-bug
 ```
 
 **How it works:**
-- The `-a` flag sets the target agent
-- The agent name is automatically added as a selector for rule filtering
-- Rules can use `agent: cursor` in frontmatter to match only when that agent is specified
-- Generic rules (without an agent field) are always included
-
-**Example generic rule with agent filtering:**
-
-```markdown
----
-agent: cursor
----
-# This rule only applies when using Cursor
-Use Cursor-specific features...
-```
+- The `-a` flag sets the target agent value
+- The agent value is stored in the context for use by the `-w` flag
+- With `-w`, the agent determines where to write rules to the user's home directory
+- All rules are currently included regardless of agent value
 
 **Agent field in task frontmatter:**
 
@@ -556,7 +547,7 @@ agent: cursor
 # This task automatically sets the agent to cursor
 ```
 
-This is useful for tasks designed for specific agents, ensuring the correct agent context is used regardless of command-line flags.
+This is useful for tasks designed for specific agents, ensuring the correct agent is set for determining the write path with `-w`.
 
 ### Bootstrap Scripts
 

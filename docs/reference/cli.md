@@ -187,17 +187,17 @@ coding-context \
 **Type:** String  
 **Default:** (empty)
 
-Specify the target agent being used. This information is used for:
-1. **Rule Filtering**: The agent name is automatically added as a selector, allowing rules to filter based on agent
-2. **Write Rules Mode**: With `-w` flag, determines where to write rules
+Specify the target agent being used. This is currently used for:
+1. **Write Rules Mode**: With `-w` flag, determines where to write rules (e.g., `~/.github/agents/AGENTS.md` for copilot)
+
+> **Note:** Agent-based rule filtering is not currently implemented. All rules are included regardless of the `-a` value.
 
 **Supported agents:** `cursor`, `opencode`, `copilot`, `claude`, `gemini`, `augment`, `windsurf`, `codex`
 
 **How it works:**
-- The agent name is automatically added as a selector for rule filtering
-- Rules with matching `agent` field in frontmatter are included
-- Generic rules (without an agent field) are always included
-- With `-w` flag, determines the user rules path (e.g., `~/.github/agents/AGENTS.md` for copilot)
+- The agent value is stored in the context (can come from `-a` flag or task frontmatter)
+- With `-w` flag, the agent determines the user rules path for writing
+- All rules are currently included regardless of agent value
 
 **Agent Precedence:**
 - If a task specifies an `agent` field in its frontmatter, that takes precedence over the `-a` flag
@@ -206,9 +206,6 @@ Specify the target agent being used. This information is used for:
 
 **Example:**
 ```bash
-# Specify agent for rule filtering
-coding-context -a cursor fix-bug
-
 # Use with write rules mode
 coding-context -a copilot -w implement-feature
 ```
