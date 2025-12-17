@@ -187,15 +187,17 @@ coding-context \
 **Type:** String  
 **Default:** (empty)
 
-Specify the target agent being used. When set, this excludes that agent's own rule paths (since the agent reads those itself) while including rules from other agents and generic rules.
+Specify the target agent being used. This information is used for:
+1. **Rule Filtering**: The agent name is automatically added as a selector, allowing rules to filter based on agent
+2. **Write Rules Mode**: With `-w` flag, determines where to write rules
 
 **Supported agents:** `cursor`, `opencode`, `copilot`, `claude`, `gemini`, `augment`, `windsurf`, `codex`
 
 **How it works:**
-- When `-a cursor` is specified, paths like `.cursor/rules` and `.cursorrules` are excluded
-- Rules from other agents (e.g., `.opencode/agent`, `.github/copilot-instructions.md`) are included
-- Generic rules from `.agents/rules` are always included
 - The agent name is automatically added as a selector for rule filtering
+- Rules with matching `agent` field in frontmatter are included
+- Generic rules (without an agent field) are always included
+- With `-w` flag, determines the user rules path (e.g., `~/.github/agents/AGENTS.md` for copilot)
 
 **Agent Precedence:**
 - If a task specifies an `agent` field in its frontmatter, that takes precedence over the `-a` flag
@@ -204,11 +206,11 @@ Specify the target agent being used. When set, this excludes that agent's own ru
 
 **Example:**
 ```bash
-# Using Cursor - excludes .cursor/ paths, includes others
+# Specify agent for rule filtering
 coding-context -a cursor fix-bug
 
-# Using GitHub Copilot - excludes .github/copilot-instructions.md, includes others
-coding-context -a copilot implement-feature
+# Use with write rules mode
+coding-context -a copilot -w implement-feature
 ```
 
 **Note:** Task files can override this with an `agent` field in their frontmatter.

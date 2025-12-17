@@ -507,32 +507,33 @@ If you need to filter on nested data, flatten your frontmatter structure to use 
 
 ### Targeting a Specific Agent
 
-When working with a specific AI coding agent, the agent itself will read its own configuration files. The `-a` flag lets you specify which agent you're using, automatically excluding that agent's specific rule paths while including rules from other agents and generic rules.
+The `-a` flag specifies which AI coding agent you're using. This information is used in two ways:
+
+1. **Rule Filtering**: The agent name is automatically added as a selector, allowing rules to filter themselves based on the agent
+2. **Write Rules Mode**: With the `-w` flag, determines where to write rules (e.g., `~/.github/agents/AGENTS.md` for copilot)
 
 **Supported agents:**
-- `cursor` - Excludes `.cursor/rules`, `.cursorrules`; includes other agents and generic rules
-- `opencode` - Excludes `.opencode/agent`, `.opencode/command`; includes other agents and generic rules
-- `copilot` - Excludes `.github/copilot-instructions.md`, `.github/agents`; includes other agents and generic rules
-- `claude` - Excludes `.claude/`, `CLAUDE.md`, `CLAUDE.local.md`; includes other agents and generic rules
-- `gemini` - Excludes `.gemini/`, `GEMINI.md`; includes other agents and generic rules
-- `augment` - Excludes `.augment/`; includes other agents and generic rules
-- `windsurf` - Excludes `.windsurf/`, `.windsurfrules`; includes other agents and generic rules
-- `codex` - Excludes `.codex/`, `AGENTS.md`; includes other agents and generic rules
+- `cursor` - Cursor IDE
+- `opencode` - OpenCode.ai  
+- `copilot` - GitHub Copilot
+- `claude` - Anthropic Claude
+- `gemini` - Google Gemini
+- `augment` - Augment
+- `windsurf` - Windsurf
+- `codex` - Codex
 
-**Example: Using Cursor:**
+**Example: Agent-specific rules:**
 
 ```bash
-# When using Cursor, exclude .cursor/ and .cursorrules (Cursor reads those itself)
-# But include rules from other agents and generic rules
+# Specify the agent
 coding-context -a cursor fix-bug
 ```
 
 **How it works:**
 - The `-a` flag sets the target agent
-- The target agent's own paths are excluded (e.g., `.cursor/` for cursor)
-- Rules from other agents are included (e.g., `.opencode/`, `.github/copilot-instructions.md`)
-- Generic rules (from `.agents/rules`) are always included
-- The agent name is automatically added as a selector, so generic rules can filter themselves with `agent: cursor` in frontmatter
+- The agent name is automatically added as a selector for rule filtering
+- Rules can use `agent: cursor` in frontmatter to match only when that agent is specified
+- Generic rules (without an agent field) are always included
 
 **Example generic rule with agent filtering:**
 
@@ -556,14 +557,6 @@ agent: cursor
 ```
 
 This is useful for tasks designed for specific agents, ensuring the correct agent context is used regardless of command-line flags.
-
-**Use cases:**
-- **Avoid duplication**: The agent reads its own config, so exclude it from the context
-- **Cross-agent rules**: Include rules from other agents that might be relevant
-- **Generic rules**: Always include generic rules, with optional agent-specific filtering
-- **Task-specific agents**: Tasks can enforce a specific agent context
-
-The exclusion happens before rule processing, so excluded paths are never loaded or counted toward token estimates.
 
 ### Bootstrap Scripts
 
