@@ -19,7 +19,7 @@ sudo curl -fsL -o /usr/local/bin/coding-context \
 sudo chmod +x /usr/local/bin/coding-context
 
 # Use with an AI agent
-coding-context -p issue_key=BUG-123 -s languages=go /fix-bug | llm -m claude-3-5-sonnet-20241022
+coding-context -p issue_key=BUG-123 -s languages=go fix-bug | llm -m claude-3-5-sonnet-20241022
 ```
 
 ## Documentation Structure
