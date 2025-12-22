@@ -21,9 +21,9 @@ type Result struct {
 	Agent  Agent                       // The agent used (from task or -a flag)
 }
 
-// MCPServers returns all MCP server configurations from both rules and the task.
-// Each rule and the task can specify one MCP server configuration.
-// Returns a slice of all configured MCP servers.
+// MCPServers returns all MCP server configurations from rules.
+// Each rule can specify one MCP server configuration.
+// Returns a slice of all configured MCP servers from rules only.
 func (r *Result) MCPServers() []MCPServerConfig {
 	var servers []MCPServerConfig
 
@@ -31,9 +31,6 @@ func (r *Result) MCPServers() []MCPServerConfig {
 	for _, rule := range r.Rules {
 		servers = append(servers, rule.FrontMatter.MCPServer)
 	}
-
-	// Add server from task
-	servers = append(servers, r.Task.FrontMatter.MCPServer)
 
 	return servers
 }

@@ -1,6 +1,33 @@
 ---
 task_name: example-mcp-arbitrary-fields
 agent: cursor
+---
+
+# Example Rule with MCP Server Configuration
+
+This example demonstrates how rules can specify MCP server configuration with arbitrary custom fields.
+
+Note: MCP servers are specified in rules, not in tasks. Tasks can select which rules (and thus which MCP servers) to use via selectors.
+
+## The `mcp_server` Field in Rules
+
+Rules can specify a single MCP server configuration with both standard and arbitrary custom fields.
+
+The `mcp_server` field specifies a single MCP server configuration with both standard and arbitrary custom fields. Each task or rule can specify one MCP server configuration.
+
+**Standard fields:**
+- `command`: The executable to run (e.g., "python", "npx", "docker")
+- `args`: Array of command-line arguments
+- `env`: Environment variables for the server process
+- `type`: Connection protocol ("stdio", "http", "sse") - optional, defaults to stdio
+- `url`: Endpoint URL for HTTP/SSE types
+- `headers`: Custom HTTP headers for HTTP/SSE types
+
+## Example Rule with MCP Server
+
+```yaml
+---
+rule_name: python-mcp-server
 mcp_server:
   command: python
   args: ["-m", "server"]
@@ -18,13 +45,10 @@ mcp_server:
     metrics_port: 9090
 ---
 
-# Example Task with MCP Server Configuration
+# Python MCP Server Rule
 
-This task demonstrates the MCP server configuration with arbitrary custom fields.
-
-## The `mcp_server` Field
-
-The `mcp_server` field specifies a single MCP server configuration with both standard and arbitrary custom fields. Each task or rule can specify one MCP server configuration.
+This rule provides the Python MCP server configuration.
+```
 
 **Standard fields:**
 - `command`: The executable to run (e.g., "python", "npx", "docker")

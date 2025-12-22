@@ -137,41 +137,6 @@ timeout: 10m
 - `1h` - 1 hour
 - `1h30m` - 1 hour 30 minutes
 
-#### `mcp_server` (optional, standard field)
-
-**Type:** Object (MCP server configuration)  
-**Purpose:** Specifies a single MCP (Model Context Protocol) server configuration for the task; stored in frontmatter output but does not filter rules
-
-The `mcp_server` field is a **standard frontmatter field** that defines one MCP server configuration. It does not act as a selector. The field is an object with both standard configuration fields and support for arbitrary custom fields.
-
-**Standard configuration fields:**
-- `command`: The executable to run (e.g., "npx", "python", "docker")
-- `args`: Array of command-line arguments
-- `env`: Map of environment variables
-- `type`: Connection protocol - "stdio" (default), "http", or "sse"
-- `url`: Endpoint URL (required for HTTP/SSE types)
-- `headers`: Custom HTTP headers (for HTTP/SSE types)
-
-**Example:**
-```yaml
----
-mcp_server:
-  command: python
-  args: ["-m", "server"]
-  env:
-    PYTHON_PATH: /usr/bin/python3
-  custom_config:
-    host: localhost
-    port: 5432
-    ssl: true
----
-```
-
-**Additional arbitrary fields:**
-You can include any custom fields for your specific server needs (e.g., `custom_config`, `monitoring`, `cache_enabled`, etc.). All fields are preserved in the configuration.
-
-**Note:** Each task or rule can specify one MCP server configuration. The format supports the standard MCP server fields plus arbitrary custom fields for flexibility.
-
 #### `agent` (optional, standard field)
 
 **Type:** String  
@@ -637,7 +602,9 @@ agent: cursor
 
 #### `mcp_server` (rule metadata)
 
-Specifies an MCP server configuration that needs to be running for this rule. Does not filter rules. The field is an object with standard and arbitrary custom fields.
+Specifies an MCP server configuration for this rule. Each rule can specify one MCP server configuration with standard and arbitrary custom fields. Does not filter rules.
+
+**Important:** MCP servers are specified in rules only, not in tasks. Tasks select rules (and thus MCP servers) via selectors.
 
 ```yaml
 ---
@@ -650,10 +617,21 @@ mcp_server:
     host: localhost
     port: 5432
 ---
-# Metadata indicating required MCP server
+# Rule with MCP server configuration
 ```
 
-**Note:** This field is informational and does not affect rule selection.
+**Standard configuration fields:**
+- `command`: The executable to run (e.g., "npx", "python", "docker")
+- `args`: Array of command-line arguments
+- `env`: Map of environment variables
+- `type`: Connection protocol - "stdio" (default), "http", or "sse"
+- `url`: Endpoint URL (required for HTTP/SSE types)
+- `headers`: Custom HTTP headers (for HTTP/SSE types)
+
+**Additional arbitrary fields:**
+You can include any custom fields for your specific server needs (e.g., `custom_config`, `monitoring`, `cache_enabled`, etc.). All fields are preserved in the configuration.
+
+**Note:** This field is metadata and does not affect rule selection.
 
 #### `expand` (optional)
 

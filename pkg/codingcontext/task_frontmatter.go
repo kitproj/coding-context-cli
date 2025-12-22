@@ -28,10 +28,6 @@ type TaskFrontMatter struct {
 	// Does not filter rules, metadata only
 	Timeout string `yaml:"timeout,omitempty" json:"timeout,omitempty"`
 
-	// MCPServer specifies a single MCP server configuration
-	// Does not filter rules, metadata only
-	MCPServer MCPServerConfig `yaml:"mcp_server,omitempty" json:"mcp_server,omitempty"`
-
 	// Resume indicates if this task should be resumed
 	Resume bool `yaml:"resume,omitempty" json:"resume,omitempty"`
 

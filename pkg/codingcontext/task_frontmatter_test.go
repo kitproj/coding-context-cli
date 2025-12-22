@@ -32,12 +32,7 @@ func TestTaskFrontMatter_Marshal(t *testing.T) {
 				Model:      "gpt-4",
 				SingleShot: true,
 				Timeout:    "10m",
-				MCPServer: MCPServerConfig{
-					Type:    TransportTypeStdio,
-					Command: "filesystem-server",
-					Args:    []string{"--verbose"},
-				},
-				Resume: false,
+				Resume:     false,
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},
@@ -49,11 +44,6 @@ languages:
 model: gpt-4
 single_shot: true
 timeout: 10m
-mcp_server:
-  type: stdio
-  command: filesystem-server
-  args:
-  - --verbose
 selectors:
   stage: implementation
 `,
@@ -140,11 +130,6 @@ languages:
 model: gpt-4
 single_shot: true
 timeout: 10m
-mcp_server:
-  type: stdio
-  command: filesystem-server
-  args:
-    - --verbose
 selectors:
   stage: implementation
 `,
@@ -157,11 +142,6 @@ selectors:
 				Model:      "gpt-4",
 				SingleShot: true,
 				Timeout:    "10m",
-				MCPServer: MCPServerConfig{
-					Type:    TransportTypeStdio,
-					Command: "filesystem-server",
-					Args:    []string{"--verbose"},
-				},
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},

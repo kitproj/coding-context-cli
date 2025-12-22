@@ -136,7 +136,7 @@ Result holds the assembled context from running a task:
 - `Agent Agent` - The agent used (from task frontmatter or option)
 
 **Methods:**
-- `MCPServers() []MCPServerConfig` - Returns all MCP server configurations from rules and task as a slice
+- `MCPServers() []MCPServerConfig` - Returns all MCP server configurations from rules as a slice
 
 #### `Markdown[T]`
 
