@@ -81,10 +81,7 @@ Rule files are discovered from directories specified via the `-d` flag (plus aut
 .augment/rules/
 .windsurf/rules/
 .opencode/agent/
-.opencode/command/
-.opencode/rules/
 .github/agents/
-.codex/
 ```
 
 **Specific files:**
@@ -92,6 +89,7 @@ Rule files are discovered from directories specified via the `-d` flag (plus aut
 CLAUDE.local.md
 .github/copilot-instructions.md
 .gemini/styleguide.md
+.augment/guidelines.md
 ```
 
 **Standard files:**

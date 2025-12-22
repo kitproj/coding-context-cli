@@ -12,7 +12,7 @@ Complete reference for the `coding-context` command-line interface.
 ## Synopsis
 
 ```
-coding-context [options] <task-name>
+coding-context [options] <task-name> [user-prompt]
 ```
 
 ## Description
@@ -27,13 +27,27 @@ The Coding Context CLI assembles context from rule files and task prompts, perfo
 
 Task files can contain slash commands (e.g., `/command-name arg`) which reference command files for modular content reuse.
 
+### `[user-prompt]` (optional)
+
+**Optional.** Additional text to append to the task content. This text is appended after a delimiter (`---`) and can contain:
+- Slash commands (e.g., `/command-name arg`) which will be expanded
+- Parameter substitution placeholders (e.g., `${param}`)
+
+The user-prompt is processed the same way as task file content, allowing you to dynamically extend the task at runtime.
+
 **Examples:**
 ```bash
-# Task name (looks up fix-bug.md task file)
+# Task name only (looks up fix-bug.md task file)
 coding-context fix-bug
 
-# With parameters
-coding-context -p issue_key=BUG-123 fix-bug
+# Task with user-prompt
+coding-context fix-bug "Focus on the authentication module"
+
+# User-prompt with parameters
+coding-context -p issue_key=BUG-123 fix-bug "Check the error logs in /var/log"
+
+# User-prompt with slash commands
+coding-context fix-bug "/pre-checks and then analyze the code"
 
 # With selectors
 coding-context -s languages=go fix-bug
@@ -135,6 +149,26 @@ file:///path/to/local/rules
 
 Define a parameter for substitution in task prompts. Variables in task files using `${key}` syntax will be replaced with the specified value.
 
+**Parameter Parsing Features:**
+
+The `-p` flag supports flexible parameter parsing with the following features:
+
+- **Basic key-value pairs**: `key=value`
+- **Multiple values per key**: Duplicate keys are collected into a list (e.g., `-p tag=frontend -p tag=backend` results in `tag` having both values)
+- **Quoted values**: Use single (`'`) or double (`"`) quotes for values containing spaces or special characters
+  - `-p description="Application crashes on startup"`
+  - `-p name='John Doe'`
+- **Escape sequences**: Supported in both quoted and unquoted values
+  - Standard: `\n` (newline), `\t` (tab), `\r` (carriage return), `\\` (backslash)
+  - Quotes: `\"` (double quote), `\'` (single quote)
+  - Unicode: `\uXXXX` where XXXX are four hexadecimal digits
+  - Hex: `\xHH` where HH are two hexadecimal digits
+  - Octal: `\OOO` where OOO are up to three octal digits
+- **Case-insensitive keys**: Keys are automatically converted to lowercase
+- **UTF-8 support**: Full Unicode support in keys and values
+- **Flexible separators**: Multiple `-p` flags can be used, or a single flag can contain comma or whitespace-separated pairs
+- **Empty values**: Unquoted empty values (`key=`) result in empty parameter, quoted empty values (`key=""`) result in empty string
+
 **Examples:**
 ```bash
 # Single parameter
@@ -153,23 +187,27 @@ coding-context \
 **Type:** String  
 **Default:** (empty)
 
-Specify the target agent being used. When set, this excludes that agent's own rule paths (since the agent reads those itself) while including rules from other agents and generic rules.
+Specify the target agent being used. This is currently used for:
+1. **Write Rules Mode**: With `-w` flag, determines where to write rules (e.g., `~/.github/agents/AGENTS.md` for copilot)
+
+> **Note:** Agent-based rule filtering is not currently implemented. All rules are included regardless of the `-a` value.
 
 **Supported agents:** `cursor`, `opencode`, `copilot`, `claude`, `gemini`, `augment`, `windsurf`, `codex`
 
 **How it works:**
-- When `-a cursor` is specified, paths like `.cursor/rules` and `.cursorrules` are excluded
-- Rules from other agents (e.g., `.opencode/agent`, `.github/copilot-instructions.md`) are included
-- Generic rules from `.agents/rules` are always included
-- The agent name is automatically added as a selector for rule filtering
+- The agent value is stored in the context (can come from `-a` flag or task frontmatter)
+- With `-w` flag, the agent determines the user rules path for writing
+- All rules are currently included regardless of agent value
+
+**Agent Precedence:**
+- If a task specifies an `agent` field in its frontmatter, that takes precedence over the `-a` flag
+- The `-a` flag is used when the task doesn't specify an agent
+- Either the task's agent field or `-a` flag can be used to set the agent
 
 **Example:**
 ```bash
-# Using Cursor - excludes .cursor/ paths, includes others
-coding-context -a cursor fix-bug
-
-# Using GitHub Copilot - excludes .github/copilot-instructions.md, includes others
-coding-context -a copilot implement-feature
+# Use with write rules mode
+coding-context -a copilot -w implement-feature
 ```
 
 **Note:** Task files can override this with an `agent` field in their frontmatter.
@@ -218,40 +256,6 @@ coding-context -s languages=go -s priority=high fix-bug
 
 # Select specific task variant
 coding-context -s environment=production deploy
-```
-
-**Note:** When filtering by language, use `-s languages=go` (plural). The selector key is `languages` (plural), matching the frontmatter field name.
-
-### `-a <agent>`
-
-**Type:** String (agent name)  
-**Default:** (empty)
-
-Specify the default agent to use. This acts as a fallback if the task doesn't specify an agent in its frontmatter.
-
-**Supported agents:**
-- `cursor` - [Cursor](https://cursor.sh/)
-- `opencode` - [OpenCode.ai](https://opencode.ai/)
-- `copilot` - [GitHub Copilot](https://github.com/features/copilot)
-- `claude` - [Anthropic Claude](https://claude.ai/)
-- `gemini` - [Google Gemini](https://gemini.google.com/)
-- `augment` - [Augment](https://augmentcode.com/)
-- `windsurf` - [Windsurf](https://codeium.com/windsurf)
-- `codex` - [Codex](https://codex.ai/)
-
-**Agent Precedence:**
-- If the task specifies an `agent` field in its frontmatter, that agent **overrides** the `-a` flag
-- The `-a` flag serves as a **default** agent when the task doesn't specify one
-- This allows tasks to specify their preferred agent while supporting a command-line default
-
-**Examples:**
-```bash
-# Use copilot as the default agent
-coding-context -a copilot fix-bug
-
-# Task with agent field will override -a flag
-# If fix-bug.md has "agent: claude", it will use claude instead of copilot
-coding-context -a copilot fix-bug
 ```
 
 ### `-w`
@@ -352,14 +356,17 @@ coding-context fix-bug  # Bootstrap scripts can use these variables
 ### Basic Usage
 
 ```bash
-# Free-text prompt (used directly as task content)
-coding-context "Please help me review this code for security issues"
-
 # Task name lookup
 coding-context code-review
 
+# Task with user-prompt
+coding-context code-review "Focus on security vulnerabilities"
+
 # With parameters
 coding-context -p pr_number=123 code-review
+
+# User-prompt with parameters
+coding-context -p issue=BUG-456 fix-bug "Check the database connection logic"
 
 # With selectors
 coding-context -s languages=python fix-bug
@@ -370,6 +377,9 @@ coding-context \
   -s stage=implementation \
   -p feature_name="Authentication" \
   implement-feature
+
+# User-prompt with slash commands
+coding-context implement-feature "/pre-checks and validate the requirements"
 ```
 
 ### Working Directory
@@ -420,6 +430,9 @@ coding-context -r implement-feature | ai-agent
 # Claude
 coding-context fix-bug | claude
 
+# With user-prompt
+coding-context fix-bug "Focus on edge cases" | claude
+
 # LLM tool
 coding-context fix-bug | llm -m claude-3-5-sonnet-20241022
 
@@ -430,8 +443,8 @@ coding-context code-review | openai api completions.create -m gpt-4
 coding-context fix-bug > context.txt
 cat context.txt | your-ai-agent
 
-# Free-text prompt
-coding-context "Please help me debug the auth module" | claude
+# User-prompt with parameters
+coding-context -p issue=123 fix-bug "Check logs in /var/log" | claude
 ```
 
 ### Token Monitoring

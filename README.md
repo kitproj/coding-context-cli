@@ -80,7 +80,17 @@ sudo chmod +x /usr/local/bin/coding-context
 
 ```
 Usage:
-  coding-context [options] <task-name>
+  coding-context [options] <task-name> [user-prompt]
+
+Arguments:
+  <task-name>
+      The name of a task file to look up in task search paths (.agents/tasks).
+      Task files are matched by filename (without .md extension).
+  
+  [user-prompt] (optional)
+      Optional text to append to the task. It can contain slash commands
+      (e.g., '/command-name') which will be expanded, and parameter 
+      substitution (${param}).
 
 Options:
   -C string
@@ -96,7 +106,7 @@ Options:
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
   -a string
-    	Default agent to use if task doesn't specify one. Excludes that agent's own rule paths (since the agent reads those itself). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
+    	Target agent to use (excludes rules from that agent's own paths). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
   -w	Write rules to agent's config file and output only task to stdout. Requires agent (via task or -a flag).
 ```
 
@@ -179,14 +189,15 @@ Each of these would have a corresponding `.md` file (e.g., `triage-bug.md`, `fix
 
 The tool assembles the context in the following order:
 
-1.  **Rule Files**: It searches a list of predefined locations for rule files (`.md` or `.mdc`). These locations include the current directory, ancestor directories, user's home directory, and system-wide directories.
+1.  **Rule Files**: It searches for rule files (`.md` or `.mdc`) in directories specified via `-d` flags and automatically-added working directory and home directory.
 2.  **Rule Bootstrap Scripts**: For each rule file found (e.g., `my-rule.md`), it looks for an executable script named `my-rule-bootstrap`. If found, it runs the script before processing the rule file. These scripts are meant for bootstrapping the environment (e.g., installing tools) and their output is sent to `stderr`, not into the main context.
 3.  **Filtering**: If `-s` (include) flag is used, it parses the YAML frontmatter of each rule file to decide whether to include it. Note that selectors can only match top-level YAML fields (e.g., `language: go`), not nested fields.
 4.  **Task Prompt**: It searches for a task file matching the filename (without `.md` extension). Tasks are matched by filename, not by `task_name` in frontmatter. If selectors are provided with `-s`, they are used to filter between multiple task files with the same filename.
 5.  **Task Bootstrap Script**: For the task file found (e.g., `fix-bug.md`), it looks for an executable script named `fix-bug-bootstrap`. If found, it runs the script before processing the task file. This allows task-specific environment setup or data preparation.
-6.  **Parameter Expansion**: It substitutes variables in the task prompt using the `-p` flags.
-7.  **Output**: It prints the content of all included rule files, followed by the expanded task prompt, to standard output.
-8.  **Token Count**: A running total of estimated tokens is printed to standard error.
+6.  **User Prompt Appending**: If a user-prompt argument is provided, it is appended to the task content after a delimiter (`---`).
+7.  **Parameter Expansion**: It substitutes variables in the task prompt and user-prompt using the `-p` flags.
+8.  **Output**: It prints the content of all included rule files, followed by the expanded task prompt, to standard output.
+9.  **Token Count**: A running total of estimated tokens is printed to standard error.
 
 ### File Search Paths
 
@@ -194,7 +205,6 @@ The tool looks for task and rule files in the following locations, in order of p
 
 **Tasks:**
 - `./.agents/tasks/*.md` (task name matches filename without `.md` extension)
-- `~/.agents/tasks/*.md`
 
 **Commands** (reusable content blocks referenced via slash commands like `/command-name` inside task content):
 - `./.agents/commands/*.md`
@@ -204,9 +214,9 @@ The tool looks for task and rule files in the following locations, in order of p
 **Rules:**
 The tool searches for a variety of files and directories, including:
 - `CLAUDE.local.md`
-- `.agents/rules`, `.cursor/rules`, `.augment/rules`, `.windsurf/rules`, `.opencode/agent`, `.opencode/rules`
-- `.github/copilot-instructions.md`, `.github/agents`, `.gemini/styleguide.md`
-- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.codex/AGENTS.md`
+- `.agents/rules`, `.cursor/rules`, `.augment/rules`, `.windsurf/rules`, `.opencode/agent`
+- `.github/copilot-instructions.md`, `.github/agents`, `.gemini/styleguide.md`, `.augment/guidelines.md`
+- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`
 - User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`, `~/.opencode/rules`, etc.
 
 ### Remote File System Support
@@ -300,10 +310,10 @@ Deploy the application to production with all safety checks.
 You can then select the appropriate task using:
 ```bash
 # Deploy to staging
-coding-context -s environment=staging /deploy
+coding-context -s environment=staging deploy
 
 # Deploy to production
-coding-context -s environment=production /deploy
+coding-context -s environment=production deploy
 ```
 
 #### Task Frontmatter Selectors
@@ -326,11 +336,6 @@ When you run this task, it automatically applies the selectors:
 ```bash
 # This command automatically includes only rules with languages=go and stage=implementation
 coding-context implement-feature
-```
-
-This is equivalent to:
-```bash
-coding-context -s languages=go -s stage=implementation /implement-feature
 ```
 
 **Selectors support OR logic for the same key using arrays:**
@@ -394,13 +399,12 @@ This is particularly useful in agentic workflows where an AI agent has already b
 - Skipping all rules output
 
 **Example usage:**
-
 ```bash
 # Initial task invocation (includes all rules, uses task with resume: false)
-coding-context -s resume=false /fix-bug | ai-agent
+coding-context -s resume=false fix-bug | ai-agent
 
 # Resume the task (skips rules, uses task with resume: true)
-coding-context -r /fix-bug | ai-agent
+coding-context -r fix-bug | ai-agent
 ```
 
 **Example task files for resume mode:**
@@ -449,7 +453,7 @@ languages:
 To include this rule only when working on Go code, you would use `-s languages=go`:
 
 ```bash
-coding-context -s languages=go /fix-bug
+coding-context -s languages=go fix-bug
 ```
 
 This will include all rules with `languages: [ go ]` in their frontmatter, excluding rules for other languages.
@@ -468,10 +472,10 @@ Then select only the relevant rules:
 
 ```bash
 # Work on Python code with Python-specific rules
-coding-context -s languages=python /fix-bug
+coding-context -s languages=python fix-bug
 
 # Work on JavaScript code with JavaScript-specific rules
-coding-context -s languages=javascript /enhance-feature
+coding-context -s languages=javascript enhance-feature
 ```
 
 **Language Values**
@@ -503,42 +507,34 @@ If you need to filter on nested data, flatten your frontmatter structure to use 
 
 ### Targeting a Specific Agent
 
-When working with a specific AI coding agent, the agent itself will read its own configuration files. The `-a` flag lets you specify which agent you're using, automatically excluding that agent's specific rule paths while including rules from other agents and generic rules.
+The `-a` flag specifies which AI coding agent you're using. This information is currently used for:
+
+1. **Write Rules Mode**: With the `-w` flag, determines where to write rules (e.g., `~/.github/agents/AGENTS.md` for `copilot`)
+
+> **Note:** Agent-based rule filtering is not currently implemented. All rules are included regardless of the `-a` value.
 
 **Supported agents:**
-- `cursor` - Excludes `.cursor/rules`, `.cursorrules`; includes other agents and generic rules
-- `opencode` - Excludes `.opencode/agent`, `.opencode/command`; includes other agents and generic rules
-- `copilot` - Excludes `.github/copilot-instructions.md`, `.github/agents`; includes other agents and generic rules
-- `claude` - Excludes `.claude/`, `CLAUDE.md`, `CLAUDE.local.md`; includes other agents and generic rules
-- `gemini` - Excludes `.gemini/`, `GEMINI.md`; includes other agents and generic rules
-- `augment` - Excludes `.augment/`; includes other agents and generic rules
-- `windsurf` - Excludes `.windsurf/`, `.windsurfrules`; includes other agents and generic rules
-- `codex` - Excludes `.codex/`, `AGENTS.md`; includes other agents and generic rules
+- `cursor` - Cursor IDE
+- `opencode` - OpenCode.ai  
+- `copilot` - GitHub Copilot
+- `claude` - Anthropic Claude
+- `gemini` - Google Gemini
+- `augment` - Augment
+- `windsurf` - Windsurf
+- `codex` - Codex
 
-**Example: Using Cursor:**
+**Example:**
 
 ```bash
-# When using Cursor, exclude .cursor/ and .cursorrules (Cursor reads those itself)
-# But include rules from other agents and generic rules
-coding-context -a cursor /fix-bug
+# Use with write rules mode
+coding-context -a copilot -w fix-bug
 ```
 
 **How it works:**
-- The `-a` flag sets the target agent
-- The target agent's own paths are excluded (e.g., `.cursor/` for cursor)
-- Rules from other agents are included (e.g., `.opencode/`, `.github/copilot-instructions.md`)
-- Generic rules (from `.agents/rules`) are always included
-- The agent name is automatically added as a selector, so generic rules can filter themselves with `agent: cursor` in frontmatter
-
-**Example generic rule with agent filtering:**
-
-```markdown
----
-agent: cursor
----
-# This rule only applies when using Cursor
-Use Cursor-specific features...
-```
+- The `-a` flag sets the target agent value
+- The agent value is stored in the context for use by the `-w` flag
+- With `-w`, the agent determines where to write rules to the user's home directory
+- All rules are currently included regardless of agent value
 
 **Agent field in task frontmatter:**
 
@@ -551,15 +547,7 @@ agent: cursor
 # This task automatically sets the agent to cursor
 ```
 
-This is useful for tasks designed for specific agents, ensuring the correct agent context is used regardless of command-line flags.
-
-**Use cases:**
-- **Avoid duplication**: The agent reads its own config, so exclude it from the context
-- **Cross-agent rules**: Include rules from other agents that might be relevant
-- **Generic rules**: Always include generic rules, with optional agent-specific filtering
-- **Task-specific agents**: Tasks can enforce a specific agent context
-
-The exclusion happens before rule processing, so excluded paths are never loaded or counted toward token estimates.
+This is useful for tasks designed for specific agents, ensuring the correct agent is set for determining the write path with `-w`.
 
 ### Bootstrap Scripts
 

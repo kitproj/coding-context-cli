@@ -1,9 +1,10 @@
-package codingcontext
+package markdown
 
 import (
 	"testing"
 
 	"github.com/goccy/go-yaml"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
 )
 
 func TestRuleFrontMatter_Marshal(t *testing.T) {
@@ -50,8 +51,8 @@ agent: cursor
 				TaskNames: []string{"test-task"},
 				Languages: []string{"go", "python"},
 				Agent:     "copilot",
-				MCPServer: MCPServerConfig{
-					Type:    TransportTypeStdio,
+				MCPServer: mcp.MCPServerConfig{
+					Type:    mcp.TransportTypeStdio,
 					Command: "database-server",
 					Args:    []string{"--port", "5432"},
 				},

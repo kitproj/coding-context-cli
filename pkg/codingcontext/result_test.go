@@ -2,89 +2,92 @@ package codingcontext
 
 import (
 	"testing"
+
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
 )
 
 func TestResult_MCPServers(t *testing.T) {
 	tests := []struct {
 		name   string
 		result Result
-		want   []MCPServerConfig
+		want   []mcp.MCPServerConfig
 	}{
 		{
 			name: "no MCP servers",
 			result: Result{
-				Rules: []Markdown[RuleFrontMatter]{},
-				Task: Markdown[TaskFrontMatter]{
-					FrontMatter: TaskFrontMatter{},
+				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{},
+				Task: markdown.Markdown[markdown.TaskFrontMatter]{
+					FrontMatter: markdown.TaskFrontMatter{},
 				},
 			},
-			want: []MCPServerConfig{},
+			want: []mcp.MCPServerConfig{},
 		},
 		{
 			name: "MCP servers from rules only",
 			result: Result{
-				Rules: []Markdown[RuleFrontMatter]{
+				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
-						FrontMatter: RuleFrontMatter{
-							MCPServer: MCPServerConfig{Type: TransportTypeStdio, Command: "jira"},
+						FrontMatter: markdown.RuleFrontMatter{
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "jira"},
 						},
 					},
 					{
-						FrontMatter: RuleFrontMatter{
-							MCPServer: MCPServerConfig{Type: TransportTypeHTTP, URL: "https://api.example.com"},
+						FrontMatter: markdown.RuleFrontMatter{
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
 						},
 					},
 				},
-				Task: Markdown[TaskFrontMatter]{
-					FrontMatter: TaskFrontMatter{},
+				Task: markdown.Markdown[markdown.TaskFrontMatter]{
+					FrontMatter: markdown.TaskFrontMatter{},
 				},
 			},
-			want: []MCPServerConfig{
-				{Type: TransportTypeStdio, Command: "jira"},
-				{Type: TransportTypeHTTP, URL: "https://api.example.com"},
+			want: []mcp.MCPServerConfig{
+				{Type: mcp.TransportTypeStdio, Command: "jira"},
+				{Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
 			},
 		},
 		{
 			name: "multiple rules with MCP servers",
 			result: Result{
-				Rules: []Markdown[RuleFrontMatter]{
+				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
-						FrontMatter: RuleFrontMatter{
-							MCPServer: MCPServerConfig{Type: TransportTypeStdio, Command: "server1"},
+						FrontMatter: markdown.RuleFrontMatter{
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
 						},
 					},
 					{
-						FrontMatter: RuleFrontMatter{
-							MCPServer: MCPServerConfig{Type: TransportTypeStdio, Command: "server2"},
+						FrontMatter: markdown.RuleFrontMatter{
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
 						},
 					},
 					{
-						FrontMatter: RuleFrontMatter{},
+						FrontMatter: markdown.RuleFrontMatter{},
 					},
 				},
-				Task: Markdown[TaskFrontMatter]{
-					FrontMatter: TaskFrontMatter{},
+				Task: markdown.Markdown[markdown.TaskFrontMatter]{
+					FrontMatter: markdown.TaskFrontMatter{},
 				},
 			},
-			want: []MCPServerConfig{
-				{Type: TransportTypeStdio, Command: "server1"},
-				{Type: TransportTypeStdio, Command: "server2"},
+			want: []mcp.MCPServerConfig{
+				{Type: mcp.TransportTypeStdio, Command: "server1"},
+				{Type: mcp.TransportTypeStdio, Command: "server2"},
 				{}, // Empty rule MCP server
 			},
 		},
 		{
 			name: "rule without MCP server",
 			result: Result{
-				Rules: []Markdown[RuleFrontMatter]{
+				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
-						FrontMatter: RuleFrontMatter{},
+						FrontMatter: markdown.RuleFrontMatter{},
 					},
 				},
-				Task: Markdown[TaskFrontMatter]{
-					FrontMatter: TaskFrontMatter{},
+				Task: markdown.Markdown[markdown.TaskFrontMatter]{
+					FrontMatter: markdown.TaskFrontMatter{},
 				},
 			},
-			want: []MCPServerConfig{
+			want: []mcp.MCPServerConfig{
 				{}, // Empty rule MCP server
 			},
 		},

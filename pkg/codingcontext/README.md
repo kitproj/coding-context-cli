@@ -22,15 +22,16 @@ import (
     "os"
 
     "github.com/kitproj/coding-context-cli/pkg/codingcontext"
+    "github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparams"
 )
 
 func main() {
     // Create a new context with options
     ctx := codingcontext.New(
         codingcontext.WithSearchPaths("file://.", "file://"+os.Getenv("HOME")),
-        codingcontext.WithParams(codingcontext.Params{
-            "issue_number": "123",
-            "feature":      "authentication",
+        codingcontext.WithParams(taskparams.Params{
+            "issue_number": []string{"123"},
+            "feature":      []string{"authentication"},
         }),
         codingcontext.WithLogger(slog.New(slog.NewTextHandler(os.Stderr, nil))),
     )
@@ -63,13 +64,15 @@ import (
     "os"
 
     "github.com/kitproj/coding-context-cli/pkg/codingcontext"
+    "github.com/kitproj/coding-context-cli/pkg/codingcontext/selectors"
+    "github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparams"
 )
 
 func main() {
     // Create selectors for filtering rules
-    selectors := make(codingcontext.Selectors)
-    selectors.SetValue("language", "go")
-    selectors.SetValue("stage", "implementation")
+    sel := make(selectors.Selectors)
+    sel.SetValue("language", "go")
+    sel.SetValue("stage", "implementation")
 
     // Create context with all options
     ctx := codingcontext.New(
@@ -77,10 +80,10 @@ func main() {
             "file://.",
             "git::https://github.com/org/repo//path/to/rules",
         ),
-        codingcontext.WithParams(codingcontext.Params{
-            "issue_number": "123",
+        codingcontext.WithParams(taskparams.Params{
+            "issue_number": []string{"123"},
         }),
-        codingcontext.WithSelectors(selectors),
+        codingcontext.WithSelectors(sel),
         codingcontext.WithAgent(codingcontext.AgentCursor),
         codingcontext.WithResume(false),
         codingcontext.WithUserPrompt("Additional context or instructions"),
@@ -232,11 +235,14 @@ Type representing MCP transport protocol (string type):
 
 #### `Params`
 
-Map of parameter key-value pairs for template substitution: `map[string]string`
+Map of parameter key-value pairs for template substitution: `map[string][]string`
 
 **Methods:**
 - `String() string` - Returns string representation
 - `Set(value string) error` - Parses and sets key=value pair (implements flag.Value)
+- `Value(key string) string` - Returns the first value for the given key
+- `Lookup(key string) (string, bool)` - Returns the first value and whether the key exists
+- `Values(key string) []string` - Returns all values for the given key
 
 #### `Selectors`
 
@@ -262,7 +268,7 @@ Types for parsing task content with slash commands:
 - `Argument` - Slash command argument (can be positional or named key=value)
 
 **Methods:**
-- `(*SlashCommand) Params() map[string]string` - Returns parsed parameters as map
+- `(*SlashCommand) Params() taskparams.Params` - Returns parsed parameters as map
 - `(*Text) Content() string` - Returns text content as string
 - Various `String()` methods for formatting each type
 
@@ -284,8 +290,8 @@ Creates a new Context with the given options.
 
 **Options:**
 - `WithSearchPaths(paths ...string)` - Add search paths (supports go-getter URLs)
-- `WithParams(params Params)` - Set parameters for substitution
-- `WithSelectors(selectors Selectors)` - Set selectors for filtering rules
+- `WithParams(params taskparams.Params)` - Set parameters for substitution (import `taskparams` package)
+- `WithSelectors(selectors selectors.Selectors)` - Set selectors for filtering rules (import `selectors` package)
 - `WithAgent(agent Agent)` - Set target agent (excludes that agent's own rules)
 - `WithResume(resume bool)` - Enable resume mode (skips rules)
 - `WithUserPrompt(userPrompt string)` - Set user prompt to append to task
@@ -304,23 +310,25 @@ Parses a markdown file into frontmatter and content. Generic function that works
 
 Parses task text content into blocks of text and slash commands.
 
-#### `ParseParams(s string) (Params, error)`
+#### `taskparams.Parse(s string) (taskparams.Params, error)`
 
 Parses a string containing key=value pairs with quoted values.
 
 **Examples:**
 ```go
+import "github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparams"
+
 // Parse quoted key-value pairs
-params, _ := ParseParams(`key1="value1" key2="value2"`)
-// Result: map[string]string{"key1": "value1", "key2": "value2"}
+params, _ := taskparams.Parse(`key1="value1" key2="value2"`)
+// Result: taskparams.Params{"key1": []string{"value1"}, "key2": []string{"value2"}}
 
 // Parse with spaces in values
-params, _ := ParseParams(`key1="value with spaces" key2="value2"`)
-// Result: map[string]string{"key1": "value with spaces", "key2": "value2"}
+params, _ := taskparams.Parse(`key1="value with spaces" key2="value2"`)
+// Result: taskparams.Params{"key1": []string{"value with spaces"}, "key2": []string{"value2"}}
 
 // Parse with escaped quotes
-params, _ := ParseParams(`key1="value with \"escaped\" quotes"`)
-// Result: map[string]string{"key1": "value with \"escaped\" quotes"}
+params, _ := taskparams.Parse(`key1="value with \"escaped\" quotes"`)
+// Result: taskparams.Params{"key1": []string{"value with \"escaped\" quotes"}}
 ```
 
 #### `ParseAgent(s string) (Agent, error)`

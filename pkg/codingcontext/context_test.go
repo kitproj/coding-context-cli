@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/selectors"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparser"
 )
 
 // Test helper functions for creating fixtures
@@ -16,7 +19,7 @@ import (
 func createTask(t *testing.T, dir, name, frontmatter, content string) {
 	t.Helper()
 	taskDir := filepath.Join(dir, ".agents", "tasks")
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
+	if err := os.MkdirAll(taskDir, 0o755); err != nil {
 		t.Fatalf("failed to create task directory: %v", err)
 	}
 
@@ -28,7 +31,7 @@ func createTask(t *testing.T, dir, name, frontmatter, content string) {
 	}
 
 	taskPath := filepath.Join(taskDir, name+".md")
-	if err := os.WriteFile(taskPath, []byte(fileContent), 0644); err != nil {
+	if err := os.WriteFile(taskPath, []byte(fileContent), 0o644); err != nil {
 		t.Fatalf("failed to create task file: %v", err)
 	}
 }
@@ -38,7 +41,7 @@ func createRule(t *testing.T, dir, relPath, frontmatter, content string) {
 	t.Helper()
 	rulePath := filepath.Join(dir, relPath)
 	ruleDir := filepath.Dir(rulePath)
-	if err := os.MkdirAll(ruleDir, 0755); err != nil {
+	if err := os.MkdirAll(ruleDir, 0o755); err != nil {
 		t.Fatalf("failed to create rule directory: %v", err)
 	}
 
@@ -49,7 +52,7 @@ func createRule(t *testing.T, dir, relPath, frontmatter, content string) {
 		fileContent = content
 	}
 
-	if err := os.WriteFile(rulePath, []byte(fileContent), 0644); err != nil {
+	if err := os.WriteFile(rulePath, []byte(fileContent), 0o644); err != nil {
 		t.Fatalf("failed to create rule file: %v", err)
 	}
 }
@@ -58,7 +61,7 @@ func createRule(t *testing.T, dir, relPath, frontmatter, content string) {
 func createCommand(t *testing.T, dir, name, frontmatter, content string) {
 	t.Helper()
 	cmdDir := filepath.Join(dir, ".agents", "commands")
-	if err := os.MkdirAll(cmdDir, 0755); err != nil {
+	if err := os.MkdirAll(cmdDir, 0o755); err != nil {
 		t.Fatalf("failed to create command directory: %v", err)
 	}
 
@@ -70,7 +73,7 @@ func createCommand(t *testing.T, dir, name, frontmatter, content string) {
 	}
 
 	cmdPath := filepath.Join(cmdDir, name+".md")
-	if err := os.WriteFile(cmdPath, []byte(fileContent), 0644); err != nil {
+	if err := os.WriteFile(cmdPath, []byte(fileContent), 0o644); err != nil {
 		t.Fatalf("failed to create command file: %v", err)
 	}
 }
@@ -82,7 +85,7 @@ func createBootstrapScript(t *testing.T, dir, rulePath, scriptContent string) {
 	baseNameWithoutExt := strings.TrimSuffix(fullRulePath, filepath.Ext(fullRulePath))
 	bootstrapPath := baseNameWithoutExt + "-bootstrap"
 
-	if err := os.WriteFile(bootstrapPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(bootstrapPath, []byte(scriptContent), 0o755); err != nil {
 		t.Fatalf("failed to create bootstrap script: %v", err)
 	}
 }
@@ -115,21 +118,21 @@ func TestNew(t *testing.T) {
 		{
 			name: "with params",
 			opts: []Option{
-				WithParams(Params{"key1": "value1", "key2": "value2"}),
+				WithParams(taskparser.Params{"key1": []string{"value1"}, "key2": []string{"value2"}}),
 			},
 			check: func(t *testing.T, c *Context) {
-				if c.params["key1"] != "value1" {
-					t.Errorf("expected params[key1]=value1, got %v", c.params["key1"])
+				if c.params.Value("key1") != "value1" {
+					t.Errorf("expected params[key1]=value1, got %v", c.params.Value("key1"))
 				}
-				if c.params["key2"] != "value2" {
-					t.Errorf("expected params[key2]=value2, got %v", c.params["key2"])
+				if c.params.Value("key2") != "value2" {
+					t.Errorf("expected params[key2]=value2, got %v", c.params.Value("key2"))
 				}
 			},
 		},
 		{
 			name: "with selectors",
 			opts: []Option{
-				WithSelectors(Selectors{"env": {"dev": true, "test": true}}),
+				WithSelectors(selectors.Selectors{"env": {"dev": true, "test": true}}),
 			},
 			check: func(t *testing.T, c *Context) {
 				if !c.includes.GetValue("env", "dev") {
@@ -204,14 +207,14 @@ func TestNew(t *testing.T) {
 		{
 			name: "multiple options combined",
 			opts: []Option{
-				WithParams(Params{"env": "production"}),
-				WithSelectors(Selectors{"lang": {"go": true}}),
+				WithParams(taskparser.Params{"env": []string{"production"}}),
+				WithSelectors(selectors.Selectors{"lang": {"go": true}}),
 				WithSearchPaths("/custom/path"),
 				WithResume(false),
 				WithAgent(AgentCopilot),
 			},
 			check: func(t *testing.T, c *Context) {
-				if c.params["env"] != "production" {
+				if c.params.Value("env") != "production" {
 					t.Error("params not set correctly")
 				}
 				if !c.includes.GetValue("lang", "go") {
@@ -289,7 +292,7 @@ func TestContext_Run_Basic(t *testing.T) {
 				createTask(t, dir, "params-task", "", "Environment: ${env}\nFeature: ${feature}")
 			},
 			opts: []Option{
-				WithParams(Params{"env": "production", "feature": "auth"}),
+				WithParams(taskparser.Params{"env": []string{"production"}, "feature": []string{"auth"}}),
 			},
 			taskName: "params-task",
 			wantErr:  false,
@@ -341,7 +344,7 @@ func TestContext_Run_Basic(t *testing.T) {
 				createTask(t, dir, "multi-params", "", "User: ${user}, Email: ${email}, Role: ${role}")
 			},
 			opts: []Option{
-				WithParams(Params{"user": "alice", "email": "alice@example.com", "role": "admin"}),
+				WithParams(taskparser.Params{"user": []string{"alice"}, "email": []string{"alice@example.com"}, "role": []string{"admin"}}),
 			},
 			taskName: "multi-params",
 			wantErr:  false,
@@ -449,7 +452,7 @@ func TestContext_Run_Rules(t *testing.T) {
 				createRule(t, dir, ".agents/rules/param-rule.md", "", "Project: ${project}")
 			},
 			opts: []Option{
-				WithParams(Params{"project": "myapp"}),
+				WithParams(taskparser.Params{"project": []string{"myapp"}}),
 			},
 			taskName: "param-task",
 			wantErr:  false,
@@ -578,7 +581,7 @@ func TestContext_Run_Rules(t *testing.T) {
 				createRule(t, dir, ".agents/rules/test-rule.md", "env: test", "Test rule")
 			},
 			opts: []Option{
-				WithSelectors(Selectors{"env": {"development": true}}), // CLI selector for development
+				WithSelectors(selectors.Selectors{"env": {"development": true}}), // CLI selector for development
 			},
 			taskName: "or-task",
 			wantErr:  false,
@@ -624,7 +627,7 @@ func TestContext_Run_Rules(t *testing.T) {
 				createRule(t, dir, ".agents/rules/test-rule.md", "env: test", "Test rule")
 			},
 			opts: []Option{
-				WithSelectors(Selectors{"env": {"development": true}}), // CLI adds development
+				WithSelectors(selectors.Selectors{"env": {"development": true}}), // CLI adds development
 			},
 			taskName: "array-or",
 			wantErr:  false,
@@ -772,7 +775,7 @@ func TestContext_Run_Commands(t *testing.T) {
 				createCommand(t, dir, "deploy", "", "Deploying to ${env}")
 			},
 			opts: []Option{
-				WithParams(Params{"env": "staging"}),
+				WithParams(taskparser.Params{"env": []string{"staging"}}),
 			},
 			taskName: "ctx-params",
 			wantErr:  false,
@@ -817,7 +820,7 @@ func TestContext_Run_Commands(t *testing.T) {
 				createCommand(t, dir, "msg", "", "Value: ${value}")
 			},
 			opts: []Option{
-				WithParams(Params{"value": "general"}),
+				WithParams(taskparser.Params{"value": []string{"general"}}),
 			},
 			taskName: "override-param",
 			wantErr:  false,
@@ -915,7 +918,7 @@ func TestContext_Run_Integration(t *testing.T) {
 				createRule(t, dir, ".agents/rules/dev.md", "env: development", "Dev only rule")
 			},
 			opts: []Option{
-				WithParams(Params{"app": "myservice", "env": "production"}),
+				WithParams(taskparser.Params{"app": []string{"myservice"}, "env": []string{"production"}}),
 			},
 			taskName: "fullworkflow",
 			wantErr:  false,
@@ -1006,7 +1009,7 @@ func TestContext_Run_Integration(t *testing.T) {
 
 				// Create second directory with additional rule
 				secondDir := filepath.Join(dir, "second")
-				if err := os.MkdirAll(secondDir, 0755); err != nil {
+				if err := os.MkdirAll(secondDir, 0o755); err != nil {
 					t.Fatalf("failed to create second dir: %v", err)
 				}
 				createRule(t, secondDir, ".agents/rules/rule2.md", "", "Rule from second path")
@@ -1121,7 +1124,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createTask(t, dir, "no-expand", "expand: false", "Issue: ${issue_number}\nTitle: ${issue_title}")
 			},
 			opts: []Option{
-				WithParams(Params{"issue_number": "123", "issue_title": "Bug fix"}),
+				WithParams(taskparser.Params{"issue_number": []string{"123"}, "issue_title": []string{"Bug fix"}}),
 			},
 			taskName: "no-expand",
 			wantErr:  false,
@@ -1140,7 +1143,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createTask(t, dir, "expand", "expand: true", "Issue: ${issue_number}\nTitle: ${issue_title}")
 			},
 			opts: []Option{
-				WithParams(Params{"issue_number": "123", "issue_title": "Bug fix"}),
+				WithParams(taskparser.Params{"issue_number": []string{"123"}, "issue_title": []string{"Bug fix"}}),
 			},
 			taskName: "expand",
 			wantErr:  false,
@@ -1159,7 +1162,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createTask(t, dir, "default", "", "Env: ${env}")
 			},
 			opts: []Option{
-				WithParams(Params{"env": "production"}),
+				WithParams(taskparser.Params{"env": []string{"production"}}),
 			},
 			taskName: "default",
 			wantErr:  false,
@@ -1176,7 +1179,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createCommand(t, dir, "deploy", "expand: false", "Deploying to ${env}")
 			},
 			opts: []Option{
-				WithParams(Params{"env": "staging"}),
+				WithParams(taskparser.Params{"env": []string{"staging"}}),
 			},
 			taskName: "cmd-no-expand",
 			wantErr:  false,
@@ -1193,7 +1196,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createCommand(t, dir, "deploy", "expand: true", "Deploying to ${env}")
 			},
 			opts: []Option{
-				WithParams(Params{"env": "staging"}),
+				WithParams(taskparser.Params{"env": []string{"staging"}}),
 			},
 			taskName: "cmd-expand",
 			wantErr:  false,
@@ -1210,7 +1213,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createCommand(t, dir, "info", "", "Project: ${project}")
 			},
 			opts: []Option{
-				WithParams(Params{"project": "myapp"}),
+				WithParams(taskparser.Params{"project": []string{"myapp"}}),
 			},
 			taskName: "cmd-default",
 			wantErr:  false,
@@ -1227,7 +1230,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createRule(t, dir, ".agents/rules/rule1.md", "expand: false", "Version: ${version}")
 			},
 			opts: []Option{
-				WithParams(Params{"version": "1.0.0"}),
+				WithParams(taskparser.Params{"version": []string{"1.0.0"}}),
 			},
 			taskName: "rule-no-expand",
 			wantErr:  false,
@@ -1247,7 +1250,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createRule(t, dir, ".agents/rules/rule1.md", "expand: true", "Version: ${version}")
 			},
 			opts: []Option{
-				WithParams(Params{"version": "1.0.0"}),
+				WithParams(taskparser.Params{"version": []string{"1.0.0"}}),
 			},
 			taskName: "rule-expand",
 			wantErr:  false,
@@ -1267,7 +1270,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createRule(t, dir, ".agents/rules/rule1.md", "", "App: ${app}")
 			},
 			opts: []Option{
-				WithParams(Params{"app": "service"}),
+				WithParams(taskparser.Params{"app": []string{"service"}}),
 			},
 			taskName: "rule-default",
 			wantErr:  false,
@@ -1287,7 +1290,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createCommand(t, dir, "cmd", "expand: true", "Command ${cmd_var}")
 			},
 			opts: []Option{
-				WithParams(Params{"task_var": "task_value", "cmd_var": "cmd_value"}),
+				WithParams(taskparser.Params{"task_var": []string{"task_value"}, "cmd_var": []string{"cmd_value"}}),
 			},
 			taskName: "mixed1",
 			wantErr:  false,
@@ -1308,7 +1311,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createCommand(t, dir, "cmd", "expand: false", "Command ${cmd_var}")
 			},
 			opts: []Option{
-				WithParams(Params{"task_var": "task_value", "cmd_var": "cmd_value"}),
+				WithParams(taskparser.Params{"task_var": []string{"task_value"}, "cmd_var": []string{"cmd_value"}}),
 			},
 			taskName: "mixed2",
 			wantErr:  false,
@@ -1329,7 +1332,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createCommand(t, dir, "greet", "expand: false", "Hello, ${name}! Your ID: ${id}")
 			},
 			opts: []Option{
-				WithParams(Params{"id": "123"}),
+				WithParams(taskparser.Params{"id": []string{"123"}}),
 			},
 			taskName: "inline-no-expand",
 			wantErr:  false,
@@ -1352,7 +1355,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				createRule(t, dir, ".agents/rules/rule3.md", "", "Rule3: ${var3}")
 			},
 			opts: []Option{
-				WithParams(Params{"var1": "val1", "var2": "val2", "var3": "val3"}),
+				WithParams(taskparser.Params{"var1": []string{"val1"}, "var2": []string{"val2"}, "var3": []string{"val3"}}),
 			},
 			taskName: "multi-rules",
 			wantErr:  false,
@@ -1475,8 +1478,8 @@ func TestUserPrompt(t *testing.T) {
 			},
 			opts: []Option{
 				WithUserPrompt("Issue: ${issue_number}"),
-				WithParams(Params{
-					"issue_number": "123",
+				WithParams(taskparser.Params{
+					"issue_number": []string{"123"},
 				}),
 			},
 			taskName: "with-params",
@@ -1495,9 +1498,9 @@ func TestUserPrompt(t *testing.T) {
 			},
 			opts: []Option{
 				WithUserPrompt("Please fix:\n/issue-info\n"),
-				WithParams(Params{
-					"issue_number": "456",
-					"issue_title":  "Fix bug",
+				WithParams(taskparser.Params{
+					"issue_number": []string{"456"},
+					"issue_title":  []string{"Fix bug"},
 				}),
 			},
 			taskName: "complex",
@@ -1569,8 +1572,8 @@ func TestUserPrompt(t *testing.T) {
 			},
 			opts: []Option{
 				WithUserPrompt("Issue ${issue_number}"),
-				WithParams(Params{
-					"issue_number": "789",
+				WithParams(taskparser.Params{
+					"issue_number": []string{"789"},
 				}),
 			},
 			taskName: "no-expand",

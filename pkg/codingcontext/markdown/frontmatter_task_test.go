@@ -1,4 +1,4 @@
-package codingcontext
+package markdown
 
 import (
 	"testing"

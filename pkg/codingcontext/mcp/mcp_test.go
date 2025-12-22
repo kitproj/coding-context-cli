@@ -1,4 +1,4 @@
-package codingcontext
+package mcp
 
 import (
 	"encoding/json"
