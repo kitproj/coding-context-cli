@@ -50,14 +50,6 @@ mcp_server:
 This rule provides the Python MCP server configuration.
 ```
 
-**Standard fields:**
-- `command`: The executable to run (e.g., "python", "npx", "docker")
-- `args`: Array of command-line arguments
-- `env`: Environment variables for the server process
-- `type`: Connection protocol ("stdio", "http", "sse") - optional, defaults to stdio
-- `url`: Endpoint URL for HTTP/SSE types
-- `headers`: Custom HTTP headers for HTTP/SSE types
-
 **Arbitrary custom fields:**
 You can add any additional fields for your specific MCP server needs:
 - `custom_config`: Nested configuration objects
