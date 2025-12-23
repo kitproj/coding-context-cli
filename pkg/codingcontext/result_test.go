@@ -1,6 +1,9 @@
 package codingcontext
 
 import (
+	"context"
+	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
@@ -9,60 +12,57 @@ import (
 
 func TestResult_Prompt(t *testing.T) {
 	tests := []struct {
-		name   string
-		result Result
-		want   string
+		name     string
+		setup    func(t *testing.T, dir string)
+		taskName string
+		want     string
 	}{
 		{
-			name: "empty result",
-			result: Result{
-				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{},
-				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					Content: "Task content",
-				},
-				Prompt: "Task content",
+			name: "task only without rules",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "test-task", "task_name: test-task", "Task content\n")
 			},
-			want: "Task content",
+			taskName: "test-task",
+			want:     "Task content\n",
 		},
 		{
 			name: "single rule and task",
-			result: Result{
-				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
-					{
-						Content: "Rule 1 content",
-					},
-				},
-				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					Content: "Task content",
-				},
-				Prompt: "Rule 1 content\nTask content",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "test-task", "task_name: test-task", "Task content\n")
+				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule 1 content\n")
 			},
-			want: "Rule 1 content\nTask content",
+			taskName: "test-task",
+			want:     "Rule 1 content\n\nTask content\n",
 		},
 		{
 			name: "multiple rules and task",
-			result: Result{
-				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
-					{
-						Content: "Rule 1 content",
-					},
-					{
-						Content: "Rule 2 content",
-					},
-				},
-				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					Content: "Task content",
-				},
-				Prompt: "Rule 1 content\nRule 2 content\nTask content",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "test-task", "task_name: test-task", "Task content\n")
+				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule 1 content\n")
+				createRule(t, dir, ".agents/rules/rule2.md", "", "Rule 2 content\n")
 			},
-			want: "Rule 1 content\nRule 2 content\nTask content",
+			taskName: "test-task",
+			want:     "Rule 1 content\n\nRule 2 content\n\nTask content\n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.result.Prompt != tt.want {
-				t.Errorf("Result.Prompt = %q, want %q", tt.result.Prompt, tt.want)
+			tmpDir := t.TempDir()
+			tt.setup(t, tmpDir)
+
+			ctx := New(
+				WithSearchPaths("file://"+tmpDir),
+				WithLogger(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))),
+			)
+
+			result, err := ctx.Run(context.Background(), tt.taskName)
+			if err != nil {
+				t.Fatalf("Run() error = %v", err)
+			}
+
+			if result.Prompt != tt.want {
+				t.Errorf("Result.Prompt = %q, want %q", result.Prompt, tt.want)
 			}
 		})
 	}
