@@ -77,6 +77,10 @@ type CommandFrontMatter struct {
 	// ExpandParams controls whether parameter expansion should occur
 	// Defaults to true if not specified
 	ExpandParams *bool `yaml:"expand,omitempty" json:"expand,omitempty"`
+
+	// Selectors contains additional custom selectors for filtering rules
+	// When a command is used in a task, its selectors are combined with task selectors
+	Selectors map[string]any `yaml:"selectors,omitempty" json:"selectors,omitempty"`
 }
 
 // UnmarshalJSON custom unmarshaler that populates both typed fields and Content map
