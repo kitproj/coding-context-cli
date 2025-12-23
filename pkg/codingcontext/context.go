@@ -328,12 +328,21 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	// Estimate tokens for task
 	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
 
+	// Build the combined prompt from all rules and task content
+	var promptBuilder strings.Builder
+	for _, rule := range cc.rules {
+		promptBuilder.WriteString(rule.Content)
+		promptBuilder.WriteString("\n")
+	}
+	promptBuilder.WriteString(cc.task.Content)
+
 	// Build and return the result
 	result := &Result{
 		Rules:  cc.rules,
 		Task:   cc.task,
 		Tokens: cc.totalTokens,
 		Agent:  cc.agent,
+		Prompt: promptBuilder.String(),
 	}
 
 	return result, nil
