@@ -13,7 +13,7 @@ Note: MCP servers are specified in rules, not in tasks. Tasks can select which r
 
 Rules can specify a single MCP server configuration with both standard and arbitrary custom fields.
 
-The `mcp_server` field specifies a single MCP server configuration with both standard and arbitrary custom fields. Each task or rule can specify one MCP server configuration.
+The `mcp_server` field, when present in a rule, specifies that rule's single MCP server configuration with both standard and arbitrary custom fields. Tasks cannot define MCP servers directly.
 
 **Standard fields:**
 - `command`: The executable to run (e.g., "python", "npx", "docker")
