@@ -54,9 +54,9 @@ The CLI searches for rule files in predetermined locations:
 
 ```
 Search paths (in order):
-1. Project-specific: ./.agents/rules/, ./.cursor/rules/, etc.
-2. Parent directories: ../AGENTS.md, ../../AGENTS.md, etc.
-3. User-specific: ~/.agents/rules/, ~/.claude/CLAUDE.md, etc.
+1. Directories specified via -d flags (in order)
+2. Working directory (automatically added): ./.agents/rules/, ./.cursor/rules/, etc.
+3. User home directory (automatically added): ~/.agents/rules/, ~/.claude/CLAUDE.md, etc.
 ```
 
 For each location:
@@ -155,22 +155,23 @@ Fix bug: BUG-123
 Description: Crashes
 ```
 
-Parameter substitution uses environment variable expansion syntax, allowing:
-- Simple substitution: `${var}`
-- Default values: `${var:-default}`
-- Error on unset: `${var:?error message}`
+If a parameter is not found, the placeholder remains unchanged (e.g., `${missing}` stays as `${missing}`).
 
 ### 9. Assemble Output
 
 Combine all pieces in order:
 
 ```
-1. All included rule files (content only, no frontmatter)
-2. Task content (with parameters substituted)
+1. Task frontmatter (YAML format, automatically included if present)
+2. All included rule files (content only, no frontmatter)
+3. Task content (with parameters substituted)
 ```
 
 **Example output:**
-```markdown
+```yaml
+---
+resume: false
+---
 # Go Coding Standards
 
 - Use gofmt

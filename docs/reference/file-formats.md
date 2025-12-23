@@ -798,12 +798,12 @@ coding-context -s languages=go task      # Matches languages: [ go ]
 
 ## Special Behaviors
 
-### Multiple Tasks with Same `task_name`
+### Multiple Tasks with Same Filename
 
-If multiple task files have the same `task_name`, selectors determine which one is used.
+If multiple task files have the same filename (without `.md` extension) in different search path directories, selectors determine which one is used. Remember, tasks are matched by filename, not by the `task_name` field in frontmatter.
 
 **Without selectors:**
-- Error: "multiple tasks found with task_name: X"
+- Error: "multiple tasks found with name: X"
 
 **With selectors:**
 - The task matching all selectors is used

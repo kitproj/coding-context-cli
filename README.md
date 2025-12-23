@@ -29,9 +29,9 @@ This tool is compatible with configuration files from various AI coding agents a
 - **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent`, `.opencode/command`, `.opencode/rules`
 - **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents`
 - **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md`
-- **Generic AI Agents**: `AGENTS.md`, `.agents/rules`, `.agents/commands` (tasks), `.agents/tasks`
+- **Generic AI Agents**: `AGENTS.md`, `.agents/rules`, `.agents/commands` (reusable content blocks), `.agents/tasks`
 
-The tool automatically discovers and includes rules from these locations in your project, parent directories, and user home directory (`~`).
+The tool automatically discovers and includes rules from these locations in your project and user home directory (`~`).
 
 ## Agentic Workflows
 
@@ -106,7 +106,7 @@ Options:
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
   -a string
-    	Target agent to use (excludes rules from that agent's own paths). Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
+    	Target agent to use. Required when using -w to write rules to the agent's user rules path. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
   -w	Write rules to agent's config file and output only task to stdout. Requires agent (via task or -a flag).
 ```
 
