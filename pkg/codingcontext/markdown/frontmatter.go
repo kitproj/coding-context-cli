@@ -35,10 +35,6 @@ type TaskFrontMatter struct {
 	// Does not filter rules, metadata only
 	Timeout string `yaml:"timeout,omitempty" json:"timeout,omitempty"`
 
-	// MCPServers maps server names to their configurations
-	// Does not filter rules, metadata only
-	MCPServers mcp.MCPServerConfigs `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
-
 	// Resume indicates if this task should be resumed
 	Resume bool `yaml:"resume,omitempty" json:"resume,omitempty"`
 
@@ -120,9 +116,9 @@ type RuleFrontMatter struct {
 	// Agent specifies which AI agent this rule is intended for
 	Agent string `yaml:"agent,omitempty" json:"agent,omitempty"`
 
-	// MCPServers maps server names to their configurations
+	// MCPServer specifies a single MCP server configuration
 	// Metadata only, does not filter
-	MCPServers mcp.MCPServerConfigs `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`
+	MCPServer mcp.MCPServerConfig `yaml:"mcp_server,omitempty" json:"mcp_server,omitempty"`
 
 	// RuleName is an optional identifier for the rule file
 	RuleName string `yaml:"rule_name,omitempty" json:"rule_name,omitempty"`

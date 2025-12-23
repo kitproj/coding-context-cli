@@ -11,7 +11,7 @@ func TestResult_MCPServers(t *testing.T) {
 	tests := []struct {
 		name   string
 		result Result
-		want   mcp.MCPServerConfigs
+		want   []mcp.MCPServerConfig
 	}{
 		{
 			name: "no MCP servers",
@@ -21,25 +21,7 @@ func TestResult_MCPServers(t *testing.T) {
 					FrontMatter: markdown.TaskFrontMatter{},
 				},
 			},
-			want: mcp.MCPServerConfigs{},
-		},
-		{
-			name: "MCP servers from task only",
-			result: Result{
-				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{},
-				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					FrontMatter: markdown.TaskFrontMatter{
-						MCPServers: mcp.MCPServerConfigs{
-							"filesystem": {Type: mcp.TransportTypeStdio, Command: "filesystem"},
-							"git":        {Type: mcp.TransportTypeStdio, Command: "git"},
-						},
-					},
-				},
-			},
-			want: mcp.MCPServerConfigs{
-				"filesystem": {Type: mcp.TransportTypeStdio, Command: "filesystem"},
-				"git":        {Type: mcp.TransportTypeStdio, Command: "git"},
-			},
+			want: []mcp.MCPServerConfig{},
 		},
 		{
 			name: "MCP servers from rules only",
@@ -47,16 +29,12 @@ func TestResult_MCPServers(t *testing.T) {
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							MCPServers: mcp.MCPServerConfigs{
-								"jira": {Type: mcp.TransportTypeStdio, Command: "jira"},
-							},
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "jira"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							MCPServers: mcp.MCPServerConfigs{
-								"api": {Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
-							},
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
 						},
 					},
 				},
@@ -64,52 +42,23 @@ func TestResult_MCPServers(t *testing.T) {
 					FrontMatter: markdown.TaskFrontMatter{},
 				},
 			},
-			want: mcp.MCPServerConfigs{
-				"jira": {Type: mcp.TransportTypeStdio, Command: "jira"},
-				"api":  {Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
+			want: []mcp.MCPServerConfig{
+				{Type: mcp.TransportTypeStdio, Command: "jira"},
+				{Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
 			},
 		},
 		{
-			name: "MCP servers from both task and rules",
+			name: "multiple rules with MCP servers and empty rule",
 			result: Result{
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							MCPServers: mcp.MCPServerConfigs{
-								"jira": {Type: mcp.TransportTypeStdio, Command: "jira"},
-							},
-						},
-					},
-				},
-				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					FrontMatter: markdown.TaskFrontMatter{
-						MCPServers: mcp.MCPServerConfigs{
-							"filesystem": {Type: mcp.TransportTypeStdio, Command: "filesystem"},
-						},
-					},
-				},
-			},
-			want: mcp.MCPServerConfigs{
-				"filesystem": {Type: mcp.TransportTypeStdio, Command: "filesystem"},
-				"jira":       {Type: mcp.TransportTypeStdio, Command: "jira"},
-			},
-		},
-		{
-			name: "multiple rules with MCP servers",
-			result: Result{
-				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
-					{
-						FrontMatter: markdown.RuleFrontMatter{
-							MCPServers: mcp.MCPServerConfigs{
-								"server1": {Type: mcp.TransportTypeStdio, Command: "server1"},
-							},
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							MCPServers: mcp.MCPServerConfigs{
-								"server2": {Type: mcp.TransportTypeStdio, Command: "server2"},
-							},
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
 						},
 					},
 					{
@@ -117,41 +66,29 @@ func TestResult_MCPServers(t *testing.T) {
 					},
 				},
 				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					FrontMatter: markdown.TaskFrontMatter{
-						MCPServers: mcp.MCPServerConfigs{
-							"task-server": {Type: mcp.TransportTypeStdio, Command: "task-server"},
-						},
-					},
+					FrontMatter: markdown.TaskFrontMatter{},
 				},
 			},
-			want: mcp.MCPServerConfigs{
-				"task-server": {Type: mcp.TransportTypeStdio, Command: "task-server"},
-				"server1":     {Type: mcp.TransportTypeStdio, Command: "server1"},
-				"server2":     {Type: mcp.TransportTypeStdio, Command: "server2"},
+			want: []mcp.MCPServerConfig{
+				{Type: mcp.TransportTypeStdio, Command: "server1"},
+				{Type: mcp.TransportTypeStdio, Command: "server2"},
+				// Empty rule MCP server is filtered out
 			},
 		},
 		{
-			name: "task overrides rule server with same name",
+			name: "rule without MCP server",
 			result: Result{
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
-						FrontMatter: markdown.RuleFrontMatter{
-							MCPServers: mcp.MCPServerConfigs{
-								"filesystem": {Type: mcp.TransportTypeStdio, Command: "rule-filesystem"},
-							},
-						},
+						FrontMatter: markdown.RuleFrontMatter{},
 					},
 				},
 				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					FrontMatter: markdown.TaskFrontMatter{
-						MCPServers: mcp.MCPServerConfigs{
-							"filesystem": {Type: mcp.TransportTypeStdio, Command: "task-filesystem"},
-						},
-					},
+					FrontMatter: markdown.TaskFrontMatter{},
 				},
 			},
-			want: mcp.MCPServerConfigs{
-				"filesystem": {Type: mcp.TransportTypeStdio, Command: "task-filesystem"},
+			want: []mcp.MCPServerConfig{
+				// Empty rule MCP server is filtered out
 			},
 		},
 	}
@@ -165,21 +102,17 @@ func TestResult_MCPServers(t *testing.T) {
 				return
 			}
 
-			for name, wantServer := range tt.want {
-				gotServer, exists := got[name]
-				if !exists {
-					t.Errorf("MCPServers() missing server %q", name)
-					continue
-				}
+			for i, wantServer := range tt.want {
+				gotServer := got[i]
 
 				if gotServer.Type != wantServer.Type {
-					t.Errorf("MCPServers()[%q].Type = %v, want %v", name, gotServer.Type, wantServer.Type)
+					t.Errorf("MCPServers()[%d].Type = %v, want %v", i, gotServer.Type, wantServer.Type)
 				}
 				if gotServer.Command != wantServer.Command {
-					t.Errorf("MCPServers()[%q].Command = %q, want %q", name, gotServer.Command, wantServer.Command)
+					t.Errorf("MCPServers()[%d].Command = %q, want %q", i, gotServer.Command, wantServer.Command)
 				}
 				if gotServer.URL != wantServer.URL {
-					t.Errorf("MCPServers()[%q].URL = %q, want %q", name, gotServer.URL, wantServer.URL)
+					t.Errorf("MCPServers()[%d].URL = %q, want %q", i, gotServer.URL, wantServer.URL)
 				}
 			}
 		})

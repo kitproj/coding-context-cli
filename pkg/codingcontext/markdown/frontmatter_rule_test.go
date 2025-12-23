@@ -51,11 +51,10 @@ agent: cursor
 				TaskNames: []string{"test-task"},
 				Languages: []string{"go", "python"},
 				Agent:     "copilot",
-				MCPServers: mcp.MCPServerConfigs{
-					"database": {
-						Type:    mcp.TransportTypeStdio,
-						Command: "database-server",
-					},
+				MCPServer: mcp.MCPServerConfig{
+					Type:    mcp.TransportTypeStdio,
+					Command: "database-server",
+					Args:    []string{"--port", "5432"},
 				},
 				RuleName: "test-rule",
 			},
@@ -65,10 +64,12 @@ languages:
 - go
 - python
 agent: copilot
-mcp_servers:
-  database:
-    type: stdio
-    command: database-server
+mcp_server:
+  type: stdio
+  command: database-server
+  args:
+  - --port
+  - "5432"
 rule_name: test-rule
 `,
 		},

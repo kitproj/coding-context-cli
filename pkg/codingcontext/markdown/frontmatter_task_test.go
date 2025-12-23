@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/goccy/go-yaml"
-	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
 )
 
 func TestTaskFrontMatter_Marshal(t *testing.T) {
@@ -33,11 +32,7 @@ func TestTaskFrontMatter_Marshal(t *testing.T) {
 				Model:      "gpt-4",
 				SingleShot: true,
 				Timeout:    "10m",
-				MCPServers: mcp.MCPServerConfigs{
-					"filesystem": {Type: mcp.TransportTypeStdio, Command: "filesystem-server"},
-					"git":        {Type: mcp.TransportTypeStdio, Command: "git-server"},
-				},
-				Resume: false,
+				Resume:     false,
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},
@@ -49,13 +44,6 @@ languages:
 model: gpt-4
 single_shot: true
 timeout: 10m
-mcp_servers:
-  filesystem:
-    type: stdio
-    command: filesystem-server
-  git:
-    type: stdio
-    command: git-server
 selectors:
   stage: implementation
 `,
@@ -142,13 +130,6 @@ languages:
 model: gpt-4
 single_shot: true
 timeout: 10m
-mcp_servers:
-  filesystem:
-    type: stdio
-    command: filesystem-server
-  git:
-    type: stdio
-    command: git-server
 selectors:
   stage: implementation
 `,
@@ -161,10 +142,6 @@ selectors:
 				Model:      "gpt-4",
 				SingleShot: true,
 				Timeout:    "10m",
-				MCPServers: mcp.MCPServerConfigs{
-					"filesystem": {Type: mcp.TransportTypeStdio, Command: "filesystem-server"},
-					"git":        {Type: mcp.TransportTypeStdio, Command: "git-server"},
-				},
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},

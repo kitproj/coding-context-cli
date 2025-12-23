@@ -5,13 +5,6 @@ language: go
 model: anthropic.claude-sonnet-4-20250514-v1-0
 single_shot: false
 timeout: 10m
-mcp_servers:
-  filesystem:
-    type: stdio
-    command: filesystem
-  git:
-    type: stdio
-    command: git
 selectors:
   stage: implementation
 ---
@@ -34,7 +27,6 @@ These fields are stored in frontmatter and passed through to output, but do NOT 
 - **model**: `anthropic.claude-sonnet-4-20250514-v1-0` - AI model to use for this task
 - **single_shot**: `false` - Task can be run multiple times
 - **timeout**: `10m` - Task timeout as time.Duration (10 minutes)
-- **mcp_servers**: `[filesystem, git]` - MCP servers required for this task
 
 ## Custom Selectors
 

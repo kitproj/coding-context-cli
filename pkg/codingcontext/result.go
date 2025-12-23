@@ -1,8 +1,6 @@
 package codingcontext
 
 import (
-	"maps"
-
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
 )
@@ -15,22 +13,20 @@ type Result struct {
 	Agent  Agent                                         // The agent used (from task or -a flag)
 }
 
-// MCPServers returns all MCP servers from both rules and the task.
-// Servers from the task take precedence over servers from rules.
-// If multiple rules define the same server name, the behavior is non-deterministic.
-func (r *Result) MCPServers() mcp.MCPServerConfigs {
-	servers := make(mcp.MCPServerConfigs)
+// MCPServers returns all MCP server configurations from rules.
+// Each rule can specify one MCP server configuration.
+// Returns a slice of all configured MCP servers from rules only.
+// Empty/zero-value MCP server configurations are filtered out.
+func (r *Result) MCPServers() []mcp.MCPServerConfig {
+	var servers []mcp.MCPServerConfig
 
-	// Add servers from rules first (so task can override)
+	// Add server from each rule, filtering out empty configs
 	for _, rule := range r.Rules {
-		if rule.FrontMatter.MCPServers != nil {
-			maps.Copy(servers, rule.FrontMatter.MCPServers)
+		server := rule.FrontMatter.MCPServer
+		// Skip empty MCP server configs (no command and no URL means empty)
+		if server.Command != "" || server.URL != "" {
+			servers = append(servers, server)
 		}
-	}
-
-	// Add servers from task (overriding any from rules)
-	if r.Task.FrontMatter.MCPServers != nil {
-		maps.Copy(servers, r.Task.FrontMatter.MCPServers)
 	}
 
 	return servers

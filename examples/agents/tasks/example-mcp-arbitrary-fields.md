@@ -1,62 +1,58 @@
 ---
 task_name: example-mcp-arbitrary-fields
 agent: cursor
-mcp_servers:
-  # Example with standard fields only
-  filesystem:
-    type: stdio
-    command: filesystem
-  
-  # Example with standard fields plus arbitrary custom fields
-  custom-database:
-    type: stdio
-    command: database-mcp
-    args: ["--verbose"]
-    # Arbitrary fields below
-    cache_enabled: true
-    max_cache_size: 1000
-    connection_pool_size: 10
-    
-  # Example HTTP server with custom metadata
-  api-server:
-    type: http
-    url: https://api.example.com
-    headers:
-      Authorization: Bearer token123
-    # Arbitrary fields below
-    api_version: v2
-    rate_limit: 100
-    timeout_seconds: 30
-    retry_policy: exponential
-    region: us-west-2
-    
-  # Example with nested custom configuration
-  advanced-server:
-    type: stdio
-    command: python
-    args: ["-m", "server"]
-    env:
-      PYTHON_PATH: /usr/bin/python3
-    # Arbitrary nested fields below
-    custom_config:
-      host: localhost
-      port: 5432
-      ssl: true
-      pool:
-        min: 2
-        max: 10
-    monitoring:
-      enabled: true
-      metrics_port: 9090
 ---
 
-# Example Task with Arbitrary MCP Server Fields
+# Example Rule with MCP Server Configuration
 
-This task demonstrates the ability to add arbitrary fields to MCP server configurations, just like we can with FrontMatter.
+This example demonstrates how rules can specify MCP server configuration with arbitrary custom fields.
+
+Note: MCP servers are specified in rules, not in tasks. Tasks can select which rules (and thus which MCP servers) to use via selectors.
+
+## The `mcp_server` Field in Rules
+
+Rules can specify a single MCP server configuration with both standard and arbitrary custom fields.
+
+The `mcp_server` field, when present in a rule, specifies that rule's single MCP server configuration with both standard and arbitrary custom fields. Tasks cannot define MCP servers directly.
+
+**Standard fields:**
+- `command`: The executable to run (e.g., "python", "npx", "docker")
+- `args`: Array of command-line arguments
+- `env`: Environment variables for the server process
+- `type`: Connection protocol ("stdio", "http", "sse") - optional, defaults to stdio
+- `url`: Endpoint URL for HTTP/SSE types
+- `headers`: Custom HTTP headers for HTTP/SSE types
+
+## Example Rule with MCP Server
+
+```yaml
+---
+rule_name: python-mcp-server
+mcp_server:
+  command: python
+  args: ["-m", "server"]
+  env:
+    PYTHON_PATH: /usr/bin/python3
+  custom_config:
+    host: localhost
+    port: 5432
+    ssl: true
+    pool:
+      min: 2
+      max: 10
+  monitoring:
+    enabled: true
+    metrics_port: 9090
+---
+
+# Python MCP Server Rule
+
+This rule provides the Python MCP server configuration.
+```
 
 ## Why Arbitrary Fields?
 
-Different MCP servers may need different configuration options beyond the standard fields (`type`, `command`, `args`, `env`, `url`, `headers`). Arbitrary fields allow you to:
+Different MCP servers may need different configuration options beyond the standard fields. Arbitrary fields allow you to:
 
 1. **Add custom metadata**: Version info, regions, endpoints, etc.
 2. **Configure behavior**: Caching, retry policies, timeouts, rate limits
@@ -65,7 +61,7 @@ Different MCP servers may need different configuration options beyond the standa
 
 ## How It Works
 
-The `MCPServerConfig` struct now includes a `Content` field (similar to `BaseFrontMatter`) that captures all fields from YAML/JSON:
+The `MCPServerConfig` struct includes a `Content` field that captures all fields from YAML/JSON:
 
 ```go
 type MCPServerConfig struct {
@@ -82,12 +78,4 @@ type MCPServerConfig struct {
 }
 ```
 
-## Example Usage
-
-The examples above show:
-- **Simple custom fields**: `cache_enabled`, `max_cache_size`
-- **API configuration**: `api_version`, `rate_limit`, `timeout_seconds`
-- **Nested objects**: `custom_config` with sub-fields like `host`, `port`, `ssl`
-- **Multiple custom sections**: `custom_config` and `monitoring` as separate objects
-
-All these fields are preserved when the configuration is parsed and can be accessed via the `Content` map.
+All fields (both standard and custom) are preserved when the configuration is parsed and can be accessed via the struct fields or the `Content` map.
