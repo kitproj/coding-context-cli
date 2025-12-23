@@ -54,9 +54,9 @@ The CLI searches for rule files in predetermined locations:
 
 ```
 Search paths (in order):
-1. Project-specific: ./.agents/rules/, ./.cursor/rules/, etc.
-2. Parent directories: ../AGENTS.md, ../../AGENTS.md, etc.
-3. User-specific: ~/.agents/rules/, ~/.claude/CLAUDE.md, etc.
+1. Directories specified via -d flags (in order)
+2. Working directory (automatically added): ./.agents/rules/, ./.cursor/rules/, etc.
+3. User home directory (automatically added): ~/.agents/rules/, ~/.claude/CLAUDE.md, etc.
 ```
 
 For each location:
