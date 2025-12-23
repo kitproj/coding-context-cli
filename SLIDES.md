@@ -180,7 +180,7 @@ coding-context -s languages=go -s stage=implementation implement-feature
 | `-C <dir>` | Change to directory before doing anything |
 | `-p key=value` | Parameter to substitute in the prompt |
 | `-s key=value` | Include rules with matching frontmatter |
-| `-a <agent>` | Target agent (excludes that agent's own rules) |
+| `-a <agent>` | Target agent (for -w flag) |
 | `-d <path>` | Remote directory with rules (git::, http://, s3::) |
 | `-m <url>` | URL to manifest file with search paths |
 | `-r` | Resume mode: skip rules, select resume task |
