@@ -468,6 +468,46 @@ coding-context -p environment=prod -p version=1.0 my-task
 
 This is useful when commands contain template syntax that should be preserved.
 
+#### `selectors` (optional)
+
+**Type:** Map of key-value pairs  
+**Purpose:** Specifies selectors that filter which rules are included when this command is used. Command selectors are combined with task selectors and CLI selectors using OR logic.
+
+When a task uses a command that has selectors, those selectors are merged with the task's selectors to filter rules. This allows commands to specify which rules they need (e.g., database-specific rules, authentication rules, etc.).
+
+**Example:**
+```yaml
+---
+selectors:
+  database: postgres
+  feature: auth
+---
+
+# Database Setup Instructions
+
+This command provides database setup instructions.
+```
+
+**Usage in a task:**
+```yaml
+---
+selectors:
+  env: production
+---
+
+Deploy to production environment.
+
+/setup-database
+```
+
+When this task runs:
+- Rules with `env: production` will be included (from task selector)
+- Rules with `database: postgres` will be included (from command selector)
+- Rules with `feature: auth` will be included (from command selector)
+- Rules that match any of these selectors will be included (OR logic)
+
+This allows commands to declare their dependencies on specific rules without requiring every task to manually specify them.
+
 ### Slash Command Syntax
 
 Commands are referenced from tasks using slash command syntax:
