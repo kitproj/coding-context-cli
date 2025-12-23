@@ -167,6 +167,6 @@ func main() {
 		}
 
 		// Output the combined prompt (rules + task)
-		fmt.Print(result.Prompt)
+		fmt.Println(result.Prompt)
 	}
 }
