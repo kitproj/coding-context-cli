@@ -126,16 +126,7 @@ func (cc *Context) findTask(taskName string) error {
 		// rules match if their frontmatter value matches ANY selector value for a given key.
 		// For example: if CLI has env=development and task has env=production,
 		// rules with either env=development OR env=production will be included.
-		for key, value := range frontMatter.Selectors {
-			switch v := value.(type) {
-			case []any:
-				for _, item := range v {
-					cc.includes.SetValue(key, fmt.Sprint(item))
-				}
-			default:
-				cc.includes.SetValue(key, fmt.Sprint(v))
-			}
-		}
+		cc.mergeSelectors(frontMatter.Selectors)
 
 		// Task frontmatter agent field overrides -a flag
 		if frontMatter.Agent != "" {
@@ -210,9 +201,11 @@ func (cc *Context) findTask(taskName string) error {
 }
 
 // findCommand searches for a command markdown file and returns its content.
-// Commands now support optional frontmatter with the expand field.
+// Commands now support optional frontmatter with the expand field and selectors.
 // Parameters are substituted by default (when expand is nil or true).
 // Substitution is skipped only when expand is explicitly set to false.
+// If the command has selectors in its frontmatter, they are merged into cc.includes
+// to allow commands to specify which rules they need.
 func (cc *Context) findCommand(commandName string, params taskparser.Params) (string, error) {
 	var content *string
 	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
@@ -227,6 +220,11 @@ func (cc *Context) findCommand(commandName string, params taskparser.Params) (st
 		if err != nil {
 			return err
 		}
+
+		// Extract selector labels from command frontmatter and add them to cc.includes.
+		// This combines CLI selectors, task selectors, and command selectors using OR logic:
+		// rules match if their frontmatter value matches ANY selector value for a given key.
+		cc.mergeSelectors(frontMatter.Selectors)
 
 		// Expand parameters only if expand is not explicitly set to false
 		var processedContent string
@@ -249,6 +247,22 @@ func (cc *Context) findCommand(commandName string, params taskparser.Params) (st
 		return "", fmt.Errorf("command not found: %s", commandName)
 	}
 	return *content, nil
+}
+
+// mergeSelectors adds selectors from a map into cc.includes.
+// This is used to combine selectors from task and command frontmatter with CLI selectors.
+// The merge uses OR logic: rules match if their frontmatter value matches ANY selector value for a given key.
+func (cc *Context) mergeSelectors(selectors map[string]any) {
+	for key, value := range selectors {
+		switch v := value.(type) {
+		case []any:
+			for _, item := range v {
+				cc.includes.SetValue(key, fmt.Sprint(item))
+			}
+		default:
+			cc.includes.SetValue(key, fmt.Sprint(v))
+		}
+	}
 }
 
 // expandParams performs all types of content expansion:

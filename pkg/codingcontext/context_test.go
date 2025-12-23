@@ -867,6 +867,70 @@ func TestContext_Run_Commands(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "command with selectors filters rules",
+			setup: func(t *testing.T, dir string) {
+				// Task uses a command that has selectors
+				createTask(t, dir, "task-with-cmd", "", "/setup-db")
+				// Command has selectors that should be applied to rule filtering
+				createCommand(t, dir, "setup-db", "selectors:\n  database: postgres", "Setting up database...")
+				// Rules with different database values
+				createRule(t, dir, ".agents/rules/postgres-rule.md", "database: postgres", "PostgreSQL rule")
+				createRule(t, dir, ".agents/rules/mysql-rule.md", "database: mysql", "MySQL rule")
+				createRule(t, dir, ".agents/rules/generic-rule.md", "", "Generic rule")
+			},
+			taskName: "task-with-cmd",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				// Should include postgres-rule and generic-rule
+				// Should exclude mysql-rule
+				if len(result.Rules) != 2 {
+					t.Errorf("expected 2 rules, got %d", len(result.Rules))
+				}
+				foundPostgres := false
+				foundMySQL := false
+				for _, rule := range result.Rules {
+					if strings.Contains(rule.Content, "PostgreSQL rule") {
+						foundPostgres = true
+					}
+					if strings.Contains(rule.Content, "MySQL rule") {
+						foundMySQL = true
+					}
+				}
+				if !foundPostgres {
+					t.Error("expected to find PostgreSQL rule")
+				}
+				if foundMySQL {
+					t.Error("did not expect to find MySQL rule")
+				}
+			},
+		},
+		{
+			name: "command selectors combine with task selectors",
+			setup: func(t *testing.T, dir string) {
+				// Task has its own selectors
+				createTask(t, dir, "combined-selectors", "selectors:\n  env: production", "/enable-feature")
+				// Command also has selectors
+				createCommand(t, dir, "enable-feature", "selectors:\n  feature: auth", "Enabling authentication...")
+				// Rules with different combinations
+				createRule(t, dir, ".agents/rules/prod-auth-rule.md", "env: production\nfeature: auth", "Production auth rule")
+				createRule(t, dir, ".agents/rules/prod-rule.md", "env: production", "Production rule")
+				createRule(t, dir, ".agents/rules/auth-rule.md", "feature: auth", "Auth rule")
+				createRule(t, dir, ".agents/rules/dev-rule.md", "env: development", "Development rule")
+			},
+			taskName: "combined-selectors",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				// Should include: prod-auth-rule (matches both), prod-rule (matches env), auth-rule (matches feature)
+				// Should exclude: dev-rule (env doesn't match)
+				if len(result.Rules) != 3 {
+					t.Errorf("expected 3 rules, got %d", len(result.Rules))
+					for _, r := range result.Rules {
+						t.Logf("Found rule: %s", r.Content)
+					}
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
