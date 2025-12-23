@@ -155,22 +155,23 @@ Fix bug: BUG-123
 Description: Crashes
 ```
 
-Parameter substitution uses environment variable expansion syntax, allowing:
-- Simple substitution: `${var}`
-- Default values: `${var:-default}`
-- Error on unset: `${var:?error message}`
+If a parameter is not found, the placeholder remains unchanged (e.g., `${missing}` stays as `${missing}`).
 
 ### 9. Assemble Output
 
 Combine all pieces in order:
 
 ```
-1. All included rule files (content only, no frontmatter)
-2. Task content (with parameters substituted)
+1. Task frontmatter (YAML format, automatically included if present)
+2. All included rule files (content only, no frontmatter)
+3. Task content (with parameters substituted)
 ```
 
 **Example output:**
-```markdown
+```yaml
+---
+resume: false
+---
 # Go Coding Standards
 
 - Use gofmt
