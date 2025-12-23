@@ -50,12 +50,6 @@ mcp_server:
 This rule provides the Python MCP server configuration.
 ```
 
-**Arbitrary custom fields:**
-You can add any additional fields for your specific MCP server needs:
-- `custom_config`: Nested configuration objects
-- `monitoring`: Monitoring settings
-- `cache_enabled`, `max_retries`, `timeout_seconds`, etc.
-
 ## Why Arbitrary Fields?
 
 Different MCP servers may need different configuration options beyond the standard fields. Arbitrary fields allow you to:

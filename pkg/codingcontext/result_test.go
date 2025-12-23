@@ -48,7 +48,7 @@ func TestResult_MCPServers(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple rules with MCP servers",
+			name: "multiple rules with MCP servers and empty rule",
 			result: Result{
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
@@ -72,7 +72,7 @@ func TestResult_MCPServers(t *testing.T) {
 			want: []mcp.MCPServerConfig{
 				{Type: mcp.TransportTypeStdio, Command: "server1"},
 				{Type: mcp.TransportTypeStdio, Command: "server2"},
-				{}, // Empty rule MCP server
+				// Empty rule MCP server is filtered out
 			},
 		},
 		{
@@ -88,7 +88,7 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 			},
 			want: []mcp.MCPServerConfig{
-				{}, // Empty rule MCP server
+				// Empty rule MCP server is filtered out
 			},
 		},
 	}

@@ -16,12 +16,17 @@ type Result struct {
 // MCPServers returns all MCP server configurations from rules.
 // Each rule can specify one MCP server configuration.
 // Returns a slice of all configured MCP servers from rules only.
+// Empty/zero-value MCP server configurations are filtered out.
 func (r *Result) MCPServers() []mcp.MCPServerConfig {
 	var servers []mcp.MCPServerConfig
 
-	// Add server from each rule
+	// Add server from each rule, filtering out empty configs
 	for _, rule := range r.Rules {
-		servers = append(servers, rule.FrontMatter.MCPServer)
+		server := rule.FrontMatter.MCPServer
+		// Skip empty MCP server configs (no command and no URL means empty)
+		if server.Command != "" || server.URL != "" {
+			servers = append(servers, server)
+		}
 	}
 
 	return servers
