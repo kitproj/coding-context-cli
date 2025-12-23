@@ -11,6 +11,7 @@ type Result struct {
 	Task   markdown.Markdown[markdown.TaskFrontMatter]   // Task file with frontmatter and content
 	Tokens int                                           // Total token count
 	Agent  Agent                                         // The agent used (from task or -a flag)
+	Prompt string                                        // Combined prompt: all rules and task content
 }
 
 // MCPServers returns all MCP server configurations from rules.

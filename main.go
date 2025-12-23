@@ -166,12 +166,7 @@ func main() {
 			fmt.Println("---")
 		}
 
-		// Output all rules
-		for _, rule := range result.Rules {
-			fmt.Println(rule.Content)
-		}
-
-		// Output task
-		fmt.Println(result.Task.Content)
+		// Output the combined prompt (rules + task)
+		fmt.Print(result.Prompt)
 	}
 }

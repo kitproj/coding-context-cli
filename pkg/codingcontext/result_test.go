@@ -7,6 +7,67 @@ import (
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
 )
 
+func TestResult_Prompt(t *testing.T) {
+	tests := []struct {
+		name   string
+		result Result
+		want   string
+	}{
+		{
+			name: "empty result",
+			result: Result{
+				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{},
+				Task: markdown.Markdown[markdown.TaskFrontMatter]{
+					Content: "Task content",
+				},
+				Prompt: "Task content",
+			},
+			want: "Task content",
+		},
+		{
+			name: "single rule and task",
+			result: Result{
+				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
+					{
+						Content: "Rule 1 content",
+					},
+				},
+				Task: markdown.Markdown[markdown.TaskFrontMatter]{
+					Content: "Task content",
+				},
+				Prompt: "Rule 1 content\nTask content",
+			},
+			want: "Rule 1 content\nTask content",
+		},
+		{
+			name: "multiple rules and task",
+			result: Result{
+				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
+					{
+						Content: "Rule 1 content",
+					},
+					{
+						Content: "Rule 2 content",
+					},
+				},
+				Task: markdown.Markdown[markdown.TaskFrontMatter]{
+					Content: "Task content",
+				},
+				Prompt: "Rule 1 content\nRule 2 content\nTask content",
+			},
+			want: "Rule 1 content\nRule 2 content\nTask content",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.result.Prompt != tt.want {
+				t.Errorf("Result.Prompt = %q, want %q", tt.result.Prompt, tt.want)
+			}
+		})
+	}
+}
+
 func TestResult_MCPServers(t *testing.T) {
 	tests := []struct {
 		name   string
