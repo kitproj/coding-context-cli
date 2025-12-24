@@ -72,7 +72,7 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 
 		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return fmt.Errorf("error walking path %s: %w", path, err)
+				return fmt.Errorf("failed to walk path %s: %w", path, err)
 			}
 			ext := filepath.Ext(path) // .md or .mdc
 			if info.IsDir() || ext != ".md" && ext != ".mdc" {
