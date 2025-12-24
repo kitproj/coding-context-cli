@@ -150,9 +150,7 @@ func main() {
 				os.Exit(1)
 			}
 
-			if verbose {
-				logger.Info("Rules written", "path", rulesFile)
-			}
+			logger.Info("Rules written", "path", rulesFile)
 		}
 
 		// Output only task frontmatter and content
