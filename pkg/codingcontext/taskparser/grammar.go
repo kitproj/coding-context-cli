@@ -42,11 +42,16 @@ type Text struct {
 }
 
 // TextLine is a single line of text content (not starting with a slash)
-// It matches tokens until the end of the line
+// It can be either:
+// 1. A line with content (tokens) + optional newline
+// 2. Just a newline (empty line)
 type TextLine struct {
-	NonSlashStart []string `parser:"(@Term | @String | @Assign | @Whitespace)"`           // First token can't be Slash
-	RestOfLine    []string `parser:"(@Term | @String | @Slash | @Assign | @Whitespace)*"` // Rest can include Slash
-	NewlineOpt    string   `parser:"@Newline?"`
+	// Case 1: Line with content
+	NonSlashStart []string `parser:"( (@Term | @String | @Assign | @Whitespace)"`           // First token can't be Slash
+	RestOfLine    []string `parser:"  (@Term | @String | @Slash | @Assign | @Whitespace)*"` // Rest can include Slash
+	NewlineOpt    string   `parser:"  @Newline?"`
+	// Case 2: Just a newline (empty line)
+	EmptyNewline string `parser:"| @Newline )"`
 }
 
 // Define the lexer using participle's lexer.MustSimple

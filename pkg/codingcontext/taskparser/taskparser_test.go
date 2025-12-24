@@ -296,6 +296,70 @@ func TestParseTask(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:    "single newline only",
+			input:   "\n",
+			wantErr: false,
+			check: func(t *testing.T, task Task) {
+				if len(task) != 1 {
+					t.Fatalf("expected 1 block, got %d", len(task))
+				}
+				if task[0].Text == nil {
+					t.Fatal("expected text block")
+				}
+				if task[0].Text.Content() != "\n" {
+					t.Errorf("expected newline, got %q", task[0].Text.Content())
+				}
+			},
+		},
+		{
+			name:    "multiple newlines only",
+			input:   "\n\n",
+			wantErr: false,
+			check: func(t *testing.T, task Task) {
+				if len(task) != 1 {
+					t.Fatalf("expected 1 block, got %d", len(task))
+				}
+				if task[0].Text == nil {
+					t.Fatal("expected text block")
+				}
+				if task[0].Text.Content() != "\n\n" {
+					t.Errorf("expected two newlines, got %q", task[0].Text.Content())
+				}
+			},
+		},
+		{
+			name:    "text with leading newlines",
+			input:   "\n\nsome text",
+			wantErr: false,
+			check: func(t *testing.T, task Task) {
+				if len(task) != 1 {
+					t.Fatalf("expected 1 block, got %d", len(task))
+				}
+				if task[0].Text == nil {
+					t.Fatal("expected text block")
+				}
+				if task[0].Text.Content() != "\n\nsome text" {
+					t.Errorf("expected '\\n\\nsome text', got %q", task[0].Text.Content())
+				}
+			},
+		},
+		{
+			name:    "text with embedded newlines",
+			input:   "line1\n\nline3",
+			wantErr: false,
+			check: func(t *testing.T, task Task) {
+				if len(task) != 1 {
+					t.Fatalf("expected 1 block, got %d", len(task))
+				}
+				if task[0].Text == nil {
+					t.Fatal("expected text block")
+				}
+				if task[0].Text.Content() != "line1\n\nline3" {
+					t.Errorf("expected 'line1\\n\\nline3', got %q", task[0].Text.Content())
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

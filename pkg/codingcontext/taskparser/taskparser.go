@@ -155,6 +155,12 @@ func (s *SlashCommand) Params() Params {
 func (t *Text) Content() string {
 	var sb strings.Builder
 	for _, line := range t.Lines {
+		// Handle empty lines (just newline)
+		if line.EmptyNewline != "" {
+			sb.WriteString(line.EmptyNewline)
+			continue
+		}
+		// Handle lines with content
 		for _, tok := range line.NonSlashStart {
 			sb.WriteString(tok)
 		}
