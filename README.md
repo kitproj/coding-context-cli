@@ -12,7 +12,8 @@ This tool collects context from predefined rule files and a task-specific prompt
 - **Dynamic Context Assembly**: Merges context from various source files.
 - **Task-Specific Prompts**: Use different prompts for different tasks (e.g., `feature`, `bugfix`).
 - **Rule-Based Context**: Define reusable context snippets (rules) that can be included or excluded.
-- **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors (matches top-level YAML fields only).
+- **Skill Support**: Define reusable capabilities that AI agents can leverage (see [agentskills.io](https://agentskills.io)).
+- **Frontmatter Filtering**: Select rules and skills based on metadata using frontmatter selectors (matches top-level YAML fields only).
 - **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically.
 - **Parameter Substitution**: Inject values into your task prompts.
 - **Token Estimation**: Get an estimate of the total token count for the generated context.
@@ -29,9 +30,9 @@ This tool is compatible with configuration files from various AI coding agents a
 - **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent`, `.opencode/command`, `.opencode/rules`
 - **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents`
 - **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md`
-- **Generic AI Agents**: `AGENTS.md`, `.agents/rules`, `.agents/commands` (reusable content blocks), `.agents/tasks`
+- **Generic AI Agents**: `AGENTS.md`, `.agents/rules`, `.agents/commands` (reusable content blocks), `.agents/tasks`, `.agents/skills` (reusable capabilities)
 
-The tool automatically discovers and includes rules from these locations in your project and user home directory (`~`).
+The tool automatically discovers and includes rules and skills from these locations in your project and user home directory (`~`).
 
 ## Agentic Workflows
 

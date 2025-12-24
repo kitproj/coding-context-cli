@@ -62,6 +62,60 @@ coding-context plan-feature      → Uses ~/.agents/tasks/plan-feature.md (from 
 
 **Note:** The working directory and home directory are automatically added to search paths, so tasks in those locations are found automatically.
 
+## Skill File Search Paths
+
+Skill files provide reusable capabilities for AI agents. Within each directory, skill files are searched in:
+
+1. `.agents/skills/(skill-name)/SKILL.md`
+
+### Directory Structure
+
+Skills must be organized in subdirectories under `.agents/skills/`, with each skill in its own folder containing a `SKILL.md` file:
+
+```
+.agents/skills/
+├── code-review/
+│   └── SKILL.md
+├── debugging/
+│   └── SKILL.md
+└── testing/
+    └── SKILL.md
+```
+
+### Discovery Rules
+
+- The CLI searches all subdirectories under `.agents/skills/`
+- Each subdirectory must contain a `SKILL.md` file
+- Skills are selected using the same selector mechanism as rules
+- Skills without selectors are included for all tasks
+- Multiple skills can be included in a single context assembly
+
+### Example
+
+```
+Project structure:
+./.agents/skills/code-review/SKILL.md     (skill for code review)
+./.agents/skills/debugging/SKILL.md       (skill for debugging, has task_names: [fix-bug])
+./.agents/skills/testing/SKILL.md         (skill for testing)
+
+Commands:
+coding-context implement-feature   → Includes code-review and testing skills
+coding-context fix-bug             → Includes code-review, debugging, and testing skills
+coding-context -s languages=go implement-feature → Includes only skills matching languages=go
+```
+
+Skills are output in a dedicated "Skills" section with XML-like formatting:
+
+```xml
+# Skills
+
+The following skills are available for use in this task...
+
+<skill name="code-review">
+...skill content...
+</skill>
+```
+
 ## Rule File Search Paths
 
 Rule files are discovered from directories specified via the `-d` flag (plus automatically-added working directory and home directory). Within each directory, the CLI searches for all standard file patterns listed below.

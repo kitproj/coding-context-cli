@@ -775,6 +775,159 @@ curl -s -H "Authorization: Bearer $API_KEY" \
     | jq -r '.fields' > /tmp/issue-data.json
 ```
 
+## Skill Files
+
+Skill files provide reusable capabilities that AI agents can leverage. They are stored in `.agents/skills/(skill-name)/SKILL.md` and follow a similar structure to rule files.
+
+### Format
+
+Skills must be named `SKILL.md` and placed in a subdirectory under `.agents/skills/`:
+
+```
+.agents/skills/
+├── code-review/
+│   └── SKILL.md
+├── debugging/
+│   └── SKILL.md
+└── testing/
+    └── SKILL.md
+```
+
+Each skill file follows this format:
+
+```markdown
+---
+skill_name: code-review
+languages:
+  - go
+  - python
+---
+
+# Code Review Skill
+
+This skill provides comprehensive code review capabilities including:
+
+- Style checking
+- Security analysis
+- Performance review
+```
+
+### Frontmatter Fields (optional)
+
+#### `skill_name` (optional)
+
+**Type:** String  
+**Purpose:** Identifies the skill. Used in the XML-like output format.
+
+```yaml
+---
+skill_name: debugging
+---
+```
+
+If not specified, a generic name will be used in the output.
+
+#### `task_names` (skill selector)
+
+Specifies which task(s) this skill applies to. Works the same as for rules.
+
+```yaml
+---
+task_names:
+  - fix-bug
+  - debug-issue
+---
+```
+
+#### `languages` (skill selector)
+
+Specifies which programming language(s) this skill applies to. Works the same as for rules.
+
+```yaml
+---
+languages:
+  - go
+  - python
+---
+```
+
+#### `agent` (skill selector)
+
+Specifies which AI agent this skill is intended for.
+
+```yaml
+---
+agent: cursor
+---
+```
+
+#### `expand` (optional)
+
+Controls parameter expansion in skill content. Defaults to `true`.
+
+```yaml
+---
+expand: false
+---
+```
+
+### Output Format
+
+Skills are included in a dedicated "Skills" section in the output, formatted with XML-like tags:
+
+```xml
+# Skills
+
+The following skills are available for use in this task. Each skill provides specific capabilities that you can leverage. Use the XML-like format shown below to reference skills in your work.
+
+<skill name="code-review">
+# Code Review Skill
+
+This skill provides comprehensive code review capabilities...
+</skill>
+
+<skill name="debugging">
+# Debugging Skill
+
+This skill helps with systematic debugging...
+</skill>
+```
+
+### Selection Behavior
+
+Skills are selected using the same selector mechanism as rules:
+
+- Skills without frontmatter selectors are included for all tasks
+- Skills with `task_names` are only included when the task name matches
+- Skills with `languages` are only included when the language selector matches
+- Multiple conditions use AND logic (all must match)
+- Array values in frontmatter use OR logic (any element can match)
+
+**Example:**
+
+```bash
+# Includes only skills with languages=go
+coding-context -s languages=go implement-feature
+```
+
+### Use Cases
+
+Skills are ideal for:
+- **Reusable Capabilities**: Define capabilities that agents can use across tasks
+- **Domain Expertise**: Provide specialized knowledge (security, testing, debugging)
+- **Tool Instructions**: Document how to use specific tools or frameworks
+- **Best Practices**: Share methodology and approaches
+
+### Skills vs Rules
+
+| Aspect | Rules | Skills |
+|--------|-------|--------|
+| Location | `.agents/rules/` | `.agents/skills/(skill-name)/SKILL.md` |
+| Purpose | Context and guidelines | Reusable capabilities |
+| Output Format | Plain text | XML-like `<skill>` tags |
+| Output Section | Inline with content | Dedicated "Skills" section |
+| Selection | Selectors | Selectors |
+
 ## YAML Frontmatter Specification
 
 ### Valid Frontmatter
