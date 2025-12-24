@@ -9,7 +9,7 @@ type Skill struct {
 	XMLName     xml.Name `xml:"skill"`
 	Name        string   `xml:"name"`
 	Description string   `xml:"description"`
-	Location    string   `xml:"-"` // Absolute path to the SKILL.md file
+	Location    string   `xml:"location"` // Absolute path to the SKILL.md file
 }
 
 // AvailableSkills represents a collection of discovered skills

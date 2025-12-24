@@ -34,6 +34,7 @@ func TestAvailableSkills_AsXML(t *testing.T) {
   <skill>
     <name>test-skill</name>
     <description>A test skill</description>
+    <location>/path/to/skill/SKILL.md</location>
   </skill>
 </available_skills>`,
 			wantErr: false,
@@ -58,10 +59,12 @@ func TestAvailableSkills_AsXML(t *testing.T) {
   <skill>
     <name>skill-one</name>
     <description>First skill</description>
+    <location>/path/to/skill-one/SKILL.md</location>
   </skill>
   <skill>
     <name>skill-two</name>
     <description>Second skill</description>
+    <location>/path/to/skill-two/SKILL.md</location>
   </skill>
 </available_skills>`,
 			wantErr: false,
@@ -81,6 +84,7 @@ func TestAvailableSkills_AsXML(t *testing.T) {
   <skill>
     <name>special-chars</name>
     <description>Test &lt;tag&gt; &amp; &#34;quotes&#34; &#39;apostrophes&#39;</description>
+    <location>/path/to/skill/SKILL.md</location>
   </skill>
 </available_skills>`,
 			wantErr: false,
