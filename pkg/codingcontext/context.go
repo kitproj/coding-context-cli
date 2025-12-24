@@ -347,6 +347,23 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		promptBuilder.WriteString(rule.Content)
 		promptBuilder.WriteString("\n")
 	}
+
+	// Add skills section if there are any skills
+	if len(cc.skills.Skills) > 0 {
+		promptBuilder.WriteString("\n# Skills\n\n")
+		promptBuilder.WriteString("You have access to the following skills. Skills are specialized capabilities that provide ")
+		promptBuilder.WriteString("domain expertise, workflows, and procedural knowledge. When a task matches a skill's ")
+		promptBuilder.WriteString("description, you can load the full skill content by reading the SKILL.md file at the ")
+		promptBuilder.WriteString("location provided.\n\n")
+
+		skillsXML, err := cc.skills.AsXML()
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode skills as XML: %w", err)
+		}
+		promptBuilder.WriteString(skillsXML)
+		promptBuilder.WriteString("\n\n")
+	}
+
 	promptBuilder.WriteString(cc.task.Content)
 
 	// Build and return the result
