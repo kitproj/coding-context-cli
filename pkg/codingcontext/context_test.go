@@ -1660,6 +1660,56 @@ func TestUserPrompt(t *testing.T) {
 			wantErr:     true,
 			errContains: "command not found",
 		},
+		{
+			name: "both task prompt and user prompt parse correctly",
+			setup: func(t *testing.T, dir string) {
+				// Task has text and slash command
+				createTask(t, dir, "parse-test", "", "Task prompt with text\n/task-command arg1\nMore task text\n")
+				createCommand(t, dir, "task-command", "", "Task command output ${param1}")
+				createCommand(t, dir, "user-command", "", "User command output ${param2}")
+			},
+			opts: []Option{
+				WithUserPrompt("User prompt with text\n/user-command arg2\nMore user text"),
+				WithParams(taskparser.Params{
+					"param1": []string{"value1"},
+					"param2": []string{"value2"},
+				}),
+			},
+			taskName: "parse-test",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				// Verify task content contains both task and user prompt elements
+				if !strings.Contains(result.Task.Content, "Task prompt with text") {
+					t.Error("expected task content to contain 'Task prompt with text'")
+				}
+				if !strings.Contains(result.Task.Content, "More task text") {
+					t.Error("expected task content to contain 'More task text'")
+				}
+				if !strings.Contains(result.Task.Content, "User prompt with text") {
+					t.Error("expected task content to contain 'User prompt with text'")
+				}
+				if !strings.Contains(result.Task.Content, "More user text") {
+					t.Error("expected task content to contain 'More user text'")
+				}
+				// Verify both commands were expanded with correct parameters
+				if !strings.Contains(result.Task.Content, "Task command output value1") {
+					t.Error("expected task command to be expanded with param1=value1")
+				}
+				if !strings.Contains(result.Task.Content, "User command output value2") {
+					t.Error("expected user command to be expanded with param2=value2")
+				}
+				// Verify delimiter is present (separating task from user prompt)
+				if !strings.Contains(result.Task.Content, "---") {
+					t.Error("expected delimiter '---' between task and user prompt")
+				}
+				// Verify order: task content comes before user content
+				taskIdx := strings.Index(result.Task.Content, "Task prompt with text")
+				userIdx := strings.Index(result.Task.Content, "User prompt with text")
+				if taskIdx >= userIdx {
+					t.Error("expected task content to come before user prompt content")
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
