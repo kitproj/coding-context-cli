@@ -321,6 +321,11 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("task not found: %w", err)
 	}
 
+	// Log parameters and selectors after task is found
+	// This ensures we capture any additions from task/command frontmatter
+	cc.logger.Info("Parameters", "params", cc.params.String())
+	cc.logger.Info("Selectors", "selectors", cc.includes.String())
+
 	if err := cc.findExecuteRuleFiles(ctx, homeDir); err != nil {
 		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}

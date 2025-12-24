@@ -378,24 +378,40 @@ Command with param: !`+"`echo '${secret}'`"+`
 	// Run the program with parameters that contain expansion syntax
 	output := runTool(t, "-C", tmpDir, "-p", "evil=!`echo INJECTED`", "-p", "secret=TOPSECRET", "test-security")
 
+	// Split output into lines to separate stderr logs from stdout prompt
+	lines := strings.Split(output, "\n")
+	var promptLines []string
+	inPrompt := false
+	for _, line := range lines {
+		// Look for the start of the frontmatter (which marks beginning of stdout)
+		if strings.HasPrefix(line, "---") {
+			inPrompt = true
+		}
+		if inPrompt {
+			promptLines = append(promptLines, line)
+		}
+	}
+	promptOutput := strings.Join(promptLines, "\n")
+
 	// Check that file content with expansion syntax is NOT re-expanded
-	if !strings.Contains(output, "File content: ${injected} and !`echo hacked`") {
+	if !strings.Contains(promptOutput, "File content: ${injected} and !`echo hacked`") {
 		t.Errorf("file content was re-expanded (security issue). Output:\n%s", output)
 	}
 
 	// Check that parameter value with command syntax is NOT executed
-	if !strings.Contains(output, "Param with command: !`echo INJECTED`") {
+	if !strings.Contains(promptOutput, "Param with command: !`echo INJECTED`") {
 		t.Errorf("parameter with command syntax was executed (security issue). Output:\n%s", output)
 	}
 
 	// Check that command output with parameter syntax is NOT re-expanded
-	if !strings.Contains(output, "Command with param: ${secret}") {
+	if !strings.Contains(promptOutput, "Command with param: ${secret}") {
 		t.Errorf("command output was re-expanded (security issue). Output:\n%s", output)
 	}
 
-	// Verify that sensitive data is NOT in output (unless it's part of literal text)
-	if strings.Contains(output, "TOPSECRET") {
-		t.Errorf("parameter was re-expanded from command output (security issue). Output:\n%s", output)
+	// Verify that sensitive data is NOT in the prompt output (only check stdout, not stderr logs)
+	// The parameter value should only appear in logging (stderr), not in the actual prompt content
+	if strings.Contains(promptOutput, "TOPSECRET") {
+		t.Errorf("parameter was re-expanded from command output (security issue). Prompt output:\n%s", promptOutput)
 	}
 	// Check that the literal command syntax is preserved (not executed)
 	// The word "hacked" appears in the literal text, so we check for the full context
