@@ -1695,3 +1695,116 @@ func TestUserPrompt(t *testing.T) {
 		})
 	}
 }
+
+// TestIsLocalPath tests the isLocalPath helper function
+func TestIsLocalPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{
+			name:     "file:// protocol",
+			path:     "file:///path/to/local",
+			expected: true,
+		},
+		{
+			name:     "absolute path",
+			path:     "/path/to/local",
+			expected: true,
+		},
+		{
+			name:     "relative path - ./",
+			path:     "./relative/path",
+			expected: true,
+		},
+		{
+			name:     "relative path - ../",
+			path:     "../relative/path",
+			expected: true,
+		},
+		{
+			name:     "relative path - no prefix",
+			path:     "relative/path",
+			expected: true,
+		},
+		{
+			name:     "git protocol",
+			path:     "git::https://github.com/user/repo.git",
+			expected: false,
+		},
+		{
+			name:     "https protocol",
+			path:     "https://example.com/file.tar.gz",
+			expected: false,
+		},
+		{
+			name:     "http protocol",
+			path:     "http://example.com/file.tar.gz",
+			expected: false,
+		},
+		{
+			name:     "s3 protocol",
+			path:     "s3::https://s3.amazonaws.com/bucket/key",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isLocalPath(tt.path)
+			if result != tt.expected {
+				t.Errorf("isLocalPath(%q) = %v, expected %v", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestNormalizeLocalPath tests the normalizeLocalPath helper function
+func TestNormalizeLocalPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected string
+	}{
+		{
+			name:     "file:// protocol - absolute path",
+			path:     "file:///path/to/local",
+			expected: "/path/to/local",
+		},
+		{
+			name:     "file:// protocol - relative path",
+			path:     "file://./relative/path",
+			expected: "./relative/path",
+		},
+		{
+			name:     "absolute path without protocol",
+			path:     "/path/to/local",
+			expected: "/path/to/local",
+		},
+		{
+			name:     "relative path - ./",
+			path:     "./relative/path",
+			expected: "./relative/path",
+		},
+		{
+			name:     "relative path - ../",
+			path:     "../relative/path",
+			expected: "../relative/path",
+		},
+		{
+			name:     "relative path - no prefix",
+			path:     "relative/path",
+			expected: "relative/path",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := normalizeLocalPath(tt.path)
+			if result != tt.expected {
+				t.Errorf("normalizeLocalPath(%q) = %q, expected %q", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
