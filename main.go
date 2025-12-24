@@ -166,6 +166,19 @@ func main() {
 			fmt.Println("---")
 		}
 
+		// Output available skills metadata (progressive disclosure)
+		if len(result.Skills) > 0 {
+			fmt.Println("<available_skills>")
+			for _, skill := range result.Skills {
+				fmt.Println("  <skill>")
+				fmt.Printf("    <name>%s</name>\n", skill.FrontMatter.Name)
+				fmt.Printf("    <description>%s</description>\n", skill.FrontMatter.Description)
+				fmt.Println("  </skill>")
+			}
+			fmt.Println("</available_skills>")
+			fmt.Println()
+		}
+
 		// Output the combined prompt (rules + task)
 		fmt.Println(result.Prompt)
 	}

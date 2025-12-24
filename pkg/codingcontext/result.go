@@ -7,11 +7,12 @@ import (
 
 // Result holds the assembled context from running a task
 type Result struct {
-	Rules  []markdown.Markdown[markdown.RuleFrontMatter] // List of included rule files
-	Task   markdown.Markdown[markdown.TaskFrontMatter]   // Task file with frontmatter and content
-	Tokens int                                           // Total token count
-	Agent  Agent                                         // The agent used (from task or -a flag)
-	Prompt string                                        // Combined prompt: all rules and task content
+	Rules  []markdown.Markdown[markdown.RuleFrontMatter]  // List of included rule files
+	Task   markdown.Markdown[markdown.TaskFrontMatter]    // Task file with frontmatter and content
+	Skills []markdown.Markdown[markdown.SkillFrontMatter] // List of discovered skills (metadata only)
+	Tokens int                                            // Total token count
+	Agent  Agent                                          // The agent used (from task or -a flag)
+	Prompt string                                         // Combined prompt: all rules and task content
 }
 
 // MCPServers returns all MCP server configurations from rules.

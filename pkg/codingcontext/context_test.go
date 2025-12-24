@@ -1971,3 +1971,276 @@ func TestLogsParametersAndSelectors(t *testing.T) {
 		})
 	}
 }
+
+// TestSkillDiscovery tests skill discovery functionality
+func TestSkillDiscovery(t *testing.T) {
+	tests := []struct {
+		name      string
+		setup     func(t *testing.T, dir string)
+		opts      []Option
+		taskName  string
+		wantErr   bool
+		checkFunc func(t *testing.T, result *Result)
+	}{
+		{
+			name: "discover skills with metadata",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
+
+				// Create skill directory with SKILL.md
+				skillDir := filepath.Join(dir, ".agents", "skills", "test-skill")
+				if err := os.MkdirAll(skillDir, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+
+				skillContent := `---
+name: test-skill
+description: A test skill for unit testing
+license: MIT
+metadata:
+  author: test-author
+  version: "1.0"
+---
+
+# Test Skill
+
+This is a test skill.
+`
+				skillPath := filepath.Join(skillDir, "SKILL.md")
+				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills) != 1 {
+					t.Fatalf("expected 1 skill, got %d", len(result.Skills))
+				}
+				skill := result.Skills[0]
+				if skill.FrontMatter.Name != "test-skill" {
+					t.Errorf("expected skill name 'test-skill', got %q", skill.FrontMatter.Name)
+				}
+				if skill.FrontMatter.Description != "A test skill for unit testing" {
+					t.Errorf("expected skill description 'A test skill for unit testing', got %q", skill.FrontMatter.Description)
+				}
+				if skill.FrontMatter.License != "MIT" {
+					t.Errorf("expected license 'MIT', got %q", skill.FrontMatter.License)
+				}
+				// Check progressive disclosure - content should be empty
+				if skill.Content != "" {
+					t.Errorf("expected empty content for progressive disclosure, got %q", skill.Content)
+				}
+			},
+		},
+		{
+			name: "discover multiple skills",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
+
+				// Create first skill
+				skillDir1 := filepath.Join(dir, ".agents", "skills", "skill-one")
+				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				skillContent1 := `---
+name: skill-one
+description: First test skill
+---
+
+# Skill One
+`
+				skillPath1 := filepath.Join(skillDir1, "SKILL.md")
+				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+
+				// Create second skill
+				skillDir2 := filepath.Join(dir, ".agents", "skills", "skill-two")
+				if err := os.MkdirAll(skillDir2, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				skillContent2 := `---
+name: skill-two
+description: Second test skill
+---
+
+# Skill Two
+`
+				skillPath2 := filepath.Join(skillDir2, "SKILL.md")
+				if err := os.WriteFile(skillPath2, []byte(skillContent2), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills) != 2 {
+					t.Fatalf("expected 2 skills, got %d", len(result.Skills))
+				}
+				// Skills should be in order of discovery
+				names := []string{result.Skills[0].FrontMatter.Name, result.Skills[1].FrontMatter.Name}
+				if (names[0] != "skill-one" && names[0] != "skill-two") ||
+					(names[1] != "skill-one" && names[1] != "skill-two") {
+					t.Errorf("expected skills 'skill-one' and 'skill-two', got %v", names)
+				}
+			},
+		},
+		{
+			name: "skip skills with missing required fields",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
+
+				// Create skill with missing name
+				skillDir1 := filepath.Join(dir, ".agents", "skills", "invalid-skill-1")
+				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				skillContent1 := `---
+description: Missing name field
+---
+
+# Invalid Skill
+`
+				skillPath1 := filepath.Join(skillDir1, "SKILL.md")
+				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+
+				// Create skill with missing description
+				skillDir2 := filepath.Join(dir, ".agents", "skills", "invalid-skill-2")
+				if err := os.MkdirAll(skillDir2, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				skillContent2 := `---
+name: invalid-skill-2
+---
+
+# Invalid Skill
+`
+				skillPath2 := filepath.Join(skillDir2, "SKILL.md")
+				if err := os.WriteFile(skillPath2, []byte(skillContent2), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+
+				// Create valid skill
+				skillDir3 := filepath.Join(dir, ".agents", "skills", "valid-skill")
+				if err := os.MkdirAll(skillDir3, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				skillContent3 := `---
+name: valid-skill
+description: Valid skill with all required fields
+---
+
+# Valid Skill
+`
+				skillPath3 := filepath.Join(skillDir3, "SKILL.md")
+				if err := os.WriteFile(skillPath3, []byte(skillContent3), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills) != 1 {
+					t.Fatalf("expected 1 valid skill, got %d", len(result.Skills))
+				}
+				if result.Skills[0].FrontMatter.Name != "valid-skill" {
+					t.Errorf("expected skill name 'valid-skill', got %q", result.Skills[0].FrontMatter.Name)
+				}
+			},
+		},
+		{
+			name: "skills filtered by selectors",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
+
+				// Create skill with environment selector
+				skillDir1 := filepath.Join(dir, ".agents", "skills", "dev-skill")
+				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				skillContent1 := `---
+name: dev-skill
+description: Development environment skill
+env: development
+---
+
+# Dev Skill
+`
+				skillPath1 := filepath.Join(skillDir1, "SKILL.md")
+				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+
+				// Create skill with production selector
+				skillDir2 := filepath.Join(dir, ".agents", "skills", "prod-skill")
+				if err := os.MkdirAll(skillDir2, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				skillContent2 := `---
+name: prod-skill
+description: Production environment skill
+env: production
+---
+
+# Prod Skill
+`
+				skillPath2 := filepath.Join(skillDir2, "SKILL.md")
+				if err := os.WriteFile(skillPath2, []byte(skillContent2), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			opts: []Option{
+				WithSelectors(selectors.Selectors{"env": {"development": true}}),
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills) != 1 {
+					t.Fatalf("expected 1 skill matching selector, got %d", len(result.Skills))
+				}
+				if result.Skills[0].FrontMatter.Name != "dev-skill" {
+					t.Errorf("expected skill name 'dev-skill', got %q", result.Skills[0].FrontMatter.Name)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			// Setup test fixtures
+			tt.setup(t, tmpDir)
+
+			// Create context with test directory and options
+			opts := append([]Option{
+				WithSearchPaths("file://" + tmpDir),
+			}, tt.opts...)
+			cc := New(opts...)
+
+			// Run the context
+			result, err := cc.Run(context.Background(), tt.taskName)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error but got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Run checks
+			if tt.checkFunc != nil {
+				tt.checkFunc(t, result)
+			}
+		})
+	}
+}
