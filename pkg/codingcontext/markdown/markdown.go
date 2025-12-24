@@ -27,7 +27,7 @@ type RuleMarkdown = Markdown[RuleFrontMatter]
 func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) {
 	fh, err := os.Open(path)
 	if err != nil {
-		return Markdown[T]{}, fmt.Errorf("failed to open file: %w", err)
+		return Markdown[T]{}, fmt.Errorf("failed to open file %s: %w", path, err)
 	}
 	defer fh.Close()
 
@@ -68,13 +68,13 @@ func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) 
 	}
 
 	if err := s.Err(); err != nil {
-		return Markdown[T]{}, fmt.Errorf("failed to scan file: %w", err)
+		return Markdown[T]{}, fmt.Errorf("failed to scan file %s: %w", path, err)
 	}
 
 	// Parse frontmatter if we collected any
 	if frontMatterBytes.Len() > 0 {
 		if err := yaml.Unmarshal(frontMatterBytes.Bytes(), frontMatter); err != nil {
-			return Markdown[T]{}, fmt.Errorf("failed to unmarshal frontmatter: %w", err)
+			return Markdown[T]{}, fmt.Errorf("failed to unmarshal frontmatter in file %s: %w", path, err)
 		}
 	}
 
