@@ -20,10 +20,6 @@ type AvailableSkills struct {
 
 // AsXML returns the XML representation of available skills
 func (a AvailableSkills) AsXML() (string, error) {
-	if len(a.Skills) == 0 {
-		return "", nil
-	}
-
 	// Use xml.MarshalIndent to properly encode the XML with indentation
 	xmlBytes, err := xml.MarshalIndent(a, "", "  ")
 	if err != nil {

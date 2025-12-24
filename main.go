@@ -173,10 +173,8 @@ func main() {
 				logger.Error("Failed to encode skills as XML", "error", err)
 				os.Exit(1)
 			}
-			if skillsXML != "" {
-				fmt.Println(skillsXML)
-				fmt.Println()
-			}
+			fmt.Println(skillsXML)
+			fmt.Println()
 		}
 
 		// Output the combined prompt (rules + task)

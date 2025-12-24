@@ -16,7 +16,7 @@ func TestAvailableSkills_AsXML(t *testing.T) {
 			skills: AvailableSkills{
 				Skills: []Skill{},
 			},
-			want:    "",
+			want:    "<available_skills></available_skills>",
 			wantErr: false,
 		},
 		{

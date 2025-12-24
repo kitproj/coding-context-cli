@@ -606,22 +606,21 @@ func (cc *Context) discoverSkills() error {
 			if frontmatter.Name == "" {
 				return fmt.Errorf("skill %s missing required 'name' field", skillFile)
 			}
-			if len(frontmatter.Name) < 1 || len(frontmatter.Name) > 64 {
+			if len(frontmatter.Name) > 64 {
 				return fmt.Errorf("skill %s 'name' field must be 1-64 characters, got %d", skillFile, len(frontmatter.Name))
 			}
 
 			if frontmatter.Description == "" {
 				return fmt.Errorf("skill %s missing required 'description' field", skillFile)
 			}
-			if len(frontmatter.Description) < 1 || len(frontmatter.Description) > 1024 {
+			if len(frontmatter.Description) > 1024 {
 				return fmt.Errorf("skill %s 'description' field must be 1-1024 characters, got %d", skillFile, len(frontmatter.Description))
 			}
 
 			// Get absolute path for the skill file
 			absPath, err := filepath.Abs(skillFile)
 			if err != nil {
-				cc.logger.Warn("Failed to get absolute path for skill, using relative path", "path", skillFile, "error", err)
-				absPath = skillFile
+				return fmt.Errorf("failed to get absolute path for skill %s: %w", skillFile, err)
 			}
 
 			// Add skill to the collection
