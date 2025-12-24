@@ -3,12 +3,14 @@ package codingcontext
 import (
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/skills"
 )
 
 // Result holds the assembled context from running a task
 type Result struct {
 	Rules  []markdown.Markdown[markdown.RuleFrontMatter] // List of included rule files
 	Task   markdown.Markdown[markdown.TaskFrontMatter]   // Task file with frontmatter and content
+	Skills skills.AvailableSkills                        // List of discovered skills (metadata only)
 	Tokens int                                           // Total token count
 	Agent  Agent                                         // The agent used (from task or -a flag)
 	Prompt string                                        // Combined prompt: all rules and task content

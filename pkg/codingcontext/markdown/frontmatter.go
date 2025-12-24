@@ -154,3 +154,51 @@ func (r *RuleFrontMatter) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// SkillFrontMatter represents the standard frontmatter fields for skill files
+type SkillFrontMatter struct {
+	BaseFrontMatter `yaml:",inline"`
+
+	// Name is the skill identifier (required)
+	// Must be 1-64 characters, lowercase alphanumeric and hyphens only
+	Name string `yaml:"name" json:"name"`
+
+	// Description explains what the skill does and when to use it (required)
+	// Must be 1-1024 characters
+	Description string `yaml:"description" json:"description"`
+
+	// License specifies the license applied to the skill (optional)
+	License string `yaml:"license,omitempty" json:"license,omitempty"`
+
+	// Compatibility indicates environment requirements (optional)
+	// Max 500 characters
+	Compatibility string `yaml:"compatibility,omitempty" json:"compatibility,omitempty"`
+
+	// Metadata contains arbitrary key-value pairs (optional)
+	Metadata map[string]string `yaml:"metadata,omitempty" json:"metadata,omitempty"`
+
+	// AllowedTools is a space-delimited list of pre-approved tools (optional, experimental)
+	AllowedTools string `yaml:"allowed-tools,omitempty" json:"allowed-tools,omitempty"`
+}
+
+// UnmarshalJSON custom unmarshaler that populates both typed fields and Content map
+func (s *SkillFrontMatter) UnmarshalJSON(data []byte) error {
+	// First unmarshal into a temporary type to avoid infinite recursion
+	type Alias SkillFrontMatter
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(s),
+	}
+
+	if err := json.Unmarshal(data, aux); err != nil {
+		return fmt.Errorf("failed to unmarshal skill frontmatter: %w", err)
+	}
+
+	// Also unmarshal into Content map
+	if err := json.Unmarshal(data, &s.BaseFrontMatter.Content); err != nil {
+		return fmt.Errorf("failed to unmarshal skill frontmatter content: %w", err)
+	}
+
+	return nil
+}

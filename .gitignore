@@ -2,3 +2,6 @@
 coding-context
 coding-context-cli
 *.test
+
+# Test workspaces
+examples/test-workspace/

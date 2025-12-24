@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-getter/v2"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/selectors"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/skills"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparser"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/tokencount"
 )
@@ -28,6 +29,7 @@ type Context struct {
 	downloadedPaths []string
 	task            markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
 	rules           []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
+	skills          skills.AvailableSkills                        // Discovered skills (metadata only)
 	totalTokens     int
 	logger          *slog.Logger
 	cmdRunner       func(cmd *exec.Cmd) error
@@ -42,6 +44,7 @@ func New(opts ...Option) *Context {
 		params:   make(taskparser.Params),
 		includes: make(selectors.Selectors),
 		rules:    make([]markdown.Markdown[markdown.RuleFrontMatter], 0),
+		skills:   skills.AvailableSkills{Skills: make([]skills.Skill, 0)},
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
@@ -330,6 +333,11 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
+	// Discover skills (load metadata only for progressive disclosure)
+	if err := cc.discoverSkills(); err != nil {
+		return nil, fmt.Errorf("failed to discover skills: %w", err)
+	}
+
 	// Estimate tokens for task
 	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
 
@@ -339,12 +347,30 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		promptBuilder.WriteString(rule.Content)
 		promptBuilder.WriteString("\n")
 	}
+
+	// Add skills section if there are any skills
+	if len(cc.skills.Skills) > 0 {
+		promptBuilder.WriteString("\n# Skills\n\n")
+		promptBuilder.WriteString("You have access to the following skills. Skills are specialized capabilities that provide ")
+		promptBuilder.WriteString("domain expertise, workflows, and procedural knowledge. When a task matches a skill's ")
+		promptBuilder.WriteString("description, you can load the full skill content by reading the SKILL.md file at the ")
+		promptBuilder.WriteString("location provided.\n\n")
+
+		skillsXML, err := cc.skills.AsXML()
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode skills as XML: %w", err)
+		}
+		promptBuilder.WriteString(skillsXML)
+		promptBuilder.WriteString("\n\n")
+	}
+
 	promptBuilder.WriteString(cc.task.Content)
 
 	// Build and return the result
 	result := &Result{
 		Rules:  cc.rules,
 		Task:   cc.task,
+		Skills: cc.skills,
 		Tokens: cc.totalTokens,
 		Agent:  cc.agent,
 		Prompt: promptBuilder.String(),
@@ -543,4 +569,87 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path string) error {
 	cmd.Stderr = os.Stderr
 
 	return cc.cmdRunner(cmd)
+}
+
+// discoverSkills searches for skill directories and loads only their metadata (name and description)
+// for progressive disclosure. Skills are folders containing a SKILL.md file.
+func (cc *Context) discoverSkills() error {
+	var skillPaths []string
+	for _, path := range cc.downloadedPaths {
+		skillPaths = append(skillPaths, skillSearchPaths(path)...)
+	}
+
+	for _, dir := range skillPaths {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return fmt.Errorf("failed to stat skill directory %s: %w", dir, err)
+		}
+
+		// List all subdirectories in the skills directory
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return fmt.Errorf("failed to read skill directory %s: %w", dir, err)
+		}
+
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+
+			skillDir := filepath.Join(dir, entry.Name())
+			skillFile := filepath.Join(skillDir, "SKILL.md")
+
+			// Check if SKILL.md exists
+			if _, err := os.Stat(skillFile); os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to stat skill file %s: %w", skillFile, err)
+			}
+
+			// Parse only the frontmatter (metadata)
+			var frontmatter markdown.SkillFrontMatter
+			_, err := markdown.ParseMarkdownFile(skillFile, &frontmatter)
+			if err != nil {
+				return fmt.Errorf("failed to parse skill file %s: %w", skillFile, err)
+			}
+
+			// Check if the skill matches the selectors first (before validation)
+			if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
+				continue
+			}
+
+			// Validate required fields and their lengths
+			if frontmatter.Name == "" {
+				return fmt.Errorf("skill %s missing required 'name' field", skillFile)
+			}
+			if len(frontmatter.Name) > 64 {
+				return fmt.Errorf("skill %s 'name' field must be 1-64 characters, got %d", skillFile, len(frontmatter.Name))
+			}
+
+			if frontmatter.Description == "" {
+				return fmt.Errorf("skill %s missing required 'description' field", skillFile)
+			}
+			if len(frontmatter.Description) > 1024 {
+				return fmt.Errorf("skill %s 'description' field must be 1-1024 characters, got %d", skillFile, len(frontmatter.Description))
+			}
+
+			// Get absolute path for the skill file
+			absPath, err := filepath.Abs(skillFile)
+			if err != nil {
+				return fmt.Errorf("failed to get absolute path for skill %s: %w", skillFile, err)
+			}
+
+			// Add skill to the collection
+			cc.skills.Skills = append(cc.skills.Skills, skills.Skill{
+				Name:        frontmatter.Name,
+				Description: frontmatter.Description,
+				Location:    absPath,
+			})
+
+			cc.logger.Info("Discovered skill", "name", frontmatter.Name, "path", absPath)
+		}
+	}
+
+	return nil
 }
