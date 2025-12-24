@@ -348,6 +348,37 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	return result, nil
 }
 
+// isLocalPath checks if a path is a local file system path.
+// Returns true for:
+// - file:// URLs (e.g., file:///path/to/dir)
+// - Absolute paths (e.g., /path/to/dir)
+// - Relative paths (e.g., ./path or ../path)
+// Returns false for remote protocols like git::, https://, s3::, etc.
+func isLocalPath(path string) bool {
+	// Check if path starts with file:// protocol
+	if strings.HasPrefix(path, "file://") {
+		return true
+	}
+
+	// Check if it's an absolute or relative local path
+	// (no protocol prefix like git::, https://, s3::, etc.)
+	if !strings.Contains(path, "://") && !strings.Contains(path, "::") {
+		return true
+	}
+
+	return false
+}
+
+// normalizeLocalPath converts a local path to a usable file system path.
+// For file:// URLs, it strips the protocol prefix.
+// For other local paths, it returns them as-is.
+func normalizeLocalPath(path string) string {
+	if strings.HasPrefix(path, "file://") {
+		return strings.TrimPrefix(path, "file://")
+	}
+	return path
+}
+
 func downloadDir(path string) string {
 	// hash the path and prepend it with a temporary directory
 	hash := sha256.Sum256([]byte(path))
@@ -397,6 +428,15 @@ func (cc *Context) parseManifestFile(ctx context.Context) ([]string, error) {
 
 func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
 	for _, path := range cc.searchPaths {
+		// If the path is local, use it directly without downloading
+		if isLocalPath(path) {
+			localPath := normalizeLocalPath(path)
+			cc.logger.Info("Using local directory", "path", localPath)
+			cc.downloadedPaths = append(cc.downloadedPaths, localPath)
+			continue
+		}
+
+		// Download remote directories
 		cc.logger.Info("Downloading remote directory", "path", path)
 		dst := downloadDir(path)
 		if _, err := getter.Get(ctx, dst, path); err != nil {
@@ -411,6 +451,12 @@ func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
 
 func (cc *Context) cleanupDownloadedDirectories() {
 	for _, path := range cc.searchPaths {
+		// Skip cleanup for local paths - they should not be deleted
+		if isLocalPath(path) {
+			continue
+		}
+
+		// Only clean up downloaded remote directories
 		dst := downloadDir(path)
 		if err := os.RemoveAll(dst); err != nil {
 			cc.logger.Error("Error cleaning up downloaded directory", "path", dst, "error", err)
