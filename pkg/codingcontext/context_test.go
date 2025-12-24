@@ -1705,7 +1705,9 @@ func TestUserPrompt(t *testing.T) {
 				// Verify order: task content comes before user content
 				taskIdx := strings.Index(result.Task.Content, "Task prompt with text")
 				userIdx := strings.Index(result.Task.Content, "User prompt with text")
-				if taskIdx >= userIdx {
+				if taskIdx == -1 || userIdx == -1 {
+					t.Error("expected both task and user prompt text to be found in result")
+				} else if taskIdx >= userIdx {
 					t.Error("expected task content to come before user prompt content")
 				}
 			},
