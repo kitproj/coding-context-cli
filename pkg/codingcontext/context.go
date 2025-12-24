@@ -351,13 +351,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		promptBuilder.WriteString("\n# Skills\n\n")
 		promptBuilder.WriteString("The following skills are available for use in this task. Each skill provides specific capabilities that you can leverage. Use the XML-like format shown below to reference skills in your work.\n\n")
 		for _, skill := range cc.skills {
-			// Extract skill name from the directory or frontmatter
-			skillName := skill.FrontMatter.SkillName
-			if skillName == "" {
-				// Fallback to a generic name
-				skillName = "skill"
-			}
-			promptBuilder.WriteString(fmt.Sprintf("<skill name=\"%s\">\n", skillName))
+			promptBuilder.WriteString(fmt.Sprintf("<skill name=\"%s\">\n", skill.FrontMatter.SkillName))
 			promptBuilder.WriteString(skill.Content)
 			promptBuilder.WriteString("\n</skill>\n\n")
 		}
@@ -592,6 +586,11 @@ func (cc *Context) findSkillFiles(ctx context.Context) error {
 				baseFM.Content = frontmatter.Content
 				if !cc.includes.MatchesIncludes(baseFM) {
 					continue
+				}
+
+				// Use directory name as fallback if skill_name is not specified
+				if frontmatter.SkillName == "" {
+					frontmatter.SkillName = entry.Name()
 				}
 
 				// Expand parameters only if expand is not explicitly set to false
