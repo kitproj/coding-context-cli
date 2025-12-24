@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/goccy/go-yaml"
@@ -147,6 +148,31 @@ selectors:
 				},
 			},
 		},
+		{
+			name: "task with selectors and custom fields",
+			yaml: `---
+single_shot: true
+collect_and_push: false
+selectors:
+    tool: [""]
+---
+
+Say hello.
+`,
+			want: TaskFrontMatter{
+				BaseFrontMatter: BaseFrontMatter{
+					Content: map[string]any{
+						"single_shot":      true,
+						"collect_and_push": false,
+						"selectors":        map[string]any{"tool": []any{""}},
+					},
+				},
+				SingleShot: true,
+				Selectors: map[string]any{
+					"tool": []any{""},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -177,6 +203,34 @@ selectors:
 			}
 			if got.Timeout != tt.want.Timeout {
 				t.Errorf("Timeout = %q, want %q", got.Timeout, tt.want.Timeout)
+			}
+
+			// Check custom Content fields if present in want
+			for key, wantVal := range tt.want.Content {
+				if key == "task_name" {
+					continue // Already checked above
+				}
+				gotVal, exists := got.Content[key]
+				if !exists {
+					t.Errorf("Content[%q] missing, want %v", key, wantVal)
+				} else if fmt.Sprintf("%v", gotVal) != fmt.Sprintf("%v", wantVal) {
+					t.Errorf("Content[%q] = %v, want %v", key, gotVal, wantVal)
+				}
+			}
+
+			// Check Selectors if present in want
+			if len(tt.want.Selectors) > 0 {
+				if len(got.Selectors) != len(tt.want.Selectors) {
+					t.Errorf("Selectors length = %d, want %d", len(got.Selectors), len(tt.want.Selectors))
+				}
+				for key, wantVal := range tt.want.Selectors {
+					gotVal, exists := got.Selectors[key]
+					if !exists {
+						t.Errorf("Selectors[%q] missing, want %v", key, wantVal)
+					} else if fmt.Sprintf("%v", gotVal) != fmt.Sprintf("%v", wantVal) {
+						t.Errorf("Selectors[%q] = %v, want %v", key, gotVal, wantVal)
+					}
+				}
 			}
 		})
 	}
