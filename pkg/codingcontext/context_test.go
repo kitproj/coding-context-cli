@@ -2086,12 +2086,12 @@ description: Second test skill
 			},
 		},
 		{
-			name: "skip skills with missing required fields",
+			name: "error on skills with missing required fields",
 			setup: func(t *testing.T, dir string) {
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
-				// Create skill with missing name
+				// Create skill with missing name - should cause error
 				skillDir1 := filepath.Join(dir, ".agents", "skills", "invalid-skill-1")
 				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
 					t.Fatalf("failed to create skill directory: %v", err)
@@ -2106,50 +2106,34 @@ description: Missing name field
 				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
 					t.Fatalf("failed to create skill file: %v", err)
 				}
+			},
+			taskName: "test-task",
+			wantErr:  true,
+		},
+		{
+			name: "error on skill with missing description",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
 
-				// Create skill with missing description
-				skillDir2 := filepath.Join(dir, ".agents", "skills", "invalid-skill-2")
-				if err := os.MkdirAll(skillDir2, 0o755); err != nil {
+				// Create skill with missing description - should cause error
+				skillDir := filepath.Join(dir, ".agents", "skills", "invalid-skill")
+				if err := os.MkdirAll(skillDir, 0o755); err != nil {
 					t.Fatalf("failed to create skill directory: %v", err)
 				}
-				skillContent2 := `---
-name: invalid-skill-2
+				skillContent := `---
+name: invalid-skill
 ---
 
 # Invalid Skill
 `
-				skillPath2 := filepath.Join(skillDir2, "SKILL.md")
-				if err := os.WriteFile(skillPath2, []byte(skillContent2), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
-
-				// Create valid skill
-				skillDir3 := filepath.Join(dir, ".agents", "skills", "valid-skill")
-				if err := os.MkdirAll(skillDir3, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-				skillContent3 := `---
-name: valid-skill
-description: Valid skill with all required fields
----
-
-# Valid Skill
-`
-				skillPath3 := filepath.Join(skillDir3, "SKILL.md")
-				if err := os.WriteFile(skillPath3, []byte(skillContent3), 0o644); err != nil {
+				skillPath := filepath.Join(skillDir, "SKILL.md")
+				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
 					t.Fatalf("failed to create skill file: %v", err)
 				}
 			},
 			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 valid skill, got %d", len(result.Skills.Skills))
-				}
-				if result.Skills.Skills[0].Name != "valid-skill" {
-					t.Errorf("expected skill name 'valid-skill', got %q", result.Skills.Skills[0].Name)
-				}
-			},
+			wantErr:  true,
 		},
 		{
 			name: "skills filtered by selectors",
@@ -2208,12 +2192,12 @@ env: production
 			},
 		},
 		{
-			name: "skip skills with invalid field lengths",
+			name: "error on skills with invalid field lengths",
 			setup: func(t *testing.T, dir string) {
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
-				// Create skill with name too long (>64 chars)
+				// Create skill with name too long (>64 chars) - should cause error
 				skillDir1 := filepath.Join(dir, ".agents", "skills", "long-name-skill")
 				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
 					t.Fatalf("failed to create skill directory: %v", err)
@@ -2229,52 +2213,36 @@ description: Valid description
 				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
 					t.Fatalf("failed to create skill file: %v", err)
 				}
+			},
+			taskName: "test-task",
+			wantErr:  true,
+		},
+		{
+			name: "error on skill with description too long",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
 
-				// Create skill with description too long (>1024 chars)
-				skillDir2 := filepath.Join(dir, ".agents", "skills", "long-desc-skill")
-				if err := os.MkdirAll(skillDir2, 0o755); err != nil {
+				// Create skill with description too long (>1024 chars) - should cause error
+				skillDir := filepath.Join(dir, ".agents", "skills", "long-desc-skill")
+				if err := os.MkdirAll(skillDir, 0o755); err != nil {
 					t.Fatalf("failed to create skill directory: %v", err)
 				}
 				longDesc := strings.Repeat("a", 1025)
-				skillContent2 := fmt.Sprintf(`---
+				skillContent := fmt.Sprintf(`---
 name: long-desc-skill
 description: %s
 ---
 
 # Long Desc Skill
 `, longDesc)
-				skillPath2 := filepath.Join(skillDir2, "SKILL.md")
-				if err := os.WriteFile(skillPath2, []byte(skillContent2), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
-
-				// Create valid skill
-				skillDir3 := filepath.Join(dir, ".agents", "skills", "valid-length-skill")
-				if err := os.MkdirAll(skillDir3, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-				skillContent3 := `---
-name: valid-length-skill
-description: Valid skill with correct field lengths
----
-
-# Valid Skill
-`
-				skillPath3 := filepath.Join(skillDir3, "SKILL.md")
-				if err := os.WriteFile(skillPath3, []byte(skillContent3), 0o644); err != nil {
+				skillPath := filepath.Join(skillDir, "SKILL.md")
+				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
 					t.Fatalf("failed to create skill file: %v", err)
 				}
 			},
 			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 valid skill, got %d", len(result.Skills.Skills))
-				}
-				if result.Skills.Skills[0].Name != "valid-length-skill" {
-					t.Errorf("expected skill name 'valid-length-skill', got %q", result.Skills.Skills[0].Name)
-				}
-			},
+			wantErr:  true,
 		},
 	}
 

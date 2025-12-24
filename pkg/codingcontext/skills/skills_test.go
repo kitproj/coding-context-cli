@@ -4,18 +4,20 @@ import (
 	"testing"
 )
 
-func TestAvailableSkills_String(t *testing.T) {
+func TestAvailableSkills_AsXML(t *testing.T) {
 	tests := []struct {
-		name   string
-		skills AvailableSkills
-		want   string
+		name    string
+		skills  AvailableSkills
+		want    string
+		wantErr bool
 	}{
 		{
 			name: "empty skills",
 			skills: AvailableSkills{
 				Skills: []Skill{},
 			},
-			want: "",
+			want:    "",
+			wantErr: false,
 		},
 		{
 			name: "single skill",
@@ -34,6 +36,7 @@ func TestAvailableSkills_String(t *testing.T) {
     <description>A test skill</description>
   </skill>
 </available_skills>`,
+			wantErr: false,
 		},
 		{
 			name: "multiple skills",
@@ -61,6 +64,7 @@ func TestAvailableSkills_String(t *testing.T) {
     <description>Second skill</description>
   </skill>
 </available_skills>`,
+			wantErr: false,
 		},
 		{
 			name: "skill with special XML characters",
@@ -76,65 +80,22 @@ func TestAvailableSkills_String(t *testing.T) {
 			want: `<available_skills>
   <skill>
     <name>special-chars</name>
-    <description>Test &lt;tag&gt; &amp; &quot;quotes&quot; &apos;apostrophes&apos;</description>
+    <description>Test &lt;tag&gt; &amp; &#34;quotes&#34; &#39;apostrophes&#39;</description>
   </skill>
 </available_skills>`,
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.skills.String()
-			if got != tt.want {
-				t.Errorf("AvailableSkills.String() mismatch\nGot:\n%s\n\nWant:\n%s", got, tt.want)
+			got, err := tt.skills.AsXML()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AvailableSkills.AsXML() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
-		})
-	}
-}
-
-func TestXMLEscape(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{
-			name:  "no special characters",
-			input: "normal text",
-			want:  "normal text",
-		},
-		{
-			name:  "ampersand",
-			input: "A & B",
-			want:  "A &amp; B",
-		},
-		{
-			name:  "less than and greater than",
-			input: "<tag>",
-			want:  "&lt;tag&gt;",
-		},
-		{
-			name:  "quotes",
-			input: `"quoted" text`,
-			want:  "&quot;quoted&quot; text",
-		},
-		{
-			name:  "apostrophes",
-			input: "it's here",
-			want:  "it&apos;s here",
-		},
-		{
-			name:  "multiple special characters",
-			input: `<tag attr="value" & 'single'>`,
-			want:  "&lt;tag attr=&quot;value&quot; &amp; &apos;single&apos;&gt;",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := xmlEscape(tt.input)
 			if got != tt.want {
-				t.Errorf("xmlEscape() = %q, want %q", got, tt.want)
+				t.Errorf("AvailableSkills.AsXML() mismatch\nGot:\n%s\n\nWant:\n%s", got, tt.want)
 			}
 		})
 	}

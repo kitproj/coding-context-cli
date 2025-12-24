@@ -594,8 +594,7 @@ func (cc *Context) discoverSkills() error {
 			var frontmatter markdown.SkillFrontMatter
 			_, err := markdown.ParseMarkdownFile(skillFile, &frontmatter)
 			if err != nil {
-				cc.logger.Warn("Failed to parse skill file, skipping", "path", skillFile, "error", err)
-				continue
+				return fmt.Errorf("failed to parse skill file %s: %w", skillFile, err)
 			}
 
 			// Check if the skill matches the selectors first (before validation)
@@ -605,21 +604,17 @@ func (cc *Context) discoverSkills() error {
 
 			// Validate required fields and their lengths
 			if frontmatter.Name == "" {
-				cc.logger.Warn("Skill missing required 'name' field, skipping", "path", skillFile)
-				continue
+				return fmt.Errorf("skill %s missing required 'name' field", skillFile)
 			}
 			if len(frontmatter.Name) < 1 || len(frontmatter.Name) > 64 {
-				cc.logger.Warn("Skill 'name' field must be 1-64 characters, skipping", "path", skillFile, "length", len(frontmatter.Name))
-				continue
+				return fmt.Errorf("skill %s 'name' field must be 1-64 characters, got %d", skillFile, len(frontmatter.Name))
 			}
 
 			if frontmatter.Description == "" {
-				cc.logger.Warn("Skill missing required 'description' field, skipping", "path", skillFile)
-				continue
+				return fmt.Errorf("skill %s missing required 'description' field", skillFile)
 			}
 			if len(frontmatter.Description) < 1 || len(frontmatter.Description) > 1024 {
-				cc.logger.Warn("Skill 'description' field must be 1-1024 characters, skipping", "path", skillFile, "length", len(frontmatter.Description))
-				continue
+				return fmt.Errorf("skill %s 'description' field must be 1-1024 characters, got %d", skillFile, len(frontmatter.Description))
 			}
 
 			// Get absolute path for the skill file

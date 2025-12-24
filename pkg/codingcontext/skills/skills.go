@@ -2,7 +2,6 @@ package skills
 
 import (
 	"encoding/xml"
-	"strings"
 )
 
 // Skill represents a discovered skill with its metadata
@@ -19,34 +18,17 @@ type AvailableSkills struct {
 	Skills  []Skill  `xml:"skill"`
 }
 
-// String returns the XML representation of available skills
-func (a AvailableSkills) String() string {
+// AsXML returns the XML representation of available skills
+func (a AvailableSkills) AsXML() (string, error) {
 	if len(a.Skills) == 0 {
-		return ""
+		return "", nil
 	}
 
-	var sb strings.Builder
-	sb.WriteString("<available_skills>\n")
-	for _, skill := range a.Skills {
-		sb.WriteString("  <skill>\n")
-		sb.WriteString("    <name>")
-		sb.WriteString(xmlEscape(skill.Name))
-		sb.WriteString("</name>\n")
-		sb.WriteString("    <description>")
-		sb.WriteString(xmlEscape(skill.Description))
-		sb.WriteString("</description>\n")
-		sb.WriteString("  </skill>\n")
+	// Use xml.MarshalIndent to properly encode the XML with indentation
+	xmlBytes, err := xml.MarshalIndent(a, "", "  ")
+	if err != nil {
+		return "", err
 	}
-	sb.WriteString("</available_skills>")
-	return sb.String()
-}
 
-// xmlEscape escapes special XML characters
-func xmlEscape(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, "\"", "&quot;")
-	s = strings.ReplaceAll(s, "'", "&apos;")
-	return s
+	return string(xmlBytes), nil
 }

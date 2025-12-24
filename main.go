@@ -167,9 +167,16 @@ func main() {
 		}
 
 		// Output available skills metadata (progressive disclosure)
-		if skillsXML := result.Skills.String(); skillsXML != "" {
-			fmt.Println(skillsXML)
-			fmt.Println()
+		if len(result.Skills.Skills) > 0 {
+			skillsXML, err := result.Skills.AsXML()
+			if err != nil {
+				logger.Error("Failed to encode skills as XML", "error", err)
+				os.Exit(1)
+			}
+			if skillsXML != "" {
+				fmt.Println(skillsXML)
+				fmt.Println()
+			}
 		}
 
 		// Output the combined prompt (rules + task)
