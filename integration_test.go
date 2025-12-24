@@ -1491,3 +1491,144 @@ This is the task prompt for resume mode.
 		t.Errorf("stderr should NOT contain 'Rules written' message in resume mode")
 	}
 }
+
+// TestLocalDirectoryNotDeleted verifies that local directories passed via -d flag
+// are not deleted after the command completes.
+func TestLocalDirectoryNotDeleted(t *testing.T) {
+	// Create a local directory with a rule file and a marker file
+	localDir := t.TempDir()
+	rulesDir := filepath.Join(localDir, ".agents", "rules")
+
+	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "local-rule.md")
+	ruleContent := `---
+language: go
+---
+# Local Rule
+
+This is a rule from a local directory.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	// Create a marker file to verify the directory is not deleted
+	markerFile := filepath.Join(localDir, "marker.txt")
+	if err := os.WriteFile(markerFile, []byte("marker"), 0o644); err != nil {
+		t.Fatalf("failed to write marker file: %v", err)
+	}
+
+	// Create a temporary directory for the task
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	createStandardTask(t, tasksDir, "test-task")
+
+	// Run the program with local directory using file:// URL
+	localURL := "file://" + localDir
+	output := runTool(t, "-C", tmpDir, "-d", localURL, "test-task")
+
+	// Check that local rule content is present
+	if !strings.Contains(output, "# Local Rule") {
+		t.Errorf("local rule content not found in stdout")
+	}
+	if !strings.Contains(output, "This is a rule from a local directory") {
+		t.Errorf("local rule description not found in stdout")
+	}
+
+	// Verify the marker file still exists (directory was not deleted)
+	if _, err := os.Stat(markerFile); err != nil {
+		if os.IsNotExist(err) {
+			t.Errorf("marker file was deleted, indicating local directory was deleted")
+		} else {
+			t.Fatalf("unexpected error checking marker file: %v", err)
+		}
+	}
+
+	// Verify the rule file still exists
+	if _, err := os.Stat(ruleFile); err != nil {
+		if os.IsNotExist(err) {
+			t.Errorf("rule file was deleted, indicating local directory was deleted")
+		} else {
+			t.Fatalf("unexpected error checking rule file: %v", err)
+		}
+	}
+}
+
+// TestLocalDirectoryWithoutProtocol verifies that local directories passed
+// without the file:// protocol are not deleted.
+func TestLocalDirectoryWithoutProtocol(t *testing.T) {
+	// Create a local directory with a rule file and a marker file
+	localDir := t.TempDir()
+	rulesDir := filepath.Join(localDir, ".agents", "rules")
+
+	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+		t.Fatalf("failed to create rules dir: %v", err)
+	}
+
+	// Create a rule file
+	ruleFile := filepath.Join(rulesDir, "local-rule.md")
+	ruleContent := `---
+language: go
+---
+# Local Rule
+
+This is a rule from a local directory without protocol.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	// Create a marker file to verify the directory is not deleted
+	markerFile := filepath.Join(localDir, "marker.txt")
+	if err := os.WriteFile(markerFile, []byte("marker"), 0o644); err != nil {
+		t.Fatalf("failed to write marker file: %v", err)
+	}
+
+	// Create a temporary directory for the task
+	tmpDir := t.TempDir()
+	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
+
+	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+		t.Fatalf("failed to create tasks dir: %v", err)
+	}
+
+	createStandardTask(t, tasksDir, "test-task")
+
+	// Run the program with local directory using absolute path (no protocol)
+	output := runTool(t, "-C", tmpDir, "-d", localDir, "test-task")
+
+	// Check that local rule content is present
+	if !strings.Contains(output, "# Local Rule") {
+		t.Errorf("local rule content not found in stdout")
+	}
+	if !strings.Contains(output, "This is a rule from a local directory without protocol") {
+		t.Errorf("local rule description not found in stdout")
+	}
+
+	// Verify the marker file still exists (directory was not deleted)
+	if _, err := os.Stat(markerFile); err != nil {
+		if os.IsNotExist(err) {
+			t.Errorf("marker file was deleted, indicating local directory was deleted")
+		} else {
+			t.Fatalf("unexpected error checking marker file: %v", err)
+		}
+	}
+
+	// Verify the rule file still exists
+	if _, err := os.Stat(ruleFile); err != nil {
+		if os.IsNotExist(err) {
+			t.Errorf("rule file was deleted, indicating local directory was deleted")
+		} else {
+			t.Fatalf("unexpected error checking rule file: %v", err)
+		}
+	}
+}
