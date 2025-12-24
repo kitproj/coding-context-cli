@@ -154,3 +154,48 @@ func (r *RuleFrontMatter) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// SkillFrontMatter represents the frontmatter fields for skill files
+type SkillFrontMatter struct {
+	BaseFrontMatter `yaml:",inline"`
+
+	// SkillName is an optional identifier for the skill
+	SkillName string `yaml:"skill_name,omitempty" json:"skill_name,omitempty"`
+
+	// TaskNames specifies which task(s) this skill applies to
+	// Array of task names for OR logic
+	TaskNames []string `yaml:"task_names,omitempty" json:"task_names,omitempty"`
+
+	// Languages specifies which programming language(s) this skill applies to
+	// Array of languages for OR logic (e.g., ["go", "python"])
+	Languages []string `yaml:"languages,omitempty" json:"languages,omitempty"`
+
+	// Agent specifies which AI agent this skill is intended for
+	Agent string `yaml:"agent,omitempty" json:"agent,omitempty"`
+
+	// ExpandParams controls whether parameter expansion should occur
+	// Defaults to true if not specified
+	ExpandParams *bool `yaml:"expand,omitempty" json:"expand,omitempty"`
+}
+
+// UnmarshalJSON custom unmarshaler that populates both typed fields and Content map
+func (s *SkillFrontMatter) UnmarshalJSON(data []byte) error {
+	// First unmarshal into a temporary type to avoid infinite recursion
+	type Alias SkillFrontMatter
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(s),
+	}
+
+	if err := json.Unmarshal(data, aux); err != nil {
+		return fmt.Errorf("failed to unmarshal skill frontmatter: %w", err)
+	}
+
+	// Also unmarshal into Content map
+	if err := json.Unmarshal(data, &s.BaseFrontMatter.Content); err != nil {
+		return fmt.Errorf("failed to unmarshal skill frontmatter content: %w", err)
+	}
+
+	return nil
+}

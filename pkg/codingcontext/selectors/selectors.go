@@ -98,8 +98,27 @@ func (includes *Selectors) MatchesIncludes(frontmatter markdown.BaseFrontMatter)
 		}
 
 		// Check if frontmatter value matches any element in the inner map (OR logic)
-		fmStr := fmt.Sprint(fmValue)
-		if !values[fmStr] {
+		matched := false
+
+		// Handle array values in frontmatter (e.g., languages: [go, python])
+		// If any element of the array matches any selector value, it's a match
+		if fmArray, ok := fmValue.([]any); ok {
+			for _, elem := range fmArray {
+				elemStr := fmt.Sprint(elem)
+				if values[elemStr] {
+					matched = true
+					break
+				}
+			}
+		} else {
+			// Handle scalar values
+			fmStr := fmt.Sprint(fmValue)
+			if values[fmStr] {
+				matched = true
+			}
+		}
+
+		if !matched {
 			return false
 		}
 	}

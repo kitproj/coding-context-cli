@@ -26,8 +26,9 @@ type Context struct {
 	manifestURL     string
 	searchPaths     []string
 	downloadedPaths []string
-	task            markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
-	rules           []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
+	task            markdown.Markdown[markdown.TaskFrontMatter]    // Parsed task
+	rules           []markdown.Markdown[markdown.RuleFrontMatter]  // Collected rule files
+	skills          []markdown.Markdown[markdown.SkillFrontMatter] // Collected skill files
 	totalTokens     int
 	logger          *slog.Logger
 	cmdRunner       func(cmd *exec.Cmd) error
@@ -42,6 +43,7 @@ func New(opts ...Option) *Context {
 		params:   make(taskparser.Params),
 		includes: make(selectors.Selectors),
 		rules:    make([]markdown.Markdown[markdown.RuleFrontMatter], 0),
+		skills:   make([]markdown.Markdown[markdown.SkillFrontMatter], 0),
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
@@ -330,20 +332,43 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
+	if err := cc.findSkillFiles(ctx); err != nil {
+		return nil, fmt.Errorf("failed to find skill files: %w", err)
+	}
+
 	// Estimate tokens for task
 	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
 
-	// Build the combined prompt from all rules and task content
+	// Build the combined prompt from all rules, skills, and task content
 	var promptBuilder strings.Builder
 	for _, rule := range cc.rules {
 		promptBuilder.WriteString(rule.Content)
 		promptBuilder.WriteString("\n")
 	}
+
+	// Add Skills section if skills are present
+	if len(cc.skills) > 0 {
+		promptBuilder.WriteString("\n# Skills\n\n")
+		promptBuilder.WriteString("The following skills are available for use in this task. Each skill provides specific capabilities that you can leverage. Use the XML-like format shown below to reference skills in your work.\n\n")
+		for _, skill := range cc.skills {
+			// Extract skill name from the directory or frontmatter
+			skillName := skill.FrontMatter.SkillName
+			if skillName == "" {
+				// Fallback to a generic name
+				skillName = "skill"
+			}
+			promptBuilder.WriteString(fmt.Sprintf("<skill name=\"%s\">\n", skillName))
+			promptBuilder.WriteString(skill.Content)
+			promptBuilder.WriteString("\n</skill>\n\n")
+		}
+	}
+
 	promptBuilder.WriteString(cc.task.Content)
 
 	// Build and return the result
 	result := &Result{
 		Rules:  cc.rules,
+		Skills: cc.skills,
 		Task:   cc.task,
 		Tokens: cc.totalTokens,
 		Agent:  cc.agent,
@@ -513,6 +538,89 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 	})
 	if err != nil {
 		return fmt.Errorf("failed to find and execute rule files: %w", err)
+	}
+
+	return nil
+}
+
+func (cc *Context) findSkillFiles(ctx context.Context) error {
+	// Skip skill file discovery if resume mode is enabled
+	if cc.resume || (cc.includes != nil && cc.includes.GetValue("resume", "true")) {
+		return nil
+	}
+
+	for _, basePath := range cc.downloadedPaths {
+		skillDirs := skillSearchPaths(basePath)
+
+		for _, skillDir := range skillDirs {
+			if _, err := os.Stat(skillDir); os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				return fmt.Errorf("failed to stat directory %s: %w", skillDir, err)
+			}
+
+			// Walk through skill subdirectories
+			entries, err := os.ReadDir(skillDir)
+			if err != nil {
+				return fmt.Errorf("failed to read skill directory %s: %w", skillDir, err)
+			}
+
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
+				}
+
+				// Look for SKILL.md in each subdirectory
+				skillPath := filepath.Join(skillDir, entry.Name(), "SKILL.md")
+				if _, err := os.Stat(skillPath); os.IsNotExist(err) {
+					continue
+				} else if err != nil {
+					return fmt.Errorf("failed to stat skill file %s: %w", skillPath, err)
+				}
+
+				// Parse the skill file
+				var frontmatter markdown.SkillFrontMatter
+				md, err := markdown.ParseMarkdownFile(skillPath, &frontmatter)
+				if err != nil {
+					// Skip files that can't be parsed
+					cc.logger.Info("Skipping unparseable skill file", "path", skillPath, "error", err)
+					continue
+				}
+
+				// Check if skill matches selectors
+				var baseFM markdown.BaseFrontMatter
+				baseFM.Content = frontmatter.Content
+				if !cc.includes.MatchesIncludes(baseFM) {
+					continue
+				}
+
+				// Expand parameters only if expand is not explicitly set to false
+				var processedContent string
+				if shouldExpandParams(frontmatter.ExpandParams) {
+					processedContent, err = cc.expandParams(md.Content, nil)
+					if err != nil {
+						return fmt.Errorf("failed to expand parameters in skill file %s: %w", skillPath, err)
+					}
+				} else {
+					processedContent = md.Content
+				}
+				tokens := tokencount.EstimateTokens(processedContent)
+
+				cc.skills = append(cc.skills, markdown.Markdown[markdown.SkillFrontMatter]{
+					FrontMatter: frontmatter,
+					Content:     processedContent,
+					Tokens:      tokens,
+				})
+
+				cc.totalTokens += tokens
+
+				cc.logger.Info("Including skill file", "path", skillPath, "tokens", tokens)
+
+				if err := cc.runBootstrapScript(ctx, skillPath); err != nil {
+					return fmt.Errorf("failed to run bootstrap script: %w", err)
+				}
+			}
+		}
 	}
 
 	return nil

@@ -1718,3 +1718,155 @@ task_name: whitespace-task
 		})
 	}
 }
+
+func TestSkillDiscovery(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create skills directory structure
+	skillsDir := filepath.Join(dirs.tmpDir, ".agents", "skills")
+	codeReviewSkillDir := filepath.Join(skillsDir, "code-review")
+	debuggingSkillDir := filepath.Join(skillsDir, "debugging")
+
+	if err := os.MkdirAll(codeReviewSkillDir, 0o755); err != nil {
+		t.Fatalf("failed to create code-review skill dir: %v", err)
+	}
+	if err := os.MkdirAll(debuggingSkillDir, 0o755); err != nil {
+		t.Fatalf("failed to create debugging skill dir: %v", err)
+	}
+
+	// Create code-review skill
+	codeReviewSkillFile := filepath.Join(codeReviewSkillDir, "SKILL.md")
+	codeReviewContent := `---
+skill_name: code-review
+---
+# Code Review Skill
+
+This skill provides code review capabilities.
+`
+	if err := os.WriteFile(codeReviewSkillFile, []byte(codeReviewContent), 0o644); err != nil {
+		t.Fatalf("failed to write code-review skill file: %v", err)
+	}
+
+	// Create debugging skill with task selector
+	debuggingSkillFile := filepath.Join(debuggingSkillDir, "SKILL.md")
+	debuggingContent := `---
+skill_name: debugging
+task_names:
+  - fix-bug
+---
+# Debugging Skill
+
+This skill helps with debugging.
+`
+	if err := os.WriteFile(debuggingSkillFile, []byte(debuggingContent), 0o644); err != nil {
+		t.Fatalf("failed to write debugging skill file: %v", err)
+	}
+
+	// Create a simple task
+	createStandardTask(t, dirs.tasksDir, "fix-bug")
+
+	// Run the tool and check output includes skills
+	output := runTool(t, "-C", dirs.tmpDir, "fix-bug")
+
+	// Check that Skills section is present
+	if !strings.Contains(output, "# Skills") {
+		t.Errorf("expected output to contain '# Skills', got:\n%s", output)
+	}
+
+	// Check that skills are wrapped in XML-like format
+	if !strings.Contains(output, `<skill name="code-review">`) {
+		t.Errorf("expected output to contain code-review skill in XML format, got:\n%s", output)
+	}
+
+	if !strings.Contains(output, `<skill name="debugging">`) {
+		t.Errorf("expected output to contain debugging skill in XML format, got:\n%s", output)
+	}
+
+	// Check that skill content is included
+	if !strings.Contains(output, "This skill provides code review capabilities") {
+		t.Errorf("expected output to contain code-review skill content, got:\n%s", output)
+	}
+
+	if !strings.Contains(output, "This skill helps with debugging") {
+		t.Errorf("expected output to contain debugging skill content, got:\n%s", output)
+	}
+
+	// Check for preamble
+	if !strings.Contains(output, "The following skills are available for use") {
+		t.Errorf("expected output to contain skills preamble, got:\n%s", output)
+	}
+}
+
+func TestSkillSelectors(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create skills directory structure
+	skillsDir := filepath.Join(dirs.tmpDir, ".agents", "skills")
+	goSkillDir := filepath.Join(skillsDir, "go-specific")
+	pythonSkillDir := filepath.Join(skillsDir, "python-specific")
+
+	if err := os.MkdirAll(goSkillDir, 0o755); err != nil {
+		t.Fatalf("failed to create go-specific skill dir: %v", err)
+	}
+	if err := os.MkdirAll(pythonSkillDir, 0o755); err != nil {
+		t.Fatalf("failed to create python-specific skill dir: %v", err)
+	}
+
+	// Create Go-specific skill
+	goSkillFile := filepath.Join(goSkillDir, "SKILL.md")
+	goContent := `---
+skill_name: go-specific
+languages:
+  - go
+---
+# Go Specific Skill
+
+This skill is for Go development.
+`
+	if err := os.WriteFile(goSkillFile, []byte(goContent), 0o644); err != nil {
+		t.Fatalf("failed to write go-specific skill file: %v", err)
+	}
+
+	// Create Python-specific skill
+	pythonSkillFile := filepath.Join(pythonSkillDir, "SKILL.md")
+	pythonContent := `---
+skill_name: python-specific
+languages:
+  - python
+---
+# Python Specific Skill
+
+This skill is for Python development.
+`
+	if err := os.WriteFile(pythonSkillFile, []byte(pythonContent), 0o644); err != nil {
+		t.Fatalf("failed to write python-specific skill file: %v", err)
+	}
+
+	// Create a task with language selector
+	taskFile := filepath.Join(dirs.tasksDir, "implement-feature.md")
+	taskContent := `---
+task_name: implement-feature
+selectors:
+  languages: go
+---
+# Implement Feature
+
+Implement a new feature.
+`
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	// Run the tool
+	output := runTool(t, "-C", dirs.tmpDir, "implement-feature")
+
+	// Check that only Go skill is included
+	if !strings.Contains(output, "This skill is for Go development") {
+		t.Errorf("expected output to contain Go skill, got:\n%s", output)
+	}
+
+	// Check that Python skill is NOT included
+	if strings.Contains(output, "This skill is for Python development") {
+		t.Errorf("expected output to NOT contain Python skill, got:\n%s", output)
+	}
+}
