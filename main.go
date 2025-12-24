@@ -21,11 +21,10 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-
 	var workDir string
 	var resume bool
 	var writeRules bool
+	var verbose bool
 	var agent codingcontext.Agent
 	params := make(taskparser.Params)
 	includes := make(selectors.Selectors)
@@ -35,6 +34,7 @@ func main() {
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
 	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
 	flag.BoolVar(&writeRules, "w", false, "Write rules to the agent's user rules path and only print the prompt to stdout. Requires agent (via task 'agent' field or -a flag).")
+	flag.BoolVar(&verbose, "v", false, "Enable verbose logging to stderr.")
 	flag.Var(&agent, "a", "Target agent to use. Required when using -w to write rules to the agent's user rules path. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
@@ -45,24 +45,33 @@ func main() {
 	flag.StringVar(&manifestURL, "m", "", "Go Getter URL to a manifest file containing search paths (one per line). Every line is included as-is.")
 
 	flag.Usage = func() {
-		logger.Info("Usage:")
-		logger.Info("  coding-context [options] <task-name> [user-prompt]")
-		logger.Info("")
-		logger.Info("The task-name is the name of a task file to look up in task search paths (.agents/tasks).")
-		logger.Info("The user-prompt is optional text to append to the task. It can contain slash commands")
-		logger.Info("(e.g., '/command-name') which will be expanded, and parameter substitution (${param}).")
-		logger.Info("")
-		logger.Info("Task content can contain slash commands (e.g., '/command-name arg') which reference")
-		logger.Info("command files in command search paths (.cursor/commands, .agents/commands, etc.).")
-		logger.Info("")
-		logger.Info("Options:")
+		fmt.Fprintln(os.Stderr, "Usage:")
+		fmt.Fprintln(os.Stderr, "  coding-context [options] <task-name> [user-prompt]")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "The task-name is the name of a task file to look up in task search paths (.agents/tasks).")
+		fmt.Fprintln(os.Stderr, "The user-prompt is optional text to append to the task. It can contain slash commands")
+		fmt.Fprintln(os.Stderr, "(e.g., '/command-name') which will be expanded, and parameter substitution (${param}).")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Task content can contain slash commands (e.g., '/command-name arg') which reference")
+		fmt.Fprintln(os.Stderr, "command files in command search paths (.cursor/commands, .agents/commands, etc.).")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Options:")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 
+	// Create logger with appropriate level based on verbose flag
+	logLevel := slog.LevelError
+	if verbose {
+		logLevel = slog.LevelInfo
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: logLevel,
+	}))
+
 	args := flag.Args()
 	if len(args) < 1 || len(args) > 2 {
-		logger.Error("Error", "error", fmt.Errorf("invalid usage: expected one task name argument and optional user-prompt"))
+		fmt.Fprintf(os.Stderr, "Error: invalid usage: expected one task name argument and optional user-prompt\n")
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -75,7 +84,7 @@ func main() {
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		logger.Error("Error", "error", fmt.Errorf("failed to get user home directory: %w", err))
+		fmt.Fprintf(os.Stderr, "Error: failed to get user home directory: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -95,7 +104,7 @@ func main() {
 
 	result, err := cc.Run(ctx, taskName)
 	if err != nil {
-		logger.Error("Error", "error", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -104,7 +113,7 @@ func main() {
 	if writeRules {
 		// Get the user rule path from the agent (could be from task or -a flag)
 		if !result.Agent.IsSet() {
-			logger.Error("Error", "error", fmt.Errorf("-w flag requires an agent to be specified (via task 'agent' field or -a flag)"))
+			fmt.Fprintf(os.Stderr, "Error: -w flag requires an agent to be specified (via task 'agent' field or -a flag)\n")
 			os.Exit(1)
 		}
 
@@ -112,7 +121,7 @@ func main() {
 		if !resume {
 			relativePath := result.Agent.UserRulePath()
 			if relativePath == "" {
-				logger.Error("Error", "error", fmt.Errorf("no user rule path available for agent"))
+				fmt.Fprintf(os.Stderr, "Error: no user rule path available for agent\n")
 				os.Exit(1)
 			}
 
@@ -122,7 +131,7 @@ func main() {
 
 			// Create directory if it doesn't exist
 			if err := os.MkdirAll(rulesDir, 0o755); err != nil {
-				logger.Error("Error", "error", fmt.Errorf("failed to create rules directory %s: %w", rulesDir, err))
+				fmt.Fprintf(os.Stderr, "Error: failed to create rules directory %s: %v\n", rulesDir, err)
 				os.Exit(1)
 			}
 
@@ -137,18 +146,20 @@ func main() {
 			rulesContent.WriteString("\n")
 
 			if err := os.WriteFile(rulesFile, []byte(rulesContent.String()), 0o644); err != nil {
-				logger.Error("Error", "error", fmt.Errorf("failed to write rules to %s: %w", rulesFile, err))
+				fmt.Fprintf(os.Stderr, "Error: failed to write rules to %s: %v\n", rulesFile, err)
 				os.Exit(1)
 			}
 
-			logger.Info("Rules written", "path", rulesFile)
+			if verbose {
+				logger.Info("Rules written", "path", rulesFile)
+			}
 		}
 
 		// Output only task frontmatter and content
 		if taskContent := result.Task.FrontMatter.Content; taskContent != nil {
 			fmt.Println("---")
 			if err := yaml.NewEncoder(os.Stdout).Encode(taskContent); err != nil {
-				logger.Error("Failed to encode task frontmatter", "error", err)
+				fmt.Fprintf(os.Stderr, "Error: failed to encode task frontmatter: %v\n", err)
 				os.Exit(1)
 			}
 			fmt.Println("---")
@@ -160,7 +171,7 @@ func main() {
 		if taskContent := result.Task.FrontMatter.Content; taskContent != nil {
 			fmt.Println("---")
 			if err := yaml.NewEncoder(os.Stdout).Encode(taskContent); err != nil {
-				logger.Error("Failed to encode task frontmatter", "error", err)
+				fmt.Fprintf(os.Stderr, "Error: failed to encode task frontmatter: %v\n", err)
 				os.Exit(1)
 			}
 			fmt.Println("---")

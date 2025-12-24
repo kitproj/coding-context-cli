@@ -146,7 +146,7 @@ func (cc *Context) findTask(taskName string) error {
 				taskContent += "\n"
 			}
 			taskContent += "---\n" + cc.userPrompt
-			cc.logger.Info("Appended user_prompt to task", "user_prompt_length", len(cc.userPrompt))
+			cc.logger.Info("Appended user prompt to task", "length", len(cc.userPrompt))
 		}
 
 		// Parse the task content (including user_prompt) to separate text blocks from slash commands
@@ -187,7 +187,7 @@ func (cc *Context) findTask(taskName string) error {
 		}
 		cc.totalTokens += cc.task.Tokens
 
-		cc.logger.Info("Including task", "tokens", cc.task.Tokens)
+		cc.logger.Info("Task loaded", "tokens", cc.task.Tokens)
 
 		return nil
 	})
@@ -326,7 +326,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	}
 
 	// Estimate tokens for task
-	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
+	cc.logger.Info("Context assembled", "total_tokens", cc.totalTokens, "rules", len(cc.rules))
 
 	// Build the combined prompt from all rules and task content
 	var promptBuilder strings.Builder
@@ -421,7 +421,7 @@ func (cc *Context) parseManifestFile(ctx context.Context) ([]string, error) {
 		return nil, fmt.Errorf("failed to read manifest file: %w", err)
 	}
 
-	cc.logger.Info("Parsed manifest file", "url", cc.manifestURL, "paths", len(paths))
+	cc.logger.Info("Parsed manifest file", "url", cc.manifestURL, "paths_found", len(paths))
 
 	return paths, nil
 }
@@ -437,12 +437,12 @@ func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
 		}
 
 		// Download remote directories
-		cc.logger.Info("Downloading remote directory", "path", path)
+		cc.logger.Info("Downloading", "url", path)
 		dst := downloadDir(path)
 		if _, err := getter.Get(ctx, dst, path); err != nil {
 			return fmt.Errorf("failed to download remote directory %s: %w", path, err)
 		}
-		cc.logger.Info("Downloaded to", "path", dst)
+		cc.logger.Info("Downloaded", "destination", dst)
 		cc.downloadedPaths = append(cc.downloadedPaths, dst)
 	}
 
@@ -498,7 +498,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 
 		cc.totalTokens += tokens
 
-		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
+		cc.logger.Info("Rule loaded", "path", filepath.Base(path), "tokens", tokens)
 
 		if err := cc.runBootstrapScript(ctx, path); err != nil {
 			return fmt.Errorf("failed to run bootstrap script: %w", err)
