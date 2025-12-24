@@ -229,7 +229,7 @@ func TestSkillWithOver100Tokens(t *testing.T) {
 
 	ctx := context.Background()
 	cc := New(
-		WithSearchPaths("file://"+tmpDir),
+		WithSearchPaths("file://" + tmpDir),
 	)
 
 	result, err := cc.Run(ctx, "test-task")
@@ -260,7 +260,7 @@ func TestSkillWithOver2000Tokens(t *testing.T) {
 
 	ctx := context.Background()
 	cc := New(
-		WithSearchPaths("file://"+tmpDir),
+		WithSearchPaths("file://" + tmpDir),
 	)
 
 	result, err := cc.Run(ctx, "test-task")
