@@ -1810,55 +1810,55 @@ func TestNormalizeLocalPath(t *testing.T) {
 }
 
 // TestLogsParametersAndSelectors verifies that parameters and selectors are logged
-// exactly once when they are set, and not logged when they are empty.
+// exactly once after the task is found (which may add selectors from task frontmatter).
 func TestLogsParametersAndSelectors(t *testing.T) {
 	tests := []struct {
-		name               string
-		params             taskparser.Params
-		selectors          selectors.Selectors
-		resume             bool
-		expectParamsLog    bool
-		expectSelectorsLog bool
+		name            string
+		params          taskparser.Params
+		selectors       selectors.Selectors
+		resume          bool
+		expectParamsLog bool
+		expectSelectors bool // Always true since task_name is added
 	}{
 		{
-			name:               "with parameters and selectors",
-			params:             taskparser.Params{"key": []string{"value"}},
-			selectors:          selectors.Selectors{"env": {"dev": true}},
-			resume:             false,
-			expectParamsLog:    true,
-			expectSelectorsLog: true,
+			name:            "with parameters and selectors",
+			params:          taskparser.Params{"key": []string{"value"}},
+			selectors:       selectors.Selectors{"env": {"dev": true}},
+			resume:          false,
+			expectParamsLog: true,
+			expectSelectors: true,
 		},
 		{
-			name:               "with only parameters",
-			params:             taskparser.Params{"key": []string{"value"}},
-			selectors:          selectors.Selectors{},
-			resume:             false,
-			expectParamsLog:    true,
-			expectSelectorsLog: false,
+			name:            "with only parameters",
+			params:          taskparser.Params{"key": []string{"value"}},
+			selectors:       selectors.Selectors{},
+			resume:          false,
+			expectParamsLog: true,
+			expectSelectors: true, // task_name is always added
 		},
 		{
-			name:               "with only selectors",
-			params:             taskparser.Params{},
-			selectors:          selectors.Selectors{"env": {"dev": true}},
-			resume:             false,
-			expectParamsLog:    false,
-			expectSelectorsLog: true,
+			name:            "with only selectors",
+			params:          taskparser.Params{},
+			selectors:       selectors.Selectors{"env": {"dev": true}},
+			resume:          false,
+			expectParamsLog: true, // Always logged (may be empty)
+			expectSelectors: true,
 		},
 		{
-			name:               "with resume mode",
-			params:             taskparser.Params{},
-			selectors:          selectors.Selectors{},
-			resume:             true,
-			expectParamsLog:    false,
-			expectSelectorsLog: true, // resume=true is added as a selector
+			name:            "with resume mode",
+			params:          taskparser.Params{},
+			selectors:       selectors.Selectors{},
+			resume:          true,
+			expectParamsLog: true, // Always logged (may be empty)
+			expectSelectors: true, // resume=true + task_name are added
 		},
 		{
-			name:               "with no parameters or selectors",
-			params:             taskparser.Params{},
-			selectors:          selectors.Selectors{},
-			resume:             false,
-			expectParamsLog:    false,
-			expectSelectorsLog: false,
+			name:            "with no parameters or selectors",
+			params:          taskparser.Params{},
+			selectors:       selectors.Selectors{},
+			resume:          false,
+			expectParamsLog: true, // Always logged (may be empty)
+			expectSelectors: true, // task_name is always added
 		},
 	}
 
@@ -1895,7 +1895,7 @@ func TestLogsParametersAndSelectors(t *testing.T) {
 			paramsCount := strings.Count(logs, "msg=Parameters")
 			selectorsCount := strings.Count(logs, "msg=Selectors")
 
-			// Verify parameters logging
+			// Verify parameters logging - always exactly once
 			if tt.expectParamsLog {
 				if paramsCount != 1 {
 					t.Errorf("expected exactly 1 Parameters log, got %d", paramsCount)
@@ -1906,8 +1906,8 @@ func TestLogsParametersAndSelectors(t *testing.T) {
 				}
 			}
 
-			// Verify selectors logging
-			if tt.expectSelectorsLog {
+			// Verify selectors logging - always exactly once
+			if tt.expectSelectors {
 				if selectorsCount != 1 {
 					t.Errorf("expected exactly 1 Selectors log, got %d", selectorsCount)
 				}
