@@ -311,6 +311,16 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		cc.includes.SetValue("resume", "true")
 	}
 
+	// Log parameters if any are set
+	if len(cc.params) > 0 {
+		cc.logger.Info("Parameters", "params", cc.params.String())
+	}
+
+	// Log selectors if any are set
+	if len(cc.includes) > 0 {
+		cc.logger.Info("Selectors", "selectors", cc.includes.String())
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)

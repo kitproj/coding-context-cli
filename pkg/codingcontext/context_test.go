@@ -1808,3 +1808,114 @@ func TestNormalizeLocalPath(t *testing.T) {
 		})
 	}
 }
+
+// TestLogsParametersAndSelectors verifies that parameters and selectors are logged
+// exactly once when they are set, and not logged when they are empty.
+func TestLogsParametersAndSelectors(t *testing.T) {
+	tests := []struct {
+		name               string
+		params             taskparser.Params
+		selectors          selectors.Selectors
+		resume             bool
+		expectParamsLog    bool
+		expectSelectorsLog bool
+	}{
+		{
+			name:               "with parameters and selectors",
+			params:             taskparser.Params{"key": []string{"value"}},
+			selectors:          selectors.Selectors{"env": {"dev": true}},
+			resume:             false,
+			expectParamsLog:    true,
+			expectSelectorsLog: true,
+		},
+		{
+			name:               "with only parameters",
+			params:             taskparser.Params{"key": []string{"value"}},
+			selectors:          selectors.Selectors{},
+			resume:             false,
+			expectParamsLog:    true,
+			expectSelectorsLog: false,
+		},
+		{
+			name:               "with only selectors",
+			params:             taskparser.Params{},
+			selectors:          selectors.Selectors{"env": {"dev": true}},
+			resume:             false,
+			expectParamsLog:    false,
+			expectSelectorsLog: true,
+		},
+		{
+			name:               "with resume mode",
+			params:             taskparser.Params{},
+			selectors:          selectors.Selectors{},
+			resume:             true,
+			expectParamsLog:    false,
+			expectSelectorsLog: true, // resume=true is added as a selector
+		},
+		{
+			name:               "with no parameters or selectors",
+			params:             taskparser.Params{},
+			selectors:          selectors.Selectors{},
+			resume:             false,
+			expectParamsLog:    false,
+			expectSelectorsLog: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			// Create a simple task
+			createTask(t, tmpDir, "test-task", "task_name: test-task", "Test task content")
+
+			// Create a custom logger that captures log output
+			var logOutput strings.Builder
+			logger := slog.New(slog.NewTextHandler(&logOutput, nil))
+
+			// Create context with test options
+			cc := New(
+				WithParams(tt.params),
+				WithSelectors(tt.selectors),
+				WithSearchPaths("file://"+tmpDir),
+				WithLogger(logger),
+				WithResume(tt.resume),
+			)
+
+			// Run the context
+			_, err := cc.Run(context.Background(), "test-task")
+			if err != nil {
+				t.Fatalf("Run failed: %v", err)
+			}
+
+			// Check log output
+			logs := logOutput.String()
+
+			// Count occurrences of "Parameters" and "Selectors" log messages
+			paramsCount := strings.Count(logs, "msg=Parameters")
+			selectorsCount := strings.Count(logs, "msg=Selectors")
+
+			// Verify parameters logging
+			if tt.expectParamsLog {
+				if paramsCount != 1 {
+					t.Errorf("expected exactly 1 Parameters log, got %d", paramsCount)
+				}
+			} else {
+				if paramsCount != 0 {
+					t.Errorf("expected no Parameters log, got %d", paramsCount)
+				}
+			}
+
+			// Verify selectors logging
+			if tt.expectSelectorsLog {
+				if selectorsCount != 1 {
+					t.Errorf("expected exactly 1 Selectors log, got %d", selectorsCount)
+				}
+			} else {
+				if selectorsCount != 0 {
+					t.Errorf("expected no Selectors log, got %d", selectorsCount)
+				}
+			}
+		})
+	}
+}
