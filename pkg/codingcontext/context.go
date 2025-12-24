@@ -67,12 +67,12 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
 		} else if err != nil {
-			return err
+			return fmt.Errorf("failed to stat directory %s: %w", dir, err)
 		}
 
 		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to walk path %s: %w", path, err)
 			}
 			ext := filepath.Ext(path) // .md or .mdc
 			if info.IsDir() || ext != ".md" && ext != ".mdc" {
@@ -94,7 +94,7 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 			return visitor(path)
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to walk directory %s: %w", dir, err)
 		}
 	}
 
@@ -118,7 +118,7 @@ func (cc *Context) findTask(taskName string) error {
 		var frontMatter markdown.TaskFrontMatter
 		md, err := markdown.ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to parse task file %s: %w", path, err)
 		}
 
 		// Extract selector labels from task frontmatter and add them to cc.includes.
@@ -132,7 +132,7 @@ func (cc *Context) findTask(taskName string) error {
 		if frontMatter.Agent != "" {
 			agent, err := ParseAgent(frontMatter.Agent)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to parse agent from task frontmatter: %w", err)
 			}
 			cc.agent = agent
 		}
@@ -152,7 +152,7 @@ func (cc *Context) findTask(taskName string) error {
 		// Parse the task content (including user_prompt) to separate text blocks from slash commands
 		task, err := taskparser.ParseTask(taskContent)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to parse task content: %w", err)
 		}
 
 		// Build the final content by processing each block
@@ -174,7 +174,7 @@ func (cc *Context) findTask(taskName string) error {
 			} else if block.SlashCommand != nil {
 				commandContent, err := cc.findCommand(block.SlashCommand.Name, block.SlashCommand.Params())
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to find command %s: %w", block.SlashCommand.Name, err)
 				}
 				finalContent.WriteString(commandContent)
 			}
@@ -218,7 +218,7 @@ func (cc *Context) findCommand(commandName string, params taskparser.Params) (st
 		var frontMatter markdown.CommandFrontMatter
 		md, err := markdown.ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to parse command file %s: %w", path, err)
 		}
 
 		// Extract selector labels from command frontmatter and add them to cc.includes.

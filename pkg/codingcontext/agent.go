@@ -101,7 +101,7 @@ var agentPathPatterns = map[Agent][]string{
 func (a *Agent) Set(value string) error {
 	agent, err := ParseAgent(value)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set agent value %q: %w", value, err)
 	}
 
 	*a = agent

@@ -377,7 +377,7 @@ func (p Params) Set(value string) error {
 
 	params, err := ParseParams(quotedValue)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse parameter '%s': %w", value, err)
 	}
 
 	maps.Copy(p, params)
