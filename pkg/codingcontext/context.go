@@ -167,7 +167,7 @@ func (cc *Context) findTask(taskName string) error {
 				if shouldExpandParams(frontMatter.ExpandParams) {
 					textContent, err = cc.expandParams(textContent, nil)
 					if err != nil {
-						return fmt.Errorf("failed to expand parameters: %w", err)
+						return fmt.Errorf("failed to expand parameters in task file %s: %w", path, err)
 					}
 				}
 				finalContent.WriteString(textContent)
@@ -231,7 +231,7 @@ func (cc *Context) findCommand(commandName string, params taskparser.Params) (st
 		if shouldExpandParams(frontMatter.ExpandParams) {
 			processedContent, err = cc.expandParams(md.Content, params)
 			if err != nil {
-				return fmt.Errorf("failed to expand parameters: %w", err)
+				return fmt.Errorf("failed to expand parameters in command file %s: %w", path, err)
 			}
 		} else {
 			processedContent = md.Content
@@ -475,7 +475,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 		var frontmatter markdown.RuleFrontMatter
 		md, err := markdown.ParseMarkdownFile(path, &frontmatter)
 		if err != nil {
-			return fmt.Errorf("failed to parse markdown file: %w", err)
+			return fmt.Errorf("failed to parse markdown file %s: %w", path, err)
 		}
 
 		// Expand parameters only if expand is not explicitly set to false
@@ -483,7 +483,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 		if shouldExpandParams(frontmatter.ExpandParams) {
 			processedContent, err = cc.expandParams(md.Content, nil)
 			if err != nil {
-				return fmt.Errorf("failed to expand parameters: %w", err)
+				return fmt.Errorf("failed to expand parameters in file %s: %w", path, err)
 			}
 		} else {
 			processedContent = md.Content

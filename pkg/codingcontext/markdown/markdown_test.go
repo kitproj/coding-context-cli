@@ -3,6 +3,7 @@ package markdown
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -100,6 +101,57 @@ func TestParseMarkdownFile_FileNotFound(t *testing.T) {
 	_, err := ParseMarkdownFile("/nonexistent/file.md", &frontmatter)
 	if err == nil {
 		t.Error("ParseMarkdownFile() expected error for non-existent file, got nil")
+	}
+	// Verify error message includes file path
+	if err != nil && !strings.Contains(err.Error(), "/nonexistent/file.md") {
+		t.Errorf("ParseMarkdownFile() error should contain file path, got: %v", err)
+	}
+}
+
+func TestParseMarkdownFile_ErrorsIncludeFilePath(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string // substring that should appear in error
+	}{
+		{
+			name: "invalid YAML in frontmatter",
+			content: `---
+invalid: yaml: : syntax
+---
+Content here`,
+			want: "failed to unmarshal frontmatter in file",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary file
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "test.md")
+			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o644); err != nil {
+				t.Fatalf("failed to create temp file: %v", err)
+			}
+
+			// Parse the file
+			var frontmatter BaseFrontMatter
+			_, err := ParseMarkdownFile(tmpFile, &frontmatter)
+
+			// Check that we got an error
+			if err == nil {
+				t.Fatalf("ParseMarkdownFile() expected error for %s, got nil", tt.name)
+			}
+
+			// Check that error contains expected substring
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("ParseMarkdownFile() error should contain %q, got: %v", tt.want, err)
+			}
+
+			// Check that error contains file path
+			if !strings.Contains(err.Error(), tmpFile) {
+				t.Errorf("ParseMarkdownFile() error should contain file path %q, got: %v", tmpFile, err)
+			}
+		})
 	}
 }
 
