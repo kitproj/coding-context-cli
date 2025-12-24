@@ -48,3 +48,10 @@ func commandSearchPaths(dir string) []string {
 		filepath.Join(dir, ".opencode", "command"),
 	}
 }
+
+// skillPaths returns the search paths for skill files (SKILL.md) in a directory
+func skillPaths(dir string) []string {
+	return []string{
+		filepath.Join(dir, ".agents", "skills"),
+	}
+}

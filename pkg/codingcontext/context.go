@@ -26,8 +26,9 @@ type Context struct {
 	manifestURL     string
 	searchPaths     []string
 	downloadedPaths []string
-	task            markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
-	rules           []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
+	task            markdown.Markdown[markdown.TaskFrontMatter]    // Parsed task
+	rules           []markdown.Markdown[markdown.RuleFrontMatter]  // Collected rule files
+	skills          []markdown.Markdown[markdown.SkillFrontMatter] // Collected skill files
 	totalTokens     int
 	logger          *slog.Logger
 	cmdRunner       func(cmd *exec.Cmd) error
@@ -42,6 +43,7 @@ func New(opts ...Option) *Context {
 		params:   make(taskparser.Params),
 		includes: make(selectors.Selectors),
 		rules:    make([]markdown.Markdown[markdown.RuleFrontMatter], 0),
+		skills:   make([]markdown.Markdown[markdown.SkillFrontMatter], 0),
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
@@ -289,6 +291,111 @@ func shouldExpandParams(expandParams *bool) bool {
 	return *expandParams
 }
 
+// validateSkillName validates that a skill name follows the required format:
+// - 1-64 characters
+// - Only lowercase letters, numbers, and hyphens
+// - Must not start or end with a hyphen
+// - No consecutive hyphens
+func validateSkillName(name string) error {
+	if len(name) == 0 || len(name) > 64 {
+		return fmt.Errorf("skill name must be 1-64 characters, got %d", len(name))
+	}
+
+	if name[0] == '-' || name[len(name)-1] == '-' {
+		return fmt.Errorf("skill name cannot start or end with a hyphen: %s", name)
+	}
+
+	prevHyphen := false
+	for _, c := range name {
+		if c == '-' {
+			if prevHyphen {
+				return fmt.Errorf("skill name cannot contain consecutive hyphens: %s", name)
+			}
+			prevHyphen = true
+			continue
+		}
+		prevHyphen = false
+
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+			return fmt.Errorf("skill name can only contain lowercase letters, numbers, and hyphens: %s", name)
+		}
+	}
+
+	return nil
+}
+
+// validateSkillDescription validates that a skill description is between 1 and 1024 characters
+func validateSkillDescription(description string) error {
+	if len(description) == 0 || len(description) > 1024 {
+		return fmt.Errorf("skill description must be 1-1024 characters, got %d", len(description))
+	}
+	return nil
+}
+
+// findSkills discovers and validates skill files in .agents/skills directories.
+// Skills are similar to rules but have specific validation requirements.
+// Only the name and description are loaded during discovery (metadata phase).
+func (cc *Context) findSkills() error {
+	// Skip skill discovery in resume mode (same as rules)
+	if cc.resume || (cc.includes != nil && cc.includes.GetValue("resume", "true")) {
+		return nil
+	}
+
+	err := cc.visitMarkdownFiles(skillPaths, func(path string) error {
+		// Skills must be named SKILL.md
+		if filepath.Base(path) != "SKILL.md" {
+			return nil
+		}
+
+		var frontmatter markdown.SkillFrontMatter
+		md, err := markdown.ParseMarkdownFile(path, &frontmatter)
+		if err != nil {
+			return fmt.Errorf("failed to parse skill file %s: %w", path, err)
+		}
+
+		// Validate required fields
+		if err := validateSkillName(frontmatter.Name); err != nil {
+			return fmt.Errorf("invalid skill name in %s: %w", path, err)
+		}
+
+		if err := validateSkillDescription(frontmatter.Description); err != nil {
+			return fmt.Errorf("invalid skill description in %s: %w", path, err)
+		}
+
+		// Validate optional compatibility field length
+		if len(frontmatter.Compatibility) > 500 {
+			return fmt.Errorf("skill compatibility field in %s exceeds 500 characters: got %d", path, len(frontmatter.Compatibility))
+		}
+
+		// Validate that the skill name matches the parent directory name
+		parentDir := filepath.Base(filepath.Dir(path))
+		if parentDir != frontmatter.Name {
+			return fmt.Errorf("skill name '%s' must match parent directory name '%s' in %s", frontmatter.Name, parentDir, path)
+		}
+
+		// Estimate tokens for the skill content
+		tokens := tokencount.EstimateTokens(md.Content)
+
+		cc.skills = append(cc.skills, markdown.Markdown[markdown.SkillFrontMatter]{
+			FrontMatter: frontmatter,
+			Content:     md.Content,
+			Tokens:      tokens,
+		})
+
+		cc.totalTokens += tokens
+
+		cc.logger.Info("Including skill", "path", path, "name", frontmatter.Name, "tokens", tokens)
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to find skills: %w", err)
+	}
+
+	return nil
+}
+
 // Run executes the context assembly for the given taskName and returns the assembled result.
 // The taskName is looked up in task search paths and its content is parsed into blocks.
 // If the taskName cannot be found as a task file, an error is returned.
@@ -330,6 +437,11 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		return nil, fmt.Errorf("failed to find and execute rule files: %w", err)
 	}
 
+	// Find and validate skills
+	if err := cc.findSkills(); err != nil {
+		return nil, fmt.Errorf("failed to find skills: %w", err)
+	}
+
 	// Estimate tokens for task
 	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
 
@@ -344,6 +456,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	// Build and return the result
 	result := &Result{
 		Rules:  cc.rules,
+		Skills: cc.skills,
 		Task:   cc.task,
 		Tokens: cc.totalTokens,
 		Agent:  cc.agent,
