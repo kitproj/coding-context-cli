@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-getter/v2"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/selectors"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/skills"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparser"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/tokencount"
 )
@@ -26,9 +27,9 @@ type Context struct {
 	manifestURL     string
 	searchPaths     []string
 	downloadedPaths []string
-	task            markdown.Markdown[markdown.TaskFrontMatter]    // Parsed task
-	rules           []markdown.Markdown[markdown.RuleFrontMatter]  // Collected rule files
-	skills          []markdown.Markdown[markdown.SkillFrontMatter] // Discovered skills (metadata only)
+	task            markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
+	rules           []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
+	skills          skills.AvailableSkills                        // Discovered skills (metadata only)
 	totalTokens     int
 	logger          *slog.Logger
 	cmdRunner       func(cmd *exec.Cmd) error
@@ -43,7 +44,7 @@ func New(opts ...Option) *Context {
 		params:   make(taskparser.Params),
 		includes: make(selectors.Selectors),
 		rules:    make([]markdown.Markdown[markdown.RuleFrontMatter], 0),
-		skills:   make([]markdown.Markdown[markdown.SkillFrontMatter], 0),
+		skills:   skills.AvailableSkills{Skills: make([]skills.Skill, 0)},
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
@@ -597,31 +598,45 @@ func (cc *Context) discoverSkills() error {
 				continue
 			}
 
-			// Validate required fields
-			if frontmatter.Name == "" {
-				cc.logger.Warn("Skill missing required 'name' field, skipping", "path", skillFile)
-				continue
-			}
-			if frontmatter.Description == "" {
-				cc.logger.Warn("Skill missing required 'description' field, skipping", "path", skillFile)
-				continue
-			}
-
-			// Check if the skill matches the selectors
+			// Check if the skill matches the selectors first (before validation)
 			if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
 				continue
 			}
 
-			// For progressive disclosure, we only store metadata (name and description)
-			// The full content is not loaded at this stage
-			// We store an empty content string to save memory
-			cc.skills = append(cc.skills, markdown.Markdown[markdown.SkillFrontMatter]{
-				FrontMatter: frontmatter,
-				Content:     "", // Not loaded yet (progressive disclosure)
-				Tokens:      0,  // Not counted yet
+			// Validate required fields and their lengths
+			if frontmatter.Name == "" {
+				cc.logger.Warn("Skill missing required 'name' field, skipping", "path", skillFile)
+				continue
+			}
+			if len(frontmatter.Name) < 1 || len(frontmatter.Name) > 64 {
+				cc.logger.Warn("Skill 'name' field must be 1-64 characters, skipping", "path", skillFile, "length", len(frontmatter.Name))
+				continue
+			}
+
+			if frontmatter.Description == "" {
+				cc.logger.Warn("Skill missing required 'description' field, skipping", "path", skillFile)
+				continue
+			}
+			if len(frontmatter.Description) < 1 || len(frontmatter.Description) > 1024 {
+				cc.logger.Warn("Skill 'description' field must be 1-1024 characters, skipping", "path", skillFile, "length", len(frontmatter.Description))
+				continue
+			}
+
+			// Get absolute path for the skill file
+			absPath, err := filepath.Abs(skillFile)
+			if err != nil {
+				cc.logger.Warn("Failed to get absolute path for skill, using relative path", "path", skillFile, "error", err)
+				absPath = skillFile
+			}
+
+			// Add skill to the collection
+			cc.skills.Skills = append(cc.skills.Skills, skills.Skill{
+				Name:        frontmatter.Name,
+				Description: frontmatter.Description,
+				Location:    absPath,
 			})
 
-			cc.logger.Info("Discovered skill", "name", frontmatter.Name, "path", skillFile)
+			cc.logger.Info("Discovered skill", "name", frontmatter.Name, "path", absPath)
 		}
 	}
 

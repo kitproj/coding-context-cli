@@ -2015,22 +2015,19 @@ This is a test skill.
 			taskName: "test-task",
 			wantErr:  false,
 			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills) != 1 {
-					t.Fatalf("expected 1 skill, got %d", len(result.Skills))
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
 				}
-				skill := result.Skills[0]
-				if skill.FrontMatter.Name != "test-skill" {
-					t.Errorf("expected skill name 'test-skill', got %q", skill.FrontMatter.Name)
+				skill := result.Skills.Skills[0]
+				if skill.Name != "test-skill" {
+					t.Errorf("expected skill name 'test-skill', got %q", skill.Name)
 				}
-				if skill.FrontMatter.Description != "A test skill for unit testing" {
-					t.Errorf("expected skill description 'A test skill for unit testing', got %q", skill.FrontMatter.Description)
+				if skill.Description != "A test skill for unit testing" {
+					t.Errorf("expected skill description 'A test skill for unit testing', got %q", skill.Description)
 				}
-				if skill.FrontMatter.License != "MIT" {
-					t.Errorf("expected license 'MIT', got %q", skill.FrontMatter.License)
-				}
-				// Check progressive disclosure - content should be empty
-				if skill.Content != "" {
-					t.Errorf("expected empty content for progressive disclosure, got %q", skill.Content)
+				// Check that Location is set to absolute path
+				if skill.Location == "" {
+					t.Error("expected skill Location to be set")
 				}
 			},
 		},
@@ -2077,11 +2074,11 @@ description: Second test skill
 			taskName: "test-task",
 			wantErr:  false,
 			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills) != 2 {
-					t.Fatalf("expected 2 skills, got %d", len(result.Skills))
+				if len(result.Skills.Skills) != 2 {
+					t.Fatalf("expected 2 skills, got %d", len(result.Skills.Skills))
 				}
 				// Skills should be in order of discovery
-				names := []string{result.Skills[0].FrontMatter.Name, result.Skills[1].FrontMatter.Name}
+				names := []string{result.Skills.Skills[0].Name, result.Skills.Skills[1].Name}
 				if (names[0] != "skill-one" && names[0] != "skill-two") ||
 					(names[1] != "skill-one" && names[1] != "skill-two") {
 					t.Errorf("expected skills 'skill-one' and 'skill-two', got %v", names)
@@ -2146,11 +2143,11 @@ description: Valid skill with all required fields
 			taskName: "test-task",
 			wantErr:  false,
 			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills) != 1 {
-					t.Fatalf("expected 1 valid skill, got %d", len(result.Skills))
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 valid skill, got %d", len(result.Skills.Skills))
 				}
-				if result.Skills[0].FrontMatter.Name != "valid-skill" {
-					t.Errorf("expected skill name 'valid-skill', got %q", result.Skills[0].FrontMatter.Name)
+				if result.Skills.Skills[0].Name != "valid-skill" {
+					t.Errorf("expected skill name 'valid-skill', got %q", result.Skills.Skills[0].Name)
 				}
 			},
 		},
@@ -2202,11 +2199,80 @@ env: production
 			taskName: "test-task",
 			wantErr:  false,
 			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills) != 1 {
-					t.Fatalf("expected 1 skill matching selector, got %d", len(result.Skills))
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 skill matching selector, got %d", len(result.Skills.Skills))
 				}
-				if result.Skills[0].FrontMatter.Name != "dev-skill" {
-					t.Errorf("expected skill name 'dev-skill', got %q", result.Skills[0].FrontMatter.Name)
+				if result.Skills.Skills[0].Name != "dev-skill" {
+					t.Errorf("expected skill name 'dev-skill', got %q", result.Skills.Skills[0].Name)
+				}
+			},
+		},
+		{
+			name: "skip skills with invalid field lengths",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
+
+				// Create skill with name too long (>64 chars)
+				skillDir1 := filepath.Join(dir, ".agents", "skills", "long-name-skill")
+				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				skillContent1 := `---
+name: this-is-a-very-long-skill-name-that-exceeds-the-maximum-allowed-length-of-64-characters
+description: Valid description
+---
+
+# Long Name Skill
+`
+				skillPath1 := filepath.Join(skillDir1, "SKILL.md")
+				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+
+				// Create skill with description too long (>1024 chars)
+				skillDir2 := filepath.Join(dir, ".agents", "skills", "long-desc-skill")
+				if err := os.MkdirAll(skillDir2, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				longDesc := strings.Repeat("a", 1025)
+				skillContent2 := fmt.Sprintf(`---
+name: long-desc-skill
+description: %s
+---
+
+# Long Desc Skill
+`, longDesc)
+				skillPath2 := filepath.Join(skillDir2, "SKILL.md")
+				if err := os.WriteFile(skillPath2, []byte(skillContent2), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+
+				// Create valid skill
+				skillDir3 := filepath.Join(dir, ".agents", "skills", "valid-length-skill")
+				if err := os.MkdirAll(skillDir3, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				skillContent3 := `---
+name: valid-length-skill
+description: Valid skill with correct field lengths
+---
+
+# Valid Skill
+`
+				skillPath3 := filepath.Join(skillDir3, "SKILL.md")
+				if err := os.WriteFile(skillPath3, []byte(skillContent3), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 valid skill, got %d", len(result.Skills.Skills))
+				}
+				if result.Skills.Skills[0].Name != "valid-length-skill" {
+					t.Errorf("expected skill name 'valid-length-skill', got %q", result.Skills.Skills[0].Name)
 				}
 			},
 		},
