@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
 )
@@ -57,12 +58,12 @@ func (t *TaskFrontMatter) UnmarshalJSON(data []byte) error {
 	}
 
 	if err := json.Unmarshal(data, aux); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal task frontmatter: %w", err)
 	}
 
 	// Also unmarshal into Content map
 	if err := json.Unmarshal(data, &t.BaseFrontMatter.Content); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal task frontmatter content: %w", err)
 	}
 
 	return nil
@@ -94,12 +95,12 @@ func (c *CommandFrontMatter) UnmarshalJSON(data []byte) error {
 	}
 
 	if err := json.Unmarshal(data, aux); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal command frontmatter: %w", err)
 	}
 
 	// Also unmarshal into Content map
 	if err := json.Unmarshal(data, &c.BaseFrontMatter.Content); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal command frontmatter content: %w", err)
 	}
 
 	return nil
@@ -143,12 +144,12 @@ func (r *RuleFrontMatter) UnmarshalJSON(data []byte) error {
 	}
 
 	if err := json.Unmarshal(data, aux); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal rule frontmatter: %w", err)
 	}
 
 	// Also unmarshal into Content map
 	if err := json.Unmarshal(data, &r.BaseFrontMatter.Content); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal rule frontmatter content: %w", err)
 	}
 
 	return nil

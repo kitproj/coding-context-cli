@@ -1,6 +1,9 @@
 package mcp
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // TransportType defines the communication protocol used by the server.
 // Supported by both Claude and Cursor.
@@ -58,7 +61,7 @@ func (m *MCPServerConfig) UnmarshalJSON(data []byte) error {
 	}
 
 	if err := json.Unmarshal(data, aux); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal MCP server config: %w", err)
 	}
 
 	// Initialize Content map if needed
@@ -68,7 +71,7 @@ func (m *MCPServerConfig) UnmarshalJSON(data []byte) error {
 
 	// Also unmarshal into Content map
 	if err := json.Unmarshal(data, &m.Content); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal MCP server config content: %w", err)
 	}
 
 	return nil
