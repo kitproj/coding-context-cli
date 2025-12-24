@@ -23,6 +23,36 @@ func TestParseTask(t *testing.T) {
 			},
 		},
 		{
+			name:    "single newline",
+			input:   "\n",
+			wantErr: false,
+			check: func(t *testing.T, task Task) {
+				if len(task) != 0 {
+					t.Errorf("expected empty task, got %d blocks", len(task))
+				}
+			},
+		},
+		{
+			name:    "multiple newlines",
+			input:   "\n\n\n",
+			wantErr: false,
+			check: func(t *testing.T, task Task) {
+				if len(task) != 0 {
+					t.Errorf("expected empty task, got %d blocks", len(task))
+				}
+			},
+		},
+		{
+			name:    "whitespace only",
+			input:   "   \t  \n  \n",
+			wantErr: false,
+			check: func(t *testing.T, task Task) {
+				if len(task) != 0 {
+					t.Errorf("expected empty task, got %d blocks", len(task))
+				}
+			},
+		},
+		{
 			name:    "simple text block",
 			input:   "This is a simple text block.",
 			wantErr: false,
