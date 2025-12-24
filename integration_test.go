@@ -1632,3 +1632,73 @@ This is a rule from a local directory without protocol.
 		}
 	}
 }
+
+// TestTaskWithEmptyContent verifies that tasks with only frontmatter
+// and empty or whitespace-only content are handled gracefully.
+func TestTaskWithEmptyContent(t *testing.T) {
+	tests := []struct {
+		name        string
+		taskName    string
+		taskContent string
+	}{
+		{
+			name:     "empty content",
+			taskName: "empty-task",
+			taskContent: `---
+task_name: empty-task
+---
+`,
+		},
+		{
+			name:     "single newline",
+			taskName: "newline-task",
+			taskContent: `---
+task_name: newline-task
+---
+
+`,
+		},
+		{
+			name:     "multiple newlines",
+			taskName: "newlines-task",
+			taskContent: `---
+task_name: newlines-task
+---
+
+
+`,
+		},
+		{
+			name:     "whitespace only",
+			taskName: "whitespace-task",
+			taskContent: `---
+task_name: whitespace-task
+---
+   
+	
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dirs := setupTestDirs(t)
+
+			// Create task file with empty or whitespace content
+			// Use the task name in the filename
+			taskFile := filepath.Join(dirs.tasksDir, tt.taskName+".md")
+			if err := os.WriteFile(taskFile, []byte(tt.taskContent), 0o644); err != nil {
+				t.Fatalf("failed to write task file: %v", err)
+			}
+
+			// Run the program - should not error
+			output := runTool(t, "-C", dirs.tmpDir, tt.taskName)
+
+			// The output should contain the frontmatter but not fail
+			// (exact output format may vary, but it should succeed)
+			if output == "" {
+				t.Errorf("expected some output, got empty string")
+			}
+		})
+	}
+}

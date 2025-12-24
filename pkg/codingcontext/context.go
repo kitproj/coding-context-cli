@@ -152,7 +152,7 @@ func (cc *Context) findTask(taskName string) error {
 		// Parse the task content (including user_prompt) to separate text blocks from slash commands
 		task, err := taskparser.ParseTask(taskContent)
 		if err != nil {
-			return fmt.Errorf("failed to parse task content: %w", err)
+			return fmt.Errorf("failed to parse task content in file %s: %w", path, err)
 		}
 
 		// Build the final content by processing each block

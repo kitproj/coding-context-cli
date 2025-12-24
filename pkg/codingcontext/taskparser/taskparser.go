@@ -110,6 +110,12 @@ import (
 //	task, _ := ParseTask("Introduction text\n/fix-bug 123\nSome text after")
 //	// len(task) == 3 (text, command, text)
 func ParseTask(text string) (Task, error) {
+	// Handle empty or whitespace-only content gracefully
+	// TrimSpace returns empty string for whitespace-only input
+	if strings.TrimSpace(text) == "" {
+		return Task{}, nil
+	}
+
 	input, err := parser().ParseString("", text)
 	if err != nil {
 		return nil, err
