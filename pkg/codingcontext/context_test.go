@@ -2279,6 +2279,104 @@ This is a test skill.
 				}
 			},
 		},
+		{
+			name: "discover skills from .cursor/skills directory",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
+
+				// Create skill in .cursor/skills directory
+				skillDir := filepath.Join(dir, ".cursor", "skills", "cursor-skill")
+				if err := os.MkdirAll(skillDir, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+
+				skillContent := `---
+name: cursor-skill
+description: A skill for Cursor IDE
+---
+
+# Cursor Skill
+
+This is a skill for Cursor.
+`
+				skillPath := filepath.Join(skillDir, "SKILL.md")
+				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
+				}
+				skill := result.Skills.Skills[0]
+				if skill.Name != "cursor-skill" {
+					t.Errorf("expected skill name 'cursor-skill', got %q", skill.Name)
+				}
+				if skill.Description != "A skill for Cursor IDE" {
+					t.Errorf("expected skill description 'A skill for Cursor IDE', got %q", skill.Description)
+				}
+				if skill.Location == "" {
+					t.Error("expected skill Location to be set")
+				}
+			},
+		},
+		{
+			name: "discover skills from both .agents/skills and .cursor/skills",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
+
+				// Create skill in .agents/skills directory
+				skillDir1 := filepath.Join(dir, ".agents", "skills", "agents-skill")
+				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				skillContent1 := `---
+name: agents-skill
+description: A generic agents skill
+---
+
+# Agents Skill
+`
+				skillPath1 := filepath.Join(skillDir1, "SKILL.md")
+				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+
+				// Create skill in .cursor/skills directory
+				skillDir2 := filepath.Join(dir, ".cursor", "skills", "cursor-skill")
+				if err := os.MkdirAll(skillDir2, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+				skillContent2 := `---
+name: cursor-skill
+description: A Cursor IDE skill
+---
+
+# Cursor Skill
+`
+				skillPath2 := filepath.Join(skillDir2, "SKILL.md")
+				if err := os.WriteFile(skillPath2, []byte(skillContent2), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills.Skills) != 2 {
+					t.Fatalf("expected 2 skills, got %d", len(result.Skills.Skills))
+				}
+				names := []string{result.Skills.Skills[0].Name, result.Skills.Skills[1].Name}
+				// Verify both skills are present (order doesn't matter)
+				if (names[0] != "agents-skill" && names[0] != "cursor-skill") ||
+					(names[1] != "agents-skill" && names[1] != "cursor-skill") {
+					t.Errorf("expected skills 'agents-skill' and 'cursor-skill', got %v", names)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

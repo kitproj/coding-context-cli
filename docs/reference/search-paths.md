@@ -36,6 +36,7 @@ Command files are referenced via slash commands inside task content. Within each
 Skill files provide specialized capabilities with progressive disclosure. Within each directory, skill files are searched in:
 
 1. `.agents/skills/*/SKILL.md` (each subdirectory in `.agents/skills/` can contain a `SKILL.md` file)
+2. `.cursor/skills/*/SKILL.md` (each subdirectory in `.cursor/skills/` can contain a `SKILL.md` file)
 
 **Example:**
 ```
@@ -45,6 +46,12 @@ Skill files provide specialized capabilities with progressive disclosure. Within
 ├── pdf-processing/
 │   └── SKILL.md
 └── api-testing/
+    └── SKILL.md
+
+.cursor/skills/
+├── code-review/
+│   └── SKILL.md
+└── refactoring/
     └── SKILL.md
 ```
 

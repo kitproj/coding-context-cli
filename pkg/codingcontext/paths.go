@@ -53,5 +53,6 @@ func commandSearchPaths(dir string) []string {
 func skillSearchPaths(dir string) []string {
 	return []string{
 		filepath.Join(dir, ".agents", "skills"),
+		filepath.Join(dir, ".cursor", "skills"),
 	}
 }
