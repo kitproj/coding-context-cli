@@ -2529,6 +2529,120 @@ This is a skill for Windsurf.
 				}
 			},
 		},
+		{
+			name: "discover skills from .claude/skills directory",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
+
+				// Create skill in .claude/skills directory
+				skillDir := filepath.Join(dir, ".claude", "skills", "claude-skill")
+				if err := os.MkdirAll(skillDir, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+
+				skillContent := `---
+name: claude-skill
+description: A skill for Claude
+---
+
+# Claude Skill
+
+This is a skill for Claude.
+`
+				skillPath := filepath.Join(skillDir, "SKILL.md")
+				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
+				}
+				skill := result.Skills.Skills[0]
+				if skill.Name != "claude-skill" {
+					t.Errorf("expected skill name 'claude-skill', got %q", skill.Name)
+				}
+			},
+		},
+		{
+			name: "discover skills from .gemini/skills directory",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
+
+				// Create skill in .gemini/skills directory
+				skillDir := filepath.Join(dir, ".gemini", "skills", "gemini-skill")
+				if err := os.MkdirAll(skillDir, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+
+				skillContent := `---
+name: gemini-skill
+description: A skill for Gemini
+---
+
+# Gemini Skill
+
+This is a skill for Gemini.
+`
+				skillPath := filepath.Join(skillDir, "SKILL.md")
+				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
+				}
+				skill := result.Skills.Skills[0]
+				if skill.Name != "gemini-skill" {
+					t.Errorf("expected skill name 'gemini-skill', got %q", skill.Name)
+				}
+			},
+		},
+		{
+			name: "discover skills from .codex/skills directory",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Test task content")
+
+				// Create skill in .codex/skills directory
+				skillDir := filepath.Join(dir, ".codex", "skills", "codex-skill")
+				if err := os.MkdirAll(skillDir, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+
+				skillContent := `---
+name: codex-skill
+description: A skill for Codex
+---
+
+# Codex Skill
+
+This is a skill for Codex.
+`
+				skillPath := filepath.Join(skillDir, "SKILL.md")
+				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
+				}
+				skill := result.Skills.Skills[0]
+				if skill.Name != "codex-skill" {
+					t.Errorf("expected skill name 'codex-skill', got %q", skill.Name)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

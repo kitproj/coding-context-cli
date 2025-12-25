@@ -39,8 +39,11 @@ Skill files provide specialized capabilities with progressive disclosure. Within
 2. `.cursor/skills/*/SKILL.md` (each subdirectory in `.cursor/skills/` can contain a `SKILL.md` file)
 3. `.opencode/skills/*/SKILL.md` (each subdirectory in `.opencode/skills/` can contain a `SKILL.md` file)
 4. `.github/skills/*/SKILL.md` (each subdirectory in `.github/skills/` can contain a `SKILL.md` file)
-5. `.augment/skills/*/SKILL.md` (each subdirectory in `.augment/skills/` can contain a `SKILL.md` file)
-6. `.windsurf/skills/*/SKILL.md` (each subdirectory in `.windsurf/skills/` can contain a `SKILL.md` file)
+5. `.claude/skills/*/SKILL.md` (each subdirectory in `.claude/skills/` can contain a `SKILL.md` file)
+6. `.gemini/skills/*/SKILL.md` (each subdirectory in `.gemini/skills/` can contain a `SKILL.md` file)
+7. `.augment/skills/*/SKILL.md` (each subdirectory in `.augment/skills/` can contain a `SKILL.md` file)
+8. `.windsurf/skills/*/SKILL.md` (each subdirectory in `.windsurf/skills/` can contain a `SKILL.md` file)
+9. `.codex/skills/*/SKILL.md` (each subdirectory in `.codex/skills/` can contain a `SKILL.md` file)
 
 **Example:**
 ```
@@ -68,6 +71,24 @@ Skill files provide specialized capabilities with progressive disclosure. Within
 ├── deployment/
 │   └── SKILL.md
 └── ci-cd/
+    └── SKILL.md
+
+.claude/skills/
+├── analysis/
+│   └── SKILL.md
+└── writing/
+    └── SKILL.md
+
+.gemini/skills/
+├── search/
+│   └── SKILL.md
+└── multimodal/
+    └── SKILL.md
+
+.codex/skills/
+├── code-gen/
+│   └── SKILL.md
+└── refactoring/
     └── SKILL.md
 ```
 

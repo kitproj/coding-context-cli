@@ -43,12 +43,14 @@ var agentsPaths = map[Agent]agentPathsConfig{
 	// Claude agent paths
 	AgentClaude: {
 		rulesPaths: []string{".claude", "CLAUDE.md", "CLAUDE.local.md"},
-		// No skills, commands, or tasks paths defined for Claude
+		skillsPath: ".claude/skills",
+		// No commands or tasks paths defined for Claude
 	},
 	// Gemini agent paths
 	AgentGemini: {
 		rulesPaths: []string{".gemini/styleguide.md", ".gemini", "GEMINI.md"},
-		// No skills, commands, or tasks paths defined for Gemini
+		skillsPath: ".gemini/skills",
+		// No commands or tasks paths defined for Gemini
 	},
 	// Augment agent paths
 	AgentAugment: {
@@ -65,6 +67,7 @@ var agentsPaths = map[Agent]agentPathsConfig{
 	// Codex agent paths
 	AgentCodex: {
 		rulesPaths: []string{".codex", "AGENTS.md"},
-		// No skills, commands, or tasks paths defined for Codex
+		skillsPath: ".codex/skills",
+		// No commands or tasks paths defined for Codex
 	},
 }
