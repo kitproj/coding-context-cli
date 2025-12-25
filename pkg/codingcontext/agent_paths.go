@@ -30,13 +30,15 @@ var agentsPaths = map[Agent]agentPathsConfig{
 	// OpenCode agent paths
 	AgentOpenCode: {
 		rulesPaths:   []string{".opencode/agent", ".opencode/rules"},
+		skillsPath:   ".opencode/skills",
 		commandsPath: ".opencode/command",
-		// No skills or tasks paths defined for OpenCode
+		// No tasks path defined for OpenCode
 	},
 	// Copilot agent paths
 	AgentCopilot: {
 		rulesPaths: []string{".github/copilot-instructions.md", ".github/agents"},
-		// No skills, commands, or tasks paths defined for Copilot
+		skillsPath: ".github/skills",
+		// No commands or tasks paths defined for Copilot
 	},
 	// Claude agent paths
 	AgentClaude: {
@@ -51,12 +53,14 @@ var agentsPaths = map[Agent]agentPathsConfig{
 	// Augment agent paths
 	AgentAugment: {
 		rulesPaths: []string{".augment/rules", ".augment/guidelines.md"},
-		// No skills, commands, or tasks paths defined for Augment
+		skillsPath: ".augment/skills",
+		// No commands or tasks paths defined for Augment
 	},
 	// Windsurf agent paths
 	AgentWindsurf: {
 		rulesPaths: []string{".windsurf/rules", ".windsurfrules"},
-		// No skills, commands, or tasks paths defined for Windsurf
+		skillsPath: ".windsurf/skills",
+		// No commands or tasks paths defined for Windsurf
 	},
 	// Codex agent paths
 	AgentCodex: {

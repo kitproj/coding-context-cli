@@ -37,6 +37,10 @@ Skill files provide specialized capabilities with progressive disclosure. Within
 
 1. `.agents/skills/*/SKILL.md` (each subdirectory in `.agents/skills/` can contain a `SKILL.md` file)
 2. `.cursor/skills/*/SKILL.md` (each subdirectory in `.cursor/skills/` can contain a `SKILL.md` file)
+3. `.opencode/skills/*/SKILL.md` (each subdirectory in `.opencode/skills/` can contain a `SKILL.md` file)
+4. `.github/skills/*/SKILL.md` (each subdirectory in `.github/skills/` can contain a `SKILL.md` file)
+5. `.augment/skills/*/SKILL.md` (each subdirectory in `.augment/skills/` can contain a `SKILL.md` file)
+6. `.windsurf/skills/*/SKILL.md` (each subdirectory in `.windsurf/skills/` can contain a `SKILL.md` file)
 
 **Example:**
 ```
@@ -52,6 +56,18 @@ Skill files provide specialized capabilities with progressive disclosure. Within
 ├── code-review/
 │   └── SKILL.md
 └── refactoring/
+    └── SKILL.md
+
+.opencode/skills/
+├── testing/
+│   └── SKILL.md
+└── debugging/
+    └── SKILL.md
+
+.github/skills/
+├── deployment/
+│   └── SKILL.md
+└── ci-cd/
     └── SKILL.md
 ```
 
