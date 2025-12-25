@@ -21,16 +21,30 @@ This tool collects context from predefined rule files and a task-specific prompt
 
 ## Supported Coding Agents
 
-This tool is compatible with configuration files from various AI coding agents and IDEs:
+This tool is compatible with configuration files from various AI coding agents and IDEs. **[View complete list of 35+ supported agents →](https://kitproj.github.io/coding-context-cli/reference/supported-agents)**
 
-- **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`
-- **[Codex](https://codex.ai/)**: `AGENTS.md`, `.codex/AGENTS.md`
-- **[Cursor](https://cursor.sh/)**: `.cursor/rules`, `.cursorrules`
-- **[Augment](https://augmentcode.com/)**: `.augment/rules`, `.augment/guidelines.md`
-- **[Windsurf](https://codeium.com/windsurf)**: `.windsurf/rules`, `.windsurfrules`
-- **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent`, `.opencode/command`, `.opencode/rules`
-- **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents`
-- **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md`
+### Primary Supported Agents (with dedicated `-a` flag)
+
+- **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents` (`-a copilot`)
+- **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md` (`-a claude`)
+- **[Cursor](https://cursor.sh/)**: `.cursor/rules`, `.cursorrules` (`-a cursor`)
+- **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md` (`-a gemini`)
+- **[Augment](https://augmentcode.com/)**: `.augment/rules`, `.augment/guidelines.md` (`-a augment`)
+- **[Windsurf](https://codeium.com/windsurf)**: `.windsurf/rules`, `.windsurfrules` (`-a windsurf`)
+- **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent`, `.opencode/command`, `.opencode/rules` (`-a opencode`)
+- **[Codex](https://codex.ai/)**: `AGENTS.md`, `.codex/AGENTS.md` (`-a codex`)
+
+### Additional Compatible Agents
+
+- **Codeium**, **Tabnine**, **Amazon Q Developer** (CodeWhisperer)
+- **Sourcegraph Cody**, **Continue**, **Aider**
+- **Replit Ghostwriter**, **GitLab Duo**
+- **All OpenAI models** (GPT-4, ChatGPT), **LLM APIs**
+- **Agent frameworks**: LangChain, AutoGPT, BabyAGI
+- **And 20+ more** - see [full documentation](https://kitproj.github.io/coding-context-cli/reference/supported-agents)
+
+### Generic AI Agent Support
+
 - **Generic AI Agents**: `AGENTS.md`, `.agents/rules`, `.agents/commands` (reusable content blocks), `.agents/tasks`
 
 The tool automatically discovers and includes rules from these locations in your project and user home directory (`~`).

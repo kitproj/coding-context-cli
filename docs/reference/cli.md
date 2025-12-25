@@ -194,6 +194,8 @@ Specify the target agent being used. This is currently used for:
 
 **Supported agents:** `cursor`, `opencode`, `copilot`, `claude`, `gemini`, `augment`, `windsurf`, `codex`
 
+For a complete list of all compatible agents, see [Supported Agents](./supported-agents).
+
 **How it works:**
 - The agent value is stored in the context (can come from `-a` flag or task frontmatter)
 - With `-w` flag, the agent determines the user rules path for writing

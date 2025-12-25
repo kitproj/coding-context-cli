@@ -17,3 +17,4 @@ These reference documents provide detailed information about the standard, comma
 - [CLI Reference](./cli) - Command-line options and arguments
 - [File Formats](./file-formats) - Task and rule file specifications
 - [Search Paths](./search-paths) - Where files are discovered
+- [Supported Agents](./supported-agents) - Comprehensive list of compatible AI coding agents
