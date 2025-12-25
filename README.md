@@ -818,3 +818,35 @@ Perfect for:
 - **Tech talks** - Present at meetups or conferences
 - **Workshops** - Run hands-on training sessions
 - **Documentation** - Visual reference for features
+
+## Troubleshooting
+
+### Common Issues
+
+**Task not found**
+- Verify the task file exists in `.agents/tasks/` with the correct filename
+- Tasks are matched by filename (without `.md` extension), not by `task_name` in frontmatter
+- Check that you're using the correct task name: `coding-context fix-bug` (not `/fix-bug`)
+
+**No rules included**
+- Check that rule files exist in search paths (`.agents/rules/`, etc.)
+- Verify selector syntax: use `-s languages=go` (not `-p languages=go`)
+- Remember: `-s` filters rules, `-p` substitutes parameters
+- Rules without frontmatter are always included (unless using resume mode)
+
+**Parameters not substituted**
+- Ensure you're using `-p` flag: `coding-context -p issue=123 fix-bug`
+- Check parameter names match exactly (case-sensitive): `${issue_key}` matches `-p issue_key=...`
+- Verify the task file uses `${parameter}` syntax
+
+**Wrong rules included**
+- Check frontmatter spelling and case sensitivity
+- Use `languages:` (plural) in frontmatter and `-s languages=go` in selectors
+- All selectors must match (AND logic): `-s languages=go -s stage=testing`
+
+**Bootstrap script not running**
+- Make the script executable: `chmod +x .agents/rules/my-rule-bootstrap`
+- Name it correctly: `{rule-filename}-bootstrap` (e.g., `jira-context-bootstrap` for `jira-context.md`)
+- Check script output in stderr
+
+For more help, see the [full documentation](https://kitproj.github.io/coding-context-cli/) or [open an issue](https://github.com/kitproj/coding-context-cli/issues).
