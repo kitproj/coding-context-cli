@@ -509,6 +509,24 @@ languages:
 
 If you need to filter on nested data, flatten your frontmatter structure to use top-level fields only.
 
+**MCP Server Configuration**
+
+Rules can optionally specify MCP (Model Context Protocol) server configurations for integration with AI coding agents. This is useful for defining server processes that AI agents can interact with.
+
+```yaml
+---
+languages:
+  - python
+mcp_server:
+  command: python
+  args: ["-m", "server"]
+  env:
+    PYTHON_PATH: /usr/bin/python3
+---
+```
+
+For detailed information on MCP server configuration, see the [File Formats Reference](https://kitproj.github.io/coding-context-cli/reference/file-formats#mcp_server-rule-metadata).
+
 ### Targeting a Specific Agent
 
 The `-a` flag specifies which AI coding agent you're using. This information is currently used for:

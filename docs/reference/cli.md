@@ -293,7 +293,13 @@ coding-context -w fix-bug
 
 # Combine with other options
 coding-context -a copilot -w -s languages=go -p issue=123 fix-bug
+
+# Resume mode with write rules: rules are skipped, only task output to stdout
+coding-context -a copilot -w -r fix-bug
 ```
+
+**Note on Resume Mode:**
+When using `-w` with `-r` (resume mode), no rules file is written since rules are not collected in resume mode. Only the task prompt is output to stdout.
 
 **Use case:**
 This mode is particularly useful when working with AI coding agents that read rules from specific configuration files. Instead of including all rules in the prompt (consuming tokens), you can write them to the agent's config file once and only send the task prompt.
