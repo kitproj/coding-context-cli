@@ -974,77 +974,45 @@ This is a test task.
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
-	// Test that frontmatter is always printed
+	// Test that task frontmatter is NOT printed
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
-	lines := strings.Split(output, "\n")
-
-	// Find the first non-log line (skip lines starting with "time=")
-	var firstContentLine string
-	for _, line := range lines {
-		if !strings.HasPrefix(line, "time=") {
-			firstContentLine = line
-			break
-		}
+	// Task frontmatter fields should NOT be in the output
+	if strings.Contains(output, "task_name: test-task") {
+		t.Errorf("task frontmatter field 'task_name' should not be in output")
 	}
-
-	// First content line should be frontmatter delimiter
-	if firstContentLine != "---" {
-		t.Errorf("expected first content line to be '---', got %q", firstContentLine)
+	if strings.Contains(output, "author: tester") {
+		t.Errorf("task frontmatter field 'author' should not be in output")
 	}
-
-	// Should contain task frontmatter fields
-	if !strings.Contains(output, "task_name: test-task") {
-		t.Errorf("task frontmatter field 'task_name' not found in output")
-	}
-	if !strings.Contains(output, "author: tester") {
-		t.Errorf("task frontmatter field 'author' not found in output")
-	}
-	if !strings.Contains(output, "version: 1.0") {
-		t.Errorf("task frontmatter field 'version' not found in output")
-	}
-
-	// Find the second --- (end of frontmatter)
-	secondDelimiterIdx := -1
-	for i := 1; i < len(lines); i++ {
-		if lines[i] == "---" {
-			secondDelimiterIdx = i
-			break
-		}
-	}
-	if secondDelimiterIdx == -1 {
-		t.Errorf("expected to find closing frontmatter delimiter '---'")
-	}
-
-	// Rule content should appear after frontmatter
-	if !strings.Contains(output, "# Test Rule") {
-		t.Errorf("rule content not found in output")
-	}
-
-	// Task content should appear after rules
-	if !strings.Contains(output, "# Test Task") {
-		t.Errorf("task content not found in output")
-	}
-
-	// Verify order: frontmatter should come before rules, rules before task content
-	frontmatterIdx := strings.Index(output, "task_name: test-task")
-	ruleIdx := strings.Index(output, "# Test Rule")
-	taskIdx := strings.Index(output, "# Test Task")
-
-	if frontmatterIdx == -1 || ruleIdx == -1 || taskIdx == -1 {
-		t.Fatalf("could not find all required sections in output")
-	}
-
-	if frontmatterIdx > ruleIdx {
-		t.Errorf("frontmatter should appear before rules")
-	}
-	if ruleIdx > taskIdx {
-		t.Errorf("rules should appear before task content")
+	if strings.Contains(output, "version: 1.0") {
+		t.Errorf("task frontmatter field 'version' should not be in output")
 	}
 
 	// Rule frontmatter should NOT be printed
 	if strings.Contains(output, "language: go") {
 		t.Errorf("rule frontmatter should not be printed in output")
+	}
+
+	// Rule content should be in the output
+	if !strings.Contains(output, "# Test Rule") {
+		t.Errorf("rule content not found in output")
+	}
+
+	// Task content should be in the output
+	if !strings.Contains(output, "# Test Task") {
+		t.Errorf("task content not found in output")
+	}
+
+	// Verify order: rules should appear before task content
+	ruleIdx := strings.Index(output, "# Test Rule")
+	taskIdx := strings.Index(output, "# Test Task")
+
+	if ruleIdx == -1 || taskIdx == -1 {
+		t.Fatalf("could not find all required sections in output")
+	}
+
+	if ruleIdx > taskIdx {
+		t.Errorf("rules should appear before task content")
 	}
 }
 

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 
-	yaml "github.com/goccy/go-yaml"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/selectors"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparser"
@@ -144,28 +143,10 @@ func main() {
 			logger.Info("Rules written", "path", rulesFile)
 		}
 
-		// Output only task frontmatter and content
-		if taskContent := result.Task.FrontMatter.Content; taskContent != nil {
-			fmt.Println("---")
-			if err := yaml.NewEncoder(os.Stdout).Encode(taskContent); err != nil {
-				logger.Error("Failed to encode task frontmatter", "error", err)
-				os.Exit(1)
-			}
-			fmt.Println("---")
-		}
+		// Output only task content (task frontmatter is not included)
 		fmt.Println(result.Task.Content)
 	} else {
 		// Normal mode: output everything
-		// Output task frontmatter (always enabled)
-		if taskContent := result.Task.FrontMatter.Content; taskContent != nil {
-			fmt.Println("---")
-			if err := yaml.NewEncoder(os.Stdout).Encode(taskContent); err != nil {
-				logger.Error("Failed to encode task frontmatter", "error", err)
-				os.Exit(1)
-			}
-			fmt.Println("---")
-		}
-
 		// Output available skills metadata (progressive disclosure)
 		if len(result.Skills.Skills) > 0 {
 			skillsXML, err := result.Skills.AsXML()
@@ -178,6 +159,7 @@ func main() {
 		}
 
 		// Output the combined prompt (rules + task)
+		// Note: Task frontmatter is not included in the output
 		fmt.Println(result.Prompt)
 	}
 }

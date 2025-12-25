@@ -230,7 +230,7 @@ selectors:
 **Rules:**
 - `task_name` field is optional metadata
 - Tasks matched by filename (e.g., `fix-bug.md` → task name `fix-bug`)
-- Frontmatter is automatically output with task
+- Frontmatter is used for filtering and metadata but not included in output
 - Can specify `selectors` to auto-filter rules
 - Supports parameter expansion: `${param_name}`
 
@@ -1096,20 +1096,17 @@ Remote directories support (via go-getter):
 
 ### 11.1 Assembly Order
 
-1. **Task frontmatter** (YAML format, automatically included if present)
-2. **Skill metadata** (XML format, if skills found)
-3. **Rule content** (all included rules, content only)
-4. **Task content** (with expansions applied)
-5. **User prompt** (if provided, after `---` delimiter)
+1. **Skill metadata** (XML format, if skills found)
+2. **Rule content** (all included rules, content only)
+3. **Task content** (with expansions applied)
+4. **User prompt** (if provided, after `---` delimiter)
+
+**Note**: Task frontmatter is used for filtering and metadata purposes but is not included in the output.
 
 ### 11.2 Output Format
 
 **To stdout (the context):**
-```yaml
----
-task_name: fix-bug
-resume: false
----
+```markdown
 
 <available_skills>
   <skill>
@@ -1148,8 +1145,7 @@ INFO: Estimated tokens: 2,345
 With `-r` flag:
 1. All rules are **skipped**
 2. Implicit selector: `-s resume=true` added
-3. Task frontmatter still included
-4. Useful for continuing work with established context
+3. Useful for continuing work with established context
 
 ### 11.4 Token Estimation
 
@@ -1396,12 +1392,14 @@ Bootstrap scripts output to stderr (not context) because:
 - Allows logging without polluting context
 - Enables verification without affecting AI input
 
-#### 14.2.5 Frontmatter in Task Output
-Task frontmatter is automatically included because:
-- Enables agent decision-making
-- Supports downstream tooling
-- Aids debugging and verification
-- No overhead for simple cases
+#### 14.2.5 Task Frontmatter Usage
+Task frontmatter serves metadata purposes:
+- Enables task selection and filtering via selectors
+- Specifies agent preferences
+- Controls workflow behavior (e.g., resume mode)
+- Defines rule filtering via `selectors` field
+
+The frontmatter is not included in the output to keep the generated context focused on actionable content.
 
 ### 14.3 Limitations
 

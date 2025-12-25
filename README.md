@@ -18,20 +18,14 @@ The tool assembles context into a structured prompt with the following component
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │ 1. Task Frontmatter (YAML)                            │  │
-│  │    • Task metadata (selectors, agent, etc.)           │  │
-│  │    • Always included when task has frontmatter        │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                               │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │ 2. Skills Metadata (XML) - Optional                   │  │
+│  │ 1. Skills Metadata (XML) - Optional                   │  │
 │  │    • Available skills with names & descriptions       │  │
 │  │    • Progressive disclosure - full content on demand  │  │
 │  │    • Only included if skills are discovered           │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                               │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │ 3. Rules Content (Markdown)                           │  │
+│  │ 2. Rules Content (Markdown)                           │  │
 │  │    • Coding standards and guidelines                  │  │
 │  │    • Team conventions and best practices              │  │
 │  │    • Filtered by selectors (-s flag)                  │  │
@@ -39,7 +33,7 @@ The tool assembles context into a structured prompt with the following component
 │  └───────────────────────────────────────────────────────┘  │
 │                                                               │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │ 4. Task Content (Markdown)                            │  │
+│  │ 3. Task Content (Markdown)                            │  │
 │  │    • Task-specific instructions                       │  │
 │  │    • Parameter substitutions (${param})               │  │
 │  │    • Command expansions (!`command`)                  │  │
@@ -50,10 +44,10 @@ The tool assembles context into a structured prompt with the following component
 ```
 
 **Key Points:**
-- **Task Frontmatter**: Provides metadata for agent decision-making and workflow automation
 - **Skills**: Enable progressive disclosure of specialized capabilities
 - **Rules**: Reusable context that applies across multiple tasks
 - **Task Content**: Specific instructions for the current task with dynamic content expansion
+- **Note**: Task frontmatter is used for filtering and metadata but is not included in the output
 
 ## Features
 
@@ -767,40 +761,49 @@ The AI agent can then read the full skill content from the provided location whe
 
 ### Task Frontmatter
 
-Task frontmatter is **always** automatically included at the beginning of the output when a task file has frontmatter. This allows the AI agent or downstream tool to access metadata about the task being executed. There is no flag needed to enable this - it happens automatically.
+Task frontmatter contains metadata used for filtering, agent selection, and workflow automation. While the frontmatter itself is not included in the generated output, it serves important purposes:
+
+**What frontmatter is used for:**
+- **Task selection**: Filtering between multiple task files using selectors
+- **Agent specification**: The `agent` field can override the `-a` command-line flag
+- **Rule filtering**: The `selectors` field automatically filters rules without requiring explicit `-s` flags
+- **Workflow control**: Fields like `resume` control task behavior in different modes
 
 **Example usage:**
 ```bash
 coding-context -p issue_number=123 fix-bug
 ```
 
-**Output format:**
-```yaml
+**Example task file:**
+```markdown
 ---
 resume: false
+selectors:
+  languages: go
+  stage: implementation
 ---
+# Fix Bug Task
+
+Fix the bug in issue #${issue_number}...
+```
+
+**Output format:**
+The task frontmatter is NOT included in the output. Only the task content (below the frontmatter delimiters) is included:
+```markdown
 # Fix Bug Task
 
 Fix the bug in issue #123...
 ```
 
-This can be useful for:
-- **Agent decision making**: The AI can see metadata like priority, environment, or stage
-- **Workflow automation**: Downstream tools can parse the frontmatter to make decisions
-- **Debugging**: You can verify which task variant was selected and what selectors were applied
+This design keeps the output focused on actionable content while still allowing frontmatter to control behavior and filtering.
 
 **Example with selectors in frontmatter:**
 ```bash
 coding-context implement-feature
 ```
 
-If the task has `selectors` in its frontmatter, they will be visible in the output:
-```yaml
----
-selectors:
-  languages: go
-  stage: implementation
----
+If the task has `selectors` in its frontmatter, they will automatically filter rules, but the frontmatter itself won't appear in the output:
+```markdown
 # Implementation Task
 ...
 ```
