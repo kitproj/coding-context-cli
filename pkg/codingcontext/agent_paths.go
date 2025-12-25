@@ -30,37 +30,44 @@ var agentsPaths = map[Agent]agentPathsConfig{
 	// OpenCode agent paths
 	AgentOpenCode: {
 		rulesPaths:   []string{".opencode/agent", ".opencode/rules"},
+		skillsPath:   ".opencode/skills",
 		commandsPath: ".opencode/command",
-		// No skills or tasks paths defined for OpenCode
+		// No tasks path defined for OpenCode
 	},
 	// Copilot agent paths
 	AgentCopilot: {
 		rulesPaths: []string{".github/copilot-instructions.md", ".github/agents"},
-		// No skills, commands, or tasks paths defined for Copilot
+		skillsPath: ".github/skills",
+		// No commands or tasks paths defined for Copilot
 	},
 	// Claude agent paths
 	AgentClaude: {
 		rulesPaths: []string{".claude", "CLAUDE.md", "CLAUDE.local.md"},
-		// No skills, commands, or tasks paths defined for Claude
+		skillsPath: ".claude/skills",
+		// No commands or tasks paths defined for Claude
 	},
 	// Gemini agent paths
 	AgentGemini: {
 		rulesPaths: []string{".gemini/styleguide.md", ".gemini", "GEMINI.md"},
-		// No skills, commands, or tasks paths defined for Gemini
+		skillsPath: ".gemini/skills",
+		// No commands or tasks paths defined for Gemini
 	},
 	// Augment agent paths
 	AgentAugment: {
 		rulesPaths: []string{".augment/rules", ".augment/guidelines.md"},
-		// No skills, commands, or tasks paths defined for Augment
+		skillsPath: ".augment/skills",
+		// No commands or tasks paths defined for Augment
 	},
 	// Windsurf agent paths
 	AgentWindsurf: {
 		rulesPaths: []string{".windsurf/rules", ".windsurfrules"},
-		// No skills, commands, or tasks paths defined for Windsurf
+		skillsPath: ".windsurf/skills",
+		// No commands or tasks paths defined for Windsurf
 	},
 	// Codex agent paths
 	AgentCodex: {
 		rulesPaths: []string{".codex", "AGENTS.md"},
-		// No skills, commands, or tasks paths defined for Codex
+		skillsPath: ".codex/skills",
+		// No commands or tasks paths defined for Codex
 	},
 }
