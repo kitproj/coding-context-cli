@@ -4,26 +4,11 @@ import "path/filepath"
 
 // rulePaths returns the search paths for rule files in a directory.
 // It collects rule paths from all agents in the agentsPaths configuration.
-// If home is true, only returns paths for agents that are user-level (home directory).
-func rulePaths(dir string, home bool) []string {
+func rulePaths(dir string) []string {
 	var paths []string
 
-	// Define which agents should be included for home directory
-	homeAgents := map[Agent]bool{
-		Agent(""):     true, // generic .agents
-		AgentClaude:   true,
-		AgentCodex:    true,
-		AgentGemini:   true,
-		AgentOpenCode: true,
-	}
-
 	// Iterate through all configured agents
-	for agent, config := range agentsPaths {
-		// Skip non-home agents if we're in home directory mode
-		if home && !homeAgents[agent] {
-			continue
-		}
-
+	for _, config := range agentsPaths {
 		// Add each rule path for this agent
 		for _, rulePath := range config.RulesPaths {
 			paths = append(paths, filepath.Join(dir, rulePath))

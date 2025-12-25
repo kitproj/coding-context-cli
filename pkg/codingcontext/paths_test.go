@@ -7,43 +7,26 @@ import (
 
 func TestRulePaths(t *testing.T) {
 	tests := []struct {
-		name           string
-		dir            string
-		home           bool
-		wantContains   []string
-		wantNotContain []string
+		name         string
+		dir          string
+		wantContains []string
 	}{
 		{
-			name: "non-home directory includes all agent paths",
+			name: "directory includes all agent paths",
 			dir:  "/project",
-			home: false,
 			wantContains: []string{
 				filepath.Join("/project", ".agents", "rules"),
 				filepath.Join("/project", ".cursor", "rules"),
 				filepath.Join("/project", ".cursorrules"),
 				filepath.Join("/project", ".claude"),
-			},
-			wantNotContain: []string{},
-		},
-		{
-			name: "home directory includes only home agents",
-			dir:  "/home/user",
-			home: true,
-			wantContains: []string{
-				filepath.Join("/home/user", ".agents", "rules"),
-				filepath.Join("/home/user", ".claude"),
-				filepath.Join("/home/user", ".codex"),
-			},
-			wantNotContain: []string{
-				filepath.Join("/home/user", ".cursor", "rules"),
-				filepath.Join("/home/user", ".windsurf", "rules"),
+				filepath.Join("/project", ".codex"),
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			paths := rulePaths(tt.dir, tt.home)
+			paths := rulePaths(tt.dir)
 
 			// Check that expected paths are present
 			for _, want := range tt.wantContains {
@@ -56,15 +39,6 @@ func TestRulePaths(t *testing.T) {
 				}
 				if !found {
 					t.Errorf("Expected path %q not found in rulePaths", want)
-				}
-			}
-
-			// Check that unwanted paths are not present
-			for _, unwant := range tt.wantNotContain {
-				for _, path := range paths {
-					if path == unwant {
-						t.Errorf("Unexpected path %q found in rulePaths", unwant)
-					}
 				}
 			}
 		})
@@ -137,9 +111,9 @@ func TestPathsUseAgentsPaths(t *testing.T) {
 	// by checking that they return paths for all configured agents
 
 	dir := "/test"
-	
+
 	// Get paths from functions
-	rulePaths := rulePaths(dir, false)
+	rulePaths := rulePaths(dir)
 	taskPaths := taskSearchPaths(dir)
 	commandPaths := commandSearchPaths(dir)
 	skillPaths := skillSearchPaths(dir)

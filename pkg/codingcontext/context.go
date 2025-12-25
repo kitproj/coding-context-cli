@@ -502,7 +502,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 		return nil
 	}
 
-	err := cc.visitMarkdownFiles(func(path string) []string { return rulePaths(path, path == homeDir) }, func(path string) error {
+	err := cc.visitMarkdownFiles(rulePaths, func(path string) error {
 		var frontmatter markdown.RuleFrontMatter
 		md, err := markdown.ParseMarkdownFile(path, &frontmatter)
 		if err != nil {
