@@ -1460,12 +1460,12 @@ Potential future additions while maintaining backward compatibility:
     "stage": {
       "type": "string",
       "description": "Development stage",
-      "enum": ["planning", "implementation", "testing", "review"]
+      "enum": ["implementation", "planning", "review", "testing"]
     },
     "agent": {
       "type": "string",
       "description": "Target AI agent",
-      "enum": ["cursor", "copilot", "claude", "gemini", "opencode", "augment", "windsurf", "codex"]
+      "enum": ["augment", "claude", "codex", "copilot", "cursor", "gemini", "opencode", "windsurf"]
     },
     "model": {
       "type": "string",
