@@ -8,6 +8,53 @@ This tool collects context from predefined rule files and a task-specific prompt
 **📋 [View Specification](./SPECIFICATION.md)** - The Coding Context Standard  
 **📊 [View Slide Deck](./SLIDES.md)** | [Download PDF](./SLIDES.pdf) | [How to Present](./SLIDES_README.md)
 
+## Generated Context Structure
+
+The tool assembles context into a structured prompt with the following components:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Generated Coding Context Prompt                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ 1. Task Frontmatter (YAML)                            │  │
+│  │    • Task metadata (selectors, agent, etc.)           │  │
+│  │    • Always included when task has frontmatter        │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                               │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ 2. Skills Metadata (XML) - Optional                   │  │
+│  │    • Available skills with names & descriptions       │  │
+│  │    • Progressive disclosure - full content on demand  │  │
+│  │    • Only included if skills are discovered           │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                               │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ 3. Rules Content (Markdown)                           │  │
+│  │    • Coding standards and guidelines                  │  │
+│  │    • Team conventions and best practices              │  │
+│  │    • Filtered by selectors (-s flag)                  │  │
+│  │    • Skipped in resume mode (-r flag)                 │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                               │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ 4. Task Content (Markdown)                            │  │
+│  │    • Task-specific instructions                       │  │
+│  │    • Parameter substitutions (${param})               │  │
+│  │    • Command expansions (!`command`)                  │  │
+│  │    • Path expansions (@file)                          │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key Points:**
+- **Task Frontmatter**: Provides metadata for agent decision-making and workflow automation
+- **Skills**: Enable progressive disclosure of specialized capabilities
+- **Rules**: Reusable context that applies across multiple tasks
+- **Task Content**: Specific instructions for the current task with dynamic content expansion
+
 ## Features
 
 - **Dynamic Context Assembly**: Merges context from various source files.
