@@ -38,6 +38,7 @@ Step-by-step guides to get you started:
 Practical guides to solve specific problems:
 - [Create Task Files](./how-to/create-tasks) - Define what AI agents should do
 - [Create Rule Files](./how-to/create-rules) - Provide reusable context
+- [Create Skills](./how-to/create-skills) - Organize specialized capabilities
 - [Use Frontmatter Selectors](./how-to/use-selectors) - Filter rules and tasks
 - [Use Remote Directories](./how-to/use-remote-directories) - Load rules from Git, HTTP, or S3
 - [Use with AI Agents](./how-to/use-with-ai-agents) - Integrate with various AI tools
@@ -68,6 +69,7 @@ Conceptual guides to deepen your understanding:
 - **Remote Directories**: Load rules from Git, HTTP, S3, and other sources
 - **Task-Specific Prompts**: Different prompts for different tasks
 - **Rule-Based Context**: Reusable context snippets
+- **Skills System**: Progressive disclosure of specialized capabilities
 - **Frontmatter Filtering**: Select rules based on metadata
 - **Bootstrap Scripts**: Fetch or generate context dynamically
 - **Parameter Substitution**: Inject runtime values
