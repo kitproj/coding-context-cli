@@ -230,7 +230,7 @@ selectors:
 **Rules:**
 - `task_name` field is optional metadata
 - Tasks matched by filename (e.g., `fix-bug.md` → task name `fix-bug`)
-- Frontmatter is automatically output with task
+- Frontmatter is used for filtering and metadata but not included in output
 - Can specify `selectors` to auto-filter rules
 - Supports parameter expansion: `${param_name}`
 
@@ -1096,20 +1096,28 @@ Remote directories support (via go-getter):
 
 ### 11.1 Assembly Order
 
-1. **Task frontmatter** (YAML format, automatically included if present)
+1. **Rule content** (all included rules, content only)
 2. **Skill metadata** (XML format, if skills found)
-3. **Rule content** (all included rules, content only)
-4. **Task content** (with expansions applied)
-5. **User prompt** (if provided, after `---` delimiter)
+3. **Task content** (with expansions applied)
+4. **User prompt** (if provided, after `---` delimiter)
+
+**Note**: Task frontmatter is used for filtering and metadata purposes but is not included in the output.
 
 ### 11.2 Output Format
 
 **To stdout (the context):**
-```yaml
----
-task_name: fix-bug
-resume: false
----
+```markdown
+# Rule 1 Content
+
+Rule 1 text...
+
+# Rule 2 Content
+
+Rule 2 text...
+
+# Skills
+
+You have access to the following skills. Skills are specialized capabilities that provide domain expertise, workflows, and procedural knowledge. When a task matches a skill's description, you can load the full skill content by reading the SKILL.md file at the location provided.
 
 <available_skills>
   <skill>
@@ -1118,14 +1126,6 @@ resume: false
     <location>...</location>
   </skill>
 </available_skills>
-
-# Rule 1 Content
-
-Rule 1 text...
-
-# Rule 2 Content
-
-Rule 2 text...
 
 # Task Content
 
@@ -1148,8 +1148,7 @@ INFO: Estimated tokens: 2,345
 With `-r` flag:
 1. All rules are **skipped**
 2. Implicit selector: `-s resume=true` added
-3. Task frontmatter still included
-4. Useful for continuing work with established context
+3. Useful for continuing work with established context
 
 ### 11.4 Token Estimation
 
@@ -1396,12 +1395,14 @@ Bootstrap scripts output to stderr (not context) because:
 - Allows logging without polluting context
 - Enables verification without affecting AI input
 
-#### 14.2.5 Frontmatter in Task Output
-Task frontmatter is automatically included because:
-- Enables agent decision-making
-- Supports downstream tooling
-- Aids debugging and verification
-- No overhead for simple cases
+#### 14.2.5 Task Frontmatter Usage
+Task frontmatter serves metadata purposes:
+- Enables task selection and filtering via selectors
+- Specifies agent preferences
+- Controls workflow behavior (e.g., resume mode)
+- Defines rule filtering via `selectors` field
+
+The frontmatter is not included in the output to keep the generated context focused on actionable content.
 
 ### 14.3 Limitations
 
