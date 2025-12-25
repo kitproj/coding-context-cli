@@ -112,7 +112,7 @@ Options:
   -C string
     	Change to directory before doing anything. (default ".")
   -d value
-    	Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).
+    	Remote directory containing rules, skills, and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).
   -m string
     	Go Getter URL to a manifest file containing search paths (one per line). Every line is included as-is.
   -p value
@@ -137,10 +137,11 @@ This command will:
 1. Find a task file named `fix-bug.md` in the task search paths.
 2. Find all rule files in the search paths.
 3. Filter the rules based on selectors.
-4. Execute any associated bootstrap scripts.
-5. Substitute `${jira_issue_key}` with `PROJ-1234` in the task prompt.
-6. Print the combined context (rules + task) to `stdout`.
-7. Pipe the output to another program (in this case, `llm`).
+4. Discover available skills and load their metadata.
+5. Execute any associated bootstrap scripts.
+6. Substitute `${jira_issue_key}` with `PROJ-1234` in the task prompt.
+7. Print the combined context (rules + skills + task) to `stdout`.
+8. Pipe the output to another program (in this case, `llm`).
 
 **Using remote directories:**
 ```bash
@@ -152,8 +153,8 @@ coding-context \
 
 This command will:
 1. Download remote directories using go-getter
-2. Search for rules and tasks in the downloaded directories
-3. Combine them with local rules and tasks
+2. Search for rules, skills, and tasks in the downloaded directories
+3. Combine them with local rules, skills, and tasks
 4. Apply the same processing as with local files
 
 The `-d` flag supports various protocols via go-getter:
@@ -241,7 +242,7 @@ The tool searches for a variety of files and directories, including:
 
 ### Remote File System Support
 
-The tool supports loading rules and tasks from remote locations via HTTP/HTTPS URLs. This enables:
+The tool supports loading rules, skills, and tasks from remote locations via HTTP/HTTPS URLs. This enables:
 
 - **Shared team guidelines**: Host coding standards on a central server
 - **Organization-wide rules**: Distribute common rules across multiple projects
@@ -278,7 +279,7 @@ coding-context \
 - Remote directories are downloaded to a temporary location
 - Bootstrap scripts work in downloaded directories
 - Downloaded directories are cleaned up after execution
-- Supports all standard directory structures (`.agents/rules`, `.agents/tasks`, etc.)
+- Supports all standard directory structures (`.agents/rules`, `.agents/skills`, `.agents/tasks`, etc.)
 
 **Example: Using a Git repository:**
 
