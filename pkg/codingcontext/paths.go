@@ -2,57 +2,63 @@ package codingcontext
 
 import "path/filepath"
 
-// DownloadedRulePaths returns the search paths for rule files in downloaded directories
-func rulePaths(dir string, home bool) []string {
-	if home {
-		return []string{
-			// user
-			filepath.Join(dir, ".agents", "rules"),
-			filepath.Join(dir, ".claude", "CLAUDE.md"),
-			filepath.Join(dir, ".codex", "AGENTS.md"),
-			filepath.Join(dir, ".gemini", "GEMINI.md"),
-			filepath.Join(dir, ".opencode", "rules"),
+// rulePaths returns the search paths for rule files in a directory.
+// It collects rule paths from all agents in the agentsPaths configuration.
+func rulePaths(dir string) []string {
+	var paths []string
+
+	// Iterate through all configured agents
+	for _, config := range agentsPaths {
+		// Add each rule path for this agent
+		for _, rulePath := range config.rulesPaths {
+			paths = append(paths, filepath.Join(dir, rulePath))
 		}
 	}
-	return []string{
-		filepath.Join(dir, ".agents", "rules"),
-		filepath.Join(dir, ".cursor", "rules"),
-		filepath.Join(dir, ".augment", "rules"),
-		filepath.Join(dir, ".windsurf", "rules"),
-		filepath.Join(dir, ".opencode", "agent"),
-		filepath.Join(dir, ".github", "copilot-instructions.md"),
-		filepath.Join(dir, ".gemini", "styleguide.md"),
-		filepath.Join(dir, ".github", "agents"),
-		filepath.Join(dir, ".augment", "guidelines.md"),
-		filepath.Join(dir, "AGENTS.md"),
-		filepath.Join(dir, "CLAUDE.md"),
-		filepath.Join(dir, "CLAUDE.local.md"),
-		filepath.Join(dir, "GEMINI.md"),
-		filepath.Join(dir, ".cursorrules"),
-		filepath.Join(dir, ".windsurfrules"),
-	}
+
+	return paths
 }
 
-// taskSearchPaths returns the search paths for task files in a directory
+// taskSearchPaths returns the search paths for task files in a directory.
+// It collects task paths from all agents in the agentsPaths configuration.
 func taskSearchPaths(dir string) []string {
-	return []string{
-		filepath.Join(dir, ".agents", "tasks"),
+	var paths []string
+
+	// Iterate through all configured agents
+	for _, config := range agentsPaths {
+		if config.tasksPath != "" {
+			paths = append(paths, filepath.Join(dir, config.tasksPath))
+		}
 	}
+
+	return paths
 }
 
-// commandSearchPaths returns the search paths for command files in a directory
+// commandSearchPaths returns the search paths for command files in a directory.
+// It collects command paths from all agents in the agentsPaths configuration.
 func commandSearchPaths(dir string) []string {
-	return []string{
-		filepath.Join(dir, ".agents", "commands"),
-		filepath.Join(dir, ".cursor", "commands"),
-		filepath.Join(dir, ".opencode", "command"),
+	var paths []string
+
+	// Iterate through all configured agents
+	for _, config := range agentsPaths {
+		if config.commandsPath != "" {
+			paths = append(paths, filepath.Join(dir, config.commandsPath))
+		}
 	}
+
+	return paths
 }
 
-// skillSearchPaths returns the search paths for skill directories in a directory
+// skillSearchPaths returns the search paths for skill directories in a directory.
+// It collects skill paths from all agents in the agentsPaths configuration.
 func skillSearchPaths(dir string) []string {
-	return []string{
-		filepath.Join(dir, ".agents", "skills"),
-		filepath.Join(dir, ".cursor", "skills"),
+	var paths []string
+
+	// Iterate through all configured agents
+	for _, config := range agentsPaths {
+		if config.skillsPath != "" {
+			paths = append(paths, filepath.Join(dir, config.skillsPath))
+		}
 	}
+
+	return paths
 }
