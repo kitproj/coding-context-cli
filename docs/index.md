@@ -52,6 +52,7 @@ Technical specifications and API details:
 - [CLI Reference](./reference/cli) - Command-line options and arguments
 - [File Formats](./reference/file-formats) - Task and rule file specifications
 - [Search Paths](./reference/search-paths) - Where files are discovered
+- [Supported Agents](./reference/supported-agents) - Complete list of 35+ compatible AI coding agents
 
 **Best for:** Looking up specific details, understanding options, technical specifications
 
@@ -78,11 +79,13 @@ Conceptual guides to deepen your understanding:
 ## Supported AI Agent Formats
 
 Automatically discovers rules from configuration files for:
-- **Anthropic Claude**, **Cursor**, **GitHub Copilot**
+- **GitHub Copilot**, **Anthropic Claude**, **Cursor**
 - **Google Gemini**, **OpenCode.ai**, **Windsurf**
-- **Augment**, **Codex**, and generic `.agents/` directories
+- **Augment**, **Codex**, **Codeium**, **Tabnine**
+- **Amazon Q Developer**, **Sourcegraph Cody**, **Continue**, **Aider**
+- **And 20+ more** - see [complete list of supported agents](./reference/supported-agents)
 
-See [Search Paths Reference](./reference/search-paths) for complete list.
+See [Search Paths Reference](./reference/search-paths) for configuration file locations.
 
 ## Quick Links
 
