@@ -10,7 +10,7 @@ func rulePaths(dir string) []string {
 	// Iterate through all configured agents
 	for _, config := range agentsPaths {
 		// Add each rule path for this agent
-		for _, rulePath := range config.RulesPaths {
+		for _, rulePath := range config.rulesPaths {
 			paths = append(paths, filepath.Join(dir, rulePath))
 		}
 	}
@@ -25,8 +25,8 @@ func taskSearchPaths(dir string) []string {
 
 	// Iterate through all configured agents
 	for _, config := range agentsPaths {
-		if config.TasksPath != "" {
-			paths = append(paths, filepath.Join(dir, config.TasksPath))
+		if config.tasksPath != "" {
+			paths = append(paths, filepath.Join(dir, config.tasksPath))
 		}
 	}
 
@@ -40,8 +40,8 @@ func commandSearchPaths(dir string) []string {
 
 	// Iterate through all configured agents
 	for _, config := range agentsPaths {
-		if config.CommandsPath != "" {
-			paths = append(paths, filepath.Join(dir, config.CommandsPath))
+		if config.commandsPath != "" {
+			paths = append(paths, filepath.Join(dir, config.commandsPath))
 		}
 	}
 
@@ -55,8 +55,8 @@ func skillSearchPaths(dir string) []string {
 
 	// Iterate through all configured agents
 	for _, config := range agentsPaths {
-		if config.SkillsPath != "" {
-			paths = append(paths, filepath.Join(dir, config.SkillsPath))
+		if config.skillsPath != "" {
+			paths = append(paths, filepath.Join(dir, config.skillsPath))
 		}
 	}
 

@@ -56,10 +56,10 @@ func TestAgentPaths_Structure(t *testing.T) {
 			}
 
 			// Check that at least one path is defined
-			hasAnyPath := len(paths.RulesPaths) > 0 ||
-				paths.SkillsPath != "" ||
-				paths.CommandsPath != "" ||
-				paths.TasksPath != ""
+			hasAnyPath := len(paths.rulesPaths) > 0 ||
+				paths.skillsPath != "" ||
+				paths.commandsPath != "" ||
+				paths.tasksPath != ""
 
 			if !hasAnyPath {
 				t.Errorf("Agent %q has no paths defined", tt.agent)
@@ -74,25 +74,25 @@ func TestAgentPaths_EmptyAgentHasAllPaths(t *testing.T) {
 		t.Fatal("Empty agent not found in agentsPaths")
 	}
 
-	if len(paths.RulesPaths) == 0 {
-		t.Error("Empty agent should have RulesPaths defined")
+	if len(paths.rulesPaths) == 0 {
+		t.Error("Empty agent should have rulesPaths defined")
 	}
-	if paths.SkillsPath == "" {
-		t.Error("Empty agent should have SkillsPath defined")
+	if paths.skillsPath == "" {
+		t.Error("Empty agent should have skillsPath defined")
 	}
-	if paths.CommandsPath == "" {
-		t.Error("Empty agent should have CommandsPath defined")
+	if paths.commandsPath == "" {
+		t.Error("Empty agent should have commandsPath defined")
 	}
-	if paths.TasksPath == "" {
-		t.Error("Empty agent should have TasksPath defined")
+	if paths.tasksPath == "" {
+		t.Error("Empty agent should have tasksPath defined")
 	}
 }
 
 func TestAgentPaths_RulesPathsNotEmpty(t *testing.T) {
 	// Every agent should have at least one rules path
 	for agent, paths := range agentsPaths {
-		if len(paths.RulesPaths) == 0 {
-			t.Errorf("Agent %q should have at least one RulesPaths entry", agent)
+		if len(paths.rulesPaths) == 0 {
+			t.Errorf("Agent %q should have at least one rulesPaths entry", agent)
 		}
 	}
 }
@@ -100,19 +100,19 @@ func TestAgentPaths_RulesPathsNotEmpty(t *testing.T) {
 func TestAgentPaths_NoAbsolutePaths(t *testing.T) {
 	// All paths should be relative (not absolute)
 	for agent, paths := range agentsPaths {
-		for _, rulePath := range paths.RulesPaths {
+		for _, rulePath := range paths.rulesPaths {
 			if len(rulePath) > 0 && rulePath[0] == '/' {
-				t.Errorf("Agent %q RulesPaths contains absolute path: %q", agent, rulePath)
+				t.Errorf("Agent %q rulesPaths contains absolute path: %q", agent, rulePath)
 			}
 		}
-		if len(paths.SkillsPath) > 0 && paths.SkillsPath[0] == '/' {
-			t.Errorf("Agent %q SkillsPath is absolute: %q", agent, paths.SkillsPath)
+		if len(paths.skillsPath) > 0 && paths.skillsPath[0] == '/' {
+			t.Errorf("Agent %q skillsPath is absolute: %q", agent, paths.skillsPath)
 		}
-		if len(paths.CommandsPath) > 0 && paths.CommandsPath[0] == '/' {
-			t.Errorf("Agent %q CommandsPath is absolute: %q", agent, paths.CommandsPath)
+		if len(paths.commandsPath) > 0 && paths.commandsPath[0] == '/' {
+			t.Errorf("Agent %q commandsPath is absolute: %q", agent, paths.commandsPath)
 		}
-		if len(paths.TasksPath) > 0 && paths.TasksPath[0] == '/' {
-			t.Errorf("Agent %q TasksPath is absolute: %q", agent, paths.TasksPath)
+		if len(paths.tasksPath) > 0 && paths.tasksPath[0] == '/' {
+			t.Errorf("Agent %q tasksPath is absolute: %q", agent, paths.tasksPath)
 		}
 	}
 }
@@ -153,18 +153,18 @@ func TestAgent_Paths(t *testing.T) {
 				t.Fatalf("Agent %q not found in agentsPaths", tt.agent)
 			}
 
-			gotRulesPaths := paths.RulesPaths
+			gotRulesPaths := paths.rulesPaths
 			if len(gotRulesPaths) != len(tt.wantRulesPaths) {
-				t.Errorf("RulesPaths length = %d, want %d", len(gotRulesPaths), len(tt.wantRulesPaths))
+				t.Errorf("rulesPaths length = %d, want %d", len(gotRulesPaths), len(tt.wantRulesPaths))
 			}
 			for i, want := range tt.wantRulesPaths {
 				if i < len(gotRulesPaths) && gotRulesPaths[i] != want {
-					t.Errorf("RulesPaths[%d] = %q, want %q", i, gotRulesPaths[i], want)
+					t.Errorf("rulesPaths[%d] = %q, want %q", i, gotRulesPaths[i], want)
 				}
 			}
 
-			if got := paths.SkillsPath; got != tt.wantSkillsPath {
-				t.Errorf("SkillsPath = %q, want %q", got, tt.wantSkillsPath)
+			if got := paths.skillsPath; got != tt.wantSkillsPath {
+				t.Errorf("skillsPath = %q, want %q", got, tt.wantSkillsPath)
 			}
 		})
 	}

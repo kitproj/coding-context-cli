@@ -3,10 +3,10 @@ package codingcontext
 // agentPathsConfig describes the search paths for a specific agent.
 // This is the internal configuration structure used by the agentsPaths map.
 type agentPathsConfig struct {
-	RulesPaths   []string // Paths to search for rule files
-	SkillsPath   string   // Path to search for skill directories
-	CommandsPath string   // Path to search for command files
-	TasksPath    string   // Path to search for task files
+	rulesPaths   []string // Paths to search for rule files
+	skillsPath   string   // Path to search for skill directories
+	commandsPath string   // Path to search for command files
+	tasksPath    string   // Path to search for task files
 }
 
 // agentsPaths maps each agent to its specific search paths.
@@ -15,52 +15,52 @@ type agentPathsConfig struct {
 var agentsPaths = map[Agent]agentPathsConfig{
 	// Generic .agents directory structure (empty agent name)
 	Agent(""): {
-		RulesPaths:   []string{".agents/rules"},
-		SkillsPath:   ".agents/skills",
-		CommandsPath: ".agents/commands",
-		TasksPath:    ".agents/tasks",
+		rulesPaths:   []string{".agents/rules"},
+		skillsPath:   ".agents/skills",
+		commandsPath: ".agents/commands",
+		tasksPath:    ".agents/tasks",
 	},
 	// Cursor agent paths
 	AgentCursor: {
-		RulesPaths:   []string{".cursor/rules", ".cursorrules"},
-		SkillsPath:   ".cursor/skills",
-		CommandsPath: ".cursor/commands",
+		rulesPaths:   []string{".cursor/rules", ".cursorrules"},
+		skillsPath:   ".cursor/skills",
+		commandsPath: ".cursor/commands",
 		// No tasks path defined for Cursor
 	},
 	// OpenCode agent paths
 	AgentOpenCode: {
-		RulesPaths:   []string{".opencode/agent", ".opencode/rules"},
-		CommandsPath: ".opencode/command",
+		rulesPaths:   []string{".opencode/agent", ".opencode/rules"},
+		commandsPath: ".opencode/command",
 		// No skills or tasks paths defined for OpenCode
 	},
 	// Copilot agent paths
 	AgentCopilot: {
-		RulesPaths: []string{".github/copilot-instructions.md", ".github/agents"},
+		rulesPaths: []string{".github/copilot-instructions.md", ".github/agents"},
 		// No skills, commands, or tasks paths defined for Copilot
 	},
 	// Claude agent paths
 	AgentClaude: {
-		RulesPaths: []string{".claude", "CLAUDE.md", "CLAUDE.local.md"},
+		rulesPaths: []string{".claude", "CLAUDE.md", "CLAUDE.local.md"},
 		// No skills, commands, or tasks paths defined for Claude
 	},
 	// Gemini agent paths
 	AgentGemini: {
-		RulesPaths: []string{".gemini/styleguide.md", ".gemini", "GEMINI.md"},
+		rulesPaths: []string{".gemini/styleguide.md", ".gemini", "GEMINI.md"},
 		// No skills, commands, or tasks paths defined for Gemini
 	},
 	// Augment agent paths
 	AgentAugment: {
-		RulesPaths: []string{".augment/rules", ".augment/guidelines.md"},
+		rulesPaths: []string{".augment/rules", ".augment/guidelines.md"},
 		// No skills, commands, or tasks paths defined for Augment
 	},
 	// Windsurf agent paths
 	AgentWindsurf: {
-		RulesPaths: []string{".windsurf/rules", ".windsurfrules"},
+		rulesPaths: []string{".windsurf/rules", ".windsurfrules"},
 		// No skills, commands, or tasks paths defined for Windsurf
 	},
 	// Codex agent paths
 	AgentCodex: {
-		RulesPaths: []string{".codex", "AGENTS.md"},
+		rulesPaths: []string{".codex", "AGENTS.md"},
 		// No skills, commands, or tasks paths defined for Codex
 	},
 }
