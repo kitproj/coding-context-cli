@@ -159,7 +159,7 @@ Use arrays for OR logic within the same selector key:
 ```markdown
 ---
 selectors:
-  language: [go, python, javascript]
+  languages: [go, python, javascript]
   stage: refactoring
 ---
 ```

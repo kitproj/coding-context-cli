@@ -766,7 +766,7 @@ Selectors filter rules and tasks based on frontmatter metadata, enabling context
 **Command-line:**
 ```bash
 -s key=value
--s language=go
+-s languages=go
 -s stage=implementation
 ```
 
@@ -774,7 +774,7 @@ Selectors filter rules and tasks based on frontmatter metadata, enabling context
 ```yaml
 ---
 selectors:
-  language: go
+  languages: go
   stage: implementation
 ---
 ```
@@ -785,10 +785,11 @@ selectors:
 ```yaml
 # Rule frontmatter
 ---
-language: go
+languages:
+  - go
 ---
 
-# Selector: -s language=go
+# Selector: -s languages=go
 # Result: ✅ Match
 ```
 
@@ -810,8 +811,8 @@ languages:
 
 **Multiple selectors (AND logic):**
 ```bash
-# Requires: language=go AND stage=implementation
--s language=go -s stage=implementation
+# Requires: languages=go AND stage=implementation
+-s languages=go -s stage=implementation
 ```
 
 **OR logic (task frontmatter):**
