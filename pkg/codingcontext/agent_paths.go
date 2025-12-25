@@ -64,8 +64,9 @@ var agentsPaths = map[Agent]agentPathsConfig{
 	// Cursor agent paths
 	AgentCursor: {
 		RulesPaths:   []string{".cursor/rules", ".cursorrules"},
+		SkillsPath:   ".cursor/skills",
 		CommandsPath: ".cursor/commands",
-		// No skills or tasks paths defined for Cursor
+		// No tasks path defined for Cursor
 	},
 	// OpenCode agent paths
 	AgentOpenCode: {

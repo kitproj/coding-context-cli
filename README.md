@@ -5,7 +5,49 @@ A command-line interface for dynamically assembling context for AI coding agents
 This tool collects context from predefined rule files and a task-specific prompt, substitutes parameters, and prints a single, combined context to standard output. This is useful for feeding a large amount of relevant information into an AI model like Claude, Gemini, or OpenAI's GPT series.
 
 **📖 [View Full Documentation](https://kitproj.github.io/coding-context-cli/)**  
+**📋 [View Specification](./SPECIFICATION.md)** - The Coding Context Standard  
 **📊 [View Slide Deck](./SLIDES.md)** | [Download PDF](./SLIDES.pdf) | [How to Present](./SLIDES_README.md)
+
+## Generated Context Structure
+
+The tool assembles context into a structured prompt with the following components:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Generated Coding Context Prompt                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ 1. Rules Content (Markdown)                           │  │
+│  │    • Coding standards and guidelines                  │  │
+│  │    • Team conventions and best practices              │  │
+│  │    • Filtered by selectors (-s flag)                  │  │
+│  │    • Skipped in resume mode (-r flag)                 │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                               │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ 2. Skills Metadata (XML) - Optional                   │  │
+│  │    • Available skills with names & descriptions       │  │
+│  │    • Progressive disclosure - full content on demand  │  │
+│  │    • Only included if skills are discovered           │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                               │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ 3. Task Content (Markdown)                            │  │
+│  │    • Task-specific instructions                       │  │
+│  │    • Parameter substitutions (${param})               │  │
+│  │    • Command expansions (!`command`)                  │  │
+│  │    • Path expansions (@file)                          │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key Points:**
+- **Rules**: Reusable context that applies across multiple tasks
+- **Skills**: Enable progressive disclosure of specialized capabilities
+- **Task Content**: Specific instructions for the current task with dynamic content expansion
+- **Note**: Task frontmatter is used for filtering and metadata but is not included in the output
 
 ## Features
 
@@ -20,16 +62,30 @@ This tool collects context from predefined rule files and a task-specific prompt
 
 ## Supported Coding Agents
 
-This tool is compatible with configuration files from various AI coding agents and IDEs:
+This tool is compatible with configuration files from various AI coding agents and IDEs. **[View complete list of 35+ supported agents →](https://kitproj.github.io/coding-context-cli/reference/supported-agents)**
 
-- **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`
-- **[Codex](https://codex.ai/)**: `AGENTS.md`, `.codex/AGENTS.md`
-- **[Cursor](https://cursor.sh/)**: `.cursor/rules`, `.cursorrules`
-- **[Augment](https://augmentcode.com/)**: `.augment/rules`, `.augment/guidelines.md`
-- **[Windsurf](https://codeium.com/windsurf)**: `.windsurf/rules`, `.windsurfrules`
-- **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent`, `.opencode/command`, `.opencode/rules`
-- **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents`
-- **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md`
+### Primary Supported Agents (with dedicated `-a` flag)
+
+- **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents` (`-a copilot`)
+- **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md` (`-a claude`)
+- **[Cursor](https://cursor.sh/)**: `.cursor/rules`, `.cursorrules` (`-a cursor`)
+- **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md` (`-a gemini`)
+- **[Augment](https://augmentcode.com/)**: `.augment/rules`, `.augment/guidelines.md` (`-a augment`)
+- **[Windsurf](https://codeium.com/windsurf)**: `.windsurf/rules`, `.windsurfrules` (`-a windsurf`)
+- **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent`, `.opencode/command`, `.opencode/rules` (`-a opencode`)
+- **[Codex](https://codex.ai/)**: `AGENTS.md`, `.codex/AGENTS.md` (`-a codex`)
+
+### Additional Compatible Agents
+
+- **Codeium**, **Tabnine**, **Amazon Q Developer** (CodeWhisperer)
+- **Sourcegraph Cody**, **Continue**, **Aider**
+- **Replit Ghostwriter**, **GitLab Duo**
+- **All OpenAI models** (GPT-4, ChatGPT), **LLM APIs**
+- **Agent frameworks**: LangChain, AutoGPT, BabyAGI
+- **And 20+ more** - see [full documentation](https://kitproj.github.io/coding-context-cli/reference/supported-agents)
+
+### Generic AI Agent Support
+
 - **Generic AI Agents**: `AGENTS.md`, `.agents/rules`, `.agents/commands` (reusable content blocks), `.agents/tasks`
 
 The tool automatically discovers and includes rules from these locations in your project and user home directory (`~`).
@@ -705,40 +761,49 @@ The AI agent can then read the full skill content from the provided location whe
 
 ### Task Frontmatter
 
-Task frontmatter is **always** automatically included at the beginning of the output when a task file has frontmatter. This allows the AI agent or downstream tool to access metadata about the task being executed. There is no flag needed to enable this - it happens automatically.
+Task frontmatter contains metadata used for filtering, agent selection, and workflow automation. While the frontmatter itself is not included in the generated output, it serves important purposes:
+
+**What frontmatter is used for:**
+- **Task selection**: Filtering between multiple task files using selectors
+- **Agent specification**: The `agent` field can override the `-a` command-line flag
+- **Rule filtering**: The `selectors` field automatically filters rules without requiring explicit `-s` flags
+- **Workflow control**: Fields like `resume` control task behavior in different modes
 
 **Example usage:**
 ```bash
 coding-context -p issue_number=123 fix-bug
 ```
 
-**Output format:**
-```yaml
+**Example task file:**
+```markdown
 ---
 resume: false
+selectors:
+  languages: go
+  stage: implementation
 ---
+# Fix Bug Task
+
+Fix the bug in issue #${issue_number}...
+```
+
+**Output format:**
+The task frontmatter is NOT included in the output. Only the task content (below the frontmatter delimiters) is included:
+```markdown
 # Fix Bug Task
 
 Fix the bug in issue #123...
 ```
 
-This can be useful for:
-- **Agent decision making**: The AI can see metadata like priority, environment, or stage
-- **Workflow automation**: Downstream tools can parse the frontmatter to make decisions
-- **Debugging**: You can verify which task variant was selected and what selectors were applied
+This design keeps the output focused on actionable content while still allowing frontmatter to control behavior and filtering.
 
 **Example with selectors in frontmatter:**
 ```bash
 coding-context implement-feature
 ```
 
-If the task has `selectors` in its frontmatter, they will be visible in the output:
-```yaml
----
-selectors:
-  languages: go
-  stage: implementation
----
+If the task has `selectors` in its frontmatter, they will automatically filter rules, but the frontmatter itself won't appear in the output:
+```markdown
 # Implementation Task
 ...
 ```
