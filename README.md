@@ -208,12 +208,13 @@ The tool assembles the context in the following order:
 1.  **Rule Files**: It searches for rule files (`.md` or `.mdc`) in directories specified via `-d` flags and automatically-added working directory and home directory.
 2.  **Rule Bootstrap Scripts**: For each rule file found (e.g., `my-rule.md`), it looks for an executable script named `my-rule-bootstrap`. If found, it runs the script before processing the rule file. These scripts are meant for bootstrapping the environment (e.g., installing tools) and their output is sent to `stderr`, not into the main context.
 3.  **Filtering**: If `-s` (include) flag is used, it parses the YAML frontmatter of each rule file to decide whether to include it. Note that selectors can only match top-level YAML fields (e.g., `language: go`), not nested fields.
-4.  **Task Prompt**: It searches for a task file matching the filename (without `.md` extension). Tasks are matched by filename, not by `task_name` in frontmatter. If selectors are provided with `-s`, they are used to filter between multiple task files with the same filename.
-5.  **Task Bootstrap Script**: For the task file found (e.g., `fix-bug.md`), it looks for an executable script named `fix-bug-bootstrap`. If found, it runs the script before processing the task file. This allows task-specific environment setup or data preparation.
-6.  **User Prompt Appending**: If a user-prompt argument is provided, it is appended to the task content after a delimiter (`---`).
-7.  **Parameter Expansion**: It substitutes variables in the task prompt and user-prompt using the `-p` flags.
-8.  **Output**: It prints the content of all included rule files, followed by the expanded task prompt, to standard output.
-9.  **Token Count**: A running total of estimated tokens is printed to standard error.
+4.  **Skill Discovery**: It searches for skill directories (`.agents/skills/*/SKILL.md`) and loads only their metadata (name and description) for progressive disclosure. Skills can be filtered by selectors just like rules.
+5.  **Task Prompt**: It searches for a task file matching the filename (without `.md` extension). Tasks are matched by filename, not by `task_name` in frontmatter. If selectors are provided with `-s`, they are used to filter between multiple task files with the same filename.
+6.  **Task Bootstrap Script**: For the task file found (e.g., `fix-bug.md`), it looks for an executable script named `fix-bug-bootstrap`. If found, it runs the script before processing the task file. This allows task-specific environment setup or data preparation.
+7.  **User Prompt Appending**: If a user-prompt argument is provided, it is appended to the task content after a delimiter (`---`).
+8.  **Parameter Expansion**: It substitutes variables in the task prompt and user-prompt using the `-p` flags.
+9.  **Output**: It prints the content of all included rule files, followed by available skills metadata (as XML for progressive disclosure), followed by the expanded task prompt, to standard output.
+10. **Token Count**: A running total of estimated tokens is printed to standard error.
 
 ### File Search Paths
 
