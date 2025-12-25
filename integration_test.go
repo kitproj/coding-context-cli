@@ -379,15 +379,12 @@ Command with param: !`+"`echo '${secret}'`"+`
 	output := runTool(t, "-C", tmpDir, "-p", "evil=!`echo INJECTED`", "-p", "secret=TOPSECRET", "test-security")
 
 	// Split output into lines to separate stderr logs from stdout prompt
+	// Since task frontmatter is no longer printed, we identify stdout by filtering out stderr log lines
 	lines := strings.Split(output, "\n")
 	var promptLines []string
-	inPrompt := false
 	for _, line := range lines {
-		// Look for the start of the frontmatter (which marks beginning of stdout)
-		if strings.HasPrefix(line, "---") {
-			inPrompt = true
-		}
-		if inPrompt {
+		// Stderr log lines start with "time=", stdout lines don't
+		if !strings.HasPrefix(line, "time=") {
 			promptLines = append(promptLines, line)
 		}
 	}
