@@ -2244,6 +2244,41 @@ description: %s
 			taskName: "test-task",
 			wantErr:  true,
 		},
+		{
+			name: "resume mode skips skill discovery",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Task content")
+
+				// Create skill directory with SKILL.md
+				skillDir := filepath.Join(dir, ".agents", "skills", "test-skill")
+				if err := os.MkdirAll(skillDir, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+
+				skillContent := `---
+name: test-skill
+description: A test skill that should not be discovered in resume mode
+---
+
+# Test Skill
+
+This is a test skill.
+`
+				skillPath := filepath.Join(skillDir, "SKILL.md")
+				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			opts:     []Option{WithResume(true)},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills.Skills) != 0 {
+					t.Errorf("expected 0 skills in resume mode, got %d", len(result.Skills.Skills))
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

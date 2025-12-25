@@ -574,6 +574,12 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path string) error {
 // discoverSkills searches for skill directories and loads only their metadata (name and description)
 // for progressive disclosure. Skills are folders containing a SKILL.md file.
 func (cc *Context) discoverSkills() error {
+	// Skip skill discovery if resume mode is enabled
+	// Check cc.resume directly first, then fall back to selector check for backward compatibility
+	if cc.resume || (cc.includes != nil && cc.includes.GetValue("resume", "true")) {
+		return nil
+	}
+
 	var skillPaths []string
 	for _, path := range cc.downloadedPaths {
 		skillPaths = append(skillPaths, skillSearchPaths(path)...)
