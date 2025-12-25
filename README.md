@@ -12,6 +12,7 @@ This tool collects context from predefined rule files and a task-specific prompt
 - **Dynamic Context Assembly**: Merges context from various source files.
 - **Task-Specific Prompts**: Use different prompts for different tasks (e.g., `feature`, `bugfix`).
 - **Rule-Based Context**: Define reusable context snippets (rules) that can be included or excluded.
+- **Skills System**: Progressive disclosure of specialized capabilities via skill directories.
 - **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors (matches top-level YAML fields only).
 - **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically.
 - **Parameter Substitution**: Inject values into your task prompts.
@@ -210,6 +211,9 @@ The tool looks for task and rule files in the following locations, in order of p
 - `./.agents/commands/*.md`
 - `./.cursor/commands/*.md`
 - `./.opencode/command/*.md`
+
+**Skills** (specialized capabilities with progressive disclosure):
+- `./.agents/skills/*/SKILL.md` (each subdirectory in `.agents/skills/` can contain a `SKILL.md` file)
 
 **Rules:**
 The tool searches for a variety of files and directories, including:
@@ -505,6 +509,24 @@ languages:
 
 If you need to filter on nested data, flatten your frontmatter structure to use top-level fields only.
 
+**MCP Server Configuration**
+
+Rules can optionally specify MCP (Model Context Protocol) server configurations for integration with AI coding agents. This is useful for defining server processes that AI agents can interact with.
+
+```yaml
+---
+languages:
+  - python
+mcp_server:
+  command: python
+  args: ["-m", "server"]
+  env:
+    PYTHON_PATH: /usr/bin/python3
+---
+```
+
+For detailed information on MCP server configuration, see the [File Formats Reference](https://kitproj.github.io/coding-context-cli/reference/file-formats#mcp_server-rule-metadata).
+
 ### Targeting a Specific Agent
 
 The `-a` flag specifies which AI coding agent you're using. This information is currently used for:
@@ -613,6 +635,73 @@ Commands can also receive inline parameters:
 /greet name="Alice"
 /deploy env="production" version="1.2.3"
 ```
+
+### Skill Files
+
+Skill files provide specialized capabilities with progressive disclosure. Skills are discovered in `.agents/skills/` directories and each skill is a subdirectory containing a `SKILL.md` file with metadata.
+
+**Skills enable:**
+- **Progressive Disclosure**: Only skill metadata (name, description) is included in the initial context
+- **On-Demand Loading**: AI agents can load full skill content when needed
+- **Modular Capabilities**: Organize domain-specific knowledge separately from general rules
+- **Selector Filtering**: Skills can be filtered using selectors just like rules
+
+**Example skill structure:**
+```
+.agents/skills/
+├── data-analysis/
+│   └── SKILL.md
+└── pdf-processing/
+    └── SKILL.md
+```
+
+**Example skill file (`.agents/skills/data-analysis/SKILL.md`):**
+```markdown
+---
+name: data-analysis
+description: Analyze datasets, generate charts, and create summary reports. Use when the user needs to work with CSV, Excel, or other tabular data formats.
+license: MIT
+metadata:
+  author: team-name
+  version: "1.0"
+---
+
+# Data Analysis
+
+## When to use this skill
+Use this skill when the user needs to:
+- Analyze CSV or Excel files
+- Generate charts and visualizations
+- Calculate statistics and summaries
+
+## How to analyze data
+1. Use pandas for data analysis:
+   ```python
+   import pandas as pd
+   df = pd.read_csv('data.csv')
+   ```
+```
+
+**Skill Frontmatter Fields:**
+- `name` (required): Skill identifier, 1-64 characters
+- `description` (required): What the skill does and when to use it, 1-1024 characters
+- `license` (optional): License applied to the skill
+- `compatibility` (optional): Environment requirements, max 500 characters
+- `metadata` (optional): Arbitrary key-value pairs
+
+**XML Output:**
+Skills are output as XML for easy parsing by AI agents:
+```xml
+<available_skills>
+  <skill>
+    <name>data-analysis</name>
+    <description>Analyze datasets, generate charts...</description>
+    <location>/path/to/.agents/skills/data-analysis/SKILL.md</location>
+  </skill>
+</available_skills>
+```
+
+The AI agent can then read the full skill content from the provided location when needed.
 
 ### Task Frontmatter
 

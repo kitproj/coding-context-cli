@@ -293,7 +293,13 @@ coding-context -w fix-bug
 
 # Combine with other options
 coding-context -a copilot -w -s languages=go -p issue=123 fix-bug
+
+# Resume mode with write rules: rules are skipped, only task output to stdout
+coding-context -a copilot -w -r fix-bug
 ```
+
+**Note on Resume Mode:**
+When using `-w` with `-r` (resume mode), no rules file is written since rules are not collected in resume mode. Only the task prompt is output to stdout.
 
 **Use case:**
 This mode is particularly useful when working with AI coding agents that read rules from specific configuration files. Instead of including all rules in the prompt (consuming tokens), you can write them to the agent's config file once and only send the task prompt.
@@ -309,16 +315,27 @@ This mode is particularly useful when working with AI coding agents that read ru
 
 The assembled context, consisting of:
 1. Task frontmatter (YAML format) - always included when task has frontmatter
-2. All matching rule files
-3. The selected task prompt (with parameters substituted)
+2. Available skills metadata (XML format) - included when skills are discovered
+3. All matching rule files
+4. The selected task prompt (with parameters substituted)
 
 Task frontmatter is automatically included at the beginning of the output when present. This includes all frontmatter fields such as `task_name`, `selectors`, `resume`, `language`, `agent`, and any custom fields.
+
+Skills metadata (when present) is output as XML after the task frontmatter and before rules, listing available skills for progressive disclosure.
 
 **Example output:**
 ```yaml
 ---
 resume: false
 ---
+<available_skills>
+  <skill>
+    <name>data-analysis</name>
+    <description>Analyze datasets and generate reports...</description>
+    <location>/path/to/.agents/skills/data-analysis/SKILL.md</location>
+  </skill>
+</available_skills>
+
 # Rule content here...
 
 # Fix Bug Task

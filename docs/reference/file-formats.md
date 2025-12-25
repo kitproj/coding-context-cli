@@ -836,6 +836,174 @@ coding-context -s enabled=true task     # Matches enabled: true
 coding-context -s languages=go task      # Matches languages: [ go ]
 ```
 
+## Skill Files
+
+Skill files provide specialized capabilities with progressive disclosure. Each skill is a directory containing a `SKILL.md` file with frontmatter metadata and content.
+
+### Format
+
+```markdown
+---
+name: skill-identifier
+description: Brief description of what the skill does and when to use it
+license: MIT
+metadata:
+  author: team-name
+  version: "1.0"
+---
+
+# Skill Content
+
+Full skill documentation, workflows, and procedures here.
+```
+
+### Directory Structure
+
+Skills are organized in subdirectories within `.agents/skills/`:
+
+```
+.agents/skills/
+├── data-analysis/
+│   └── SKILL.md
+├── pdf-processing/
+│   └── SKILL.md
+└── api-testing/
+    ├── SKILL.md
+    └── references/
+        └── REFERENCE.md
+```
+
+### Frontmatter Fields
+
+#### `name` (required)
+
+**Type:** String  
+**Length:** 1-64 characters  
+**Purpose:** Unique identifier for the skill
+
+**Example:**
+```yaml
+---
+name: data-analysis
+---
+```
+
+#### `description` (required)
+
+**Type:** String  
+**Length:** 1-1024 characters  
+**Purpose:** Explains what the skill does and when to use it. This description is shown in the initial context for progressive disclosure.
+
+**Example:**
+```yaml
+---
+name: pdf-processing
+description: Extract text and tables from PDF files, fill PDF forms, and merge multiple PDFs. Use when working with PDF documents or when the user mentions PDFs, forms, or document extraction.
+---
+```
+
+#### `license` (optional)
+
+**Type:** String  
+**Purpose:** Specifies the license applied to the skill
+
+**Example:**
+```yaml
+---
+license: Apache-2.0
+---
+```
+
+#### `compatibility` (optional)
+
+**Type:** String  
+**Max Length:** 500 characters  
+**Purpose:** Indicates environment requirements
+
+**Example:**
+```yaml
+---
+compatibility: Requires Python 3.8+ with pandas and matplotlib installed
+---
+```
+
+#### `metadata` (optional)
+
+**Type:** Map of string key-value pairs  
+**Purpose:** Arbitrary metadata about the skill
+
+**Example:**
+```yaml
+---
+metadata:
+  author: data-team
+  version: "2.1"
+  category: analytics
+---
+```
+
+### Progressive Disclosure
+
+Skills use progressive disclosure to minimize token usage:
+
+1. **Initial Context**: Only skill metadata (name, description, location) is included
+2. **Full Content**: AI agents can load full skill content by reading the SKILL.md file when needed
+
+**XML Output in Context:**
+```xml
+<available_skills>
+  <skill>
+    <name>data-analysis</name>
+    <description>Analyze datasets, generate charts, and create summary reports...</description>
+    <location>/absolute/path/to/.agents/skills/data-analysis/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>pdf-processing</name>
+    <description>Extract text and tables from PDF files...</description>
+    <location>/absolute/path/to/.agents/skills/pdf-processing/SKILL.md</location>
+  </skill>
+</available_skills>
+```
+
+### Selector Filtering
+
+Skills can be filtered using selectors in their frontmatter, just like rules:
+
+```yaml
+---
+name: go-testing
+description: Write and run Go tests with best practices
+languages:
+  - go
+stage: testing
+---
+```
+
+```bash
+# Only include Go testing skills
+coding-context -s languages=go -s stage=testing implement-feature
+```
+
+Skills without matching selectors are excluded from the output.
+
+### File Location
+
+Skill files must be in these directories within any search path directory:
+- `.agents/skills/*/SKILL.md` (each subdirectory must contain a SKILL.md file)
+
+### Validation
+
+The CLI validates:
+- ✅ `name` field is present and 1-64 characters
+- ✅ `description` field is present and 1-1024 characters
+- ✅ YAML frontmatter is well-formed
+- ✅ Skills match selectors (if provided)
+
+The CLI does NOT validate:
+- Skill content format or structure
+- Reference links within skills
+- Whether additional files in skill directory exist
+
 ## Special Behaviors
 
 ### Multiple Tasks with Same Filename
