@@ -1096,8 +1096,8 @@ Remote directories support (via go-getter):
 
 ### 11.1 Assembly Order
 
-1. **Skill metadata** (XML format, if skills found)
-2. **Rule content** (all included rules, content only)
+1. **Rule content** (all included rules, content only)
+2. **Skill metadata** (XML format, if skills found)
 3. **Task content** (with expansions applied)
 4. **User prompt** (if provided, after `---` delimiter)
 
@@ -1107,6 +1107,17 @@ Remote directories support (via go-getter):
 
 **To stdout (the context):**
 ```markdown
+# Rule 1 Content
+
+Rule 1 text...
+
+# Rule 2 Content
+
+Rule 2 text...
+
+# Skills
+
+You have access to the following skills. Skills are specialized capabilities that provide domain expertise, workflows, and procedural knowledge. When a task matches a skill's description, you can load the full skill content by reading the SKILL.md file at the location provided.
 
 <available_skills>
   <skill>
@@ -1115,14 +1126,6 @@ Remote directories support (via go-getter):
     <location>...</location>
   </skill>
 </available_skills>
-
-# Rule 1 Content
-
-Rule 1 text...
-
-# Rule 2 Content
-
-Rule 2 text...
 
 # Task Content
 

@@ -18,18 +18,18 @@ The tool assembles context into a structured prompt with the following component
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │ 1. Skills Metadata (XML) - Optional                   │  │
-│  │    • Available skills with names & descriptions       │  │
-│  │    • Progressive disclosure - full content on demand  │  │
-│  │    • Only included if skills are discovered           │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                               │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │ 2. Rules Content (Markdown)                           │  │
+│  │ 1. Rules Content (Markdown)                           │  │
 │  │    • Coding standards and guidelines                  │  │
 │  │    • Team conventions and best practices              │  │
 │  │    • Filtered by selectors (-s flag)                  │  │
 │  │    • Skipped in resume mode (-r flag)                 │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                               │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ 2. Skills Metadata (XML) - Optional                   │  │
+│  │    • Available skills with names & descriptions       │  │
+│  │    • Progressive disclosure - full content on demand  │  │
+│  │    • Only included if skills are discovered           │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                               │
 │  ┌───────────────────────────────────────────────────────┐  │
@@ -44,8 +44,8 @@ The tool assembles context into a structured prompt with the following component
 ```
 
 **Key Points:**
-- **Skills**: Enable progressive disclosure of specialized capabilities
 - **Rules**: Reusable context that applies across multiple tasks
+- **Skills**: Enable progressive disclosure of specialized capabilities
 - **Task Content**: Specific instructions for the current task with dynamic content expansion
 - **Note**: Task frontmatter is used for filtering and metadata but is not included in the output
 

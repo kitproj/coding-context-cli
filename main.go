@@ -147,18 +147,7 @@ func main() {
 		fmt.Println(result.Task.Content)
 	} else {
 		// Normal mode: output everything
-		// Output available skills metadata (progressive disclosure)
-		if len(result.Skills.Skills) > 0 {
-			skillsXML, err := result.Skills.AsXML()
-			if err != nil {
-				logger.Error("Failed to encode skills as XML", "error", err)
-				os.Exit(1)
-			}
-			fmt.Println(skillsXML)
-			fmt.Println()
-		}
-
-		// Output the combined prompt (rules + task)
+		// Output the combined prompt (rules + skills + task)
 		// Note: Task frontmatter is not included in the output
 		fmt.Println(result.Prompt)
 	}
