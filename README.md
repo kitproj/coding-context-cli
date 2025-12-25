@@ -258,26 +258,17 @@ The tool assembles the context in the following order:
 
 ### File Search Paths
 
-The tool looks for task and rule files in the following locations, in order of precedence:
+The tool automatically searches for task and rule files in various locations. For a complete reference, see the [Search Paths documentation](https://kitproj.github.io/coding-context-cli/reference/search-paths).
 
-**Tasks:**
-- `./.agents/tasks/*.md` (task name matches filename without `.md` extension)
+**Common locations:**
+- `./.agents/tasks/*.md` - Task definitions
+- `./.agents/rules/` - Rule files  
+- `./.agents/commands/` - Reusable command blocks
+- `./.agents/skills/*/SKILL.md` - Specialized skills
+- Various agent-specific paths (`.cursor/`, `.github/`, `.opencode/`, etc.)
+- User-wide rules in `~/.agents/rules`, `~/.claude/`, `~/.codex/`, etc.
 
-**Commands** (reusable content blocks referenced via slash commands like `/command-name` inside task content):
-- `./.agents/commands/*.md`
-- `./.cursor/commands/*.md`
-- `./.opencode/command/*.md`
-
-**Skills** (specialized capabilities with progressive disclosure):
-- `./.agents/skills/*/SKILL.md` (each subdirectory in `.agents/skills/` can contain a `SKILL.md` file)
-
-**Rules:**
-The tool searches for a variety of files and directories, including:
-- `CLAUDE.local.md`
-- `.agents/rules`, `.cursor/rules`, `.augment/rules`, `.windsurf/rules`, `.opencode/agent`
-- `.github/copilot-instructions.md`, `.github/agents`, `.gemini/styleguide.md`, `.augment/guidelines.md`
-- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`
-- User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`, `~/.opencode/rules`, etc.
+See the full [Search Paths Reference](https://kitproj.github.io/coding-context-cli/reference/search-paths) for the complete list of locations.
 
 ### Remote File System Support
 
