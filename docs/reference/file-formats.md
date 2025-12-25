@@ -25,18 +25,21 @@ Task files define what the AI agent should do. They are Markdown files with YAML
 Content can include ${parameter_placeholders}.
 ```
 
-**Note:** The `task_name` field is optional. Tasks are matched by filename (without `.md` extension), not by `task_name` in frontmatter. The `task_name` field is useful for metadata and appears in the frontmatter output.
+**Note:** The `task_name` field is optional. Tasks are matched by filename (without `.md` extension), not by `task_name` in frontmatter. The `task_name` field is useful for metadata but task frontmatter is **NOT included in the output** - only the task content below the frontmatter delimiters appears in the final assembled context.
 
 ### Frontmatter Fields
 
 #### `task_name` (optional)
 
 **Type:** String  
-**Purpose:** Metadata field that identifies the task. Tasks are actually matched by filename (without `.md` extension), not by this field. This field is useful for metadata and can be used in task frontmatter output.
+**Purpose:** Metadata field that identifies the task. Tasks are matched by filename (without `.md` extension), not by this field. This field is metadata only.
+
+**Important:** Task frontmatter is **NOT included in the output** - only the task content below the frontmatter delimiters appears in the final assembled context.
 
 **Example:**
 ```yaml
 ---
+task_name: fix-bug
 ---
 ```
 

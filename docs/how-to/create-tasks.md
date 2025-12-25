@@ -171,23 +171,20 @@ coding-context -s priority=high implement-feature
 
 ## Task Frontmatter
 
-Task frontmatter is **always** automatically included in the output when present. This happens automatically - no flag is needed. This is useful when downstream tools need access to task metadata.
+Task frontmatter is used for filtering and metadata purposes but is **NOT included in the output**. The frontmatter controls behavior (like auto-filtering rules via the `selectors` field) but only the task content below the frontmatter delimiters is included in the assembled context.
 
 **Example:**
 ```bash
 coding-context implement-feature
 ```
 
-**Output:**
-```yaml
----
-selectors:
-  languages: go
-  stage: implementation
----
+**Output (frontmatter NOT included):**
+```markdown
 # Implement Feature in Go
 ...
 ```
+
+The frontmatter (with `selectors`, `languages`, etc.) is parsed and used to filter rules and control behavior, but it does not appear in the final output sent to the AI agent.
 
 ## Best Practices
 

@@ -203,21 +203,21 @@ coding-context -s environment=production deploy
 
 ### Viewing Task Frontmatter
 
-Task frontmatter (including selectors) is automatically included in the output:
+Task frontmatter (including selectors) is used for filtering and metadata but is **NOT included in the output**. Only the task content appears in the final assembled context.
 
 ```bash
 coding-context implement-feature
 ```
 
-**Output:**
-```yaml
----
-selectors:
-  languages: go
-  stage: implementation
----
-# Task content...
+**Output (frontmatter NOT included):**
+```markdown
+# Implement Feature in Go
+
+Implement the feature following Go best practices and implementation guidelines.
+...
 ```
+
+The frontmatter controls which rules are selected but does not appear in the output sent to the AI agent.
 
 ## Understanding Selector Matching
 
