@@ -31,6 +31,23 @@ Command files are referenced via slash commands inside task content. Within each
 2. `.cursor/commands/`
 3. `.opencode/command/`
 
+### Skill File Search Paths
+
+Skill files provide specialized capabilities with progressive disclosure. Within each directory, skill files are searched in:
+
+1. `.agents/skills/*/SKILL.md` (each subdirectory in `.agents/skills/` can contain a `SKILL.md` file)
+
+**Example:**
+```
+.agents/skills/
+├── data-analysis/
+│   └── SKILL.md
+├── pdf-processing/
+│   └── SKILL.md
+└── api-testing/
+    └── SKILL.md
+```
+
 ### Discovery Rules
 
 - All `.md` files in these directories are examined
