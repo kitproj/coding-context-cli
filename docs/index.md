@@ -49,6 +49,7 @@ Practical guides to solve specific problems:
 ### 📖 [Reference](./reference/) - *Information-oriented*
 
 Technical specifications and API details:
+- [Specification](./reference/specification) - The Coding Context Standard specification
 - [CLI Reference](./reference/cli) - Command-line options and arguments
 - [File Formats](./reference/file-formats) - Task and rule file specifications
 - [Search Paths](./reference/search-paths) - Where files are discovered
