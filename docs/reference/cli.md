@@ -316,20 +316,18 @@ This mode is particularly useful when working with AI coding agents that read ru
 ### Standard Output (stdout)
 
 The assembled context, consisting of:
-1. Task frontmatter (YAML format) - always included when task has frontmatter
+1. All matching rule files (content only, without frontmatter)
 2. Available skills metadata (XML format) - included when skills are discovered
-3. All matching rule files
-4. The selected task prompt (with parameters substituted)
+3. The selected task content (with parameters substituted, without frontmatter)
 
-Task frontmatter is automatically included at the beginning of the output when present. This includes all frontmatter fields such as `task_name`, `selectors`, `resume`, `language`, `agent`, and any custom fields.
+**Note:** Task frontmatter is used for filtering and metadata but is **NOT included in the output**. Only the task content below the frontmatter delimiters appears in the final output.
 
-Skills metadata (when present) is output as XML after the task frontmatter and before rules, listing available skills for progressive disclosure.
+Skills metadata (when present) is output as XML after rules and before the task content, listing available skills for progressive disclosure.
 
 **Example output:**
-```yaml
----
-resume: false
----
+```markdown
+# Rule content here...
+
 <available_skills>
   <skill>
     <name>data-analysis</name>
@@ -337,8 +335,6 @@ resume: false
     <location>/path/to/.agents/skills/data-analysis/SKILL.md</location>
   </skill>
 </available_skills>
-
-# Rule content here...
 
 # Fix Bug Task
 ...

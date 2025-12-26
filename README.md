@@ -258,26 +258,17 @@ The tool assembles the context in the following order:
 
 ### File Search Paths
 
-The tool looks for task and rule files in the following locations, in order of precedence:
+The tool automatically searches for task and rule files in various locations. For a complete reference, see the [Search Paths documentation](https://kitproj.github.io/coding-context-cli/reference/search-paths).
 
-**Tasks:**
-- `./.agents/tasks/*.md` (task name matches filename without `.md` extension)
+**Common locations:**
+- `./.agents/tasks/*.md` - Task definitions
+- `./.agents/rules/` - Rule files  
+- `./.agents/commands/` - Reusable command blocks
+- `./.agents/skills/*/SKILL.md` - Specialized skills
+- Various agent-specific paths (`.cursor/`, `.github/`, `.opencode/`, etc.)
+- User-wide rules in `~/.agents/rules`, `~/.claude/`, `~/.codex/`, etc.
 
-**Commands** (reusable content blocks referenced via slash commands like `/command-name` inside task content):
-- `./.agents/commands/*.md`
-- `./.cursor/commands/*.md`
-- `./.opencode/command/*.md`
-
-**Skills** (specialized capabilities with progressive disclosure):
-- `./.agents/skills/*/SKILL.md` (each subdirectory in `.agents/skills/` can contain a `SKILL.md` file)
-
-**Rules:**
-The tool searches for a variety of files and directories, including:
-- `CLAUDE.local.md`
-- `.agents/rules`, `.cursor/rules`, `.augment/rules`, `.windsurf/rules`, `.opencode/agent`
-- `.github/copilot-instructions.md`, `.github/agents`, `.gemini/styleguide.md`, `.augment/guidelines.md`
-- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`
-- User-specific rules in `~/.agents/rules`, `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`, `~/.opencode/rules`, etc.
+See the full [Search Paths Reference](https://kitproj.github.io/coding-context-cli/reference/search-paths) for the complete list of locations.
 
 ### Remote File System Support
 
@@ -827,3 +818,35 @@ Perfect for:
 - **Tech talks** - Present at meetups or conferences
 - **Workshops** - Run hands-on training sessions
 - **Documentation** - Visual reference for features
+
+## Troubleshooting
+
+### Common Issues
+
+**Task not found**
+- Verify the task file exists in `.agents/tasks/` with the correct filename
+- Tasks are matched by filename (without `.md` extension), not by `task_name` in frontmatter
+- Check that you're using the correct task name: `coding-context fix-bug` (not `/fix-bug`)
+
+**No rules included**
+- Check that rule files exist in search paths (`.agents/rules/`, etc.)
+- Verify selector syntax: use `-s languages=go` (not `-p languages=go`)
+- Remember: `-s` filters rules, `-p` substitutes parameters
+- Rules without frontmatter are always included (unless using resume mode)
+
+**Parameters not substituted**
+- Ensure you're using `-p` flag: `coding-context -p issue=123 fix-bug`
+- Check parameter names match exactly (case-sensitive): `${issue_key}` matches `-p issue_key=...`
+- Verify the task file uses `${parameter}` syntax
+
+**Wrong rules included**
+- Check frontmatter spelling and case sensitivity
+- Use `languages:` (plural) in frontmatter and `-s languages=go` in selectors
+- All selectors must match (AND logic): `-s languages=go -s stage=testing`
+
+**Bootstrap script not running**
+- Make the script executable: `chmod +x .agents/rules/my-rule-bootstrap`
+- Name it correctly: `{rule-filename}-bootstrap` (e.g., `jira-context-bootstrap` for `jira-context.md`)
+- Check script output in stderr
+
+For more help, see the [full documentation](https://kitproj.github.io/coding-context-cli/) or [open an issue](https://github.com/kitproj/coding-context-cli/issues).

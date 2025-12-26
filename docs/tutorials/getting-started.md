@@ -24,19 +24,16 @@ This tutorial will guide you through your first steps with the Coding Context CL
 
 ## Step 1: Install the CLI
 
-First, download and install the Coding Context CLI:
+Follow the installation instructions in the main [README](https://github.com/kitproj/coding-context-cli#installation) or use the quick install command for your platform:
 
+**Linux (AMD64):**
 ```bash
-# For Linux
 sudo curl -fsL -o /usr/local/bin/coding-context \
   https://github.com/kitproj/coding-context-cli/releases/download/v0.0.23/coding-context_v0.0.23_linux_amd64
 sudo chmod +x /usr/local/bin/coding-context
-
-# For macOS
-sudo curl -fsL -o /usr/local/bin/coding-context \
-  https://github.com/kitproj/coding-context-cli/releases/download/v0.0.23/coding-context_v0.0.23_darwin_amd64
-sudo chmod +x /usr/local/bin/coding-context
 ```
+
+**macOS (Intel or Apple Silicon):** See [README installation section](https://github.com/kitproj/coding-context-cli#installation)
 
 Verify the installation:
 
@@ -83,8 +80,7 @@ EOF
 ```
 
 **What this does:**
-- The file is named `fix-bug.md`, which is how you'll reference it: `/fix-bug`
-- The frontmatter (`---` section) includes `task_name: fix-bug` as metadata (optional)
+- The file is named `fix-bug.md`, which is how you'll reference it: `fix-bug` (without the `.md` extension)
 - The `${issue_key}` and `${description}` are placeholders that will be replaced with actual values
 - The content provides instructions for the AI agent
 
@@ -128,15 +124,20 @@ coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \
   -s languages=go \
-  /fix-bug
+  fix-bug
 ```
 
+**Understanding the flags:**
+- **`-p` (parameters)**: Substitutes values into task content placeholders like `${issue_key}`
+- **`-s` (selectors)**: Filters which rules to include based on frontmatter fields like `languages: [ go ]`
+
 **What this command does:**
-- `-p issue_key=BUG-123` replaces `${issue_key}` in the task
-- `-p description="..."` replaces `${description}` in the task
-- `-s languages=go` includes only rules with `languages: [ go ]` in frontmatter
-- `/fix-bug` is the task name to use (slash indicates task file lookup)
-- **Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`)
+- `-p issue_key=BUG-123` replaces `${issue_key}` in the task content
+- `-p description="..."` replaces `${description}` in the task content
+- `-s languages=go` includes only rules with `languages: [ go ]` in their frontmatter
+- `fix-bug` is the task filename to use (matches `fix-bug.md`)
+
+**Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`)
 
 You should see output containing:
 1. The Go coding standards rule
@@ -151,7 +152,7 @@ coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \
   -s languages=go \
-  /fix-bug | llm -m claude-3-5-sonnet-20241022
+  fix-bug | llm -m claude-3-5-sonnet-20241022
 ```
 
 The AI agent will receive the assembled context and provide a response based on your coding standards and task requirements.
@@ -167,7 +168,7 @@ coding-context \
   -p issue_key=BUG-123 \
   -p description="Application crashes on startup" \
   -s languages=go \
-  /fix-bug | llm -m claude-3-5-sonnet-20241022
+  fix-bug | llm -m claude-3-5-sonnet-20241022
 ```
 
 This is useful for:

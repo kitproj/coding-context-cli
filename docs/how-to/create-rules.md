@@ -192,7 +192,7 @@ coding-context -s source=jira fix-bug
 
 ## Common Language Values
 
-Use lowercase values in your `language:` frontmatter:
+Use lowercase values in your `languages:` frontmatter:
 
 - c, c++, c#, css
 - dart, elixir, go
