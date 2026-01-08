@@ -29,7 +29,7 @@ Follow the installation instructions in the main [README](https://github.com/kit
 **Linux (AMD64):**
 ```bash
 sudo curl -fsL -o /usr/local/bin/coding-context \
-  https://github.com/kitproj/coding-context-cli/releases/download/v0.0.23/coding-context_v0.0.23_linux_amd64
+  https://github.com/kitproj/coding-context-cli/releases/download/v0.0.34/coding-context_v0.0.34_linux_amd64
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
