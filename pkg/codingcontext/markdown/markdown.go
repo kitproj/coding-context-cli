@@ -80,8 +80,8 @@ func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) 
 		}
 	}
 
-	// Default the Name field to filename without extension if not specified
-	setDefaultName(frontMatter, path)
+	// Default the ID field to URN format based on file type and filename if not specified
+	setDefaultID(frontMatter, path)
 
 	return Markdown[T]{
 		FrontMatter: *frontMatter,
@@ -90,34 +90,39 @@ func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) 
 	}, nil
 }
 
-// setDefaultName sets the Name field to the filename without extension if not already set
-func setDefaultName(frontMatter any, path string) {
-	// Use type assertion to check if frontMatter has a Name field via BaseFrontMatter
+// setDefaultID sets the ID field to URN format if not already set
+// Format: urn:TYPE:basename where TYPE is task, rule, command, etc.
+func setDefaultID(frontMatter any, path string) {
+	basename := getBasename(path)
+
 	switch fm := frontMatter.(type) {
 	case *TaskFrontMatter:
-		if fm.Name == "" {
-			fm.Name = getDefaultName(path)
+		if fm.ID == "" {
+			fm.ID = fmt.Sprintf("urn:task:%s", basename)
 		}
 	case *RuleFrontMatter:
-		if fm.Name == "" {
-			fm.Name = getDefaultName(path)
+		if fm.ID == "" {
+			fm.ID = fmt.Sprintf("urn:rule:%s", basename)
 		}
 	case *CommandFrontMatter:
-		if fm.Name == "" {
-			fm.Name = getDefaultName(path)
+		if fm.ID == "" {
+			fm.ID = fmt.Sprintf("urn:command:%s", basename)
 		}
 	case *SkillFrontMatter:
-		// Skills already have a required Name field (shadows BaseFrontMatter.Name), don't override
-		// The skill Name field is validated separately in skill discovery
+		// Skills have their own Name field, but we still set ID for consistency
+		if fm.ID == "" {
+			fm.ID = fmt.Sprintf("urn:skill:%s", basename)
+		}
 	case *BaseFrontMatter:
-		if fm.Name == "" {
-			fm.Name = getDefaultName(path)
+		if fm.ID == "" {
+			// For generic BaseFrontMatter, use a generic type
+			fm.ID = fmt.Sprintf("urn:file:%s", basename)
 		}
 	}
 }
 
-// getDefaultName extracts the filename without extension
-func getDefaultName(path string) string {
+// getBasename extracts the filename without extension
+func getBasename(path string) string {
 	baseName := filepath.Base(path)
 	ext := filepath.Ext(baseName)
 	return strings.TrimSuffix(baseName, ext)

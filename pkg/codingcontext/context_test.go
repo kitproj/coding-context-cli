@@ -326,34 +326,34 @@ func TestContext_Run_Basic(t *testing.T) {
 			errContains: "task not found",
 		},
 		{
-			name: "task found by name field in frontmatter",
+			name: "task found by custom ID in frontmatter",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "actual-filename", "name: custom-task-name\nagent: cursor", "Task content with custom name")
+				createTask(t, dir, "actual-filename", "id: urn:task:custom-task-id\nagent: cursor", "Task content with custom ID")
 			},
-			taskName: "custom-task-name",
+			taskName: "custom-task-id",
 			wantErr:  false,
 			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Task content with custom name") {
+				if !strings.Contains(result.Task.Content, "Task content with custom ID") {
 					t.Errorf("expected task content, got %q", result.Task.Content)
 				}
-				if result.Task.FrontMatter.Name != "custom-task-name" {
-					t.Errorf("expected task name 'custom-task-name', got %q", result.Task.FrontMatter.Name)
+				if result.Task.FrontMatter.ID != "urn:task:custom-task-id" {
+					t.Errorf("expected task ID 'urn:task:custom-task-id', got %q", result.Task.FrontMatter.ID)
 				}
 			},
 		},
 		{
-			name: "task name defaults to filename when not specified",
+			name: "task ID defaults to URN when not specified",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "my-task-file", "agent: cursor", "Task content without name field")
+				createTask(t, dir, "my-task-file", "agent: cursor", "Task content without ID field")
 			},
 			taskName: "my-task-file",
 			wantErr:  false,
 			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Task content without name field") {
+				if !strings.Contains(result.Task.Content, "Task content without ID field") {
 					t.Errorf("expected task content, got %q", result.Task.Content)
 				}
-				if result.Task.FrontMatter.Name != "my-task-file" {
-					t.Errorf("expected task name to default to 'my-task-file', got %q", result.Task.FrontMatter.Name)
+				if result.Task.FrontMatter.ID != "urn:task:my-task-file" {
+					t.Errorf("expected task ID to default to 'urn:task:my-task-file', got %q", result.Task.FrontMatter.ID)
 				}
 			},
 		},

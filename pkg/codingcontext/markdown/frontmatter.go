@@ -9,10 +9,10 @@ import (
 
 // BaseFrontMatter represents parsed YAML frontmatter from markdown files
 type BaseFrontMatter struct {
-	// Name is a standard identifier field for all file types
-	// For tasks: used for searching by name (defaults to filename without .md extension)
-	// For rules/commands: optional identifier (defaults to filename without extension)
-	Name string `yaml:"name,omitempty" json:"name,omitempty"`
+	// ID is a standard identifier field for all file types in URN format
+	// Format: urn:TYPE:basename (e.g., urn:task:fix-bug, urn:rule:go-style)
+	// Defaults to URN based on file type and filename without extension if not specified
+	ID string `yaml:"id,omitempty" json:"id,omitempty"`
 
 	Content map[string]any `json:"-" yaml:",inline"`
 }

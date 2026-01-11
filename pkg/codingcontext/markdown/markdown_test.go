@@ -273,63 +273,63 @@ This task has no frontmatter.
 	}
 }
 
-// TestParseMarkdownFile_NameFieldDefaulting tests that the Name field is defaulted to filename
-func TestParseMarkdownFile_NameFieldDefaulting(t *testing.T) {
+// TestParseMarkdownFile_IDFieldDefaulting tests that the ID field is defaulted to URN format
+func TestParseMarkdownFile_IDFieldDefaulting(t *testing.T) {
 	tests := []struct {
 		name            string
 		filename        string
 		content         string
-		wantName        string
-		frontmatterType string // "task", "rule", "command", "base"
+		wantID          string
+		frontmatterType string // "task", "rule", "command"
 	}{
 		{
-			name:     "task with explicit name field",
+			name:     "task with explicit ID field",
 			filename: "my-task.md",
 			content: `---
-name: custom-task-name
+id: urn:task:custom-task-id
 agent: cursor
 ---
 # My Task Content
 `,
-			wantName:        "custom-task-name",
+			wantID:          "urn:task:custom-task-id",
 			frontmatterType: "task",
 		},
 		{
-			name:     "task without name field - defaults to filename",
+			name:     "task without ID field - defaults to URN",
 			filename: "fix-bug.md",
 			content: `---
 agent: cursor
 ---
 # Fix Bug Task
 `,
-			wantName:        "fix-bug",
+			wantID:          "urn:task:fix-bug",
 			frontmatterType: "task",
 		},
 		{
-			name:     "task without frontmatter - defaults to filename",
+			name:     "task without frontmatter - defaults to URN",
 			filename: "deploy-app.md",
 			content: `# Deploy Application
 
 This task has no frontmatter.
 `,
-			wantName:        "deploy-app",
+			wantID:          "urn:task:deploy-app",
 			frontmatterType: "task",
 		},
 		{
-			name:     "rule with explicit name field",
+			name:     "rule with explicit ID field",
 			filename: "go-style.md",
 			content: `---
-name: go-coding-standards
+id: urn:rule:go-coding-standards
 languages:
   - go
 ---
 # Go Coding Standards
 `,
-			wantName:        "go-coding-standards",
+			wantID:          "urn:rule:go-coding-standards",
 			frontmatterType: "rule",
 		},
 		{
-			name:     "rule without name field - defaults to filename",
+			name:     "rule without ID field - defaults to URN",
 			filename: "testing-guidelines.md",
 			content: `---
 languages:
@@ -337,29 +337,29 @@ languages:
 ---
 # Testing Guidelines
 `,
-			wantName:        "testing-guidelines",
+			wantID:          "urn:rule:testing-guidelines",
 			frontmatterType: "rule",
 		},
 		{
-			name:     "command with explicit name field",
+			name:     "command with explicit ID field",
 			filename: "setup-db.md",
 			content: `---
-name: database-setup
+id: urn:command:database-setup
 ---
 # Setup Database
 `,
-			wantName:        "database-setup",
+			wantID:          "urn:command:database-setup",
 			frontmatterType: "command",
 		},
 		{
-			name:     "command without name field - defaults to filename",
+			name:     "command without ID field - defaults to URN",
 			filename: "run-tests.md",
 			content: `---
 expand: true
 ---
 # Run Tests
 `,
-			wantName:        "run-tests",
+			wantID:          "urn:command:run-tests",
 			frontmatterType: "command",
 		},
 		{
@@ -371,8 +371,19 @@ languages:
 ---
 # My Rule
 `,
-			wantName:        "my-rule",
+			wantID:          "urn:rule:my-rule",
 			frontmatterType: "rule",
+		},
+		{
+			name:     "task with custom non-URN ID",
+			filename: "my-task.md",
+			content: `---
+id: custom-id-without-urn
+---
+# My Task
+`,
+			wantID:          "custom-id-without-urn",
+			frontmatterType: "task",
 		},
 	}
 
@@ -386,7 +397,7 @@ languages:
 			}
 
 			// Parse based on frontmatter type
-			var gotName string
+			var gotID string
 			switch tt.frontmatterType {
 			case "task":
 				var fm TaskFrontMatter
@@ -394,34 +405,27 @@ languages:
 				if err != nil {
 					t.Fatalf("ParseMarkdownFile() error = %v", err)
 				}
-				gotName = md.FrontMatter.Name
+				gotID = md.FrontMatter.ID
 			case "rule":
 				var fm RuleFrontMatter
 				md, err := ParseMarkdownFile(tmpFile, &fm)
 				if err != nil {
 					t.Fatalf("ParseMarkdownFile() error = %v", err)
 				}
-				gotName = md.FrontMatter.Name
+				gotID = md.FrontMatter.ID
 			case "command":
 				var fm CommandFrontMatter
 				md, err := ParseMarkdownFile(tmpFile, &fm)
 				if err != nil {
 					t.Fatalf("ParseMarkdownFile() error = %v", err)
 				}
-				gotName = md.FrontMatter.Name
-			case "base":
-				var fm BaseFrontMatter
-				md, err := ParseMarkdownFile(tmpFile, &fm)
-				if err != nil {
-					t.Fatalf("ParseMarkdownFile() error = %v", err)
-				}
-				gotName = md.FrontMatter.Name
+				gotID = md.FrontMatter.ID
 			default:
 				t.Fatalf("unknown frontmatter type: %s", tt.frontmatterType)
 			}
 
-			if gotName != tt.wantName {
-				t.Errorf("Name = %q, want %q", gotName, tt.wantName)
+			if gotID != tt.wantID {
+				t.Errorf("ID = %q, want %q", gotID, tt.wantID)
 			}
 		})
 	}
