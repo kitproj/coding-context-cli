@@ -273,7 +273,7 @@ This task has no frontmatter.
 	}
 }
 
-// TestParseMarkdownFile_IDFieldDefaulting tests that the ID field is defaulted to URN format
+// TestParseMarkdownFile_IDFieldDefaulting tests that the ID field is defaulted to TYPE:basename format
 func TestParseMarkdownFile_IDFieldDefaulting(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -286,50 +286,50 @@ func TestParseMarkdownFile_IDFieldDefaulting(t *testing.T) {
 			name:     "task with explicit ID field",
 			filename: "my-task.md",
 			content: `---
-id: urn:task:custom-task-id
+id: task:custom-task-id
 agent: cursor
 ---
 # My Task Content
 `,
-			wantID:          "urn:task:custom-task-id",
+			wantID:          "task:custom-task-id",
 			frontmatterType: "task",
 		},
 		{
-			name:     "task without ID field - defaults to URN",
+			name:     "task without ID field - defaults to TYPE:basename",
 			filename: "fix-bug.md",
 			content: `---
 agent: cursor
 ---
 # Fix Bug Task
 `,
-			wantID:          "urn:task:fix-bug",
+			wantID:          "task:fix-bug",
 			frontmatterType: "task",
 		},
 		{
-			name:     "task without frontmatter - defaults to URN",
+			name:     "task without frontmatter - defaults to TYPE:basename",
 			filename: "deploy-app.md",
 			content: `# Deploy Application
 
 This task has no frontmatter.
 `,
-			wantID:          "urn:task:deploy-app",
+			wantID:          "task:deploy-app",
 			frontmatterType: "task",
 		},
 		{
 			name:     "rule with explicit ID field",
 			filename: "go-style.md",
 			content: `---
-id: urn:rule:go-coding-standards
+id: rule:go-coding-standards
 languages:
   - go
 ---
 # Go Coding Standards
 `,
-			wantID:          "urn:rule:go-coding-standards",
+			wantID:          "rule:go-coding-standards",
 			frontmatterType: "rule",
 		},
 		{
-			name:     "rule without ID field - defaults to URN",
+			name:     "rule without ID field - defaults to TYPE:basename",
 			filename: "testing-guidelines.md",
 			content: `---
 languages:
@@ -337,29 +337,29 @@ languages:
 ---
 # Testing Guidelines
 `,
-			wantID:          "urn:rule:testing-guidelines",
+			wantID:          "rule:testing-guidelines",
 			frontmatterType: "rule",
 		},
 		{
 			name:     "command with explicit ID field",
 			filename: "setup-db.md",
 			content: `---
-id: urn:command:database-setup
+id: command:database-setup
 ---
 # Setup Database
 `,
-			wantID:          "urn:command:database-setup",
+			wantID:          "command:database-setup",
 			frontmatterType: "command",
 		},
 		{
-			name:     "command without ID field - defaults to URN",
+			name:     "command without ID field - defaults to TYPE:basename",
 			filename: "run-tests.md",
 			content: `---
 expand: true
 ---
 # Run Tests
 `,
-			wantID:          "urn:command:run-tests",
+			wantID:          "command:run-tests",
 			frontmatterType: "command",
 		},
 		{
@@ -371,18 +371,18 @@ languages:
 ---
 # My Rule
 `,
-			wantID:          "urn:rule:my-rule",
+			wantID:          "rule:my-rule",
 			frontmatterType: "rule",
 		},
 		{
-			name:     "task with custom non-URN ID",
+			name:     "task with custom ID without prefix",
 			filename: "my-task.md",
 			content: `---
-id: custom-id-without-urn
+id: custom-id-without-prefix
 ---
 # My Task
 `,
-			wantID:          "custom-id-without-urn",
+			wantID:          "custom-id-without-prefix",
 			frontmatterType: "task",
 		},
 	}
