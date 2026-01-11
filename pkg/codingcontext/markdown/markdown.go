@@ -90,33 +90,33 @@ func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) 
 	}, nil
 }
 
-// setDefaultID sets the ID field to TYPE:basename format if not already set
-// Format: TYPE:basename where TYPE is task, rule, command, etc.
+// setDefaultID sets the ID field to path-like format if not already set
+// Format: TYPE/basename where TYPE is tasks, rules, commands, etc. (plural)
 func setDefaultID(frontMatter any, path string) {
 	basename := getBasename(path)
 
 	switch fm := frontMatter.(type) {
 	case *TaskFrontMatter:
 		if fm.ID == "" {
-			fm.ID = fmt.Sprintf("task:%s", basename)
+			fm.ID = fmt.Sprintf("tasks/%s", basename)
 		}
 	case *RuleFrontMatter:
 		if fm.ID == "" {
-			fm.ID = fmt.Sprintf("rule:%s", basename)
+			fm.ID = fmt.Sprintf("rules/%s", basename)
 		}
 	case *CommandFrontMatter:
 		if fm.ID == "" {
-			fm.ID = fmt.Sprintf("command:%s", basename)
+			fm.ID = fmt.Sprintf("commands/%s", basename)
 		}
 	case *SkillFrontMatter:
 		// Skills have their own Name field, but we still set ID for consistency
 		if fm.ID == "" {
-			fm.ID = fmt.Sprintf("skill:%s", basename)
+			fm.ID = fmt.Sprintf("skills/%s", basename)
 		}
 	case *BaseFrontMatter:
 		if fm.ID == "" {
 			// For generic BaseFrontMatter, use a generic type
-			fm.ID = fmt.Sprintf("file:%s", basename)
+			fm.ID = fmt.Sprintf("files/%s", basename)
 		}
 	}
 }

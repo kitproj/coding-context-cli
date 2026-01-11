@@ -106,14 +106,14 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 
 // findTask searches for a task markdown file and returns it with parameters substituted
 // Tasks can be found by:
-// 1. ID field matching "task:taskName" or just "taskName" (for backward compatibility)
+// 1. ID field matching "tasks/taskName" or just "taskName" (for backward compatibility)
 // 2. Filename without extension matching taskName (fallback for files without ID)
 func (cc *Context) findTask(taskName string) error {
 	// Add task name to includes so rules can be filtered
 	cc.includes.SetValue("task_name", taskName)
 
 	taskFound := false
-	expectedID := fmt.Sprintf("task:%s", taskName)
+	expectedID := fmt.Sprintf("tasks/%s", taskName)
 
 	err := cc.visitMarkdownFiles(taskSearchPaths, func(path string) error {
 		// Parse the file to access frontmatter
@@ -125,7 +125,7 @@ func (cc *Context) findTask(taskName string) error {
 
 		// Check if this task matches by ID field
 		// ID can be:
-		// - Full format: "task:fix-bug"
+		// - Full format: "tasks/fix-bug"
 		// - Just the name: "fix-bug" (matches the basename part)
 		// After parsing, ID is guaranteed to be set (either from frontmatter or defaulted)
 		matched := false
@@ -133,11 +133,11 @@ func (cc *Context) findTask(taskName string) error {
 			// Exact ID match
 			matched = true
 		} else if frontMatter.ID == taskName {
-			// Plain name match (for custom IDs without task: prefix)
+			// Plain name match (for custom IDs without tasks/ prefix)
 			matched = true
-		} else if strings.HasPrefix(frontMatter.ID, "task:") {
+		} else if strings.HasPrefix(frontMatter.ID, "tasks/") {
 			// Extract basename from ID and compare
-			idBasename := strings.TrimPrefix(frontMatter.ID, "task:")
+			idBasename := strings.TrimPrefix(frontMatter.ID, "tasks/")
 			if idBasename == taskName {
 				matched = true
 			}

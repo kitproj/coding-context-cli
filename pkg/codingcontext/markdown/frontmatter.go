@@ -10,8 +10,8 @@ import (
 // BaseFrontMatter represents parsed YAML frontmatter from markdown files
 type BaseFrontMatter struct {
 	// ID is a standard identifier field for all file types
-	// Format: TYPE:basename (e.g., task:fix-bug, rule:go-style)
-	// Defaults to TYPE:basename based on file type and filename without extension if not specified
+	// Format: TYPE/basename (e.g., tasks/fix-bug, rules/go-style)
+	// Defaults to TYPE/basename based on file type and filename without extension if not specified
 	ID string `yaml:"id,omitempty" json:"id,omitempty"`
 
 	Content map[string]any `json:"-" yaml:",inline"`

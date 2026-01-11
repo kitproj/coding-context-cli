@@ -328,7 +328,7 @@ func TestContext_Run_Basic(t *testing.T) {
 		{
 			name: "task found by custom ID in frontmatter",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "actual-filename", "id: task:custom-task-id\nagent: cursor", "Task content with custom ID")
+				createTask(t, dir, "actual-filename", "id: tasks/custom-task-id\nagent: cursor", "Task content with custom ID")
 			},
 			taskName: "custom-task-id",
 			wantErr:  false,
@@ -336,13 +336,13 @@ func TestContext_Run_Basic(t *testing.T) {
 				if !strings.Contains(result.Task.Content, "Task content with custom ID") {
 					t.Errorf("expected task content, got %q", result.Task.Content)
 				}
-				if result.Task.FrontMatter.ID != "task:custom-task-id" {
-					t.Errorf("expected task ID 'task:custom-task-id', got %q", result.Task.FrontMatter.ID)
+				if result.Task.FrontMatter.ID != "tasks/custom-task-id" {
+					t.Errorf("expected task ID 'tasks/custom-task-id', got %q", result.Task.FrontMatter.ID)
 				}
 			},
 		},
 		{
-			name: "task ID defaults to TYPE:basename when not specified",
+			name: "task ID defaults to TYPE/basename when not specified",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "my-task-file", "agent: cursor", "Task content without ID field")
 			},
@@ -352,8 +352,8 @@ func TestContext_Run_Basic(t *testing.T) {
 				if !strings.Contains(result.Task.Content, "Task content without ID field") {
 					t.Errorf("expected task content, got %q", result.Task.Content)
 				}
-				if result.Task.FrontMatter.ID != "task:my-task-file" {
-					t.Errorf("expected task ID to default to 'task:my-task-file', got %q", result.Task.FrontMatter.ID)
+				if result.Task.FrontMatter.ID != "tasks/my-task-file" {
+					t.Errorf("expected task ID to default to 'tasks/my-task-file', got %q", result.Task.FrontMatter.ID)
 				}
 			},
 		},
