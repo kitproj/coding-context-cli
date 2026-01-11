@@ -109,13 +109,13 @@ You can install the CLI by downloading the latest release from the [releases pag
 
 **AMD64:**
 ```bash
-sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.23/coding-context_v0.0.23_linux_amd64
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.34/coding-context_v0.0.34_linux_amd64
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
 **ARM64:**
 ```bash
-sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.23/coding-context_v0.0.23_linux_arm64
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.34/coding-context_v0.0.34_linux_arm64
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
@@ -123,13 +123,13 @@ sudo chmod +x /usr/local/bin/coding-context
 
 **Intel (AMD64):**
 ```bash
-sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.23/coding-context_v0.0.23_darwin_amd64
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.34/coding-context_v0.0.34_darwin_amd64
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
 **Apple Silicon (ARM64):**
 ```bash
-sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.23/coding-context_v0.0.23_darwin_arm64
+sudo curl -fsL -o /usr/local/bin/coding-context https://github.com/kitproj/coding-context-cli/releases/download/v0.0.34/coding-context_v0.0.34_darwin_arm64
 sudo chmod +x /usr/local/bin/coding-context
 ```
 
