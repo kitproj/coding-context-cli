@@ -56,7 +56,7 @@ func New(opts ...Option) *Context {
 	return c
 }
 
-type markdownVisitor func(path string) error
+type markdownVisitor func(path string, fm *markdown.BaseFrontMatter) error
 
 // findMarkdownFile searches for a markdown file by name in the given directories.
 // Returns the path to the file if found, or an error if not found or multiple files match.
@@ -91,10 +91,15 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 			}
 
 			// Skip files that don't match selectors
-			if !cc.includes.MatchesIncludes(fm) {
+			matches, reason := cc.includes.MatchesIncludes(fm)
+			if !matches {
+				// Log why this file was skipped
+				if reason != "" {
+					cc.logger.Info("Skipping file", "path", path, "reason", reason)
+				}
 				return nil
 			}
-			return visitor(path)
+			return visitor(path, &fm)
 		})
 		if err != nil {
 			return fmt.Errorf("failed to walk directory %s: %w", dir, err)
@@ -105,9 +110,6 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 }
 
 // findTask searches for a task markdown file and returns it with parameters substituted
-// Tasks can be found by:
-// 1. ID field matching "tasks/taskName" or just "taskName" (for backward compatibility)
-// 2. Filename without extension matching taskName (fallback for files without ID)
 func (cc *Context) findTask(taskName string) error {
 	// Add task name to includes so rules can be filtered
 	cc.includes.SetValue("task_name", taskName)
@@ -115,30 +117,35 @@ func (cc *Context) findTask(taskName string) error {
 	taskFound := false
 	expectedID := fmt.Sprintf("tasks/%s", taskName)
 
-	err := cc.visitMarkdownFiles(taskSearchPaths, func(path string) error {
-		// Parse the file to access frontmatter
-		var frontMatter markdown.TaskFrontMatter
-		md, err := markdown.ParseMarkdownFile(path, &frontMatter)
-		if err != nil {
-			return fmt.Errorf("failed to parse task file %s: %w", path, err)
-		}
-
-		// Check if this task matches by ID field
+	err := cc.visitMarkdownFiles(taskSearchPaths, func(path string, fm *markdown.BaseFrontMatter) error {
+		// Check if this task matches by ID field or filename
 		// ID can be:
 		// - Full format: "tasks/fix-bug"
 		// - Just the name: "fix-bug" (matches the basename part)
-		// After parsing, ID is guaranteed to be set (either from frontmatter or defaulted)
+		// - Or match by filename for backward compatibility
 		matched := false
-		if frontMatter.ID == expectedID {
+		
+		// First, try ID-based matching
+		if fm.ID == expectedID {
 			// Exact ID match
 			matched = true
-		} else if frontMatter.ID == taskName {
+		} else if fm.ID == taskName {
 			// Plain name match (for custom IDs without tasks/ prefix)
 			matched = true
-		} else if strings.HasPrefix(frontMatter.ID, "tasks/") {
+		} else if strings.HasPrefix(fm.ID, "tasks/") {
 			// Extract basename from ID and compare
-			idBasename := strings.TrimPrefix(frontMatter.ID, "tasks/")
+			idBasename := strings.TrimPrefix(fm.ID, "tasks/")
 			if idBasename == taskName {
+				matched = true
+			}
+		}
+		
+		// Fall back to filename matching if ID doesn't match
+		// This handles cases where files don't have explicit IDs
+		if !matched {
+			baseName := filepath.Base(path)
+			ext := filepath.Ext(baseName)
+			if strings.TrimSuffix(baseName, ext) == taskName {
 				matched = true
 			}
 		}
@@ -148,6 +155,13 @@ func (cc *Context) findTask(taskName string) error {
 		}
 
 		taskFound = true
+
+		// Parse the full task frontmatter and content
+		var frontMatter markdown.TaskFrontMatter
+		md, err := markdown.ParseMarkdownFile(path, &frontMatter)
+		if err != nil {
+			return fmt.Errorf("failed to parse task file %s: %w", path, err)
+		}
 
 		// Extract selector labels from task frontmatter and add them to cc.includes.
 		// This combines CLI selectors (from -s flag) with task selectors using OR logic:
@@ -215,7 +229,7 @@ func (cc *Context) findTask(taskName string) error {
 		}
 		cc.totalTokens += cc.task.Tokens
 
-		cc.logger.Info("Including task", "tokens", cc.task.Tokens)
+		cc.logger.Info("Including task", "name", taskName, "reason", fmt.Sprintf("task name matches '%s'", taskName), "tokens", cc.task.Tokens)
 
 		return nil
 	})
@@ -236,7 +250,7 @@ func (cc *Context) findTask(taskName string) error {
 // to allow commands to specify which rules they need.
 func (cc *Context) findCommand(commandName string, params taskparser.Params) (string, error) {
 	var content *string
-	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string) error {
+	err := cc.visitMarkdownFiles(commandSearchPaths, func(path string, _ *markdown.BaseFrontMatter) error {
 		baseName := filepath.Base(path)
 		ext := filepath.Ext(baseName)
 		if strings.TrimSuffix(baseName, ext) != commandName {
@@ -265,6 +279,8 @@ func (cc *Context) findCommand(commandName string, params taskparser.Params) (st
 			processedContent = md.Content
 		}
 		content = &processedContent
+
+		cc.logger.Info("Including command", "name", commandName, "reason", fmt.Sprintf("referenced by slash command '/%s'", commandName), "path", path)
 
 		return nil
 	})
@@ -527,7 +543,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 		return nil
 	}
 
-	err := cc.visitMarkdownFiles(rulePaths, func(path string) error {
+	err := cc.visitMarkdownFiles(rulePaths, func(path string, baseFm *markdown.BaseFrontMatter) error {
 		var frontmatter markdown.RuleFrontMatter
 		md, err := markdown.ParseMarkdownFile(path, &frontmatter)
 		if err != nil {
@@ -554,7 +570,9 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 
 		cc.totalTokens += tokens
 
-		cc.logger.Info("Including rule file", "path", path, "tokens", tokens)
+		// Get match reason to explain why this rule was included
+		_, reason := cc.includes.MatchesIncludes(*baseFm)
+		cc.logger.Info("Including rule file", "path", path, "reason", reason, "tokens", tokens)
 
 		if err := cc.runBootstrapScript(ctx, path); err != nil {
 			return fmt.Errorf("failed to run bootstrap script: %w", err)
@@ -646,7 +664,12 @@ func (cc *Context) discoverSkills() error {
 			}
 
 			// Check if the skill matches the selectors first (before validation)
-			if !cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter) {
+			matches, reason := cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter)
+			if !matches {
+				// Log why this skill was skipped
+				if reason != "" {
+					cc.logger.Info("Skipping skill", "name", frontmatter.Name, "path", skillFile, "reason", reason)
+				}
 				continue
 			}
 
@@ -678,7 +701,8 @@ func (cc *Context) discoverSkills() error {
 				Location:    absPath,
 			})
 
-			cc.logger.Info("Discovered skill", "name", frontmatter.Name, "path", absPath)
+			// Log with explanation of why skill was included
+			cc.logger.Info("Discovered skill", "name", frontmatter.Name, "reason", reason, "path", absPath)
 		}
 	}
 
