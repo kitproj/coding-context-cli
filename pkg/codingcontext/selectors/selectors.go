@@ -84,12 +84,24 @@ func (s *Selectors) GetValue(key, value string) bool {
 	return innerMap[value]
 }
 
-// MatchesIncludes returns true if the frontmatter matches all include selectors.
+// MatchesIncludes returns whether the frontmatter matches all include selectors,
+// along with a human-readable reason explaining the result.
 // If a key doesn't exist in frontmatter, it's allowed.
 // Multiple values for the same key use OR logic (matches if frontmatter value is in the inner map).
 // This enables combining CLI selectors (-s flag) with task frontmatter selectors:
 // both are added to the same Selectors map, creating an OR condition for rules to match.
-func (includes *Selectors) MatchesIncludes(frontmatter markdown.BaseFrontMatter) bool {
+//
+// Returns:
+//   - bool: true if all selectors match, false otherwise
+//   - string: reason explaining why (matched selectors or mismatch details)
+func (includes *Selectors) MatchesIncludes(frontmatter markdown.BaseFrontMatter) (bool, string) {
+	if *includes == nil || len(*includes) == 0 {
+		return true, ""
+	}
+
+	var matchedSelectors []string
+	var noMatchReasons []string
+
 	for key, values := range *includes {
 		fmValue, exists := frontmatter.Content[key]
 		if !exists {
@@ -97,11 +109,34 @@ func (includes *Selectors) MatchesIncludes(frontmatter markdown.BaseFrontMatter)
 			continue
 		}
 
-		// Check if frontmatter value matches any element in the inner map (OR logic)
 		fmStr := fmt.Sprint(fmValue)
-		if !values[fmStr] {
-			return false
+		if values[fmStr] {
+			// This selector matched
+			matchedSelectors = append(matchedSelectors, fmt.Sprintf("%s=%s", key, fmStr))
+		} else {
+			// This selector didn't match
+			var expectedValues []string
+			for val := range values {
+				expectedValues = append(expectedValues, val)
+			}
+			if len(expectedValues) == 1 {
+				noMatchReasons = append(noMatchReasons, fmt.Sprintf("%s=%s (expected %s=%s)", key, fmStr, key, expectedValues[0]))
+			} else {
+				noMatchReasons = append(noMatchReasons, fmt.Sprintf("%s=%s (expected %s in [%s])", key, fmStr, key, strings.Join(expectedValues, ", ")))
+			}
 		}
 	}
-	return true
+
+	// If any selector didn't match, return false with the mismatch reasons
+	if len(noMatchReasons) > 0 {
+		return false, fmt.Sprintf("selectors did not match: %s", strings.Join(noMatchReasons, ", "))
+	}
+
+	// All selectors matched
+	if len(matchedSelectors) > 0 {
+		return true, fmt.Sprintf("matched selectors: %s", strings.Join(matchedSelectors, ", "))
+	}
+
+	// No selectors specified
+	return true, "no selectors specified (included by default)"
 }

@@ -1,6 +1,7 @@
 package selectors
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
@@ -249,8 +250,9 @@ func TestSelectorMap_MatchesIncludes(t *testing.T) {
 				tt.setupSelectors(s)
 			}
 
-			if got := s.MatchesIncludes(tt.frontmatter); got != tt.wantMatch {
-				t.Errorf("MatchesIncludes() = %v, want %v", got, tt.wantMatch)
+			gotMatch, gotReason := s.MatchesIncludes(tt.frontmatter)
+			if gotMatch != tt.wantMatch {
+				t.Errorf("MatchesIncludes() = %v, want %v (reason: %s)", gotMatch, tt.wantMatch, gotReason)
 			}
 		})
 	}
@@ -264,5 +266,137 @@ func TestSelectorMap_String(t *testing.T) {
 	str := s.String()
 	if str == "" {
 		t.Error("String() returned empty string")
+	}
+}
+
+func TestSelectorMap_MatchesIncludesReasons(t *testing.T) {
+	tests := []struct {
+		name           string
+		selectors      []string
+		setupSelectors func(s Selectors)
+		frontmatter    markdown.BaseFrontMatter
+		wantMatch      bool
+		wantReason     string
+		checkReason    func(t *testing.T, reason string) // For cases where reason order varies
+	}{
+		{
+			name:        "single selector - match",
+			selectors:   []string{"env=production"},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "production"}},
+			wantMatch:   true,
+			wantReason:  "matched selectors: env=production",
+		},
+		{
+			name:        "single selector - no match",
+			selectors:   []string{"env=production"},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "development"}},
+			wantMatch:   false,
+			wantReason:  "selectors did not match: env=development (expected env=production)",
+		},
+		{
+			name:        "single selector - key missing (allowed)",
+			selectors:   []string{"env=production"},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"language": "go"}},
+			wantMatch:   true,
+			wantReason:  "no selectors specified (included by default)",
+		},
+		{
+			name:        "multiple selectors - all match",
+			selectors:   []string{"env=production", "language=go"},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "production", "language": "go"}},
+			wantMatch:   true,
+			checkReason: func(t *testing.T, reason string) {
+				if !strings.Contains(reason, "matched selectors:") {
+					t.Errorf("Expected reason to contain 'matched selectors:', got %q", reason)
+				}
+				if !strings.Contains(reason, "env=production") || !strings.Contains(reason, "language=go") {
+					t.Errorf("Expected reason to contain both selectors, got %q", reason)
+				}
+			},
+		},
+		{
+			name:        "multiple selectors - one doesn't match",
+			selectors:   []string{"env=production", "language=go"},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "production", "language": "python"}},
+			wantMatch:   false,
+			wantReason:  "selectors did not match: language=python (expected language=go)",
+		},
+		{
+			name:        "empty selectors",
+			selectors:   []string{},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"env": "production"}},
+			wantMatch:   true,
+			wantReason:  "",
+		},
+		{
+			name:        "array selector - match",
+			selectors:   []string{},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"rule_name": "rule2"}},
+			wantMatch:   true,
+			wantReason:  "matched selectors: rule_name=rule2",
+			setupSelectors: func(s Selectors) {
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+				s.SetValue("rule_name", "rule3")
+			},
+		},
+		{
+			name:        "array selector - no match",
+			selectors:   []string{},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"rule_name": "rule4"}},
+			wantMatch:   false,
+			setupSelectors: func(s Selectors) {
+				s.SetValue("rule_name", "rule1")
+				s.SetValue("rule_name", "rule2")
+				s.SetValue("rule_name", "rule3")
+			},
+			checkReason: func(t *testing.T, reason string) {
+				if !strings.Contains(reason, "selectors did not match:") {
+					t.Errorf("Expected reason to start with 'selectors did not match:', got %q", reason)
+				}
+				if !strings.Contains(reason, "rule_name=rule4") {
+					t.Errorf("Expected reason to contain 'rule_name=rule4', got %q", reason)
+				}
+				if !strings.Contains(reason, "rule1") || !strings.Contains(reason, "rule2") || !strings.Contains(reason, "rule3") {
+					t.Errorf("Expected reason to contain all expected values, got %q", reason)
+				}
+			},
+		},
+		{
+			name:        "boolean value conversion",
+			selectors:   []string{"is_active=true"},
+			frontmatter: markdown.BaseFrontMatter{Content: map[string]any{"is_active": true}},
+			wantMatch:   true,
+			wantReason:  "matched selectors: is_active=true",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := make(Selectors)
+			for _, sel := range tt.selectors {
+				if err := s.Set(sel); err != nil {
+					t.Fatalf("Set() error = %v", err)
+				}
+			}
+
+			// Set up array selectors if provided
+			if tt.setupSelectors != nil {
+				tt.setupSelectors(s)
+			}
+
+			gotMatch, gotReason := s.MatchesIncludes(tt.frontmatter)
+
+			if gotMatch != tt.wantMatch {
+				t.Errorf("MatchesIncludes() match = %v, want %v (reason: %s)", gotMatch, tt.wantMatch, gotReason)
+			}
+
+			// Check reason
+			if tt.checkReason != nil {
+				tt.checkReason(t, gotReason)
+			} else if gotReason != tt.wantReason {
+				t.Errorf("MatchesIncludes() reason = %q, want %q", gotReason, tt.wantReason)
+			}
+		})
 	}
 }
