@@ -1,4 +1,5 @@
 ---
+command_name: setup-database
 selectors:
   database: postgres
   feature: auth

@@ -1,5 +1,6 @@
 ---
 name: data-analysis
+skill_name: data-analysis
 description: Analyze datasets, generate charts, and create summary reports. Use when the user needs to work with CSV, Excel, or other tabular data formats for analysis or visualization.
 ---
 

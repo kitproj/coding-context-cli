@@ -1,4 +1,5 @@
 ---
+rule_name: go-implementation-standards
 stage: implementation
 language: go
 ---

@@ -437,8 +437,9 @@ field3: "string value"
 
 #### 5.2.1 `task_name` (optional)
 - **Type:** String
-- **Purpose:** Metadata identifier for the task
+- **Purpose:** Conventional naming field - metadata identifier for the task
 - **Note:** Tasks are matched by filename, not this field
+- **Convention:** Provides consistent naming across all file types (tasks, rules, commands, skills)
 
 ```yaml
 ---
@@ -550,7 +551,31 @@ expand: false
 
 ### 5.3 Standard Rule Fields
 
-#### 5.3.1 `languages` (optional)
+#### 5.3.1 `rule_name` (optional)
+- **Type:** String
+- **Purpose:** Conventional naming field - metadata identifier for the rule
+- **Convention:** Provides consistent naming across all file types (tasks, rules, commands, skills)
+
+```yaml
+---
+rule_name: go-best-practices
+---
+```
+
+#### 5.3.2 `tool_name` (optional)
+- **Type:** String
+- **Purpose:** Conventional naming field - identifier when this rule defines a tool
+- **Note:** Since rules can also be tools, this provides a separate naming convention for tool functionality
+- **Use case:** When a rule provides tool capabilities or MCP server definitions
+
+```yaml
+---
+tool_name: static-analyzer
+rule_name: go-linter-standards
+---
+```
+
+#### 5.3.3 `languages` (optional)
 - **Type:** Array or string
 - **Purpose:** Filter rules by programming language
 - **Values:** Lowercase language names
@@ -562,7 +587,7 @@ languages:
 ---
 ```
 
-#### 5.3.2 `stage` (optional)
+#### 5.3.4 `stage` (optional)
 - **Type:** String
 - **Purpose:** Filter by development stage
 - **Common values:** `planning`, `implementation`, `testing`, `review`
@@ -573,7 +598,7 @@ stage: implementation
 ---
 ```
 
-#### 5.3.3 `agent` (optional)
+#### 5.3.5 `agent` (optional)
 - **Type:** String
 - **Purpose:** Target specific agent
 
@@ -583,7 +608,7 @@ agent: cursor
 ---
 ```
 
-#### 5.3.4 `mcp_server` (optional)
+#### 5.3.6 `mcp_server` (optional)
 - **Type:** Object
 - **Purpose:** Model Context Protocol server configuration
 
@@ -602,27 +627,80 @@ mcp_server:
 #### 5.4.1 `name` (required)
 - **Type:** String
 - **Length:** 1-64 characters
-- **Purpose:** Skill identifier
+- **Purpose:** Skill identifier (conventional naming field)
+- **Note:** Primary identifier for the skill
 
-#### 5.4.2 `description` (required)
+#### 5.4.2 `skill_name` (optional)
+- **Type:** String
+- **Purpose:** Conventional naming field - alternative/alias for `name`
+- **Convention:** Provides consistency with other file types (tasks, rules, commands)
+- **Note:** If both `name` and `skill_name` are specified, `name` takes precedence
+
+```yaml
+---
+name: data-analysis
+skill_name: data-analysis  # Optional alias for consistency
+description: Analyze datasets and generate reports
+---
+```
+
+#### 5.4.3 `description` (required)
 - **Type:** String
 - **Length:** 1-1024 characters
 - **Purpose:** What the skill does and when to use it
 
-#### 5.4.3 `license` (optional)
+#### 5.4.4 `license` (optional)
 - **Type:** String
 - **Purpose:** License information
 
-#### 5.4.4 `compatibility` (optional)
+#### 5.4.5 `compatibility` (optional)
 - **Type:** String
 - **Max length:** 500 characters
 - **Purpose:** Environment requirements
 
-#### 5.4.5 `metadata` (optional)
+#### 5.4.6 `metadata` (optional)
 - **Type:** Object
 - **Purpose:** Arbitrary key-value pairs
 
-### 5.5 Custom Fields
+### 5.5 Standard Command Fields
+
+#### 5.5.1 `command_name` (optional)
+- **Type:** String
+- **Purpose:** Conventional naming field - metadata identifier for the command
+- **Convention:** Provides consistent naming across all file types (tasks, rules, commands, skills)
+
+```yaml
+---
+command_name: setup-database
+---
+```
+
+#### 5.5.2 `expand` (optional)
+- **Type:** Boolean
+- **Purpose:** Control parameter expansion
+- **Default:** `true`
+
+```yaml
+---
+command_name: pre-deploy
+expand: true
+---
+```
+
+#### 5.5.3 `selectors` (optional)
+- **Type:** Object
+- **Purpose:** Auto-filter rules when command is used
+- **Note:** Selectors from commands are combined with task selectors
+
+```yaml
+---
+command_name: db-setup
+selectors:
+  database: postgres
+---
+```
+
+### 5.6 Custom Fields
 
 Any additional YAML fields can be used for custom selectors:
 
@@ -638,6 +716,76 @@ priority: high
 - Custom fields enable flexible filtering
 - Only top-level fields work with selectors
 - Nested objects are stored but not matchable
+
+### 5.7 Conventional Naming Fields
+
+The Coding Context Standard defines conventional naming fields for consistency across all file types. These fields are **optional** and serve as metadata identifiers.
+
+#### Naming Convention Summary
+
+| File Type | Primary Name Field | Purpose |
+|-----------|-------------------|---------|
+| **Task** | `task_name` | Identifies the task file |
+| **Rule** | `rule_name` | Identifies the rule file |
+| **Rule (as Tool)** | `tool_name` | Identifies tool functionality when rule acts as a tool |
+| **Command** | `command_name` | Identifies the command file |
+| **Skill** | `name` / `skill_name` | Identifies the skill (`name` is required, `skill_name` is an alias) |
+
+#### Design Rationale
+
+1. **Consistency**: All file types use a similar naming pattern (`<type>_name`)
+2. **Self-documenting**: Makes frontmatter more readable and explicit
+3. **Metadata**: These fields are for documentation and tooling, not for file matching
+4. **Optional**: Files are primarily matched by filename, not these fields
+5. **Tool Support**: Rules can have both `rule_name` and `tool_name` since they may serve dual purposes
+
+#### Example Usage
+
+**Task file** (`.agents/tasks/fix-bug.md`):
+```yaml
+---
+task_name: fix-bug
+resume: false
+---
+```
+
+**Rule file** (`.agents/rules/go-standards.md`):
+```yaml
+---
+rule_name: go-best-practices
+languages:
+  - go
+---
+```
+
+**Rule as Tool** (`.agents/rules/linter.md`):
+```yaml
+---
+rule_name: linting-standards
+tool_name: go-linter
+mcp_server:
+  command: golangci-lint
+  args: ["run"]
+---
+```
+
+**Command file** (`.agents/commands/setup-db.md`):
+```yaml
+---
+command_name: setup-database
+selectors:
+  database: postgres
+---
+```
+
+**Skill file** (`.agents/skills/data-analysis/SKILL.md`):
+```yaml
+---
+name: data-analysis
+skill_name: data-analysis  # Optional alias
+description: Analyze datasets and generate reports
+---
+```
 
 ---
 
@@ -1554,7 +1702,7 @@ Potential future additions while maintaining backward compatibility:
 
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
-| `task_name` | string | No | Metadata identifier |
+| `task_name` | string | No | Conventional naming field - metadata identifier |
 | `resume` | boolean | No | Resume mode indicator |
 | `languages` | array/string | No | Programming languages (metadata) |
 | `agent` | string | No | Target agent (selector) |
@@ -1564,20 +1712,33 @@ Potential future additions while maintaining backward compatibility:
 | `selectors` | object | No | Auto-filter rules |
 | `expand` | boolean | No | Parameter expansion control |
 
+### Command Fields
+
+| Field | Type | Required | Purpose |
+|-------|------|----------|---------|
+| `command_name` | string | No | Conventional naming field - metadata identifier |
+| `expand` | boolean | No | Parameter expansion control |
+| `selectors` | object | No | Auto-filter rules when command is used |
+
 ### Rule Fields
 
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
+| `rule_name` | string | No | Conventional naming field - metadata identifier |
+| `tool_name` | string | No | Conventional naming field - identifier for tool functionality |
+| `task_names` | array/string | No | Filter by task names |
 | `languages` | array/string | No | Language filter |
 | `stage` | string | No | Development stage filter |
 | `agent` | string | No | Agent filter |
 | `mcp_server` | object | No | MCP server config |
+| `expand` | boolean | No | Parameter expansion control |
 
 ### Skill Fields
 
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
-| `name` | string | Yes | Skill identifier (1-64 chars) |
+| `name` | string | Yes | Skill identifier (1-64 chars) - primary name field |
+| `skill_name` | string | No | Conventional naming field - alias for `name` |
 | `description` | string | Yes | What skill does (1-1024 chars) |
 | `license` | string | No | License information |
 | `compatibility` | string | No | Environment requirements (max 500 chars) |
