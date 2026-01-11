@@ -326,6 +326,38 @@ func TestContext_Run_Basic(t *testing.T) {
 			errContains: "task not found",
 		},
 		{
+			name: "task found by name field in frontmatter",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "actual-filename", "name: custom-task-name\nagent: cursor", "Task content with custom name")
+			},
+			taskName: "custom-task-name",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "Task content with custom name") {
+					t.Errorf("expected task content, got %q", result.Task.Content)
+				}
+				if result.Task.FrontMatter.Name != "custom-task-name" {
+					t.Errorf("expected task name 'custom-task-name', got %q", result.Task.FrontMatter.Name)
+				}
+			},
+		},
+		{
+			name: "task name defaults to filename when not specified",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "my-task-file", "agent: cursor", "Task content without name field")
+			},
+			taskName: "my-task-file",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if !strings.Contains(result.Task.Content, "Task content without name field") {
+					t.Errorf("expected task content, got %q", result.Task.Content)
+				}
+				if result.Task.FrontMatter.Name != "my-task-file" {
+					t.Errorf("expected task name to default to 'my-task-file', got %q", result.Task.FrontMatter.Name)
+				}
+			},
+		},
+		{
 			name: "task with selectors sets includes",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "selector-task", "selectors:\n  env: production\n  lang: go", "Task with selectors")

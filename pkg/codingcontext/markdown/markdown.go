@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	yaml "github.com/goccy/go-yaml"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/tokencount"
@@ -78,9 +80,44 @@ func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) 
 		}
 	}
 
+	// Default the Name field to filename without extension if not specified
+	setDefaultName(frontMatter, path)
+
 	return Markdown[T]{
 		FrontMatter: *frontMatter,
 		Content:     content.String(),
 		Tokens:      tokencount.EstimateTokens(content.String()),
 	}, nil
+}
+
+// setDefaultName sets the Name field to the filename without extension if not already set
+func setDefaultName(frontMatter any, path string) {
+	// Use type assertion to check if frontMatter has a Name field via BaseFrontMatter
+	switch fm := frontMatter.(type) {
+	case *TaskFrontMatter:
+		if fm.Name == "" {
+			fm.Name = getDefaultName(path)
+		}
+	case *RuleFrontMatter:
+		if fm.Name == "" {
+			fm.Name = getDefaultName(path)
+		}
+	case *CommandFrontMatter:
+		if fm.Name == "" {
+			fm.Name = getDefaultName(path)
+		}
+	case *SkillFrontMatter:
+		// Skills already have a required Name field, don't override
+	case *BaseFrontMatter:
+		if fm.Name == "" {
+			fm.Name = getDefaultName(path)
+		}
+	}
+}
+
+// getDefaultName extracts the filename without extension
+func getDefaultName(path string) string {
+	baseName := filepath.Base(path)
+	ext := filepath.Ext(baseName)
+	return strings.TrimSuffix(baseName, ext)
 }

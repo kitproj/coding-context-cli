@@ -105,24 +105,29 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 }
 
 // findTask searches for a task markdown file and returns it with parameters substituted
+// Tasks can be found by:
+// 1. The Name field in frontmatter (if specified)
+// 2. The filename without extension (fallback)
 func (cc *Context) findTask(taskName string) error {
 	// Add task name to includes so rules can be filtered
 	cc.includes.SetValue("task_name", taskName)
 
 	taskFound := false
 	err := cc.visitMarkdownFiles(taskSearchPaths, func(path string) error {
-		baseName := filepath.Base(path)
-		ext := filepath.Ext(baseName)
-		if strings.TrimSuffix(baseName, ext) != taskName {
-			return nil
-		}
-
-		taskFound = true
+		// Parse the file to access frontmatter
 		var frontMatter markdown.TaskFrontMatter
 		md, err := markdown.ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
 			return fmt.Errorf("failed to parse task file %s: %w", path, err)
 		}
+
+		// Check if this task matches by Name field or filename
+		// After parsing, Name is guaranteed to be set (either from frontmatter or defaulted to filename)
+		if frontMatter.Name != taskName {
+			return nil
+		}
+
+		taskFound = true
 
 		// Extract selector labels from task frontmatter and add them to cc.includes.
 		// This combines CLI selectors (from -s flag) with task selectors using OR logic:

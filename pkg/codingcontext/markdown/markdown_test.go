@@ -272,3 +272,157 @@ This task has no frontmatter.
 		})
 	}
 }
+
+// TestParseMarkdownFile_NameFieldDefaulting tests that the Name field is defaulted to filename
+func TestParseMarkdownFile_NameFieldDefaulting(t *testing.T) {
+	tests := []struct {
+		name            string
+		filename        string
+		content         string
+		wantName        string
+		frontmatterType string // "task", "rule", "command", "base"
+	}{
+		{
+			name:     "task with explicit name field",
+			filename: "my-task.md",
+			content: `---
+name: custom-task-name
+agent: cursor
+---
+# My Task Content
+`,
+			wantName:        "custom-task-name",
+			frontmatterType: "task",
+		},
+		{
+			name:     "task without name field - defaults to filename",
+			filename: "fix-bug.md",
+			content: `---
+agent: cursor
+---
+# Fix Bug Task
+`,
+			wantName:        "fix-bug",
+			frontmatterType: "task",
+		},
+		{
+			name:     "task without frontmatter - defaults to filename",
+			filename: "deploy-app.md",
+			content: `# Deploy Application
+
+This task has no frontmatter.
+`,
+			wantName:        "deploy-app",
+			frontmatterType: "task",
+		},
+		{
+			name:     "rule with explicit name field",
+			filename: "go-style.md",
+			content: `---
+name: go-coding-standards
+languages:
+  - go
+---
+# Go Coding Standards
+`,
+			wantName:        "go-coding-standards",
+			frontmatterType: "rule",
+		},
+		{
+			name:     "rule without name field - defaults to filename",
+			filename: "testing-guidelines.md",
+			content: `---
+languages:
+  - go
+---
+# Testing Guidelines
+`,
+			wantName:        "testing-guidelines",
+			frontmatterType: "rule",
+		},
+		{
+			name:     "command with explicit name field",
+			filename: "setup-db.md",
+			content: `---
+name: database-setup
+---
+# Setup Database
+`,
+			wantName:        "database-setup",
+			frontmatterType: "command",
+		},
+		{
+			name:     "command without name field - defaults to filename",
+			filename: "run-tests.md",
+			content: `---
+expand: true
+---
+# Run Tests
+`,
+			wantName:        "run-tests",
+			frontmatterType: "command",
+		},
+		{
+			name:     "file with .mdc extension",
+			filename: "my-rule.mdc",
+			content: `---
+languages:
+  - go
+---
+# My Rule
+`,
+			wantName:        "my-rule",
+			frontmatterType: "rule",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary file with the specified filename
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, tt.filename)
+			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o644); err != nil {
+				t.Fatalf("failed to create temp file: %v", err)
+			}
+
+			// Parse based on frontmatter type
+			var gotName string
+			switch tt.frontmatterType {
+			case "task":
+				var fm TaskFrontMatter
+				md, err := ParseMarkdownFile(tmpFile, &fm)
+				if err != nil {
+					t.Fatalf("ParseMarkdownFile() error = %v", err)
+				}
+				gotName = md.FrontMatter.Name
+			case "rule":
+				var fm RuleFrontMatter
+				md, err := ParseMarkdownFile(tmpFile, &fm)
+				if err != nil {
+					t.Fatalf("ParseMarkdownFile() error = %v", err)
+				}
+				gotName = md.FrontMatter.Name
+			case "command":
+				var fm CommandFrontMatter
+				md, err := ParseMarkdownFile(tmpFile, &fm)
+				if err != nil {
+					t.Fatalf("ParseMarkdownFile() error = %v", err)
+				}
+				gotName = md.FrontMatter.Name
+			case "base":
+				var fm BaseFrontMatter
+				md, err := ParseMarkdownFile(tmpFile, &fm)
+				if err != nil {
+					t.Fatalf("ParseMarkdownFile() error = %v", err)
+				}
+				gotName = md.FrontMatter.Name
+			default:
+				t.Fatalf("unknown frontmatter type: %s", tt.frontmatterType)
+			}
+
+			if gotName != tt.wantName {
+				t.Errorf("Name = %q, want %q", gotName, tt.wantName)
+			}
+		})
+	}
+}
