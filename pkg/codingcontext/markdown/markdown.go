@@ -107,7 +107,8 @@ func setDefaultName(frontMatter any, path string) {
 			fm.Name = getDefaultName(path)
 		}
 	case *SkillFrontMatter:
-		// Skills already have a required Name field, don't override
+		// Skills already have a required Name field (shadows BaseFrontMatter.Name), don't override
+		// The skill Name field is validated separately in skill discovery
 	case *BaseFrontMatter:
 		if fm.Name == "" {
 			fm.Name = getDefaultName(path)
