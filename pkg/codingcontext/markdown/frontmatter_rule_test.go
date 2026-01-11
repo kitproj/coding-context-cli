@@ -57,6 +57,7 @@ agent: cursor
 					Args:    []string{"--port", "5432"},
 				},
 				RuleName: "test-rule",
+				ToolName: "test-tool",
 			},
 			want: `task_names:
 - test-task
@@ -71,6 +72,7 @@ mcp_server:
   - --port
   - "5432"
 rule_name: test-rule
+tool_name: test-tool
 `,
 		},
 	}
@@ -133,6 +135,41 @@ languages:
 				Languages: []string{"go", "python", "javascript"},
 			},
 		},
+		{
+			name: "rule with rule_name",
+			yaml: `rule_name: go-best-practices
+languages:
+  - go
+`,
+			want: RuleFrontMatter{
+				RuleName:  "go-best-practices",
+				Languages: []string{"go"},
+			},
+		},
+		{
+			name: "rule with tool_name",
+			yaml: `tool_name: static-analyzer
+languages:
+  - go
+`,
+			want: RuleFrontMatter{
+				ToolName:  "static-analyzer",
+				Languages: []string{"go"},
+			},
+		},
+		{
+			name: "rule with both rule_name and tool_name",
+			yaml: `rule_name: go-standards
+tool_name: go-linter
+languages:
+  - go
+`,
+			want: RuleFrontMatter{
+				RuleName:  "go-standards",
+				ToolName:  "go-linter",
+				Languages: []string{"go"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -152,6 +189,9 @@ languages:
 			}
 			if got.RuleName != tt.want.RuleName {
 				t.Errorf("RuleName = %q, want %q", got.RuleName, tt.want.RuleName)
+			}
+			if got.ToolName != tt.want.ToolName {
+				t.Errorf("ToolName = %q, want %q", got.ToolName, tt.want.ToolName)
 			}
 		})
 	}

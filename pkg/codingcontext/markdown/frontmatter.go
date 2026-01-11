@@ -16,6 +16,10 @@ type BaseFrontMatter struct {
 type TaskFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
 
+	// TaskName is an optional identifier for the task file
+	// This is a conventional naming field for consistency across file types
+	TaskName string `yaml:"task_name,omitempty" json:"task_name,omitempty"`
+
 	// Agent specifies the default agent if not specified via -a flag
 	// This is not used for selecting tasks or rules, only as a default
 	Agent string `yaml:"agent,omitempty" json:"agent,omitempty"`
@@ -75,6 +79,10 @@ func (t *TaskFrontMatter) UnmarshalJSON(data []byte) error {
 type CommandFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
 
+	// CommandName is an optional identifier for the command file
+	// This is a conventional naming field for consistency across file types
+	CommandName string `yaml:"command_name,omitempty" json:"command_name,omitempty"`
+
 	// ExpandParams controls whether parameter expansion should occur
 	// Defaults to true if not specified
 	ExpandParams *bool `yaml:"expand,omitempty" json:"expand,omitempty"`
@@ -126,7 +134,12 @@ type RuleFrontMatter struct {
 	MCPServer mcp.MCPServerConfig `yaml:"mcp_server,omitempty" json:"mcp_server,omitempty"`
 
 	// RuleName is an optional identifier for the rule file
+	// This is a conventional naming field for consistency across file types
 	RuleName string `yaml:"rule_name,omitempty" json:"rule_name,omitempty"`
+
+	// ToolName is an optional identifier when this rule defines a tool
+	// Since rules can be tools, this provides a consistent naming convention
+	ToolName string `yaml:"tool_name,omitempty" json:"tool_name,omitempty"`
 
 	// ExpandParams controls whether parameter expansion should occur
 	// Defaults to true if not specified
@@ -161,7 +174,12 @@ type SkillFrontMatter struct {
 
 	// Name is the skill identifier (required)
 	// Must be 1-64 characters, lowercase alphanumeric and hyphens only
+	// SkillName is an alias for Name for consistency across file types
 	Name string `yaml:"name" json:"name"`
+
+	// SkillName is an alternative field name for Name, providing consistency
+	// If both are specified, Name takes precedence
+	SkillName string `yaml:"skill_name,omitempty" json:"skill_name,omitempty"`
 
 	// Description explains what the skill does and when to use it (required)
 	// Must be 1-1024 characters
