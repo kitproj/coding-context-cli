@@ -435,7 +435,40 @@ field3: "string value"
 
 ### 5.2 Standard Task Fields
 
-#### 5.2.1 `task_name` (optional)
+#### 5.2.1 `id` (optional)
+- **Type:** String
+- **Purpose:** Unique identifier for the task
+- **Note:** Metadata only, does not affect task matching or filtering
+
+```yaml
+---
+id: task-12345
+---
+```
+
+#### 5.2.2 `name` (optional)
+- **Type:** String
+- **Purpose:** Human-readable name for the task
+- **Note:** Metadata only, does not affect task matching or filtering
+
+```yaml
+---
+name: Fix Critical Bug
+---
+```
+
+#### 5.2.3 `description` (optional)
+- **Type:** String
+- **Purpose:** Description of what the task does
+- **Note:** Metadata only, does not affect task matching or filtering
+
+```yaml
+---
+description: Fix the critical bug affecting user authentication
+---
+```
+
+#### 5.2.4 `task_name` (optional)
 - **Type:** String
 - **Purpose:** Metadata identifier for the task
 - **Note:** Tasks are matched by filename, not this field
@@ -446,7 +479,7 @@ task_name: fix-bug
 ---
 ```
 
-#### 5.2.2 `resume` (optional)
+#### 5.2.5 `resume` (optional)
 - **Type:** Boolean
 - **Purpose:** Indicates if task is for resuming work
 - **Default:** `false`
@@ -458,7 +491,7 @@ resume: true
 ---
 ```
 
-#### 5.2.3 `languages` (optional)
+#### 5.2.6 `languages` (optional)
 - **Type:** Array of strings (recommended) or string
 - **Purpose:** Metadata about programming languages
 - **Note:** Metadata only, does not auto-filter rules
@@ -472,7 +505,7 @@ languages:
 ---
 ```
 
-#### 5.2.4 `agent` (optional)
+#### 5.2.7 `agent` (optional)
 - **Type:** String
 - **Purpose:** Target agent, acts as default selector
 - **Values:** `cursor`, `copilot`, `claude`, `gemini`, `opencode`, `augment`, `windsurf`, `codex`
@@ -483,7 +516,7 @@ agent: cursor
 ---
 ```
 
-#### 5.2.5 `model` (optional)
+#### 5.2.8 `model` (optional)
 - **Type:** String
 - **Purpose:** AI model identifier (metadata only)
 
@@ -493,7 +526,7 @@ model: anthropic.claude-sonnet-4-20250514-v1-0
 ---
 ```
 
-#### 5.2.6 `single_shot` (optional)
+#### 5.2.9 `single_shot` (optional)
 - **Type:** Boolean
 - **Purpose:** Indicates single vs. multi-execution
 - **Note:** Metadata only
@@ -504,7 +537,7 @@ single_shot: true
 ---
 ```
 
-#### 5.2.7 `timeout` (optional)
+#### 5.2.10 `timeout` (optional)
 - **Type:** String (Go time.Duration format)
 - **Purpose:** Task execution timeout
 - **Note:** Metadata only
@@ -515,7 +548,7 @@ timeout: 10m
 ---
 ```
 
-#### 5.2.8 `selectors` (optional)
+#### 5.2.11 `selectors` (optional)
 - **Type:** Map of key-value pairs
 - **Purpose:** Auto-filter rules for this task
 - **Supports:** Scalar values and arrays (OR logic)
@@ -537,7 +570,7 @@ selectors:
 ---
 ```
 
-#### 5.2.9 `expand` (optional)
+#### 5.2.12 `expand` (optional)
 - **Type:** Boolean
 - **Purpose:** Control parameter expansion
 - **Default:** `true`
@@ -550,7 +583,40 @@ expand: false
 
 ### 5.3 Standard Rule Fields
 
-#### 5.3.1 `languages` (optional)
+#### 5.3.1 `id` (optional)
+- **Type:** String
+- **Purpose:** Unique identifier for the rule
+- **Note:** Metadata only, does not affect rule matching or filtering
+
+```yaml
+---
+id: rule-12345
+---
+```
+
+#### 5.3.2 `name` (optional)
+- **Type:** String
+- **Purpose:** Human-readable name for the rule
+- **Note:** Metadata only, does not affect rule matching or filtering
+
+```yaml
+---
+name: Go Implementation Standards
+---
+```
+
+#### 5.3.3 `description` (optional)
+- **Type:** String
+- **Purpose:** Description of what the rule provides
+- **Note:** Metadata only, does not affect rule matching or filtering
+
+```yaml
+---
+description: Standards and best practices for Go implementation
+---
+```
+
+#### 5.3.4 `languages` (optional)
 - **Type:** Array or string
 - **Purpose:** Filter rules by programming language
 - **Values:** Lowercase language names
@@ -562,7 +628,7 @@ languages:
 ---
 ```
 
-#### 5.3.2 `stage` (optional)
+#### 5.3.5 `stage` (optional)
 - **Type:** String
 - **Purpose:** Filter by development stage
 - **Common values:** `planning`, `implementation`, `testing`, `review`
@@ -573,7 +639,7 @@ stage: implementation
 ---
 ```
 
-#### 5.3.3 `agent` (optional)
+#### 5.3.6 `agent` (optional)
 - **Type:** String
 - **Purpose:** Target specific agent
 
@@ -583,7 +649,7 @@ agent: cursor
 ---
 ```
 
-#### 5.3.4 `mcp_server` (optional)
+#### 5.3.7 `mcp_server` (optional)
 - **Type:** Object
 - **Purpose:** Model Context Protocol server configuration
 
@@ -1554,6 +1620,9 @@ Potential future additions while maintaining backward compatibility:
 
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
+| `id` | string | No | Unique identifier (metadata) |
+| `name` | string | No | Human-readable name (metadata) |
+| `description` | string | No | Task description (metadata) |
 | `task_name` | string | No | Metadata identifier |
 | `resume` | boolean | No | Resume mode indicator |
 | `languages` | array/string | No | Programming languages (metadata) |
@@ -1568,10 +1637,23 @@ Potential future additions while maintaining backward compatibility:
 
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
+| `id` | string | No | Unique identifier (metadata) |
+| `name` | string | No | Human-readable name (metadata) |
+| `description` | string | No | Rule description (metadata) |
 | `languages` | array/string | No | Language filter |
 | `stage` | string | No | Development stage filter |
 | `agent` | string | No | Agent filter |
 | `mcp_server` | object | No | MCP server config |
+
+### Command Fields
+
+| Field | Type | Required | Purpose |
+|-------|------|----------|---------|
+| `id` | string | No | Unique identifier (metadata) |
+| `name` | string | No | Human-readable name (metadata) |
+| `description` | string | No | Command description (metadata) |
+| `expand` | boolean | No | Parameter expansion control |
+| `selectors` | object | No | Auto-filter rules |
 
 ### Skill Fields
 
