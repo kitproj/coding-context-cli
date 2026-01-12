@@ -19,6 +19,18 @@ func TestRuleFrontMatter_Marshal(t *testing.T) {
 			want: "{}\n",
 		},
 		{
+			name: "rule with standard id, name, description",
+			rule: RuleFrontMatter{
+				ID:          "rule-789",
+				Name:        "Standard Rule",
+				Description: "This is a standard rule with metadata",
+			},
+			want: `id: rule-789
+name: Standard Rule
+description: This is a standard rule with metadata
+`,
+		},
+		{
 			name: "rule with task_names",
 			rule: RuleFrontMatter{
 				TaskNames: []string{"implement-feature"},
@@ -48,9 +60,12 @@ agent: cursor
 		{
 			name: "rule with all fields",
 			rule: RuleFrontMatter{
-				TaskNames: []string{"test-task"},
-				Languages: []string{"go", "python"},
-				Agent:     "copilot",
+				ID:          "all-fields-rule",
+				Name:        "Complete Rule",
+				Description: "A rule with all fields",
+				TaskNames:   []string{"test-task"},
+				Languages:   []string{"go", "python"},
+				Agent:       "copilot",
 				MCPServer: mcp.MCPServerConfig{
 					Type:    mcp.TransportTypeStdio,
 					Command: "database-server",
@@ -58,7 +73,10 @@ agent: cursor
 				},
 				RuleName: "test-rule",
 			},
-			want: `task_names:
+			want: `id: all-fields-rule
+name: Complete Rule
+description: A rule with all fields
+task_names:
 - test-task
 languages:
 - go
@@ -95,6 +113,18 @@ func TestRuleFrontMatter_Unmarshal(t *testing.T) {
 		want    RuleFrontMatter
 		wantErr bool
 	}{
+		{
+			name: "rule with standard id, name, description",
+			yaml: `id: rule-987
+name: Named Rule
+description: A rule with standard fields
+`,
+			want: RuleFrontMatter{
+				ID:          "rule-987",
+				Name:        "Named Rule",
+				Description: "A rule with standard fields",
+			},
+		},
 		{
 			name: "rule with task_names and languages",
 			yaml: `task_names:
@@ -147,6 +177,15 @@ languages:
 			}
 
 			// Compare fields individually
+			if got.ID != tt.want.ID {
+				t.Errorf("ID = %q, want %q", got.ID, tt.want.ID)
+			}
+			if got.Name != tt.want.Name {
+				t.Errorf("Name = %q, want %q", got.Name, tt.want.Name)
+			}
+			if got.Description != tt.want.Description {
+				t.Errorf("Description = %q, want %q", got.Description, tt.want.Description)
+			}
 			if got.Agent != tt.want.Agent {
 				t.Errorf("Agent = %q, want %q", got.Agent, tt.want.Agent)
 			}
