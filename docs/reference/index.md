@@ -16,5 +16,6 @@ These reference documents provide detailed information about the standard, comma
 - [Specification](./specification) - The Coding Context Standard specification
 - [CLI Reference](./cli) - Command-line options and arguments
 - [File Formats](./file-formats) - Task and rule file specifications
+- [Frontmatter Options](./frontmatter-options) - Comprehensive list of frontmatter fields
 - [Search Paths](./search-paths) - Where files are discovered
 - [Supported Agents](./supported-agents) - Comprehensive list of compatible AI coding agents

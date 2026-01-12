@@ -52,6 +52,7 @@ Technical specifications and API details:
 - [Specification](./reference/specification) - The Coding Context Standard specification
 - [CLI Reference](./reference/cli) - Command-line options and arguments
 - [File Formats](./reference/file-formats) - Task and rule file specifications
+- [Frontmatter Options](./reference/frontmatter-options) - Comprehensive list of frontmatter fields
 - [Search Paths](./reference/search-paths) - Where files are discovered
 - [Supported Agents](./reference/supported-agents) - Complete list of 35+ compatible AI coding agents
 
