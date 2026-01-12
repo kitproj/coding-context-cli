@@ -22,22 +22,44 @@ func TestTaskFrontMatter_Marshal(t *testing.T) {
 			want: "task_name: test-task\n",
 		},
 		{
+			name: "task with standard id, name, description",
+			task: TaskFrontMatter{
+				BaseFrontMatter: BaseFrontMatter{
+					Content: map[string]any{"task_name": "standard-task"},
+				},
+				ID:          "task-123",
+				Name:        "Standard Test Task",
+				Description: "This is a test task with standard fields",
+			},
+			want: `task_name: standard-task
+id: task-123
+name: Standard Test Task
+description: This is a test task with standard fields
+`,
+		},
+		{
 			name: "task with all fields",
 			task: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
 					Content: map[string]any{"task_name": "full-task"},
 				},
-				Agent:      "cursor",
-				Languages:  []string{"go"},
-				Model:      "gpt-4",
-				SingleShot: true,
-				Timeout:    "10m",
-				Resume:     false,
+				ID:          "full-123",
+				Name:        "Full Task",
+				Description: "A task with all fields",
+				Agent:       "cursor",
+				Languages:   []string{"go"},
+				Model:       "gpt-4",
+				SingleShot:  true,
+				Timeout:     "10m",
+				Resume:      false,
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},
 			},
 			want: `task_name: full-task
+id: full-123
+name: Full Task
+description: A task with all fields
 agent: cursor
 languages:
 - go
@@ -95,6 +117,22 @@ func TestTaskFrontMatter_Unmarshal(t *testing.T) {
 			},
 		},
 		{
+			name: "task with standard id, name, description",
+			yaml: `task_name: standard-task
+id: task-456
+name: Standard Task
+description: This is a standard task
+`,
+			want: TaskFrontMatter{
+				BaseFrontMatter: BaseFrontMatter{
+					Content: map[string]any{"task_name": "standard-task"},
+				},
+				ID:          "task-456",
+				Name:        "Standard Task",
+				Description: "This is a standard task",
+			},
+		},
+		{
 			name: "task with single language",
 			yaml: `task_name: test-task
 languages:
@@ -124,6 +162,9 @@ languages:
 		{
 			name: "full task",
 			yaml: `task_name: full-task
+id: full-456
+name: Full Task
+description: A complete task
 agent: cursor
 languages:
   - go
@@ -137,11 +178,14 @@ selectors:
 				BaseFrontMatter: BaseFrontMatter{
 					Content: map[string]any{"task_name": "full-task"},
 				},
-				Agent:      "cursor",
-				Languages:  []string{"go"},
-				Model:      "gpt-4",
-				SingleShot: true,
-				Timeout:    "10m",
+				ID:          "full-456",
+				Name:        "Full Task",
+				Description: "A complete task",
+				Agent:       "cursor",
+				Languages:   []string{"go"},
+				Model:       "gpt-4",
+				SingleShot:  true,
+				Timeout:     "10m",
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},
@@ -165,6 +209,15 @@ selectors:
 			wantTaskName, _ := tt.want.Content["task_name"].(string)
 			if gotTaskName != wantTaskName {
 				t.Errorf("TaskName = %q, want %q", gotTaskName, wantTaskName)
+			}
+			if got.ID != tt.want.ID {
+				t.Errorf("ID = %q, want %q", got.ID, tt.want.ID)
+			}
+			if got.Name != tt.want.Name {
+				t.Errorf("Name = %q, want %q", got.Name, tt.want.Name)
+			}
+			if got.Description != tt.want.Description {
+				t.Errorf("Description = %q, want %q", got.Description, tt.want.Description)
 			}
 			if got.Agent != tt.want.Agent {
 				t.Errorf("Agent = %q, want %q", got.Agent, tt.want.Agent)

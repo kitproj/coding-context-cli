@@ -1,4 +1,7 @@
 ---
+id: task-example-001
+name: Example Task with Standard Frontmatter Fields
+description: This task demonstrates all standard frontmatter fields supported by the coding-context CLI
 task_name: example-with-standard-fields
 agent: cursor
 language: go
@@ -11,7 +14,17 @@ selectors:
 
 # Example Task with Standard Frontmatter Fields
 
-This task demonstrates all standard frontmatter fields supported by the coding-context CLI.
+This task demonstrates all standard frontmatter fields supported by the coding-context CLI, including the newly added `id`, `name`, and `description` fields.
+
+## New Standard Fields (Metadata Only)
+
+These are the new standard fields that have been added:
+
+- **id**: `task-example-001` - A unique identifier for the task
+- **name**: `Example Task with Standard Frontmatter Fields` - A human-readable name
+- **description**: See frontmatter - A description of what the task does
+
+These fields are metadata only and do not affect task matching or filtering.
 
 ## Standard Fields (Default Selectors)
 
