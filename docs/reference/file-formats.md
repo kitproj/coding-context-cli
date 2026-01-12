@@ -29,6 +29,48 @@ Content can include ${parameter_placeholders}.
 
 ### Frontmatter Fields
 
+#### `id` (optional, standard field)
+
+**Type:** String  
+**Purpose:** Unique identifier for the task. This field is metadata only and does not affect task matching or filtering.
+
+**Example:**
+```yaml
+---
+id: task-12345
+---
+```
+
+**Note:** The `id` field is purely informational and can be used to track tasks in external systems or for auditing purposes.
+
+#### `name` (optional, standard field)
+
+**Type:** String  
+**Purpose:** Human-readable name for the task. This field is metadata only and does not affect task matching or filtering.
+
+**Example:**
+```yaml
+---
+name: Fix Critical Authentication Bug
+---
+```
+
+**Note:** The `name` field is useful for display purposes and documentation, but tasks are still matched by their filename.
+
+#### `description` (optional, standard field)
+
+**Type:** String  
+**Purpose:** Description of what the task does. This field is metadata only and does not affect task matching or filtering.
+
+**Example:**
+```yaml
+---
+description: Fix the critical bug affecting user authentication in the login flow
+---
+```
+
+**Note:** The `description` field provides additional context about the task's purpose and goals.
+
 #### `task_name` (optional)
 
 **Type:** String  
@@ -439,6 +481,48 @@ This content will be substituted when the command is referenced.
 
 ### Frontmatter Fields (optional)
 
+#### `id` (optional, standard field)
+
+**Type:** String  
+**Purpose:** Unique identifier for the command. This field is metadata only and does not affect command matching or filtering.
+
+**Example:**
+```yaml
+---
+id: cmd-12345
+---
+```
+
+**Note:** The `id` field is useful for tracking commands in external systems.
+
+#### `name` (optional, standard field)
+
+**Type:** String  
+**Purpose:** Human-readable name for the command. This field is metadata only and does not affect command matching or filtering.
+
+**Example:**
+```yaml
+---
+name: Database Setup
+---
+```
+
+**Note:** The `name` field helps identify the command's purpose in documentation.
+
+#### `description` (optional, standard field)
+
+**Type:** String  
+**Purpose:** Description of what the command does. This field is metadata only and does not affect command matching or filtering.
+
+**Example:**
+```yaml
+---
+description: Sets up PostgreSQL database with authentication
+---
+```
+
+**Note:** The `description` field provides context about the command's functionality.
+
 #### `expand` (optional)
 
 **Type:** Boolean  
@@ -562,6 +646,48 @@ Guidelines, standards, or context for AI agents.
 All frontmatter fields are optional and used for filtering.
 
 **Standard fields for rules:**
+
+#### `id` (optional, standard field)
+
+**Type:** String  
+**Purpose:** Unique identifier for the rule. This field is metadata only and does not affect rule matching or filtering.
+
+**Example:**
+```yaml
+---
+id: rule-12345
+---
+```
+
+**Note:** The `id` field is useful for tracking rules in external systems or for documentation purposes.
+
+#### `name` (optional, standard field)
+
+**Type:** String  
+**Purpose:** Human-readable name for the rule. This field is metadata only and does not affect rule matching or filtering.
+
+**Example:**
+```yaml
+---
+name: Go Implementation Standards
+---
+```
+
+**Note:** The `name` field helps identify the rule's purpose in documentation and tooling.
+
+#### `description` (optional, standard field)
+
+**Type:** String  
+**Purpose:** Description of what the rule provides. This field is metadata only and does not affect rule matching or filtering.
+
+**Example:**
+```yaml
+---
+description: Standards and best practices for implementing Go code
+---
+```
+
+**Note:** The `description` field provides context about what guidance the rule offers.
 
 #### `task_names` (rule selector)
 
