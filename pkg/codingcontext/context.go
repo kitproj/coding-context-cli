@@ -375,6 +375,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 	// Build and return the result
 	result := &Result{
+		Name:   taskName,
 		Rules:  cc.rules,
 		Task:   cc.task,
 		Skills: cc.skills,
