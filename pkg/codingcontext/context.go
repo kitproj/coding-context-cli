@@ -129,6 +129,13 @@ func (cc *Context) findTask(taskName string) error {
 			return fmt.Errorf("failed to parse task file %s: %w", path, err)
 		}
 
+		// Automatically set ID to filename (without extension) if not set in frontmatter
+		if frontMatter.ID == "" {
+			baseName := filepath.Base(path)
+			ext := filepath.Ext(baseName)
+			frontMatter.ID = strings.TrimSuffix(baseName, ext)
+		}
+
 		// Extract selector labels from task frontmatter and add them to cc.includes.
 		// This combines CLI selectors (from -s flag) with task selectors using OR logic:
 		// rules match if their frontmatter value matches ANY selector value for a given key.
@@ -227,6 +234,13 @@ func (cc *Context) findCommand(commandName string, params taskparser.Params) (st
 		md, err := markdown.ParseMarkdownFile(path, &frontMatter)
 		if err != nil {
 			return fmt.Errorf("failed to parse command file %s: %w", path, err)
+		}
+
+		// Automatically set ID to filename (without extension) if not set in frontmatter
+		if frontMatter.ID == "" {
+			baseName := filepath.Base(path)
+			ext := filepath.Ext(baseName)
+			frontMatter.ID = strings.TrimSuffix(baseName, ext)
 		}
 
 		// Extract selector labels from command frontmatter and add them to cc.includes.

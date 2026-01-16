@@ -355,6 +355,32 @@ func TestContext_Run_Basic(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "task ID automatically set from filename",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "my-task", "", "Task content")
+			},
+			taskName: "my-task",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if result.Task.FrontMatter.ID != "my-task" {
+					t.Errorf("expected task ID 'my-task', got %q", result.Task.FrontMatter.ID)
+				}
+			},
+		},
+		{
+			name: "task with explicit ID in frontmatter",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "file-name", "id: explicit-task-id", "Task content")
+			},
+			taskName: "file-name",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if result.Task.FrontMatter.ID != "explicit-task-id" {
+					t.Errorf("expected task ID 'explicit-task-id', got %q", result.Task.FrontMatter.ID)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
