@@ -1,6 +1,8 @@
 package codingcontext
 
 import (
+	"fmt"
+
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/skills"
@@ -16,19 +18,25 @@ type Result struct {
 	Prompt string                                        // Combined prompt: all rules and task content
 }
 
-// MCPServers returns all MCP server configurations from rules.
+// MCPServers returns all MCP server configurations from rules as a map.
 // Each rule can specify one MCP server configuration.
-// Returns a slice of all configured MCP servers from rules only.
+// Returns a map from rule ID to MCP server configuration.
 // Empty/zero-value MCP server configurations are filtered out.
-func (r *Result) MCPServers() []mcp.MCPServerConfig {
-	var servers []mcp.MCPServerConfig
+// Rules without an ID field are included with a generated key "rule-<index>".
+func (r *Result) MCPServers() map[string]mcp.MCPServerConfig {
+	servers := make(map[string]mcp.MCPServerConfig)
 
 	// Add server from each rule, filtering out empty configs
-	for _, rule := range r.Rules {
+	for i, rule := range r.Rules {
 		server := rule.FrontMatter.MCPServer
 		// Skip empty MCP server configs (no command and no URL means empty)
 		if server.Command != "" || server.URL != "" {
-			servers = append(servers, server)
+			// Use the rule's ID as the key, or generate one if not present
+			key := rule.FrontMatter.ID
+			if key == "" {
+				key = fmt.Sprintf("rule-%d", i)
+			}
+			servers[key] = server
 		}
 	}
 
