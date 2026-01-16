@@ -56,6 +56,14 @@ func New(opts ...Option) *Context {
 	return c
 }
 
+// generateIDFromPath generates an ID from a file path by extracting the filename without extension.
+// Used to auto-set ID fields in frontmatter when not explicitly provided.
+func generateIDFromPath(path string) string {
+	baseName := filepath.Base(path)
+	ext := filepath.Ext(baseName)
+	return strings.TrimSuffix(baseName, ext)
+}
+
 type markdownVisitor func(path string, fm *markdown.BaseFrontMatter) error
 
 // findMarkdownFile searches for a markdown file by name in the given directories.
@@ -131,9 +139,7 @@ func (cc *Context) findTask(taskName string) error {
 
 		// Automatically set ID to filename (without extension) if not set in frontmatter
 		if frontMatter.ID == "" {
-			baseName := filepath.Base(path)
-			ext := filepath.Ext(baseName)
-			frontMatter.ID = strings.TrimSuffix(baseName, ext)
+			frontMatter.ID = generateIDFromPath(path)
 		}
 
 		// Extract selector labels from task frontmatter and add them to cc.includes.
@@ -238,9 +244,7 @@ func (cc *Context) findCommand(commandName string, params taskparser.Params) (st
 
 		// Automatically set ID to filename (without extension) if not set in frontmatter
 		if frontMatter.ID == "" {
-			baseName := filepath.Base(path)
-			ext := filepath.Ext(baseName)
-			frontMatter.ID = strings.TrimSuffix(baseName, ext)
+			frontMatter.ID = generateIDFromPath(path)
 		}
 
 		// Extract selector labels from command frontmatter and add them to cc.includes.
@@ -532,9 +536,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 
 		// Automatically set ID to filename (without extension) if not set in frontmatter
 		if frontmatter.ID == "" {
-			baseName := filepath.Base(path)
-			ext := filepath.Ext(baseName)
-			frontmatter.ID = strings.TrimSuffix(baseName, ext)
+			frontmatter.ID = generateIDFromPath(path)
 		}
 
 		// Expand parameters only if expand is not explicitly set to false
