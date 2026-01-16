@@ -61,6 +61,10 @@ func TestResult_Prompt(t *testing.T) {
 				t.Fatalf("Run() error = %v", err)
 			}
 
+			if result.Name != tt.taskName {
+				t.Errorf("Result.Name = %q, want %q", result.Name, tt.taskName)
+			}
+
 			if result.Prompt != tt.want {
 				t.Errorf("Result.Prompt = %q, want %q", result.Prompt, tt.want)
 			}
@@ -77,6 +81,7 @@ func TestResult_MCPServers(t *testing.T) {
 		{
 			name: "no MCP servers",
 			result: Result{
+				Name:  "test-task",
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{},
 				Task: markdown.Markdown[markdown.TaskFrontMatter]{
 					FrontMatter: markdown.TaskFrontMatter{},
@@ -87,6 +92,7 @@ func TestResult_MCPServers(t *testing.T) {
 		{
 			name: "MCP servers from rules only",
 			result: Result{
+				Name: "test-task",
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
@@ -111,6 +117,7 @@ func TestResult_MCPServers(t *testing.T) {
 		{
 			name: "multiple rules with MCP servers and empty rule",
 			result: Result{
+				Name: "test-task",
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
@@ -139,6 +146,7 @@ func TestResult_MCPServers(t *testing.T) {
 		{
 			name: "rule without MCP server",
 			result: Result{
+				Name: "test-task",
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{},
