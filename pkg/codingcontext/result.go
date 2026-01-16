@@ -8,6 +8,7 @@ import (
 
 // Result holds the assembled context from running a task
 type Result struct {
+	Name   string                                        // Name of the task
 	Rules  []markdown.Markdown[markdown.RuleFrontMatter] // List of included rule files
 	Task   markdown.Markdown[markdown.TaskFrontMatter]   // Task file with frontmatter and content
 	Skills skills.AvailableSkills                        // List of discovered skills (metadata only)
