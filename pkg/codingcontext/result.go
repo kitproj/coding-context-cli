@@ -17,19 +17,21 @@ type Result struct {
 	Prompt string                                        // Combined prompt: all rules and task content
 }
 
-// MCPServers returns all MCP server configurations from rules.
+// MCPServers returns all MCP server configurations from rules as a map.
 // Each rule can specify one MCP server configuration.
-// Returns a slice of all configured MCP servers from rules only.
+// Returns a map from rule ID to MCP server configuration.
 // Empty/zero-value MCP server configurations are filtered out.
-func (r *Result) MCPServers() []mcp.MCPServerConfig {
-	var servers []mcp.MCPServerConfig
+// The rule ID is automatically set to the filename (without extension) if not
+// explicitly provided in the frontmatter.
+func (r *Result) MCPServers() map[string]mcp.MCPServerConfig {
+	servers := make(map[string]mcp.MCPServerConfig)
 
 	// Add server from each rule, filtering out empty configs
 	for _, rule := range r.Rules {
 		server := rule.FrontMatter.MCPServer
 		// Skip empty MCP server configs (no command and no URL means empty)
 		if server.Command != "" || server.URL != "" {
-			servers = append(servers, server)
+			servers[rule.FrontMatter.ID] = server
 		}
 	}
 
