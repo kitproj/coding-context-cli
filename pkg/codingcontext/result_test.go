@@ -111,16 +111,18 @@ func TestResult_MCPServers(t *testing.T) {
 			},
 		},
 		{
-			name: "MCP servers from rules without IDs",
+			name: "MCP servers from rules without explicit IDs in frontmatter",
 			result: Result{
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
+							ID:        "rule-file-1", // ID is auto-set to filename during loading
 							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
+							ID:        "rule-file-2", // ID is auto-set to filename during loading
 							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
 						},
 					},
@@ -130,8 +132,8 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 			},
 			want: map[string]mcp.MCPServerConfig{
-				"rule-0": {Type: mcp.TransportTypeStdio, Command: "server1"},
-				"rule-1": {Type: mcp.TransportTypeStdio, Command: "server2"},
+				"rule-file-1": {Type: mcp.TransportTypeStdio, Command: "server1"},
+				"rule-file-2": {Type: mcp.TransportTypeStdio, Command: "server2"},
 			},
 		},
 		{
@@ -185,23 +187,24 @@ func TestResult_MCPServers(t *testing.T) {
 			},
 		},
 		{
-			name: "mixed rules with and without IDs",
+			name: "mixed rules with explicit and auto-generated IDs",
 			result: Result{
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							ID:        "explicit-id",
+							ID:        "explicit-id", // Explicit ID in frontmatter
 							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
+							ID:        "some-rule", // ID auto-set to filename during loading
 							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							ID:        "another-id",
+							ID:        "another-id", // Explicit ID in frontmatter
 							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
 						},
 					},
@@ -212,7 +215,7 @@ func TestResult_MCPServers(t *testing.T) {
 			},
 			want: map[string]mcp.MCPServerConfig{
 				"explicit-id": {Type: mcp.TransportTypeStdio, Command: "server1"},
-				"rule-1":      {Type: mcp.TransportTypeStdio, Command: "server2"},
+				"some-rule":   {Type: mcp.TransportTypeStdio, Command: "server2"},
 				"another-id":  {Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
 			},
 		},

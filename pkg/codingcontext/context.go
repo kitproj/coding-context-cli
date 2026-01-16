@@ -516,6 +516,13 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 			return fmt.Errorf("failed to parse markdown file %s: %w", path, err)
 		}
 
+		// Automatically set ID to filename (without extension) if not set in frontmatter
+		if frontmatter.ID == "" {
+			baseName := filepath.Base(path)
+			ext := filepath.Ext(baseName)
+			frontmatter.ID = strings.TrimSuffix(baseName, ext)
+		}
+
 		// Expand parameters only if expand is not explicitly set to false
 		var processedContent string
 		if shouldExpandParams(frontmatter.ExpandParams) {
