@@ -55,12 +55,13 @@ func ParseMarkdownFile[T any](path string, frontMatter *T) (Markdown[T], error) 
 		case 1: // Scanning frontmatter
 			if line == "---" {
 				state = 2 // End of frontmatter, start scanning content
+				// From here on, just copy everything as-is to content
 			} else {
 				if _, err := frontMatterBytes.WriteString(line + "\n"); err != nil {
 					return Markdown[T]{}, fmt.Errorf("failed to write frontmatter: %w", err)
 				}
 			}
-		case 2: // Scanning content
+		case 2: // Scanning content - copy everything as-is
 			if _, err := content.WriteString(line + "\n"); err != nil {
 				return Markdown[T]{}, fmt.Errorf("failed to write content: %w", err)
 			}

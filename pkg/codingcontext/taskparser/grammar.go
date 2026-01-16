@@ -38,7 +38,8 @@ type Argument struct {
 // It can span multiple lines, consuming line content and newlines
 // But it will stop before a newline that's followed by a slash (potential command)
 type Text struct {
-	Lines []TextLine `parser:"@@+"`
+	LeadingNewlines []string   `parser:"@Newline*"` // Leading newlines before any content (empty lines at the start)
+	Lines           []TextLine `parser:"@@+"`       // At least one line with actual content
 }
 
 // TextLine is a single line of text content (not starting with a slash)

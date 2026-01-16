@@ -160,6 +160,11 @@ func (s *SlashCommand) Params() Params {
 // Content returns the text content with all lines concatenated
 func (t *Text) Content() string {
 	var sb strings.Builder
+	// Write leading newlines first
+	for _, nl := range t.LeadingNewlines {
+		sb.WriteString(nl)
+	}
+	// Then write all the lines
 	for _, line := range t.Lines {
 		for _, tok := range line.NonSlashStart {
 			sb.WriteString(tok)
