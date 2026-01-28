@@ -136,7 +136,7 @@ func TestExpandCommands(t *testing.T) {
 		},
 		{
 			name:     "command output not trimmed",
-			content:  "!`echo -n hello` world",
+			content:  "!`printf 'hello'` world",
 			expected: "hello world",
 		},
 		{

@@ -86,6 +86,7 @@ func main() {
         codingcontext.WithSelectors(sel),
         codingcontext.WithAgent(codingcontext.AgentCursor),
         codingcontext.WithResume(false),
+        codingcontext.WithBootstrap(true),
         codingcontext.WithUserPrompt("Additional context or instructions"),
         codingcontext.WithManifestURL("https://example.com/manifest.txt"),
         codingcontext.WithLogger(slog.New(slog.NewTextHandler(os.Stderr, nil))),
@@ -293,7 +294,8 @@ Creates a new Context with the given options.
 - `WithParams(params taskparams.Params)` - Set parameters for substitution (import `taskparams` package)
 - `WithSelectors(selectors selectors.Selectors)` - Set selectors for filtering rules (import `selectors` package)
 - `WithAgent(agent Agent)` - Set target agent (excludes that agent's own rules)
-- `WithResume(resume bool)` - Enable resume mode (skips rules)
+- `WithResume(resume bool)` - Set resume selector to "true" (for filtering tasks by frontmatter resume field)
+- `WithBootstrap(doBootstrap bool)` - Control whether to discover rules, skills, and run bootstrap scripts (default: true)
 - `WithUserPrompt(userPrompt string)` - Set user prompt to append to task
 - `WithManifestURL(manifestURL string)` - Set manifest URL for additional search paths
 - `WithLogger(logger *slog.Logger)` - Set logger

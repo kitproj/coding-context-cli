@@ -24,6 +24,7 @@ func main() {
 
 	var workDir string
 	var resume bool
+	var skipBootstrap bool // When true, skips bootstrap (default false means bootstrap enabled)
 	var writeRules bool
 	var agent codingcontext.Agent
 	params := make(taskparser.Params)
@@ -32,7 +33,8 @@ func main() {
 	var manifestURL string
 
 	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
-	flag.BoolVar(&resume, "r", false, "Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.")
+	flag.BoolVar(&resume, "r", false, "Resume mode: set 'resume=true' selector to filter tasks by their frontmatter resume field.")
+	flag.BoolVar(&skipBootstrap, "skip-bootstrap", false, "Skip bootstrap: skip discovering rules, skills, and running bootstrap scripts.")
 	flag.BoolVar(&writeRules, "w", false, "Write rules to the agent's user rules path and only print the prompt to stdout. Requires agent (via task 'agent' field or -a flag).")
 	flag.Var(&agent, "a", "Target agent to use. Required when using -w to write rules to the agent's user rules path. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
@@ -87,6 +89,7 @@ func main() {
 		codingcontext.WithSearchPaths(searchPaths...),
 		codingcontext.WithLogger(logger),
 		codingcontext.WithResume(resume),
+		codingcontext.WithBootstrap(!skipBootstrap), // Invert: skipBootstrap=false means bootstrap enabled
 		codingcontext.WithAgent(agent),
 		codingcontext.WithManifestURL(manifestURL),
 		codingcontext.WithUserPrompt(userPrompt),
@@ -107,8 +110,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Skip writing rules file in resume mode since no rules are collected
-		if !resume {
+		// Skip writing rules file if bootstrap is disabled since no rules are collected
+		if !skipBootstrap {
 			relativePath := result.Agent.UserRulePath()
 			if relativePath == "" {
 				logger.Error("Error", "error", fmt.Errorf("no user rule path available for agent"))
