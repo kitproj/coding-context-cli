@@ -34,6 +34,7 @@ type Context struct {
 	logger          *slog.Logger
 	cmdRunner       func(cmd *exec.Cmd) error
 	resume          bool
+	doBootstrap     bool // Controls whether to discover rules, skills, and run bootstrap scripts
 	agent           Agent
 	userPrompt      string // User-provided prompt to append to task
 }
@@ -41,11 +42,12 @@ type Context struct {
 // New creates a new Context with the given options
 func New(opts ...Option) *Context {
 	c := &Context{
-		params:   make(taskparser.Params),
-		includes: make(selectors.Selectors),
-		rules:    make([]markdown.Markdown[markdown.RuleFrontMatter], 0),
-		skills:   skills.AvailableSkills{Skills: make([]skills.Skill, 0)},
-		logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
+		params:      make(taskparser.Params),
+		includes:    make(selectors.Selectors),
+		rules:       make([]markdown.Markdown[markdown.RuleFrontMatter], 0),
+		skills:      skills.AvailableSkills{Skills: make([]skills.Skill, 0)},
+		logger:      slog.New(slog.NewTextHandler(os.Stderr, nil)),
+		doBootstrap: true, // Default to true for backward compatibility
 		cmdRunner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
 		},
@@ -522,9 +524,8 @@ func (cc *Context) cleanupDownloadedDirectories() {
 }
 
 func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) error {
-	// Skip rule file discovery if resume mode is enabled
-	// Check cc.resume directly first, then fall back to selector check for backward compatibility
-	if cc.resume || (cc.includes != nil && cc.includes.GetValue("resume", "true")) {
+	// Skip rule file discovery if bootstrap is disabled
+	if !cc.doBootstrap {
 		return nil
 	}
 
@@ -607,9 +608,8 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path string) error {
 // discoverSkills searches for skill directories and loads only their metadata (name and description)
 // for progressive disclosure. Skills are folders containing a SKILL.md file.
 func (cc *Context) discoverSkills() error {
-	// Skip skill discovery if resume mode is enabled
-	// Check cc.resume directly first, then fall back to selector check for backward compatibility
-	if cc.resume || (cc.includes != nil && cc.includes.GetValue("resume", "true")) {
+	// Skip skill discovery if bootstrap is disabled
+	if !cc.doBootstrap {
 		return nil
 	}
 

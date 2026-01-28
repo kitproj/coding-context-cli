@@ -830,65 +830,65 @@ This is the resume task prompt for continuing the bug fix.
 		t.Errorf("normal mode: resume task content should not be in stdout")
 	}
 
-	// Test 2: Run in resume mode (with -s resume=true selector)
+	// Test 2: Run with resume selector and bootstrap disabled (with -s resume=true and --skip-bootstrap)
 	// Capture stdout and stderr separately to verify bootstrap scripts don't run
-	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-s", "resume=true", "fix-bug-resume")
+	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-s", "resume=true", "--skip-bootstrap", "fix-bug-resume")
 	stdout.Reset()
 	stderr.Reset()
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err = cmd.Run(); err != nil {
-		t.Fatalf("failed to run binary in resume mode: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
+		t.Fatalf("failed to run binary with resume selector and bootstrap disabled: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
 	}
 	output = stdout.String()
 	stderrOutput = stderr.String()
 
-	// In resume mode, rules should NOT be included
+	// With bootstrap disabled, rules should NOT be included
 	if strings.Contains(output, "# Coding Standards") {
-		t.Errorf("resume mode: rule content should not be in stdout")
+		t.Errorf("bootstrap disabled: rule content should not be in stdout")
 	}
 
-	// In resume mode, bootstrap scripts should NOT run
+	// With bootstrap disabled, bootstrap scripts should NOT run
 	if strings.Contains(stderrOutput, "RULE_BOOTSTRAP_RAN") {
-		t.Errorf("resume mode: rule bootstrap script should not run (found in stderr: %s)", stderrOutput)
+		t.Errorf("bootstrap disabled: rule bootstrap script should not run (found in stderr: %s)", stderrOutput)
 	}
 
-	// In resume mode, should use the resume task
+	// With resume selector, should use the resume task
 	if !strings.Contains(output, "# Fix Bug (Resume)") {
-		t.Errorf("resume mode: resume task content not found in stdout")
+		t.Errorf("resume selector: resume task content not found in stdout")
 	}
 	if strings.Contains(output, "# Fix Bug (Initial)") {
-		t.Errorf("resume mode: normal task content should not be in stdout")
+		t.Errorf("resume selector: normal task content should not be in stdout")
 	}
 
-	// Test 3: Run in resume mode (with -r flag)
-	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-r", "fix-bug-resume")
+	// Test 3: Run with -r flag (sets resume selector) and --skip-bootstrap (disables bootstrap)
+	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-r", "--skip-bootstrap", "fix-bug-resume")
 	stdout.Reset()
 	stderr.Reset()
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err = cmd.Run(); err != nil {
-		t.Fatalf("failed to run binary in resume mode with -r flag: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
+		t.Fatalf("failed to run binary with -r flag and --skip-bootstrap: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
 	}
 	output = stdout.String()
 	stderrOutput = stderr.String()
 
-	// In resume mode with -r flag, rules should NOT be included
+	// With bootstrap disabled, rules should NOT be included
 	if strings.Contains(output, "# Coding Standards") {
-		t.Errorf("resume mode (-r flag): rule content should not be in stdout")
+		t.Errorf("bootstrap disabled (--skip-bootstrap): rule content should not be in stdout")
 	}
 
-	// In resume mode with -r flag, bootstrap scripts should NOT run
+	// With bootstrap disabled, bootstrap scripts should NOT run
 	if strings.Contains(stderrOutput, "RULE_BOOTSTRAP_RAN") {
-		t.Errorf("resume mode (-r flag): rule bootstrap script should not run (found in stderr: %s)", stderrOutput)
+		t.Errorf("bootstrap disabled (--skip-bootstrap): rule bootstrap script should not run (found in stderr: %s)", stderrOutput)
 	}
 
-	// In resume mode with -r flag, should use the resume task
+	// With -r flag, should use the resume task
 	if !strings.Contains(output, "# Fix Bug (Resume)") {
-		t.Errorf("resume mode (-r flag): resume task content not found in stdout")
+		t.Errorf("resume selector (-r flag): resume task content not found in stdout")
 	}
 	if strings.Contains(output, "# Fix Bug (Initial)") {
-		t.Errorf("resume mode (-r flag): normal task content should not be in stdout")
+		t.Errorf("resume selector (-r flag): normal task content should not be in stdout")
 	}
 }
 
@@ -1221,7 +1221,7 @@ func TestSingleExpansion(t *testing.T) {
 	taskContent := `Task with parameter: ${param1}
 
 And a value that looks like expansion syntax but should not be expanded: ${"nested"}`
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
 		t.Fatalf("failed to create task file: %v", err)
 	}
 
@@ -1252,14 +1252,14 @@ func TestCommandExpansionOnce(t *testing.T) {
 	// Create a command file with a parameter
 	commandFile := filepath.Join(commandsDir, "test-cmd.md")
 	commandContent := `Command param: ${cmd_param}`
-	if err := os.WriteFile(commandFile, []byte(commandContent), 0644); err != nil {
+	if err := os.WriteFile(commandFile, []byte(commandContent), 0o644); err != nil {
 		t.Fatalf("failed to create command file: %v", err)
 	}
 
 	// Create a task that calls the command with a param containing expansion syntax
 	taskFile := filepath.Join(dirs.tasksDir, "test-cmd-task.md")
 	taskContent := `/test-cmd cmd_param="!` + "`echo injected`" + `"`
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
 		t.Fatalf("failed to create task file: %v", err)
 	}
 
@@ -1420,12 +1420,12 @@ This is the task prompt for resume mode.
 	// Create a temporary home directory for this test
 	tmpHome := t.TempDir()
 
-	// Run with -w flag, -r flag (resume mode), and -a copilot
+	// Run with -w flag, -r flag (sets resume selector), --skip-bootstrap (disables bootstrap), and -a copilot
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("failed to get working directory: %v", err)
 	}
-	cmd := exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-a", "copilot", "-w", "-r", "test-task-resume")
+	cmd := exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-a", "copilot", "-w", "-r", "--skip-bootstrap", "test-task-resume")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -1448,7 +1448,7 @@ This is the task prompt for resume mode.
 
 	// Verify that the rules were NOT printed to stdout
 	if strings.Contains(output, "# Test Rule") {
-		t.Errorf("rules should not be in stdout when using -w flag with resume mode")
+		t.Errorf("rules should not be in stdout when using -w flag with bootstrap disabled")
 	}
 
 	// Verify that the task IS printed to stdout
@@ -1459,17 +1459,17 @@ This is the task prompt for resume mode.
 		t.Errorf("task description not found in stdout")
 	}
 
-	// Verify that NO rules file was created in resume mode
+	// Verify that NO rules file was created when bootstrap is disabled
 	expectedRulesPath := filepath.Join(tmpHome, ".github", "agents", "AGENTS.md")
 	if _, err := os.Stat(expectedRulesPath); err == nil {
-		t.Errorf("rules file should NOT be created in resume mode with -w flag, but found at %s", expectedRulesPath)
+		t.Errorf("rules file should NOT be created when bootstrap is disabled with -w flag, but found at %s", expectedRulesPath)
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("unexpected error checking for rules file: %v", err)
 	}
 
 	// Verify that the logger did NOT report writing rules
 	if strings.Contains(stderrOutput, "Rules written") {
-		t.Errorf("stderr should NOT contain 'Rules written' message in resume mode")
+		t.Errorf("stderr should NOT contain 'Rules written' message when bootstrap is disabled")
 	}
 }
 

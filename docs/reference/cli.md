@@ -221,20 +221,36 @@ coding-context -a copilot -w implement-feature
 **Type:** Boolean flag  
 **Default:** False
 
-Enable resume mode. This does two things:
-1. Skips outputting all rule files (saves tokens)
-2. Automatically adds `-s resume=true` selector
+Set the resume selector to "true". This automatically adds `-s resume=true` selector, which can be used to filter tasks by their frontmatter `resume` field.
 
-Use this when continuing work in a new session where context has already been established.
+**Note:** This flag only sets the selector. To skip rule discovery and bootstrap scripts, use the `--skip-bootstrap` flag instead.
 
 **Example:**
 ```bash
-# Initial session
-coding-context -s resume=false fix-bug | ai-agent
-
-# Resume session
+# Set resume selector to select resume-specific tasks
 coding-context -r fix-bug | ai-agent
+
+# Equivalent to:
+coding-context -s resume=true fix-bug | ai-agent
 ```
+
+### `--skip-bootstrap`
+
+**Type:** Boolean flag  
+**Default:** False (bootstrap enabled by default)
+
+Skip bootstrap: skip discovering rules, skills, and running bootstrap scripts. When present, rule discovery, skill discovery, and bootstrap script execution are skipped.
+
+**Example:**
+```bash
+# Skip rule discovery and bootstrap (saves tokens and time)
+coding-context --skip-bootstrap fix-bug | ai-agent
+
+# Enable bootstrap (default behavior, omit --skip-bootstrap flag)
+coding-context fix-bug | ai-agent
+```
+
+**Note:** This flag is independent of the `-r` flag. Use `-r` to set the resume selector, and `--skip-bootstrap` to skip bootstrap operations.
 
 ### `-s <key>=<value>`
 
@@ -296,12 +312,12 @@ coding-context -w fix-bug
 # Combine with other options
 coding-context -a copilot -w -s languages=go -p issue=123 fix-bug
 
-# Resume mode with write rules: rules are skipped, only task output to stdout
-coding-context -a copilot -w -r fix-bug
+# Resume selector with bootstrap disabled: rules are skipped, only task output to stdout
+coding-context -a copilot -w -r --skip-bootstrap fix-bug
 ```
 
-**Note on Resume Mode:**
-When using `-w` with `-r` (resume mode), no rules file is written since rules are not collected in resume mode. Only the task prompt is output to stdout.
+**Note on Bootstrap:**
+When using `-w` with `--skip-bootstrap` (bootstrap disabled), no rules file is written since rules are not collected. Only the task prompt is output to stdout.
 
 **Use case:**
 This mode is particularly useful when working with AI coding agents that read rules from specific configuration files. Instead of including all rules in the prompt (consuming tokens), you can write them to the agent's config file once and only send the task prompt.
@@ -435,8 +451,8 @@ coding-context -d https://cdn.company.com/rules.tar.gz code-review
 coding-context -s resume=false implement-feature > context.txt
 cat context.txt | ai-agent > plan.txt
 
-# Continue work (skips rules)
-coding-context -r implement-feature | ai-agent
+# Continue work (skip rules and bootstrap)
+coding-context -r --skip-bootstrap implement-feature | ai-agent
 ```
 
 ### Piping to AI Agents

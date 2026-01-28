@@ -191,6 +191,35 @@ func TestNew(t *testing.T) {
 				if !c.resume {
 					t.Error("expected resume to be true")
 				}
+				if !c.doBootstrap {
+					t.Error("expected doBootstrap to be true by default")
+				}
+			},
+		},
+		{
+			name: "with bootstrap disabled",
+			opts: []Option{
+				WithBootstrap(false),
+			},
+			check: func(t *testing.T, c *Context) {
+				if c.doBootstrap {
+					t.Error("expected doBootstrap to be false")
+				}
+			},
+		},
+		{
+			name: "resume and bootstrap are independent",
+			opts: []Option{
+				WithResume(true),
+				WithBootstrap(false),
+			},
+			check: func(t *testing.T, c *Context) {
+				if !c.resume {
+					t.Error("expected resume to be true")
+				}
+				if c.doBootstrap {
+					t.Error("expected doBootstrap to be false")
+				}
 			},
 		},
 		{
@@ -492,7 +521,24 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 		},
 		{
-			name: "resume mode skips rule discovery",
+			name: "bootstrap disabled skips rule discovery",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "bootstrap-task", "", "Task content")
+				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule content")
+			},
+			opts: []Option{
+				WithBootstrap(false),
+			},
+			taskName: "bootstrap-task",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if len(result.Rules) != 0 {
+					t.Errorf("expected 0 rules when bootstrap is disabled, got %d", len(result.Rules))
+				}
+			},
+		},
+		{
+			name: "resume mode does not skip rule discovery",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "resume-task", "", "Task content")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule content")
@@ -503,8 +549,8 @@ func TestContext_Run_Rules(t *testing.T) {
 			taskName: "resume-task",
 			wantErr:  false,
 			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 0 {
-					t.Errorf("expected 0 rules in resume mode, got %d", len(result.Rules))
+				if len(result.Rules) != 1 {
+					t.Errorf("expected 1 rule when resume is true but bootstrap is enabled, got %d", len(result.Rules))
 				}
 			},
 		},
@@ -524,21 +570,21 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 		},
 		{
-			name: "resume mode skips bootstrap scripts",
+			name: "bootstrap disabled skips bootstrap scripts",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "no-bootstrap", "", "Task")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule")
 				createBootstrapScript(t, dir, ".agents/rules/rule1.md", "#!/bin/sh\nexit 1")
 			},
 			opts: []Option{
-				WithResume(true),
+				WithBootstrap(false),
 			},
 			taskName: "no-bootstrap",
 			wantErr:  false,
 			check: func(t *testing.T, result *Result) {
-				// In resume mode, rules aren't discovered, so bootstrap won't run
+				// When bootstrap is disabled, rules aren't discovered, so bootstrap scripts won't run
 				if len(result.Rules) != 0 {
-					t.Error("expected no rules in resume mode")
+					t.Error("expected no rules when bootstrap is disabled")
 				}
 			},
 		},
@@ -1093,23 +1139,23 @@ func TestContext_Run_Integration(t *testing.T) {
 			},
 		},
 		{
-			name: "resume mode workflow skips rules but includes task",
+			name: "bootstrap disabled workflow skips rules but includes task",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "resume", "", "Resume this task")
+				createTask(t, dir, "bootstrap", "", "Continue this task")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Should be skipped")
 				createBootstrapScript(t, dir, ".agents/rules/rule1.md", "#!/bin/sh\necho 'should not run'")
 			},
 			opts: []Option{
-				WithResume(true),
+				WithBootstrap(false),
 			},
-			taskName: "resume",
+			taskName: "bootstrap",
 			wantErr:  false,
 			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Resume this task") {
+				if !strings.Contains(result.Task.Content, "Continue this task") {
 					t.Errorf("unexpected task content: %q", result.Task.Content)
 				}
 				if len(result.Rules) != 0 {
-					t.Errorf("expected 0 rules in resume mode, got %d", len(result.Rules))
+					t.Errorf("expected 0 rules when bootstrap is disabled, got %d", len(result.Rules))
 				}
 			},
 		},
@@ -2311,7 +2357,7 @@ description: %s
 			wantErr:  true,
 		},
 		{
-			name: "resume mode skips skill discovery",
+			name: "bootstrap disabled skips skill discovery",
 			setup: func(t *testing.T, dir string) {
 				// Create task
 				createTask(t, dir, "test-task", "", "Task content")
@@ -2324,7 +2370,42 @@ description: %s
 
 				skillContent := `---
 name: test-skill
-description: A test skill that should not be discovered in resume mode
+description: A test skill that should not be discovered when bootstrap is disabled
+---
+
+# Test Skill
+
+This is a test skill.
+`
+				skillPath := filepath.Join(skillDir, "SKILL.md")
+				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
+					t.Fatalf("failed to create skill file: %v", err)
+				}
+			},
+			opts:     []Option{WithBootstrap(false)},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				if len(result.Skills.Skills) != 0 {
+					t.Errorf("expected 0 skills when bootstrap is disabled, got %d", len(result.Skills.Skills))
+				}
+			},
+		},
+		{
+			name: "resume mode does not skip skill discovery",
+			setup: func(t *testing.T, dir string) {
+				// Create task
+				createTask(t, dir, "test-task", "", "Task content")
+
+				// Create skill directory with SKILL.md
+				skillDir := filepath.Join(dir, ".agents", "skills", "test-skill")
+				if err := os.MkdirAll(skillDir, 0o755); err != nil {
+					t.Fatalf("failed to create skill directory: %v", err)
+				}
+
+				skillContent := `---
+name: test-skill
+description: A test skill that should be discovered even in resume mode
 ---
 
 # Test Skill
@@ -2340,8 +2421,8 @@ This is a test skill.
 			taskName: "test-task",
 			wantErr:  false,
 			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 0 {
-					t.Errorf("expected 0 skills in resume mode, got %d", len(result.Skills.Skills))
+				if len(result.Skills.Skills) != 1 {
+					t.Errorf("expected 1 skill when resume is true but bootstrap is enabled, got %d", len(result.Skills.Skills))
 				}
 			},
 		},

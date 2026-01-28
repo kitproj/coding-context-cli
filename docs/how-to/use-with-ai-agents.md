@@ -73,8 +73,8 @@ Use context in iterative workflows:
 coding-context -s resume=false fix-bug > context-initial.txt
 cat context-initial.txt | ai-agent > analysis.txt
 
-# Step 2: Implementation (skip rules with -r)
-coding-context -r fix-bug > context-resume.txt
+# Step 2: Implementation (skip rules with --skip-bootstrap)
+coding-context -r --skip-bootstrap fix-bug > context-resume.txt
 cat context-resume.txt analysis.txt | ai-agent > implementation.txt
 ```
 
@@ -239,7 +239,7 @@ If your context exceeds token limits:
    coding-context -s priority=high fix-bug
    ```
 
-2. **Use resume mode to skip rules:**
+2. **Use bootstrap disabled to skip rules:**
    ```bash
    coding-context -r fix-bug
    ```

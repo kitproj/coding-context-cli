@@ -45,10 +45,19 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// WithResume enables resume mode, which skips rule discovery and bootstrap scripts
+// WithResume sets the resume selector to "true", which can be used to filter tasks
+// by their frontmatter resume field. This does not affect rule/skill discovery or bootstrap scripts.
 func WithResume(resume bool) Option {
 	return func(c *Context) {
 		c.resume = resume
+	}
+}
+
+// WithBootstrap controls whether to discover rules, skills, and run bootstrap scripts.
+// When set to false, rule discovery, skill discovery, and bootstrap script execution are skipped.
+func WithBootstrap(doBootstrap bool) Option {
+	return func(c *Context) {
+		c.doBootstrap = doBootstrap
 	}
 }
 

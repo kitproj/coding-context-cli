@@ -113,12 +113,21 @@ coding-context -s source=github code-review
 
 ## Resume Mode
 
-The `-r` flag is shorthand for `-s resume=true` plus skipping all rules:
+The `-r` flag sets the resume selector to "true", which can be used to filter tasks by their frontmatter `resume` field:
 
 ```bash
-# These are equivalent:
+# Set resume selector
 coding-context -r fix-bug
-coding-context -s resume=true fix-bug  # but also skips rules
+
+# Equivalent to:
+coding-context -s resume=true fix-bug
+```
+
+**Note:** The `-r` flag only sets the selector. To skip rule discovery and bootstrap scripts, use the `--skip-bootstrap` flag:
+
+```bash
+# Skip rules and bootstrap (common in resume scenarios)
+coding-context -r --skip-bootstrap fix-bug
 ```
 
 Use resume mode when continuing work in a new session to save tokens.
