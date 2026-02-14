@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	urn "github.com/leodido/go-urn"
+
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
 )
 
@@ -27,6 +29,11 @@ type TaskFrontMatter struct {
 	// Description is an optional description of what the task does
 	// Metadata only, does not affect task matching or filtering
 	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+
+	// URN is an optional Uniform Resource Name identifier for the task
+	// Must be a valid URN according to RFC 2141 (e.g., "urn:example:task-123")
+	// Metadata only, does not affect task matching or filtering
+	URN *urn.URN `yaml:"urn,omitempty" json:"urn,omitempty"`
 
 	// Agent specifies the default agent if not specified via -a flag
 	// This is not used for selecting tasks or rules, only as a default
@@ -81,6 +88,19 @@ func (t *TaskFrontMatter) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalYAML custom YAML unmarshaler
+func (t *TaskFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// First unmarshal into a temporary type to avoid infinite recursion
+	type Alias TaskFrontMatter
+	aux := (*Alias)(t)
+
+	if err := unmarshal(aux); err != nil {
+		return fmt.Errorf("failed to unmarshal task frontmatter: %w", err)
+	}
+
+	return nil
+}
+
 // CommandFrontMatter represents the frontmatter fields for command files.
 // Previously this was an empty placeholder struct, but now supports the expand field
 // to control parameter expansion behavior in command content.
@@ -98,6 +118,11 @@ type CommandFrontMatter struct {
 	// Description is an optional description of what the command does
 	// Metadata only, does not affect command matching or filtering
 	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+
+	// URN is an optional Uniform Resource Name identifier for the command
+	// Must be a valid URN according to RFC 2141 (e.g., "urn:example:command-123")
+	// Metadata only, does not affect command matching or filtering
+	URN *urn.URN `yaml:"urn,omitempty" json:"urn,omitempty"`
 
 	// ExpandParams controls whether parameter expansion should occur
 	// Defaults to true if not specified
@@ -130,6 +155,19 @@ func (c *CommandFrontMatter) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalYAML custom YAML unmarshaler
+func (c *CommandFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// First unmarshal into a temporary type to avoid infinite recursion
+	type Alias CommandFrontMatter
+	aux := (*Alias)(c)
+
+	if err := unmarshal(aux); err != nil {
+		return fmt.Errorf("failed to unmarshal command frontmatter: %w", err)
+	}
+
+	return nil
+}
+
 // RuleFrontMatter represents the standard frontmatter fields for rule files
 type RuleFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
@@ -145,6 +183,11 @@ type RuleFrontMatter struct {
 	// Description is an optional description of what the rule provides
 	// Metadata only, does not affect rule matching or filtering
 	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+
+	// URN is an optional Uniform Resource Name identifier for the rule
+	// Must be a valid URN according to RFC 2141 (e.g., "urn:example:rule-123")
+	// Metadata only, does not affect rule matching or filtering
+	URN *urn.URN `yaml:"urn,omitempty" json:"urn,omitempty"`
 
 	// TaskNames specifies which task(s) this rule applies to
 	// Array of task names for OR logic
@@ -191,6 +234,19 @@ func (r *RuleFrontMatter) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalYAML custom YAML unmarshaler
+func (r *RuleFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// First unmarshal into a temporary type to avoid infinite recursion
+	type Alias RuleFrontMatter
+	aux := (*Alias)(r)
+
+	if err := unmarshal(aux); err != nil {
+		return fmt.Errorf("failed to unmarshal rule frontmatter: %w", err)
+	}
+
+	return nil
+}
+
 // SkillFrontMatter represents the standard frontmatter fields for skill files
 type SkillFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
@@ -202,6 +258,11 @@ type SkillFrontMatter struct {
 	// Description explains what the skill does and when to use it (required)
 	// Must be 1-1024 characters
 	Description string `yaml:"description" json:"description"`
+
+	// URN is an optional Uniform Resource Name identifier for the skill
+	// Must be a valid URN according to RFC 2141 (e.g., "urn:example:skill-123")
+	// Metadata only
+	URN *urn.URN `yaml:"urn,omitempty" json:"urn,omitempty"`
 
 	// License specifies the license applied to the skill (optional)
 	License string `yaml:"license,omitempty" json:"license,omitempty"`
@@ -234,6 +295,19 @@ func (s *SkillFrontMatter) UnmarshalJSON(data []byte) error {
 	// Also unmarshal into Content map
 	if err := json.Unmarshal(data, &s.BaseFrontMatter.Content); err != nil {
 		return fmt.Errorf("failed to unmarshal skill frontmatter content: %w", err)
+	}
+
+	return nil
+}
+
+// UnmarshalYAML custom YAML unmarshaler
+func (s *SkillFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// First unmarshal into a temporary type to avoid infinite recursion
+	type Alias SkillFrontMatter
+	aux := (*Alias)(s)
+
+	if err := unmarshal(aux); err != nil {
+		return fmt.Errorf("failed to unmarshal skill frontmatter: %w", err)
 	}
 
 	return nil
