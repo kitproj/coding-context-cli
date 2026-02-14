@@ -13,12 +13,22 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-getter/v2"
+	urn "github.com/leodido/go-urn"
+
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/selectors"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/skills"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparser"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/tokencount"
 )
+
+// urnToString safely converts a *urn.URN to string, returning empty string if nil
+func urnToString(u *urn.URN) string {
+	if u == nil {
+		return ""
+	}
+	return u.String()
+}
 
 // Context holds the configuration and state for assembling coding context
 type Context struct {
@@ -210,7 +220,7 @@ func (cc *Context) findTask(taskName string) error {
 		}
 		cc.totalTokens += cc.task.Tokens
 
-		cc.logger.Info("Including task", "name", taskName, "urn", frontMatter.URN.String(), "reason", fmt.Sprintf("task name matches '%s'", taskName), "tokens", cc.task.Tokens)
+		cc.logger.Info("Including task", "name", taskName, "urn", urnToString(frontMatter.URN), "reason", fmt.Sprintf("task name matches '%s'", taskName), "tokens", cc.task.Tokens)
 
 		return nil
 	})
@@ -266,7 +276,7 @@ func (cc *Context) findCommand(commandName string, params taskparser.Params) (st
 		}
 		content = &processedContent
 
-		cc.logger.Info("Including command", "name", commandName, "urn", frontMatter.URN.String(), "reason", fmt.Sprintf("referenced by slash command '/%s'", commandName), "path", path)
+		cc.logger.Info("Including command", "name", commandName, "urn", urnToString(frontMatter.URN), "reason", fmt.Sprintf("referenced by slash command '/%s'", commandName), "path", path)
 
 		return nil
 	})
@@ -563,7 +573,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 
 		// Get match reason to explain why this rule was included
 		_, reason := cc.includes.MatchesIncludes(*baseFm)
-		cc.logger.Info("Including rule file", "path", path, "urn", frontmatter.URN.String(), "reason", reason, "tokens", tokens)
+		cc.logger.Info("Including rule file", "path", path, "urn", urnToString(frontmatter.URN), "reason", reason, "tokens", tokens)
 
 		if err := cc.runBootstrapScript(ctx, path); err != nil {
 			return fmt.Errorf("failed to run bootstrap script: %w", err)
@@ -691,7 +701,7 @@ func (cc *Context) discoverSkills() error {
 				Location:    absPath,
 			})
 
-			cc.logger.Info("Discovered skill", "name", frontmatter.Name, "urn", frontmatter.URN.String(), "reason", reason, "path", absPath)
+			cc.logger.Info("Discovered skill", "name", frontmatter.Name, "urn", urnToString(frontmatter.URN), "reason", reason, "path", absPath)
 		}
 	}
 
