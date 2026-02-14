@@ -6,6 +6,7 @@ require (
 	github.com/alecthomas/participle/v2 v2.1.4
 	github.com/goccy/go-yaml v1.18.0
 	github.com/hashicorp/go-getter/v2 v2.2.3
+	github.com/leodido/go-urn v1.4.0
 	github.com/stretchr/testify v1.10.0
 )
 
