@@ -9,6 +9,71 @@ import (
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
 )
 
+// URN wraps *urn.URN to provide both YAML and JSON unmarshaling from strings
+type URN struct {
+	*urn.URN
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler to parse URN strings from YAML
+func (u *URN) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	if s == "" {
+		u.URN = nil
+		return nil
+	}
+	parsed, ok := urn.Parse([]byte(s))
+	if !ok {
+		return fmt.Errorf("invalid URN format: %s (must follow RFC 2141, e.g., 'urn:example:resource-123')", s)
+	}
+	u.URN = parsed
+	return nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler to parse URN strings from JSON
+func (u *URN) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	if s == "" {
+		u.URN = nil
+		return nil
+	}
+	parsed, ok := urn.Parse([]byte(s))
+	if !ok {
+		return fmt.Errorf("invalid URN format: %s (must follow RFC 2141, e.g., 'urn:example:resource-123')", s)
+	}
+	u.URN = parsed
+	return nil
+}
+
+// MarshalYAML implements yaml.Marshaler to output URN as a string in YAML
+func (u URN) MarshalYAML() (interface{}, error) {
+	if u.URN == nil {
+		return nil, nil
+	}
+	return u.URN.String(), nil
+}
+
+// MarshalJSON implements json.Marshaler to output URN as a string in JSON
+func (u URN) MarshalJSON() ([]byte, error) {
+	if u.URN == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(u.URN.String())
+}
+
+// String returns the string representation of the URN or empty string if nil
+func (u URN) String() string {
+	if u.URN == nil {
+		return ""
+	}
+	return u.URN.String()
+}
+
 // BaseFrontMatter represents parsed YAML frontmatter from markdown files
 type BaseFrontMatter struct {
 	Content map[string]any `json:"-" yaml:",inline"`
@@ -33,7 +98,7 @@ type TaskFrontMatter struct {
 	// URN is an optional Uniform Resource Name identifier for the task
 	// Must be a valid URN according to RFC 2141 (e.g., "urn:example:task-123")
 	// Metadata only, does not affect task matching or filtering
-	URN string `yaml:"urn,omitempty" json:"urn,omitempty"`
+	URN URN `yaml:"urn,omitempty" json:"urn,omitempty"`
 
 	// Agent specifies the default agent if not specified via -a flag
 	// This is not used for selecting tasks or rules, only as a default
@@ -85,15 +150,10 @@ func (t *TaskFrontMatter) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal task frontmatter content: %w", err)
 	}
 
-	// Validate URN if present
-	if err := ValidateURN(t.URN); err != nil {
-		return fmt.Errorf("task URN validation failed: %w", err)
-	}
-
 	return nil
 }
 
-// UnmarshalYAML custom YAML unmarshaler that validates URN
+// UnmarshalYAML custom YAML unmarshaler
 func (t *TaskFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// First unmarshal into a temporary type to avoid infinite recursion
 	type Alias TaskFrontMatter
@@ -101,11 +161,6 @@ func (t *TaskFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) error
 
 	if err := unmarshal(aux); err != nil {
 		return fmt.Errorf("failed to unmarshal task frontmatter: %w", err)
-	}
-
-	// Validate URN if present
-	if err := ValidateURN(t.URN); err != nil {
-		return fmt.Errorf("task URN validation failed: %w", err)
 	}
 
 	return nil
@@ -132,7 +187,7 @@ type CommandFrontMatter struct {
 	// URN is an optional Uniform Resource Name identifier for the command
 	// Must be a valid URN according to RFC 2141 (e.g., "urn:example:command-123")
 	// Metadata only, does not affect command matching or filtering
-	URN string `yaml:"urn,omitempty" json:"urn,omitempty"`
+	URN URN `yaml:"urn,omitempty" json:"urn,omitempty"`
 
 	// ExpandParams controls whether parameter expansion should occur
 	// Defaults to true if not specified
@@ -162,15 +217,10 @@ func (c *CommandFrontMatter) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal command frontmatter content: %w", err)
 	}
 
-	// Validate URN if present
-	if err := ValidateURN(c.URN); err != nil {
-		return fmt.Errorf("command URN validation failed: %w", err)
-	}
-
 	return nil
 }
 
-// UnmarshalYAML custom YAML unmarshaler that validates URN
+// UnmarshalYAML custom YAML unmarshaler
 func (c *CommandFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// First unmarshal into a temporary type to avoid infinite recursion
 	type Alias CommandFrontMatter
@@ -178,11 +228,6 @@ func (c *CommandFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) er
 
 	if err := unmarshal(aux); err != nil {
 		return fmt.Errorf("failed to unmarshal command frontmatter: %w", err)
-	}
-
-	// Validate URN if present
-	if err := ValidateURN(c.URN); err != nil {
-		return fmt.Errorf("command URN validation failed: %w", err)
 	}
 
 	return nil
@@ -207,7 +252,7 @@ type RuleFrontMatter struct {
 	// URN is an optional Uniform Resource Name identifier for the rule
 	// Must be a valid URN according to RFC 2141 (e.g., "urn:example:rule-123")
 	// Metadata only, does not affect rule matching or filtering
-	URN string `yaml:"urn,omitempty" json:"urn,omitempty"`
+	URN URN `yaml:"urn,omitempty" json:"urn,omitempty"`
 
 	// TaskNames specifies which task(s) this rule applies to
 	// Array of task names for OR logic
@@ -251,15 +296,10 @@ func (r *RuleFrontMatter) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal rule frontmatter content: %w", err)
 	}
 
-	// Validate URN if present
-	if err := ValidateURN(r.URN); err != nil {
-		return fmt.Errorf("rule URN validation failed: %w", err)
-	}
-
 	return nil
 }
 
-// UnmarshalYAML custom YAML unmarshaler that validates URN
+// UnmarshalYAML custom YAML unmarshaler
 func (r *RuleFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// First unmarshal into a temporary type to avoid infinite recursion
 	type Alias RuleFrontMatter
@@ -267,11 +307,6 @@ func (r *RuleFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) error
 
 	if err := unmarshal(aux); err != nil {
 		return fmt.Errorf("failed to unmarshal rule frontmatter: %w", err)
-	}
-
-	// Validate URN if present
-	if err := ValidateURN(r.URN); err != nil {
-		return fmt.Errorf("rule URN validation failed: %w", err)
 	}
 
 	return nil
@@ -292,7 +327,7 @@ type SkillFrontMatter struct {
 	// URN is an optional Uniform Resource Name identifier for the skill
 	// Must be a valid URN according to RFC 2141 (e.g., "urn:example:skill-123")
 	// Metadata only
-	URN string `yaml:"urn,omitempty" json:"urn,omitempty"`
+	URN URN `yaml:"urn,omitempty" json:"urn,omitempty"`
 
 	// License specifies the license applied to the skill (optional)
 	License string `yaml:"license,omitempty" json:"license,omitempty"`
@@ -327,15 +362,10 @@ func (s *SkillFrontMatter) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal skill frontmatter content: %w", err)
 	}
 
-	// Validate URN if present
-	if err := ValidateURN(s.URN); err != nil {
-		return fmt.Errorf("skill URN validation failed: %w", err)
-	}
-
 	return nil
 }
 
-// UnmarshalYAML custom YAML unmarshaler that validates URN
+// UnmarshalYAML custom YAML unmarshaler
 func (s *SkillFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// First unmarshal into a temporary type to avoid infinite recursion
 	type Alias SkillFrontMatter
@@ -345,23 +375,5 @@ func (s *SkillFrontMatter) UnmarshalYAML(unmarshal func(interface{}) error) erro
 		return fmt.Errorf("failed to unmarshal skill frontmatter: %w", err)
 	}
 
-	// Validate URN if present
-	if err := ValidateURN(s.URN); err != nil {
-		return fmt.Errorf("skill URN validation failed: %w", err)
-	}
-
-	return nil
-}
-
-// ValidateURN validates that a URN string is syntactically correct according to RFC 2141.
-// Returns nil if the URN is empty (optional field) or valid, otherwise returns an error.
-func ValidateURN(urnStr string) error {
-	if urnStr == "" {
-		return nil // URN is optional
-	}
-	_, ok := urn.Parse([]byte(urnStr))
-	if !ok {
-		return fmt.Errorf("invalid URN format: %s (must follow RFC 2141, e.g., 'urn:example:resource-123')", urnStr)
-	}
 	return nil
 }

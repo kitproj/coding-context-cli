@@ -210,12 +210,7 @@ func (cc *Context) findTask(taskName string) error {
 		}
 		cc.totalTokens += cc.task.Tokens
 
-		// Log task inclusion with URN if present
-		if frontMatter.URN != "" {
-			cc.logger.Info("Including task", "name", taskName, "urn", frontMatter.URN, "reason", fmt.Sprintf("task name matches '%s'", taskName), "tokens", cc.task.Tokens)
-		} else {
-			cc.logger.Info("Including task", "name", taskName, "reason", fmt.Sprintf("task name matches '%s'", taskName), "tokens", cc.task.Tokens)
-		}
+		cc.logger.Info("Including task", "name", taskName, "urn", frontMatter.URN.String(), "reason", fmt.Sprintf("task name matches '%s'", taskName), "tokens", cc.task.Tokens)
 
 		return nil
 	})
@@ -271,12 +266,7 @@ func (cc *Context) findCommand(commandName string, params taskparser.Params) (st
 		}
 		content = &processedContent
 
-		// Log command inclusion with URN if present
-		if frontMatter.URN != "" {
-			cc.logger.Info("Including command", "name", commandName, "urn", frontMatter.URN, "reason", fmt.Sprintf("referenced by slash command '/%s'", commandName), "path", path)
-		} else {
-			cc.logger.Info("Including command", "name", commandName, "reason", fmt.Sprintf("referenced by slash command '/%s'", commandName), "path", path)
-		}
+		cc.logger.Info("Including command", "name", commandName, "urn", frontMatter.URN.String(), "reason", fmt.Sprintf("referenced by slash command '/%s'", commandName), "path", path)
 
 		return nil
 	})
@@ -573,12 +563,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 
 		// Get match reason to explain why this rule was included
 		_, reason := cc.includes.MatchesIncludes(*baseFm)
-		// Log rule inclusion with URN if present
-		if frontmatter.URN != "" {
-			cc.logger.Info("Including rule file", "path", path, "urn", frontmatter.URN, "reason", reason, "tokens", tokens)
-		} else {
-			cc.logger.Info("Including rule file", "path", path, "reason", reason, "tokens", tokens)
-		}
+		cc.logger.Info("Including rule file", "path", path, "urn", frontmatter.URN.String(), "reason", reason, "tokens", tokens)
 
 		if err := cc.runBootstrapScript(ctx, path); err != nil {
 			return fmt.Errorf("failed to run bootstrap script: %w", err)
@@ -706,12 +691,7 @@ func (cc *Context) discoverSkills() error {
 				Location:    absPath,
 			})
 
-			// Log with explanation of why skill was included, include URN if present
-			if frontmatter.URN != "" {
-				cc.logger.Info("Discovered skill", "name", frontmatter.Name, "urn", frontmatter.URN, "reason", reason, "path", absPath)
-			} else {
-				cc.logger.Info("Discovered skill", "name", frontmatter.Name, "reason", reason, "path", absPath)
-			}
+			cc.logger.Info("Discovered skill", "name", frontmatter.Name, "urn", frontmatter.URN.String(), "reason", reason, "path", absPath)
 		}
 	}
 
