@@ -3,7 +3,7 @@ package markdown
 import (
 	"testing"
 
-	"github.com/goccy/go-yaml"
+	"gopkg.in/yaml.v3"
 )
 
 func TestTaskFrontMatter_Marshal(t *testing.T) {
@@ -25,14 +25,14 @@ func TestTaskFrontMatter_Marshal(t *testing.T) {
 			name: "task with standard id, name, description",
 			task: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					Content: map[string]any{"task_name": "standard-task"},
+					URN:         "urn:agents:task:standard-task",
+					Name:        "Standard Test Task",
+					Description: "This is a test task with standard fields",
+					Content:     map[string]any{"task_name": "standard-task"},
 				},
-				ID:          "task-123",
-				Name:        "Standard Test Task",
-				Description: "This is a test task with standard fields",
 			},
 			want: `task_name: standard-task
-id: task-123
+id: urn:agents:task:standard-task
 name: Standard Test Task
 description: This is a test task with standard fields
 `,
@@ -41,23 +41,22 @@ description: This is a test task with standard fields
 			name: "task with all fields",
 			task: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					Content: map[string]any{"task_name": "full-task"},
+					URN:         "urn:agents:task:full-task",
+					Name:        "Full Task",
+					Description: "A task with all fields",
+					Content:     map[string]any{"task_name": "full-task"},
 				},
-				ID:          "full-123",
-				Name:        "Full Task",
-				Description: "A task with all fields",
-				Agent:       "cursor",
-				Languages:   []string{"go"},
-				Model:       "gpt-4",
-				SingleShot:  true,
-				Timeout:     "10m",
-				Resume:      false,
+				Agent:      "cursor",
+				Languages:  []string{"go"},
+				Model:      "gpt-4",
+				SingleShot: true,
+				Timeout:    "10m",
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},
 			},
 			want: `task_name: full-task
-id: full-123
+id: urn:agents:task:full-task
 name: Full Task
 description: A task with all fields
 agent: cursor
@@ -119,17 +118,17 @@ func TestTaskFrontMatter_Unmarshal(t *testing.T) {
 		{
 			name: "task with standard id, name, description",
 			yaml: `task_name: standard-task
-id: task-456
+id: urn:agents:task:standard-task
 name: Standard Task
 description: This is a standard task
 `,
 			want: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					Content: map[string]any{"task_name": "standard-task"},
+					URN:         "urn:agents:task:standard-task",
+					Name:        "Standard Task",
+					Description: "This is a standard task",
+					Content:     map[string]any{"task_name": "standard-task"},
 				},
-				ID:          "task-456",
-				Name:        "Standard Task",
-				Description: "This is a standard task",
 			},
 		},
 		{
@@ -162,7 +161,7 @@ languages:
 		{
 			name: "full task",
 			yaml: `task_name: full-task
-id: full-456
+id: urn:agents:task:full-task
 name: Full Task
 description: A complete task
 agent: cursor
@@ -176,16 +175,16 @@ selectors:
 `,
 			want: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					Content: map[string]any{"task_name": "full-task"},
+					URN:         "urn:agents:task:full-task",
+					Name:        "Full Task",
+					Description: "A complete task",
+					Content:     map[string]any{"task_name": "full-task"},
 				},
-				ID:          "full-456",
-				Name:        "Full Task",
-				Description: "A complete task",
-				Agent:       "cursor",
-				Languages:   []string{"go"},
-				Model:       "gpt-4",
-				SingleShot:  true,
-				Timeout:     "10m",
+				Agent:      "cursor",
+				Languages:  []string{"go"},
+				Model:      "gpt-4",
+				SingleShot: true,
+				Timeout:    "10m",
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},
@@ -210,8 +209,8 @@ selectors:
 			if gotTaskName != wantTaskName {
 				t.Errorf("TaskName = %q, want %q", gotTaskName, wantTaskName)
 			}
-			if got.ID != tt.want.ID {
-				t.Errorf("ID = %q, want %q", got.ID, tt.want.ID)
+			if got.URN != tt.want.URN {
+				t.Errorf("URN = %q, want %q", got.URN, tt.want.URN)
 			}
 			if got.Name != tt.want.Name {
 				t.Errorf("Name = %q, want %q", got.Name, tt.want.Name)

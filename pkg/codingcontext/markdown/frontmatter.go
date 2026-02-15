@@ -9,16 +9,9 @@ import (
 
 // BaseFrontMatter represents parsed YAML frontmatter from markdown files
 type BaseFrontMatter struct {
-	Content map[string]any `json:"-" yaml:",inline"`
-}
-
-// TaskFrontMatter represents the standard frontmatter fields for task files
-type TaskFrontMatter struct {
-	BaseFrontMatter `yaml:",inline"`
-
-	// ID is an optional unique identifier for the task
-	// Metadata only, does not affect task matching or filtering
-	ID string `yaml:"id,omitempty" json:"id,omitempty"`
+	// URN is an optional unique identifier for the prompt in URN format (e.g. urn:agents:task:<name>)
+	// Automatically inferred from filename if not specified in frontmatter
+	URN string `yaml:"id,omitempty" json:"id,omitempty"`
 
 	// Name is an optional human-readable name for the task
 	// Metadata only, does not affect task matching or filtering
@@ -26,7 +19,13 @@ type TaskFrontMatter struct {
 
 	// Description is an optional description of what the task does
 	// Metadata only, does not affect task matching or filtering
-	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+	Description string         `yaml:"description,omitempty" json:"description,omitempty"`
+	Content     map[string]any `json:"-" yaml:",inline"`
+}
+
+// TaskFrontMatter represents the standard frontmatter fields for task files
+type TaskFrontMatter struct {
+	BaseFrontMatter `yaml:",inline"`
 
 	// Agent specifies the default agent if not specified via -a flag
 	// This is not used for selecting tasks or rules, only as a default
@@ -87,18 +86,6 @@ func (t *TaskFrontMatter) UnmarshalJSON(data []byte) error {
 type CommandFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
 
-	// ID is an optional unique identifier for the command
-	// Metadata only, does not affect command matching or filtering
-	ID string `yaml:"id,omitempty" json:"id,omitempty"`
-
-	// Name is an optional human-readable name for the command
-	// Metadata only, does not affect command matching or filtering
-	Name string `yaml:"name,omitempty" json:"name,omitempty"`
-
-	// Description is an optional description of what the command does
-	// Metadata only, does not affect command matching or filtering
-	Description string `yaml:"description,omitempty" json:"description,omitempty"`
-
 	// ExpandParams controls whether parameter expansion should occur
 	// Defaults to true if not specified
 	ExpandParams *bool `yaml:"expand,omitempty" json:"expand,omitempty"`
@@ -133,18 +120,6 @@ func (c *CommandFrontMatter) UnmarshalJSON(data []byte) error {
 // RuleFrontMatter represents the standard frontmatter fields for rule files
 type RuleFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
-
-	// ID is an optional unique identifier for the rule
-	// Metadata only, does not affect rule matching or filtering
-	ID string `yaml:"id,omitempty" json:"id,omitempty"`
-
-	// Name is an optional human-readable name for the rule
-	// Metadata only, does not affect rule matching or filtering
-	Name string `yaml:"name,omitempty" json:"name,omitempty"`
-
-	// Description is an optional description of what the rule provides
-	// Metadata only, does not affect rule matching or filtering
-	Description string `yaml:"description,omitempty" json:"description,omitempty"`
 
 	// TaskNames specifies which task(s) this rule applies to
 	// Array of task names for OR logic
