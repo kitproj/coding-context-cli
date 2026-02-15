@@ -385,28 +385,15 @@ func TestContext_Run_Basic(t *testing.T) {
 			},
 		},
 		{
-			name: "task ID automatically set from filename",
+			name: "task with explicit URN in frontmatter",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "my-task", "", "Task content")
-			},
-			taskName: "my-task",
-			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if result.Task.FrontMatter.ID != "my-task" {
-					t.Errorf("expected task ID 'my-task', got %q", result.Task.FrontMatter.ID)
-				}
-			},
-		},
-		{
-			name: "task with explicit ID in frontmatter",
-			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "file-name", "id: explicit-task-id", "Task content")
+				createTask(t, dir, "file-name", "id: urn:agents:task:file-name", "Task content")
 			},
 			taskName: "file-name",
 			wantErr:  false,
 			check: func(t *testing.T, result *Result) {
-				if result.Task.FrontMatter.ID != "explicit-task-id" {
-					t.Errorf("expected task ID 'explicit-task-id', got %q", result.Task.FrontMatter.ID)
+				if result.Task.FrontMatter.URN != "urn:agents:task:file-name" {
+					t.Errorf("expected task URN 'urn:agents:task:file-name', got %q", result.Task.FrontMatter.URN)
 				}
 			},
 		},
@@ -772,11 +759,11 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 		},
 		{
-			name: "rule IDs automatically set from filename",
+			name: "rule URN set from frontmatter",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "id-task", "", "Task")
-				createRule(t, dir, ".agents/rules/my-rule.md", "", "Rule without ID in frontmatter")
-				createRule(t, dir, ".agents/rules/another-rule.md", "id: explicit-id", "Rule with explicit ID")
+				createRule(t, dir, ".agents/rules/my-rule.md", "id: urn:agents:rule:my-rule", "Rule with URN")
+				createRule(t, dir, ".agents/rules/another-rule.md", "id: urn:agents:rule:another", "Rule with another URN")
 			},
 			taskName: "id-task",
 			wantErr:  false,
@@ -785,29 +772,28 @@ func TestContext_Run_Rules(t *testing.T) {
 					t.Fatalf("expected 2 rules, got %d", len(result.Rules))
 				}
 
-				// Check that one rule has auto-generated ID from filename
 				foundMyRule := false
 				foundAnotherRule := false
 				for _, rule := range result.Rules {
-					if rule.FrontMatter.ID == "my-rule" {
+					if rule.FrontMatter.URN == "urn:agents:rule:my-rule" {
 						foundMyRule = true
-						if !strings.Contains(rule.Content, "Rule without ID") {
-							t.Error("my-rule should contain 'Rule without ID'")
+						if !strings.Contains(rule.Content, "Rule with URN") {
+							t.Error("my-rule should contain 'Rule with URN'")
 						}
 					}
-					if rule.FrontMatter.ID == "explicit-id" {
+					if rule.FrontMatter.URN == "urn:agents:rule:another" {
 						foundAnotherRule = true
-						if !strings.Contains(rule.Content, "Rule with explicit ID") {
-							t.Error("explicit-id should contain 'Rule with explicit ID'")
+						if !strings.Contains(rule.Content, "Rule with another URN") {
+							t.Error("another should contain 'Rule with another URN'")
 						}
 					}
 				}
 
 				if !foundMyRule {
-					t.Error("expected to find rule with auto-generated ID 'my-rule'")
+					t.Error("expected to find rule with URN 'urn:agents:rule:my-rule'")
 				}
 				if !foundAnotherRule {
-					t.Error("expected to find rule with explicit ID 'explicit-id'")
+					t.Error("expected to find rule with URN 'urn:agents:rule:another'")
 				}
 			},
 		},

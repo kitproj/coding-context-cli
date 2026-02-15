@@ -4,9 +4,9 @@ go 1.24.5
 
 require (
 	github.com/alecthomas/participle/v2 v2.1.4
-	github.com/goccy/go-yaml v1.18.0
 	github.com/hashicorp/go-getter/v2 v2.2.3
 	github.com/stretchr/testify v1.10.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -22,5 +22,4 @@ require (
 	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/ulikunitz/xz v0.5.8 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
