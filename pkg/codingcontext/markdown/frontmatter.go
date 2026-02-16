@@ -5,13 +5,14 @@ import (
 	"fmt"
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/urn"
 )
 
 // BaseFrontMatter represents parsed YAML frontmatter from markdown files
 type BaseFrontMatter struct {
 	// URN is an optional unique identifier for the prompt in URN format (e.g. urn:agents:task:<name>)
-	// Automatically inferred from filename if not specified in frontmatter
-	URN string `yaml:"id,omitempty" json:"id,omitempty"`
+	// If not specified in frontmatter, this field remains empty and must be set explicitly by tooling if required.
+	URN *urn.URN `yaml:"urn,omitempty" json:"urn,omitempty"`
 
 	// Name is an optional human-readable name for the task
 	// Metadata only, does not affect task matching or filtering

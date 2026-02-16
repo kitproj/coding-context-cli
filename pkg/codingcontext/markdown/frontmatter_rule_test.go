@@ -4,8 +4,18 @@ import (
 	"testing"
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/urn"
 	"gopkg.in/yaml.v3"
 )
+
+// mustParseURNRule is a test helper that parses a URN string and panics on error
+func mustParseURNRule(s string) *urn.URN {
+	u, ok := urn.Parse([]byte(s))
+	if !ok {
+		panic("failed to parse URN: " + s)
+	}
+	return u
+}
 
 func TestRuleFrontMatter_Marshal(t *testing.T) {
 	tests := []struct {
@@ -22,12 +32,12 @@ func TestRuleFrontMatter_Marshal(t *testing.T) {
 			name: "rule with standard id, name, description",
 			rule: RuleFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:rule:standard",
+					URN:         mustParseURNRule("urn:agents:rule:standard"),
 					Name:        "Standard Rule",
 					Description: "This is a standard rule with metadata",
 				},
 			},
-			want: `id: urn:agents:rule:standard
+			want: `urn: urn:agents:rule:standard
 name: Standard Rule
 description: This is a standard rule with metadata
 `,
@@ -63,7 +73,7 @@ agent: cursor
 			name: "rule with all fields",
 			rule: RuleFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:rule:all-fields",
+					URN:         mustParseURNRule("urn:agents:rule:all-fields"),
 					Name:        "Complete Rule",
 					Description: "A rule with all fields",
 				},
@@ -77,7 +87,7 @@ agent: cursor
 				},
 				RuleName: "test-rule",
 			},
-			want: `id: urn:agents:rule:all-fields
+			want: `urn: urn:agents:rule:all-fields
 name: Complete Rule
 description: A rule with all fields
 task_names:
@@ -119,13 +129,13 @@ func TestRuleFrontMatter_Unmarshal(t *testing.T) {
 	}{
 		{
 			name: "rule with standard id, name, description",
-			yaml: `id: urn:agents:rule:named
+			yaml: `urn: urn:agents:rule:named
 name: Named Rule
 description: A rule with standard fields
 `,
 			want: RuleFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:rule:named",
+					URN:         mustParseURNRule("urn:agents:rule:named"),
 					Name:        "Named Rule",
 					Description: "A rule with standard fields",
 				},
@@ -183,7 +193,9 @@ languages:
 			}
 
 			// Compare fields individually
-			if got.URN != tt.want.URN {
+			if (got.URN == nil) != (tt.want.URN == nil) {
+				t.Errorf("URN = %v, want %v", got.URN, tt.want.URN)
+			} else if got.URN != nil && tt.want.URN != nil && !got.URN.Equal(tt.want.URN) {
 				t.Errorf("URN = %q, want %q", got.URN, tt.want.URN)
 			}
 			if got.Name != tt.want.Name {

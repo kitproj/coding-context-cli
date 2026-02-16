@@ -3,8 +3,18 @@ package markdown
 import (
 	"testing"
 
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/urn"
 	"gopkg.in/yaml.v3"
 )
+
+// mustParseURN is a test helper that parses a URN string and panics on error
+func mustParseURNCommand(s string) *urn.URN {
+	u, ok := urn.Parse([]byte(s))
+	if !ok {
+		panic("failed to parse URN: " + s)
+	}
+	return u
+}
 
 func TestCommandFrontMatter_Marshal(t *testing.T) {
 	tests := []struct {
@@ -21,12 +31,12 @@ func TestCommandFrontMatter_Marshal(t *testing.T) {
 			name: "command with standard id, name, description",
 			command: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:standard",
+					URN:         mustParseURNCommand("urn:agents:command:standard"),
 					Name:        "Standard Command",
 					Description: "This is a standard command with metadata",
 				},
 			},
-			want: `id: urn:agents:command:standard
+			want: `urn: urn:agents:command:standard
 name: Standard Command
 description: This is a standard command with metadata
 `,
@@ -35,7 +45,7 @@ description: This is a standard command with metadata
 			name: "command with expand false",
 			command: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:no-expand",
+					URN:         mustParseURNCommand("urn:agents:command:no-expand"),
 					Name:        "No Expand Command",
 					Description: "Command with expansion disabled",
 				},
@@ -44,7 +54,7 @@ description: This is a standard command with metadata
 					return &b
 				}(),
 			},
-			want: `id: urn:agents:command:no-expand
+			want: `urn: urn:agents:command:no-expand
 name: No Expand Command
 description: Command with expansion disabled
 expand: false
@@ -54,7 +64,7 @@ expand: false
 			name: "command with selectors",
 			command: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:selector",
+					URN:         mustParseURNCommand("urn:agents:command:selector"),
 					Name:        "Selector Command",
 					Description: "Command with selectors",
 				},
@@ -63,7 +73,7 @@ expand: false
 					"feature":  "auth",
 				},
 			},
-			want: `id: urn:agents:command:selector
+			want: `urn: urn:agents:command:selector
 name: Selector Command
 description: Command with selectors
 selectors:
@@ -95,13 +105,13 @@ func TestCommandFrontMatter_Unmarshal(t *testing.T) {
 	}{
 		{
 			name: "command with standard id, name, description",
-			yaml: `id: urn:agents:command:named
+			yaml: `urn: urn:agents:command:named
 name: Named Command
 description: A command with standard fields
 `,
 			want: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:named",
+					URN:         mustParseURNCommand("urn:agents:command:named"),
 					Name:        "Named Command",
 					Description: "A command with standard fields",
 				},
@@ -109,14 +119,14 @@ description: A command with standard fields
 		},
 		{
 			name: "command with expand false",
-			yaml: `id: urn:agents:command:no-expand
+			yaml: `urn: urn:agents:command:no-expand
 name: No Expand
 description: No expansion
 expand: false
 `,
 			want: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:no-expand",
+					URN:         mustParseURNCommand("urn:agents:command:no-expand"),
 					Name:        "No Expand",
 					Description: "No expansion",
 				},
@@ -128,7 +138,7 @@ expand: false
 		},
 		{
 			name: "command with selectors",
-			yaml: `id: urn:agents:command:selector
+			yaml: `urn: urn:agents:command:selector
 name: Selector Command
 description: Has selectors
 selectors:
@@ -137,7 +147,7 @@ selectors:
 `,
 			want: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:selector",
+					URN:         mustParseURNCommand("urn:agents:command:selector"),
 					Name:        "Selector Command",
 					Description: "Has selectors",
 				},
@@ -161,7 +171,9 @@ selectors:
 			}
 
 			// Compare fields individually
-			if got.URN != tt.want.URN {
+			if (got.URN == nil) != (tt.want.URN == nil) {
+				t.Errorf("URN = %v, want %v", got.URN, tt.want.URN)
+			} else if got.URN != nil && tt.want.URN != nil && !got.URN.Equal(tt.want.URN) {
 				t.Errorf("URN = %q, want %q", got.URN, tt.want.URN)
 			}
 			if got.Name != tt.want.Name {

@@ -31,7 +31,11 @@ func (r *Result) MCPServers() map[string]mcp.MCPServerConfig {
 		server := rule.FrontMatter.MCPServer
 		// Skip empty MCP server configs (no command and no URL means empty)
 		if server.Command != "" || server.URL != "" {
-			servers[rule.FrontMatter.URN] = server
+			key := ""
+			if rule.FrontMatter.URN != nil {
+				key = rule.FrontMatter.URN.String()
+			}
+			servers[key] = server
 		}
 	}
 

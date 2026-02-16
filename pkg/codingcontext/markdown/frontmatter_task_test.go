@@ -3,8 +3,18 @@ package markdown
 import (
 	"testing"
 
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/urn"
 	"gopkg.in/yaml.v3"
 )
+
+// mustParseURN is a test helper that parses a URN string and panics on error
+func mustParseURN(s string) *urn.URN {
+	u, ok := urn.Parse([]byte(s))
+	if !ok {
+		panic("failed to parse URN: " + s)
+	}
+	return u
+}
 
 func TestTaskFrontMatter_Marshal(t *testing.T) {
 	tests := []struct {
@@ -25,14 +35,14 @@ func TestTaskFrontMatter_Marshal(t *testing.T) {
 			name: "task with standard id, name, description",
 			task: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:task:standard-task",
+					URN:         mustParseURN("urn:agents:task:standard-task"),
 					Name:        "Standard Test Task",
 					Description: "This is a test task with standard fields",
 					Content:     map[string]any{"task_name": "standard-task"},
 				},
 			},
 			want: `task_name: standard-task
-id: urn:agents:task:standard-task
+urn: urn:agents:task:standard-task
 name: Standard Test Task
 description: This is a test task with standard fields
 `,
@@ -41,7 +51,7 @@ description: This is a test task with standard fields
 			name: "task with all fields",
 			task: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:task:full-task",
+					URN:         mustParseURN("urn:agents:task:full-task"),
 					Name:        "Full Task",
 					Description: "A task with all fields",
 					Content:     map[string]any{"task_name": "full-task"},
@@ -56,7 +66,7 @@ description: This is a test task with standard fields
 				},
 			},
 			want: `task_name: full-task
-id: urn:agents:task:full-task
+urn: urn:agents:task:full-task
 name: Full Task
 description: A task with all fields
 agent: cursor
@@ -118,13 +128,13 @@ func TestTaskFrontMatter_Unmarshal(t *testing.T) {
 		{
 			name: "task with standard id, name, description",
 			yaml: `task_name: standard-task
-id: urn:agents:task:standard-task
+urn: urn:agents:task:standard-task
 name: Standard Task
 description: This is a standard task
 `,
 			want: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:task:standard-task",
+					URN:         mustParseURN("urn:agents:task:standard-task"),
 					Name:        "Standard Task",
 					Description: "This is a standard task",
 					Content:     map[string]any{"task_name": "standard-task"},
@@ -161,7 +171,7 @@ languages:
 		{
 			name: "full task",
 			yaml: `task_name: full-task
-id: urn:agents:task:full-task
+urn: urn:agents:task:full-task
 name: Full Task
 description: A complete task
 agent: cursor
@@ -175,7 +185,7 @@ selectors:
 `,
 			want: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:task:full-task",
+					URN:         mustParseURN("urn:agents:task:full-task"),
 					Name:        "Full Task",
 					Description: "A complete task",
 					Content:     map[string]any{"task_name": "full-task"},
@@ -209,7 +219,10 @@ selectors:
 			if gotTaskName != wantTaskName {
 				t.Errorf("TaskName = %q, want %q", gotTaskName, wantTaskName)
 			}
-			if got.URN != tt.want.URN {
+			// Compare URNs
+			if (got.URN == nil) != (tt.want.URN == nil) {
+				t.Errorf("URN = %v, want %v", got.URN, tt.want.URN)
+			} else if got.URN != nil && tt.want.URN != nil && !got.URN.Equal(tt.want.URN) {
 				t.Errorf("URN = %q, want %q", got.URN, tt.want.URN)
 			}
 			if got.Name != tt.want.Name {
