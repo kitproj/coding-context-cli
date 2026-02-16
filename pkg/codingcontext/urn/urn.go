@@ -1,7 +1,7 @@
 package urn
 
 import (
-"encoding/json"
+"fmt"
 
 exturn "github.com/leodido/go-urn"
 )
@@ -37,10 +37,7 @@ return err
 
 parsed, ok := exturn.Parse([]byte(s))
 if !ok {
-return &json.UnmarshalTypeError{
-Value: "string " + s,
-Type:  nil,
-}
+return fmt.Errorf("invalid URN format: %q", s)
 }
 
 u.URN = parsed
