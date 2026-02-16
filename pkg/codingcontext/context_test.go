@@ -387,13 +387,14 @@ func TestContext_Run_Basic(t *testing.T) {
 		{
 			name: "task with explicit URN in frontmatter",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "file-name", "id: urn:agents:task:file-name", "Task content")
+				createTask(t, dir, "file-name", "urn: urn:agents:task:file-name", "Task content")
 			},
 			taskName: "file-name",
 			wantErr:  false,
 			check: func(t *testing.T, result *Result) {
-				if result.Task.FrontMatter.URN != "urn:agents:task:file-name" {
-					t.Errorf("expected task URN 'urn:agents:task:file-name', got %q", result.Task.FrontMatter.URN)
+				expectedURN := "urn:agents:task:file-name"
+				if result.Task.FrontMatter.URN == nil || result.Task.FrontMatter.URN.String() != expectedURN {
+					t.Errorf("expected task URN %q, got %q", expectedURN, result.Task.FrontMatter.URN)
 				}
 			},
 		},
@@ -762,8 +763,8 @@ func TestContext_Run_Rules(t *testing.T) {
 			name: "rule URN set from frontmatter",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "id-task", "", "Task")
-				createRule(t, dir, ".agents/rules/my-rule.md", "id: urn:agents:rule:my-rule", "Rule with URN")
-				createRule(t, dir, ".agents/rules/another-rule.md", "id: urn:agents:rule:another", "Rule with another URN")
+				createRule(t, dir, ".agents/rules/my-rule.md", "urn: urn:agents:rule:my-rule", "Rule with URN")
+				createRule(t, dir, ".agents/rules/another-rule.md", "urn: urn:agents:rule:another", "Rule with another URN")
 			},
 			taskName: "id-task",
 			wantErr:  false,
@@ -775,13 +776,13 @@ func TestContext_Run_Rules(t *testing.T) {
 				foundMyRule := false
 				foundAnotherRule := false
 				for _, rule := range result.Rules {
-					if rule.FrontMatter.URN == "urn:agents:rule:my-rule" {
+					if rule.FrontMatter.URN != nil && rule.FrontMatter.URN.String() == "urn:agents:rule:my-rule" {
 						foundMyRule = true
 						if !strings.Contains(rule.Content, "Rule with URN") {
 							t.Error("my-rule should contain 'Rule with URN'")
 						}
 					}
-					if rule.FrontMatter.URN == "urn:agents:rule:another" {
+					if rule.FrontMatter.URN != nil && rule.FrontMatter.URN.String() == "urn:agents:rule:another" {
 						foundAnotherRule = true
 						if !strings.Contains(rule.Content, "Rule with another URN") {
 							t.Error("another should contain 'Rule with another URN'")

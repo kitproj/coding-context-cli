@@ -77,8 +77,8 @@ expand: false
 name: Selector Command
 description: Command with selectors
 selectors:
-  database: postgres
-  feature: auth
+    database: postgres
+    feature: auth
 `,
 		},
 	}
