@@ -592,9 +592,9 @@ func TestContext_Run_Rules(t *testing.T) {
 			name: "bootstrap from frontmatter is preferred",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "frontmatter-bootstrap", "", "Task")
-				// Create rule with bootstrap in frontmatter
+				// Create rule with bootstrap in frontmatter that writes a marker file
 				createRule(t, dir, ".agents/rules/rule-with-frontmatter.md",
-					"bootstrap: |\n  echo 'frontmatter bootstrap'\n",
+					"bootstrap: |\n  #!/bin/sh\n  echo 'frontmatter' > "+filepath.Join(dir, "bootstrap-ran.txt")+"\n",
 					"Rule content")
 			},
 			taskName: "frontmatter-bootstrap",
@@ -603,6 +603,7 @@ func TestContext_Run_Rules(t *testing.T) {
 				if len(result.Rules) != 1 {
 					t.Errorf("expected 1 rule, got %d", len(result.Rules))
 				}
+				// The integration tests verify frontmatter bootstrap actually ran
 			},
 		},
 		{
@@ -610,11 +611,14 @@ func TestContext_Run_Rules(t *testing.T) {
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "frontmatter-priority", "", "Task")
 				// Create rule with BOTH frontmatter and file bootstrap
+				// Frontmatter writes "frontmatter", file writes "file"
+				markerPath := filepath.Join(dir, "bootstrap-marker.txt")
 				createRule(t, dir, ".agents/rules/priority-rule.md",
-					"bootstrap: |\n  echo 'using frontmatter'\n",
+					"bootstrap: |\n  #!/bin/sh\n  echo 'frontmatter' > "+markerPath+"\n",
 					"Rule content")
 				// Also create a file-based bootstrap (should be ignored)
-				createBootstrapScript(t, dir, ".agents/rules/priority-rule.md", "#!/bin/sh\necho 'using file'")
+				createBootstrapScript(t, dir, ".agents/rules/priority-rule.md",
+					"#!/bin/sh\necho 'file' > "+markerPath)
 			},
 			taskName: "frontmatter-priority",
 			wantErr:  false,
@@ -622,6 +626,7 @@ func TestContext_Run_Rules(t *testing.T) {
 				if len(result.Rules) != 1 {
 					t.Errorf("expected 1 rule, got %d", len(result.Rules))
 				}
+				// The integration tests verify which bootstrap actually ran
 			},
 		},
 		{
@@ -629,9 +634,11 @@ func TestContext_Run_Rules(t *testing.T) {
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "file-fallback", "", "Task")
 				// Create rule WITHOUT frontmatter bootstrap
+				markerPath := filepath.Join(dir, "bootstrap-marker.txt")
 				createRule(t, dir, ".agents/rules/fallback-rule.md", "", "Rule content")
 				// Create file-based bootstrap (should be used)
-				createBootstrapScript(t, dir, ".agents/rules/fallback-rule.md", "#!/bin/sh\necho 'using file fallback'")
+				createBootstrapScript(t, dir, ".agents/rules/fallback-rule.md",
+					"#!/bin/sh\necho 'file' > "+markerPath)
 			},
 			taskName: "file-fallback",
 			wantErr:  false,
@@ -639,6 +646,7 @@ func TestContext_Run_Rules(t *testing.T) {
 				if len(result.Rules) != 1 {
 					t.Errorf("expected 1 rule, got %d", len(result.Rules))
 				}
+				// The integration tests verify the file-based bootstrap ran
 			},
 		},
 		{

@@ -851,7 +851,7 @@ Dependencies are listed in /tmp/go-deps.txt
 ```yaml
 ---
 bootstrap: |
-  #!/bin/bash
+  #!/bin/sh
   set -e
   
   echo "Setting up environment..." >&2
@@ -876,6 +876,8 @@ coding-context implement-feature
 ```
 
 **Notes:**
+- The bootstrap script is saved to a temporary executable file and run directly
+- Use `#!/bin/sh` (POSIX shell) or `#!/bin/bash` (bash) as the first line to select the interpreter
 - Output goes to stderr, not the assembled context
 - If both frontmatter `bootstrap:` and file-based bootstrap exist, frontmatter takes precedence
 - Environment variables from the parent process are available

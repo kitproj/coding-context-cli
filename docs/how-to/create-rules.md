@@ -154,6 +154,7 @@ The preferred way is to define the bootstrap script directly in frontmatter:
 ---
 source: jira
 bootstrap: |
+  #!/bin/sh
   if [ -z "$JIRA_ISSUE_KEY" ]; then
       exit 0
   fi
@@ -179,6 +180,8 @@ export JIRA_API_TOKEN="your-token"
 
 coding-context -s source=jira fix-bug
 ```
+
+**Note:** The bootstrap script is saved to a temporary file and executed. Include a shebang line (`#!/bin/sh` or `#!/bin/bash`) to specify the interpreter.
 
 ### File-Based Bootstrap (Legacy)
 

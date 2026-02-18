@@ -162,6 +162,7 @@ func TestBootstrapFromFrontmatter(t *testing.T) {
 	ruleFile := filepath.Join(dirs.rulesDir, "setup.md")
 	ruleContent := `---
 bootstrap: |
+  #!/bin/sh
   echo "Bootstrap from frontmatter"
 ---
 # Setup
@@ -179,17 +180,17 @@ This is a setup guide with frontmatter bootstrap.
 
 	// Check that bootstrap output appears
 	if !strings.Contains(output, "Bootstrap from frontmatter") {
-		t.Errorf("bootstrap output from frontmatter not found in stdout")
+		t.Errorf("bootstrap output from frontmatter not found in output")
 	}
 
 	// Check that rule content is present
 	if !strings.Contains(output, "# Setup") {
-		t.Errorf("rule content not found in stdout")
+		t.Errorf("rule content not found in output")
 	}
 
 	// Check that task content is present
 	if !strings.Contains(output, "# Test Task") {
-		t.Errorf("task content not found in stdout")
+		t.Errorf("task content not found in output")
 	}
 }
 
@@ -200,6 +201,7 @@ func TestBootstrapFrontmatterPreferredOverFile(t *testing.T) {
 	ruleFile := filepath.Join(dirs.rulesDir, "setup.md")
 	ruleContent := `---
 bootstrap: |
+  #!/bin/sh
   echo "Using frontmatter bootstrap"
 ---
 # Priority Test
@@ -226,7 +228,7 @@ echo "Using file bootstrap"
 
 	// Check that frontmatter bootstrap is used
 	if !strings.Contains(output, "Using frontmatter bootstrap") {
-		t.Errorf("frontmatter bootstrap output not found in stdout")
+		t.Errorf("frontmatter bootstrap output not found in output")
 	}
 
 	// Check that file bootstrap is NOT used
@@ -236,7 +238,7 @@ echo "Using file bootstrap"
 
 	// Check that rule content is present
 	if !strings.Contains(output, "# Priority Test") {
-		t.Errorf("rule content not found in stdout")
+		t.Errorf("rule content not found in output")
 	}
 }
 

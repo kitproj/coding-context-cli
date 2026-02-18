@@ -583,11 +583,34 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path string, frontmat
 	if frontmatterBootstrap != "" {
 		cc.logger.Info("Running bootstrap from frontmatter", "path", path)
 
-		cmd := exec.CommandContext(ctx, "sh", "-c", frontmatterBootstrap)
+		// Create a temporary file for the bootstrap script
+		tmpFile, err := os.CreateTemp("", "bootstrap-*.sh")
+		if err != nil {
+			return fmt.Errorf("failed to create temp file for bootstrap script from %s: %w", path, err)
+		}
+		tmpFilePath := tmpFile.Name()
+		defer os.Remove(tmpFilePath)
+
+		// Write the bootstrap script to the temp file
+		if _, err := tmpFile.WriteString(frontmatterBootstrap); err != nil {
+			tmpFile.Close()
+			return fmt.Errorf("failed to write bootstrap script from %s: %w", path, err)
+		}
+		tmpFile.Close()
+
+		// Make it executable
+		if err := os.Chmod(tmpFilePath, 0o755); err != nil {
+			return fmt.Errorf("failed to chmod bootstrap script from %s: %w", path, err)
+		}
+
+		cmd := exec.CommandContext(ctx, tmpFilePath)
 		cmd.Stdout = os.Stderr
 		cmd.Stderr = os.Stderr
 
-		return cc.cmdRunner(cmd)
+		if err := cc.cmdRunner(cmd); err != nil {
+			return fmt.Errorf("frontmatter bootstrap script failed for %s: %w", path, err)
+		}
+		return nil
 	}
 
 	// Fall back to file-based bootstrap
@@ -614,7 +637,10 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path string, frontmat
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 
-	return cc.cmdRunner(cmd)
+	if err := cc.cmdRunner(cmd); err != nil {
+		return fmt.Errorf("file-based bootstrap script failed for %s: %w", path, err)
+	}
+	return nil
 }
 
 // discoverSkills searches for skill directories and loads only their metadata (name and description)
