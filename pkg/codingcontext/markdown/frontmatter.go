@@ -141,6 +141,10 @@ type RuleFrontMatter struct {
 	// ExpandParams controls whether parameter expansion should occur
 	// Defaults to true if not specified
 	ExpandParams *bool `yaml:"expand,omitempty" json:"expand,omitempty"`
+
+	// Bootstrap contains a shell script to execute before including the rule
+	// This is preferred over file-based bootstrap scripts
+	Bootstrap string `yaml:"bootstrap,omitempty" json:"bootstrap,omitempty"`
 }
 
 // UnmarshalJSON custom unmarshaler that populates both typed fields and Content map

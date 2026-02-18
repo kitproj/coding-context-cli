@@ -155,6 +155,93 @@ General information about the project.
 	}
 }
 
+func TestBootstrapFromFrontmatter(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a rule file with bootstrap in frontmatter
+	ruleFile := filepath.Join(dirs.rulesDir, "setup.md")
+	ruleContent := `---
+bootstrap: |
+  #!/bin/sh
+  echo "Bootstrap from frontmatter"
+---
+# Setup
+
+This is a setup guide with frontmatter bootstrap.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	createStandardTask(t, dirs.tasksDir, "test-task")
+
+	// Run the program
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
+
+	// Check that bootstrap output appears
+	if !strings.Contains(output, "Bootstrap from frontmatter") {
+		t.Errorf("bootstrap output from frontmatter not found in output")
+	}
+
+	// Check that rule content is present
+	if !strings.Contains(output, "# Setup") {
+		t.Errorf("rule content not found in output")
+	}
+
+	// Check that task content is present
+	if !strings.Contains(output, "# Test Task") {
+		t.Errorf("task content not found in output")
+	}
+}
+
+func TestBootstrapFrontmatterPreferredOverFile(t *testing.T) {
+	dirs := setupTestDirs(t)
+
+	// Create a rule file with bootstrap in frontmatter
+	ruleFile := filepath.Join(dirs.rulesDir, "setup.md")
+	ruleContent := `---
+bootstrap: |
+  #!/bin/sh
+  echo "Using frontmatter bootstrap"
+---
+# Priority Test
+
+Testing that frontmatter bootstrap is preferred.
+`
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+		t.Fatalf("failed to write rule file: %v", err)
+	}
+
+	// Also create a file-based bootstrap (should be ignored)
+	bootstrapFile := filepath.Join(dirs.rulesDir, "setup-bootstrap")
+	bootstrapContent := `#!/bin/bash
+echo "Using file bootstrap"
+`
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0o755); err != nil {
+		t.Fatalf("failed to write bootstrap file: %v", err)
+	}
+
+	createStandardTask(t, dirs.tasksDir, "test-task")
+
+	// Run the program
+	output := runTool(t, "-C", dirs.tmpDir, "test-task")
+
+	// Check that frontmatter bootstrap is used
+	if !strings.Contains(output, "Using frontmatter bootstrap") {
+		t.Errorf("frontmatter bootstrap output not found in output")
+	}
+
+	// Check that file bootstrap is NOT used
+	if strings.Contains(output, "Using file bootstrap") {
+		t.Errorf("file bootstrap should not be used when frontmatter bootstrap is present")
+	}
+
+	// Check that rule content is present
+	if !strings.Contains(output, "# Priority Test") {
+		t.Errorf("rule content not found in output")
+	}
+}
+
 func TestMultipleBootstrapFiles(t *testing.T) {
 	dirs := setupTestDirs(t)
 
