@@ -154,7 +154,8 @@ The preferred way is to define the bootstrap script directly in frontmatter:
 ---
 source: jira
 bootstrap: |
-  #!/bin/sh
+  #! /bin/sh
+  set -eux
   if [ -z "$JIRA_ISSUE_KEY" ]; then
       exit 0
   fi

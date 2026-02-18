@@ -837,6 +837,8 @@ The bootstrap script runs via `sh -c`, with output sent to stderr (not included 
 languages:
   - go
 bootstrap: |
+  #! /bin/sh
+  set -eux
   echo "Fetching project dependencies..." >&2
   go list -m all > /tmp/go-deps.txt
   echo "Dependencies cached" >&2
@@ -851,8 +853,8 @@ Dependencies are listed in /tmp/go-deps.txt
 ```yaml
 ---
 bootstrap: |
-  #!/bin/sh
-  set -e
+  #! /bin/sh
+  set -eux
   
   echo "Setting up environment..." >&2
   
