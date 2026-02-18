@@ -21,7 +21,7 @@ func TestCommandFrontMatter_Marshal(t *testing.T) {
 			name: "command with standard id, name, description",
 			command: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:standard",
+					URN:         mustParseURN("urn:agents:command:standard"),
 					Name:        "Standard Command",
 					Description: "This is a standard command with metadata",
 				},
@@ -35,7 +35,7 @@ description: This is a standard command with metadata
 			name: "command with expand false",
 			command: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:no-expand",
+					URN:         mustParseURN("urn:agents:command:no-expand"),
 					Name:        "No Expand Command",
 					Description: "Command with expansion disabled",
 				},
@@ -54,7 +54,7 @@ expand: false
 			name: "command with selectors",
 			command: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:selector",
+					URN:         mustParseURN("urn:agents:command:selector"),
 					Name:        "Selector Command",
 					Description: "Command with selectors",
 				},
@@ -101,7 +101,7 @@ description: A command with standard fields
 `,
 			want: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:named",
+					URN:         mustParseURN("urn:agents:command:named"),
 					Name:        "Named Command",
 					Description: "A command with standard fields",
 				},
@@ -116,7 +116,7 @@ expand: false
 `,
 			want: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:no-expand",
+					URN:         mustParseURN("urn:agents:command:no-expand"),
 					Name:        "No Expand",
 					Description: "No expansion",
 				},
@@ -137,7 +137,7 @@ selectors:
 `,
 			want: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:command:selector",
+					URN:         mustParseURN("urn:agents:command:selector"),
 					Name:        "Selector Command",
 					Description: "Has selectors",
 				},
@@ -161,8 +161,8 @@ selectors:
 			}
 
 			// Compare fields individually
-			if got.URN != tt.want.URN {
-				t.Errorf("URN = %q, want %q", got.URN, tt.want.URN)
+			if !urnEqual(got.URN, tt.want.URN) {
+				t.Errorf("URN = %q, want %q", urnString(got.URN), urnString(tt.want.URN))
 			}
 			if got.Name != tt.want.Name {
 				t.Errorf("Name = %q, want %q", got.Name, tt.want.Name)

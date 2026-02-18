@@ -22,7 +22,7 @@ func TestRuleFrontMatter_Marshal(t *testing.T) {
 			name: "rule with standard id, name, description",
 			rule: RuleFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:rule:standard",
+					URN:         mustParseURN("urn:agents:rule:standard"),
 					Name:        "Standard Rule",
 					Description: "This is a standard rule with metadata",
 				},
@@ -63,7 +63,7 @@ agent: cursor
 			name: "rule with all fields",
 			rule: RuleFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:rule:all-fields",
+					URN:         mustParseURN("urn:agents:rule:all-fields"),
 					Name:        "Complete Rule",
 					Description: "A rule with all fields",
 				},
@@ -75,7 +75,6 @@ agent: cursor
 					Command: "database-server",
 					Args:    []string{"--port", "5432"},
 				},
-				RuleName: "test-rule",
 			},
 			want: `id: urn:agents:rule:all-fields
 name: Complete Rule
@@ -92,7 +91,6 @@ mcp_server:
   args:
   - --port
   - "5432"
-rule_name: test-rule
 `,
 		},
 	}
@@ -125,7 +123,7 @@ description: A rule with standard fields
 `,
 			want: RuleFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:rule:named",
+					URN:         mustParseURN("urn:agents:rule:named"),
 					Name:        "Named Rule",
 					Description: "A rule with standard fields",
 				},
@@ -183,8 +181,8 @@ languages:
 			}
 
 			// Compare fields individually
-			if got.URN != tt.want.URN {
-				t.Errorf("URN = %q, want %q", got.URN, tt.want.URN)
+			if !urnEqual(got.URN, tt.want.URN) {
+				t.Errorf("URN = %q, want %q", urnString(got.URN), urnString(tt.want.URN))
 			}
 			if got.Name != tt.want.Name {
 				t.Errorf("Name = %q, want %q", got.Name, tt.want.Name)
@@ -194,9 +192,6 @@ languages:
 			}
 			if got.Agent != tt.want.Agent {
 				t.Errorf("Agent = %q, want %q", got.Agent, tt.want.Agent)
-			}
-			if got.RuleName != tt.want.RuleName {
-				t.Errorf("RuleName = %q, want %q", got.RuleName, tt.want.RuleName)
 			}
 		})
 	}

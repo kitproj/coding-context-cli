@@ -5,22 +5,24 @@ import (
 	"fmt"
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
+	"github.com/leodido/go-urn"
 )
 
 // BaseFrontMatter represents parsed YAML frontmatter from markdown files
 type BaseFrontMatter struct {
 	// URN is an optional unique identifier for the prompt in URN format (e.g. urn:agents:task:<name>)
 	// Automatically inferred from filename if not specified in frontmatter
-	URN string `yaml:"id,omitempty" json:"id,omitempty"`
+	URN *urn.URN `yaml:"urn,omitempty" json:"urn,omitempty"`
 
-	// Name is an optional human-readable name for the task
-	// Metadata only, does not affect task matching or filtering
+	// Name is the skill identifier
+	// Must be 1-64 characters, lowercase alphanumeric and hyphens only
 	Name string `yaml:"name,omitempty" json:"name,omitempty"`
 
-	// Description is an optional description of what the task does
-	// Metadata only, does not affect task matching or filtering
-	Description string         `yaml:"description,omitempty" json:"description,omitempty"`
-	Content     map[string]any `json:"-" yaml:",inline"`
+	// Description explains what the prompt does and when to use it
+	// Must be 1-1024 characters
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+
+	Content map[string]any `json:"-" yaml:",inline"`
 }
 
 // TaskFrontMatter represents the standard frontmatter fields for task files
@@ -136,9 +138,6 @@ type RuleFrontMatter struct {
 	// Metadata only, does not filter
 	MCPServer mcp.MCPServerConfig `yaml:"mcp_server,omitempty" json:"mcp_server,omitempty"`
 
-	// RuleName is an optional identifier for the rule file
-	RuleName string `yaml:"rule_name,omitempty" json:"rule_name,omitempty"`
-
 	// ExpandParams controls whether parameter expansion should occur
 	// Defaults to true if not specified
 	ExpandParams *bool `yaml:"expand,omitempty" json:"expand,omitempty"`
@@ -169,14 +168,6 @@ func (r *RuleFrontMatter) UnmarshalJSON(data []byte) error {
 // SkillFrontMatter represents the standard frontmatter fields for skill files
 type SkillFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
-
-	// Name is the skill identifier (required)
-	// Must be 1-64 characters, lowercase alphanumeric and hyphens only
-	Name string `yaml:"name" json:"name"`
-
-	// Description explains what the skill does and when to use it (required)
-	// Must be 1-1024 characters
-	Description string `yaml:"description" json:"description"`
 
 	// License specifies the license applied to the skill (optional)
 	License string `yaml:"license,omitempty" json:"license,omitempty"`

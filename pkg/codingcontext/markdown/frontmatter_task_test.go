@@ -25,7 +25,7 @@ func TestTaskFrontMatter_Marshal(t *testing.T) {
 			name: "task with standard id, name, description",
 			task: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:task:standard-task",
+					URN:         mustParseURN("urn:agents:task:standard-task"),
 					Name:        "Standard Test Task",
 					Description: "This is a test task with standard fields",
 					Content:     map[string]any{"task_name": "standard-task"},
@@ -41,7 +41,7 @@ description: This is a test task with standard fields
 			name: "task with all fields",
 			task: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:task:full-task",
+					URN:         mustParseURN("urn:agents:task:full-task"),
 					Name:        "Full Task",
 					Description: "A task with all fields",
 					Content:     map[string]any{"task_name": "full-task"},
@@ -124,7 +124,7 @@ description: This is a standard task
 `,
 			want: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:task:standard-task",
+					URN:         mustParseURN("urn:agents:task:standard-task"),
 					Name:        "Standard Task",
 					Description: "This is a standard task",
 					Content:     map[string]any{"task_name": "standard-task"},
@@ -175,7 +175,7 @@ selectors:
 `,
 			want: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         "urn:agents:task:full-task",
+					URN:         mustParseURN("urn:agents:task:full-task"),
 					Name:        "Full Task",
 					Description: "A complete task",
 					Content:     map[string]any{"task_name": "full-task"},
@@ -209,8 +209,8 @@ selectors:
 			if gotTaskName != wantTaskName {
 				t.Errorf("TaskName = %q, want %q", gotTaskName, wantTaskName)
 			}
-			if got.URN != tt.want.URN {
-				t.Errorf("URN = %q, want %q", got.URN, tt.want.URN)
+			if !urnEqual(got.URN, tt.want.URN) {
+				t.Errorf("URN = %q, want %q", urnString(got.URN), urnString(tt.want.URN))
 			}
 			if got.Name != tt.want.Name {
 				t.Errorf("Name = %q, want %q", got.Name, tt.want.Name)
