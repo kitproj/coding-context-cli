@@ -5,28 +5,64 @@ import (
 	"fmt"
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
+	"github.com/leodido/go-urn"
+	"gopkg.in/yaml.v3"
 )
 
 // BaseFrontMatter represents parsed YAML frontmatter from markdown files
 type BaseFrontMatter struct {
+	// URN is an optional unique identifier for the prompt in URN format (e.g. urn:agents:task:<name>)
+	// Automatically inferred from filename if not specified in frontmatter
+	// In YAML frontmatter, "id" is accepted as an alias for "urn".
+	URN *urn.URN `yaml:"urn,omitempty" json:"urn,omitempty"`
+
+	// Name is the skill identifier
+	// Must be 1-64 characters, lowercase alphanumeric and hyphens only
+	Name string `yaml:"name,omitempty" json:"name,omitempty"`
+
+	// Description explains what the prompt does and when to use it
+	// Must be 1-1024 characters
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+
 	Content map[string]any `json:"-" yaml:",inline"`
+}
+
+type baseFrontMatterRaw struct {
+	ID          string         `yaml:"id"`
+	URN         *urn.URN       `yaml:"urn"`
+	Name        string         `yaml:"name"`
+	Description string         `yaml:"description"`
+	Content     map[string]any `yaml:",inline"`
+}
+
+// UnmarshalYAML supports "id" as an alias for URN and parses string values into *urn.URN.
+func (b *BaseFrontMatter) UnmarshalYAML(value *yaml.Node) error {
+	var raw baseFrontMatterRaw
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+	b.Name = raw.Name
+	b.Description = raw.Description
+	b.Content = raw.Content
+	if raw.Content == nil {
+		b.Content = make(map[string]any)
+	}
+	if raw.URN != nil {
+		b.URN = raw.URN
+		return nil
+	}
+	if raw.ID != "" {
+		u, ok := urn.Parse([]byte(raw.ID))
+		if ok {
+			b.URN = u
+		}
+	}
+	return nil
 }
 
 // TaskFrontMatter represents the standard frontmatter fields for task files
 type TaskFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
-
-	// ID is an optional unique identifier for the task
-	// Metadata only, does not affect task matching or filtering
-	ID string `yaml:"id,omitempty" json:"id,omitempty"`
-
-	// Name is an optional human-readable name for the task
-	// Metadata only, does not affect task matching or filtering
-	Name string `yaml:"name,omitempty" json:"name,omitempty"`
-
-	// Description is an optional description of what the task does
-	// Metadata only, does not affect task matching or filtering
-	Description string `yaml:"description,omitempty" json:"description,omitempty"`
 
 	// Agent specifies the default agent if not specified via -a flag
 	// This is not used for selecting tasks or rules, only as a default
@@ -87,18 +123,6 @@ func (t *TaskFrontMatter) UnmarshalJSON(data []byte) error {
 type CommandFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
 
-	// ID is an optional unique identifier for the command
-	// Metadata only, does not affect command matching or filtering
-	ID string `yaml:"id,omitempty" json:"id,omitempty"`
-
-	// Name is an optional human-readable name for the command
-	// Metadata only, does not affect command matching or filtering
-	Name string `yaml:"name,omitempty" json:"name,omitempty"`
-
-	// Description is an optional description of what the command does
-	// Metadata only, does not affect command matching or filtering
-	Description string `yaml:"description,omitempty" json:"description,omitempty"`
-
 	// ExpandParams controls whether parameter expansion should occur
 	// Defaults to true if not specified
 	ExpandParams *bool `yaml:"expand,omitempty" json:"expand,omitempty"`
@@ -134,18 +158,6 @@ func (c *CommandFrontMatter) UnmarshalJSON(data []byte) error {
 type RuleFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
 
-	// ID is an optional unique identifier for the rule
-	// Metadata only, does not affect rule matching or filtering
-	ID string `yaml:"id,omitempty" json:"id,omitempty"`
-
-	// Name is an optional human-readable name for the rule
-	// Metadata only, does not affect rule matching or filtering
-	Name string `yaml:"name,omitempty" json:"name,omitempty"`
-
-	// Description is an optional description of what the rule provides
-	// Metadata only, does not affect rule matching or filtering
-	Description string `yaml:"description,omitempty" json:"description,omitempty"`
-
 	// TaskNames specifies which task(s) this rule applies to
 	// Array of task names for OR logic
 	TaskNames []string `yaml:"task_names,omitempty" json:"task_names,omitempty"`
@@ -160,9 +172,6 @@ type RuleFrontMatter struct {
 	// MCPServer specifies a single MCP server configuration
 	// Metadata only, does not filter
 	MCPServer mcp.MCPServerConfig `yaml:"mcp_server,omitempty" json:"mcp_server,omitempty"`
-
-	// RuleName is an optional identifier for the rule file
-	RuleName string `yaml:"rule_name,omitempty" json:"rule_name,omitempty"`
 
 	// ExpandParams controls whether parameter expansion should occur
 	// Defaults to true if not specified
@@ -198,14 +207,6 @@ func (r *RuleFrontMatter) UnmarshalJSON(data []byte) error {
 // SkillFrontMatter represents the standard frontmatter fields for skill files
 type SkillFrontMatter struct {
 	BaseFrontMatter `yaml:",inline"`
-
-	// Name is the skill identifier (required)
-	// Must be 1-64 characters, lowercase alphanumeric and hyphens only
-	Name string `yaml:"name" json:"name"`
-
-	// Description explains what the skill does and when to use it (required)
-	// Must be 1-1024 characters
-	Description string `yaml:"description" json:"description"`
 
 	// License specifies the license applied to the skill (optional)
 	License string `yaml:"license,omitempty" json:"license,omitempty"`

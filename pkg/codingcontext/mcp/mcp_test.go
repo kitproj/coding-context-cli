@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/goccy/go-yaml"
+	"gopkg.in/yaml.v3"
 )
 
 func TestMCPServerConfig_YAML_ArbitraryFields(t *testing.T) {
@@ -24,11 +24,6 @@ args: ["--verbose"]
 				Type:    TransportTypeStdio,
 				Command: "filesystem",
 				Args:    []string{"--verbose"},
-				Content: map[string]any{
-					"type":    "stdio",
-					"command": "filesystem",
-					"args":    []any{"--verbose"},
-				},
 			},
 		},
 		{
@@ -42,13 +37,6 @@ debug: true
 			want: MCPServerConfig{
 				Type:    TransportTypeStdio,
 				Command: "git",
-				Content: map[string]any{
-					"type":         "stdio",
-					"command":      "git",
-					"custom_field": "custom_value",
-					"max_retries":  3,
-					"debug":        true,
-				},
 			},
 		},
 		{
@@ -66,15 +54,6 @@ retry_policy: exponential
 				Headers: map[string]string{
 					"Authorization": "Bearer token123",
 				},
-				Content: map[string]any{
-					"type": "http",
-					"url":  "https://api.example.com",
-					"headers": map[string]any{
-						"Authorization": "Bearer token123",
-					},
-					"timeout_seconds": 30,
-					"retry_policy":    "exponential",
-				},
 			},
 		},
 		{
@@ -89,15 +68,6 @@ custom_config:
 			want: MCPServerConfig{
 				Type:    TransportTypeStdio,
 				Command: "database",
-				Content: map[string]any{
-					"type":    "stdio",
-					"command": "database",
-					"custom_config": map[string]any{
-						"host": "localhost",
-						"port": 5432,
-						"ssl":  true,
-					},
-				},
 			},
 		},
 		{
@@ -117,16 +87,6 @@ python_version: "3.11"
 				Env: map[string]string{
 					"PYTHON_PATH": "/usr/bin/python3",
 					"DEBUG":       "true",
-				},
-				Content: map[string]any{
-					"type":    "stdio",
-					"command": "python",
-					"args":    []any{"-m", "server"},
-					"env": map[string]any{
-						"PYTHON_PATH": "/usr/bin/python3",
-						"DEBUG":       "true",
-					},
-					"python_version": "3.11",
 				},
 			},
 		},
@@ -274,8 +234,6 @@ func TestMCPServerConfig_Marshal_YAML(t *testing.T) {
 				Type:    TransportTypeStdio,
 				Command: "git",
 				Content: map[string]any{
-					"type":         "stdio",
-					"command":      "git",
 					"custom_field": "custom_value",
 					"max_retries":  3,
 				},

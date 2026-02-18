@@ -58,9 +58,8 @@ func New(opts ...Option) *Context {
 	return c
 }
 
-// generateIDFromPath generates an ID from a file path by extracting the filename without extension.
-// Used to auto-set ID fields in frontmatter when not explicitly provided.
-func generateIDFromPath(path string) string {
+// nameFromPath returns the filename without extension. Used to default Name in frontmatter when omitted.
+func nameFromPath(path string) string {
 	baseName := filepath.Base(path)
 	ext := filepath.Ext(baseName)
 	return strings.TrimSuffix(baseName, ext)
@@ -138,10 +137,8 @@ func (cc *Context) findTask(taskName string) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse task file %s: %w", path, err)
 		}
-
-		// Automatically set ID to filename (without extension) if not set in frontmatter
-		if frontMatter.ID == "" {
-			frontMatter.ID = generateIDFromPath(path)
+		if frontMatter.Name == "" {
+			frontMatter.Name = nameFromPath(path)
 		}
 
 		// Extract selector labels from task frontmatter and add them to cc.includes.
@@ -243,10 +240,8 @@ func (cc *Context) findCommand(commandName string, params taskparser.Params) (st
 		if err != nil {
 			return fmt.Errorf("failed to parse command file %s: %w", path, err)
 		}
-
-		// Automatically set ID to filename (without extension) if not set in frontmatter
-		if frontMatter.ID == "" {
-			frontMatter.ID = generateIDFromPath(path)
+		if frontMatter.Name == "" {
+			frontMatter.Name = nameFromPath(path)
 		}
 
 		// Extract selector labels from command frontmatter and add them to cc.includes.
@@ -535,10 +530,8 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 		if err != nil {
 			return fmt.Errorf("failed to parse markdown file %s: %w", path, err)
 		}
-
-		// Automatically set ID to filename (without extension) if not set in frontmatter
-		if frontmatter.ID == "" {
-			frontmatter.ID = generateIDFromPath(path)
+		if frontmatter.Name == "" {
+			frontmatter.Name = nameFromPath(path)
 		}
 
 		// Expand parameters only if expand is not explicitly set to false

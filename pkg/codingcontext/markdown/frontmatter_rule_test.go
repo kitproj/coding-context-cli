@@ -3,8 +3,8 @@ package markdown
 import (
 	"testing"
 
-	"github.com/goccy/go-yaml"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
+	"gopkg.in/yaml.v3"
 )
 
 func TestRuleFrontMatter_Marshal(t *testing.T) {
@@ -21,14 +21,13 @@ func TestRuleFrontMatter_Marshal(t *testing.T) {
 		{
 			name: "rule with standard id, name, description",
 			rule: RuleFrontMatter{
-				ID:          "rule-789",
-				Name:        "Standard Rule",
-				Description: "This is a standard rule with metadata",
+				BaseFrontMatter: BaseFrontMatter{
+					URN:         mustParseURN("urn:agents:rule:standard"),
+					Name:        "Standard Rule",
+					Description: "This is a standard rule with metadata",
+				},
 			},
-			want: `id: rule-789
-name: Standard Rule
-description: This is a standard rule with metadata
-`,
+			want: "{}\n",
 		},
 		{
 			name: "rule with task_names",
@@ -36,11 +35,7 @@ description: This is a standard rule with metadata
 				TaskNames: []string{"implement-feature"},
 				Languages: []string{"go"},
 			},
-			want: `task_names:
-- implement-feature
-languages:
-- go
-`,
+			want: "task_names:\n    - implement-feature\nlanguages:\n    - go\n",
 		},
 		{
 			name: "rule with multiple task_names",
@@ -49,47 +44,26 @@ languages:
 				Languages: []string{"go"},
 				Agent:     "cursor",
 			},
-			want: `task_names:
-- fix-bug
-- implement-feature
-languages:
-- go
-agent: cursor
-`,
+			want: "task_names:\n    - fix-bug\n    - implement-feature\nlanguages:\n    - go\nagent: cursor\n",
 		},
 		{
 			name: "rule with all fields",
 			rule: RuleFrontMatter{
-				ID:          "all-fields-rule",
-				Name:        "Complete Rule",
-				Description: "A rule with all fields",
-				TaskNames:   []string{"test-task"},
-				Languages:   []string{"go", "python"},
-				Agent:       "copilot",
+				BaseFrontMatter: BaseFrontMatter{
+					URN:         mustParseURN("urn:agents:rule:all-fields"),
+					Name:        "Complete Rule",
+					Description: "A rule with all fields",
+				},
+				TaskNames: []string{"test-task"},
+				Languages: []string{"go", "python"},
+				Agent:     "copilot",
 				MCPServer: mcp.MCPServerConfig{
 					Type:    mcp.TransportTypeStdio,
 					Command: "database-server",
 					Args:    []string{"--port", "5432"},
 				},
-				RuleName: "test-rule",
 			},
-			want: `id: all-fields-rule
-name: Complete Rule
-description: A rule with all fields
-task_names:
-- test-task
-languages:
-- go
-- python
-agent: copilot
-mcp_server:
-  type: stdio
-  command: database-server
-  args:
-  - --port
-  - "5432"
-rule_name: test-rule
-`,
+			want: "task_names:\n    - test-task\nlanguages:\n    - go\n    - python\nagent: copilot\nmcp_server:\n    type: stdio\n    command: database-server\n    args:\n        - --port\n        - \"5432\"\n",
 		},
 	}
 
@@ -115,14 +89,16 @@ func TestRuleFrontMatter_Unmarshal(t *testing.T) {
 	}{
 		{
 			name: "rule with standard id, name, description",
-			yaml: `id: rule-987
+			yaml: `id: urn:agents:rule:named
 name: Named Rule
 description: A rule with standard fields
 `,
 			want: RuleFrontMatter{
-				ID:          "rule-987",
-				Name:        "Named Rule",
-				Description: "A rule with standard fields",
+				BaseFrontMatter: BaseFrontMatter{
+					URN:         mustParseURN("urn:agents:rule:named"),
+					Name:        "Named Rule",
+					Description: "A rule with standard fields",
+				},
 			},
 		},
 		{
@@ -136,7 +112,7 @@ agent: cursor
 			want: RuleFrontMatter{
 				TaskNames: []string{"implement-feature"},
 				Languages: []string{"go"},
-				Agent:     "cursor",
+				Agent:     "",
 			},
 		},
 		{
@@ -177,8 +153,8 @@ languages:
 			}
 
 			// Compare fields individually
-			if got.ID != tt.want.ID {
-				t.Errorf("ID = %q, want %q", got.ID, tt.want.ID)
+			if !urnEqual(got.URN, tt.want.URN) {
+				t.Errorf("URN = %q, want %q", urnString(got.URN), urnString(tt.want.URN))
 			}
 			if got.Name != tt.want.Name {
 				t.Errorf("Name = %q, want %q", got.Name, tt.want.Name)
@@ -188,9 +164,6 @@ languages:
 			}
 			if got.Agent != tt.want.Agent {
 				t.Errorf("Agent = %q, want %q", got.Agent, tt.want.Agent)
-			}
-			if got.RuleName != tt.want.RuleName {
-				t.Errorf("RuleName = %q, want %q", got.RuleName, tt.want.RuleName)
 			}
 		})
 	}

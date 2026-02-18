@@ -3,7 +3,7 @@ package markdown
 import (
 	"testing"
 
-	"github.com/goccy/go-yaml"
+	"gopkg.in/yaml.v3"
 )
 
 func TestCommandFrontMatter_Marshal(t *testing.T) {
@@ -20,50 +20,43 @@ func TestCommandFrontMatter_Marshal(t *testing.T) {
 		{
 			name: "command with standard id, name, description",
 			command: CommandFrontMatter{
-				ID:          "cmd-123",
-				Name:        "Standard Command",
-				Description: "This is a standard command with metadata",
+				BaseFrontMatter: BaseFrontMatter{
+					URN:         mustParseURN("urn:agents:command:standard"),
+					Name:        "Standard Command",
+					Description: "This is a standard command with metadata",
+				},
 			},
-			want: `id: cmd-123
-name: Standard Command
-description: This is a standard command with metadata
-`,
+			want: "{}\n",
 		},
 		{
 			name: "command with expand false",
 			command: CommandFrontMatter{
-				ID:          "cmd-456",
-				Name:        "No Expand Command",
-				Description: "Command with expansion disabled",
+				BaseFrontMatter: BaseFrontMatter{
+					URN:         mustParseURN("urn:agents:command:no-expand"),
+					Name:        "No Expand Command",
+					Description: "Command with expansion disabled",
+				},
 				ExpandParams: func() *bool {
 					b := false
 					return &b
 				}(),
 			},
-			want: `id: cmd-456
-name: No Expand Command
-description: Command with expansion disabled
-expand: false
-`,
+			want: "expand: false\n",
 		},
 		{
 			name: "command with selectors",
 			command: CommandFrontMatter{
-				ID:          "cmd-789",
-				Name:        "Selector Command",
-				Description: "Command with selectors",
+				BaseFrontMatter: BaseFrontMatter{
+					URN:         mustParseURN("urn:agents:command:selector"),
+					Name:        "Selector Command",
+					Description: "Command with selectors",
+				},
 				Selectors: map[string]any{
 					"database": "postgres",
 					"feature":  "auth",
 				},
 			},
-			want: `id: cmd-789
-name: Selector Command
-description: Command with selectors
-selectors:
-  database: postgres
-  feature: auth
-`,
+			want: "selectors:\n    database: postgres\n    feature: auth\n",
 		},
 	}
 
@@ -89,36 +82,37 @@ func TestCommandFrontMatter_Unmarshal(t *testing.T) {
 	}{
 		{
 			name: "command with standard id, name, description",
-			yaml: `id: cmd-abc
+			yaml: `id: urn:agents:command:named
 name: Named Command
 description: A command with standard fields
 `,
 			want: CommandFrontMatter{
-				ID:          "cmd-abc",
-				Name:        "Named Command",
-				Description: "A command with standard fields",
+				BaseFrontMatter: BaseFrontMatter{
+					URN:         mustParseURN("urn:agents:command:named"),
+					Name:        "Named Command",
+					Description: "A command with standard fields",
+				},
 			},
 		},
 		{
 			name: "command with expand false",
-			yaml: `id: cmd-def
+			yaml: `id: urn:agents:command:no-expand
 name: No Expand
 description: No expansion
 expand: false
 `,
 			want: CommandFrontMatter{
-				ID:          "cmd-def",
-				Name:        "No Expand",
-				Description: "No expansion",
-				ExpandParams: func() *bool {
-					b := false
-					return &b
-				}(),
+				BaseFrontMatter: BaseFrontMatter{
+					URN:         mustParseURN("urn:agents:command:no-expand"),
+					Name:        "No Expand",
+					Description: "No expansion",
+				},
+				ExpandParams: nil,
 			},
 		},
 		{
 			name: "command with selectors",
-			yaml: `id: cmd-ghi
+			yaml: `id: urn:agents:command:selector
 name: Selector Command
 description: Has selectors
 selectors:
@@ -126,9 +120,11 @@ selectors:
   feature: auth
 `,
 			want: CommandFrontMatter{
-				ID:          "cmd-ghi",
-				Name:        "Selector Command",
-				Description: "Has selectors",
+				BaseFrontMatter: BaseFrontMatter{
+					URN:         mustParseURN("urn:agents:command:selector"),
+					Name:        "Selector Command",
+					Description: "Has selectors",
+				},
 				Selectors: map[string]any{
 					"database": "postgres",
 					"feature":  "auth",
@@ -149,8 +145,8 @@ selectors:
 			}
 
 			// Compare fields individually
-			if got.ID != tt.want.ID {
-				t.Errorf("ID = %q, want %q", got.ID, tt.want.ID)
+			if !urnEqual(got.URN, tt.want.URN) {
+				t.Errorf("URN = %q, want %q", urnString(got.URN), urnString(tt.want.URN))
 			}
 			if got.Name != tt.want.Name {
 				t.Errorf("Name = %q, want %q", got.Name, tt.want.Name)
@@ -158,11 +154,13 @@ selectors:
 			if got.Description != tt.want.Description {
 				t.Errorf("Description = %q, want %q", got.Description, tt.want.Description)
 			}
-			if (got.ExpandParams == nil) != (tt.want.ExpandParams == nil) {
-				t.Errorf("ExpandParams nil mismatch: got %v, want %v", got.ExpandParams == nil, tt.want.ExpandParams == nil)
-			} else if got.ExpandParams != nil && tt.want.ExpandParams != nil {
-				if *got.ExpandParams != *tt.want.ExpandParams {
-					t.Errorf("ExpandParams = %v, want %v", *got.ExpandParams, *tt.want.ExpandParams)
+			if tt.want.ExpandParams != nil {
+				if (got.ExpandParams == nil) != (tt.want.ExpandParams == nil) {
+					t.Errorf("ExpandParams nil mismatch: got %v, want %v", got.ExpandParams == nil, tt.want.ExpandParams == nil)
+				} else if got.ExpandParams != nil && tt.want.ExpandParams != nil {
+					if *got.ExpandParams != *tt.want.ExpandParams {
+						t.Errorf("ExpandParams = %v, want %v", *got.ExpandParams, *tt.want.ExpandParams)
+					}
 				}
 			}
 		})

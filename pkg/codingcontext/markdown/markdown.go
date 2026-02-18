@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	yaml "github.com/goccy/go-yaml"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/tokencount"
+	"gopkg.in/yaml.v3"
 )
 
 // Markdown represents a markdown file with frontmatter and content

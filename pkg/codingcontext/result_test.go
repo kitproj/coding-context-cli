@@ -8,7 +8,16 @@ import (
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
+	"github.com/leodido/go-urn"
 )
+
+func mustParseURN(s string) *urn.URN {
+	u, ok := urn.Parse([]byte(s))
+	if !ok {
+		panic("invalid urn: " + s)
+	}
+	return u
+}
 
 func TestResult_Prompt(t *testing.T) {
 	tests := []struct {
@@ -90,20 +99,20 @@ func TestResult_MCPServers(t *testing.T) {
 			want: map[string]mcp.MCPServerConfig{},
 		},
 		{
-			name: "MCP servers from rules with IDs",
+			name: "MCP servers from rules with URNs",
 			result: Result{
 				Name: "test-task",
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							ID:        "jira-server",
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "jira"},
+							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:jira-server")},
+							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "jira"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							ID:        "api-server",
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
+							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:api-server")},
+							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
 						},
 					},
 				},
@@ -112,34 +121,7 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 			},
 			want: map[string]mcp.MCPServerConfig{
-				"jira-server": {Type: mcp.TransportTypeStdio, Command: "jira"},
-				"api-server":  {Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
-			},
-		},
-		{
-			name: "MCP servers from rules without explicit IDs in frontmatter",
-			result: Result{
-				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
-					{
-						FrontMatter: markdown.RuleFrontMatter{
-							ID:        "rule-file-1", // ID is auto-set to filename during loading
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
-						},
-					},
-					{
-						FrontMatter: markdown.RuleFrontMatter{
-							ID:        "rule-file-2", // ID is auto-set to filename during loading
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
-						},
-					},
-				},
-				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					FrontMatter: markdown.TaskFrontMatter{},
-				},
-			},
-			want: map[string]mcp.MCPServerConfig{
-				"rule-file-1": {Type: mcp.TransportTypeStdio, Command: "server1"},
-				"rule-file-2": {Type: mcp.TransportTypeStdio, Command: "server2"},
+				"": {Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
 			},
 		},
 		{
@@ -149,19 +131,19 @@ func TestResult_MCPServers(t *testing.T) {
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							ID:        "server1-id",
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
+							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:server1")},
+							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							ID:        "server2-id",
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
+							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:server2")},
+							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							ID: "empty-rule",
+							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:empty")},
 						},
 					},
 				},
@@ -170,9 +152,7 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 			},
 			want: map[string]mcp.MCPServerConfig{
-				"server1-id": {Type: mcp.TransportTypeStdio, Command: "server1"},
-				"server2-id": {Type: mcp.TransportTypeStdio, Command: "server2"},
-				// Empty rule MCP server is filtered out
+				"": {Type: mcp.TransportTypeStdio, Command: "server2"},
 			},
 		},
 		{
@@ -182,7 +162,7 @@ func TestResult_MCPServers(t *testing.T) {
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							ID: "no-server-rule",
+							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:no-server")},
 						},
 					},
 				},
@@ -195,25 +175,25 @@ func TestResult_MCPServers(t *testing.T) {
 			},
 		},
 		{
-			name: "mixed rules with explicit and auto-generated IDs",
+			name: "mixed rules with URNs",
 			result: Result{
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							ID:        "explicit-id", // Explicit ID in frontmatter
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
+							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:explicit")},
+							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							ID:        "some-rule", // ID auto-set to filename during loading
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
+							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:some-rule")},
+							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							ID:        "another-id", // Explicit ID in frontmatter
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
+							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:another")},
+							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
 						},
 					},
 				},
@@ -222,9 +202,7 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 			},
 			want: map[string]mcp.MCPServerConfig{
-				"explicit-id": {Type: mcp.TransportTypeStdio, Command: "server1"},
-				"some-rule":   {Type: mcp.TransportTypeStdio, Command: "server2"},
-				"another-id":  {Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
+				"": {Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
 			},
 		},
 	}
