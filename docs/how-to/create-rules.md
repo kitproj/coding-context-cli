@@ -143,7 +143,46 @@ coding-context -s stage=implementation implement-feature
 
 ## Rules with Bootstrap Scripts
 
-Create rules that fetch dynamic context:
+Bootstrap scripts run before a rule is included, allowing you to fetch or generate dynamic context.
+
+### Frontmatter Bootstrap (Preferred)
+
+The preferred way is to define the bootstrap script directly in frontmatter:
+
+**Rule file (`.agents/rules/jira-context.md`):**
+```markdown
+---
+source: jira
+bootstrap: |
+  if [ -z "$JIRA_ISSUE_KEY" ]; then
+      exit 0
+  fi
+  
+  echo "Fetching JIRA issue: $JIRA_ISSUE_KEY" >&2
+  
+  # Fetch and process JIRA data
+  curl -s -H "Authorization: Bearer $JIRA_API_TOKEN" \
+      "https://your-domain.atlassian.net/rest/api/3/issue/${JIRA_ISSUE_KEY}" \
+      | jq -r '.fields | {summary, description}' \
+      > /tmp/jira-context.json
+---
+
+# JIRA Context
+
+Issue details are fetched by the bootstrap script.
+```
+
+Use with:
+```bash
+export JIRA_ISSUE_KEY="PROJ-123"
+export JIRA_API_TOKEN="your-token"
+
+coding-context -s source=jira fix-bug
+```
+
+### File-Based Bootstrap (Legacy)
+
+Alternatively, create a separate executable file named `<rule-name>-bootstrap`:
 
 **Rule file (`.agents/rules/jira-context.md`):**
 ```markdown
@@ -174,13 +213,7 @@ curl -s -H "Authorization: Bearer $JIRA_API_TOKEN" \
     > /tmp/jira-context.json
 ```
 
-Use with:
-```bash
-export JIRA_ISSUE_KEY="PROJ-123"
-export JIRA_API_TOKEN="your-token"
-
-coding-context -s source=jira fix-bug
-```
+**Note:** If both frontmatter and file-based bootstrap exist, frontmatter takes precedence.
 
 ## Best Practices
 

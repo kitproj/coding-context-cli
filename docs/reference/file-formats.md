@@ -824,6 +824,65 @@ coding-context -p version=1.2.3 my-task
 
 This is useful when rules contain template syntax that should be preserved for the AI agent to process.
 
+#### `bootstrap` (optional)
+
+**Type:** String (multiline)  
+**Purpose:** Shell script to execute before the rule is included. This is the **preferred method** for defining bootstrap scripts.
+
+The bootstrap script runs via `sh -c`, with output sent to stderr (not included in the AI context). This allows rules to fetch dynamic data, set up environment, or prepare context before the rule content is processed.
+
+**Example:**
+```yaml
+---
+languages:
+  - go
+bootstrap: |
+  echo "Fetching project dependencies..." >&2
+  go list -m all > /tmp/go-deps.txt
+  echo "Dependencies cached" >&2
+---
+
+# Go Dependency Context
+
+Dependencies are listed in /tmp/go-deps.txt
+```
+
+**Multiple commands:**
+```yaml
+---
+bootstrap: |
+  #!/bin/bash
+  set -e
+  
+  echo "Setting up environment..." >&2
+  
+  if [ -z "$API_KEY" ]; then
+      echo "Warning: API_KEY not set" >&2
+      exit 0
+  fi
+  
+  echo "Fetching data..." >&2
+  curl -s -H "Authorization: Bearer $API_KEY" \
+      "https://api.example.com/data" > /tmp/data.json
+  
+  echo "Setup complete" >&2
+---
+```
+
+**Usage:**
+```bash
+export API_KEY="your-api-key"
+coding-context implement-feature
+```
+
+**Notes:**
+- Output goes to stderr, not the assembled context
+- If both frontmatter `bootstrap:` and file-based bootstrap exist, frontmatter takes precedence
+- Environment variables from the parent process are available
+- Exit code 0 is required for successful execution
+
+**See also:** [Bootstrap Scripts](#bootstrap-scripts) for file-based alternative
+
 **Other common fields:**
 ```yaml
 ---
@@ -833,6 +892,8 @@ stage: implementation
 priority: high
 team: backend
 agent: cursor
+bootstrap: |
+  echo "Running setup..." >&2
 ---
 ```
 
@@ -849,9 +910,38 @@ Rules are discovered in many locations. See [Search Paths Reference](./search-pa
 
 ## Bootstrap Scripts
 
-Bootstrap scripts are executable files that run before their associated rule file is processed.
+Bootstrap scripts run before their associated rule file is processed. There are two ways to define bootstrap scripts:
 
-### Naming Convention
+### Frontmatter Bootstrap (Preferred)
+
+Define the bootstrap script directly in the rule's frontmatter using the `bootstrap:` field. This is the **preferred method** because:
+- The script is co-located with the rule content
+- No separate file to manage or chmod
+- Easier to version control and review
+
+**Example:**
+```markdown
+---
+bootstrap: |
+  echo "Fetching JIRA data..." >&2
+  curl -s -H "Authorization: Bearer $JIRA_API_TOKEN" \
+      "https://api.example.com/issue/$JIRA_ISSUE_KEY" \
+      | jq -r '.fields' > /tmp/jira-data.json
+  echo "Data fetched" >&2
+---
+
+# JIRA Context
+
+Issue data is available in /tmp/jira-data.json
+```
+
+**See:** [Rule Frontmatter - bootstrap field](#bootstrap-optional) for more details.
+
+### File-Based Bootstrap (Legacy)
+
+Alternatively, create a separate executable file for backward compatibility.
+
+#### Naming Convention
 
 For a rule file named `my-rule.md`, the bootstrap script must be named `my-rule-bootstrap` (no extension).
 
@@ -859,13 +949,13 @@ For a rule file named `my-rule.md`, the bootstrap script must be named `my-rule-
 - Rule: `.agents/rules/jira-context.md`
 - Bootstrap: `.agents/rules/jira-context-bootstrap`
 
-### Requirements
+#### Requirements
 
 1. **Executable permission:** `chmod +x script-name`
 2. **Same directory:** Must be in same directory as the rule file
 3. **Naming:** Must match rule filename plus `-bootstrap` suffix
 
-### Output Handling
+#### Output Handling
 
 - Bootstrap script output goes to **stderr**, not the main context
 - The script's stdout is not captured
@@ -881,7 +971,7 @@ curl -s "https://api.example.com/data" > /tmp/data.json
 echo "Data fetched successfully" >&2
 ```
 
-### Environment Access
+#### Environment Access
 
 Bootstrap scripts can access all environment variables from the parent process.
 
@@ -903,6 +993,10 @@ curl -s -H "Authorization: Bearer $API_KEY" \
     "https://api.example.com/issue/$ISSUE" \
     | jq -r '.fields' > /tmp/issue-data.json
 ```
+
+### Priority
+
+If a rule has **both** frontmatter `bootstrap:` and a file-based bootstrap script, the **frontmatter bootstrap is used** (file is ignored).
 
 ## YAML Frontmatter Specification
 
