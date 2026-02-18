@@ -565,7 +565,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 		_, reason := cc.includes.MatchesIncludes(*baseFm)
 		cc.logger.Info("Including rule file", "path", path, "reason", reason, "tokens", tokens)
 
-		if err := cc.runBootstrapScript(ctx, path); err != nil {
+		if err := cc.runBootstrapScript(ctx, path, frontmatter.Bootstrap); err != nil {
 			return fmt.Errorf("failed to run bootstrap script: %w", err)
 		}
 
@@ -578,7 +578,19 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context, homeDir string) err
 	return nil
 }
 
-func (cc *Context) runBootstrapScript(ctx context.Context, path string) error {
+func (cc *Context) runBootstrapScript(ctx context.Context, path string, frontmatterBootstrap string) error {
+	// Prefer frontmatter bootstrap if present
+	if frontmatterBootstrap != "" {
+		cc.logger.Info("Running bootstrap from frontmatter", "path", path)
+
+		cmd := exec.CommandContext(ctx, "sh", "-c", frontmatterBootstrap)
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+
+		return cc.cmdRunner(cmd)
+	}
+
+	// Fall back to file-based bootstrap
 	// Check for a bootstrap file named <markdown-file-without-md/mdc-suffix>-bootstrap
 	// For example, setup.md -> setup-bootstrap, setup.mdc -> setup-bootstrap
 	baseNameWithoutExt := strings.TrimSuffix(path, filepath.Ext(path))

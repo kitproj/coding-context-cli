@@ -589,6 +589,59 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 		},
 		{
+			name: "bootstrap from frontmatter is preferred",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "frontmatter-bootstrap", "", "Task")
+				// Create rule with bootstrap in frontmatter
+				createRule(t, dir, ".agents/rules/rule-with-frontmatter.md",
+					"bootstrap: |\n  echo 'frontmatter bootstrap'\n",
+					"Rule content")
+			},
+			taskName: "frontmatter-bootstrap",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if len(result.Rules) != 1 {
+					t.Errorf("expected 1 rule, got %d", len(result.Rules))
+				}
+			},
+		},
+		{
+			name: "bootstrap from frontmatter preferred over file",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "frontmatter-priority", "", "Task")
+				// Create rule with BOTH frontmatter and file bootstrap
+				createRule(t, dir, ".agents/rules/priority-rule.md",
+					"bootstrap: |\n  echo 'using frontmatter'\n",
+					"Rule content")
+				// Also create a file-based bootstrap (should be ignored)
+				createBootstrapScript(t, dir, ".agents/rules/priority-rule.md", "#!/bin/sh\necho 'using file'")
+			},
+			taskName: "frontmatter-priority",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if len(result.Rules) != 1 {
+					t.Errorf("expected 1 rule, got %d", len(result.Rules))
+				}
+			},
+		},
+		{
+			name: "bootstrap from file when frontmatter empty",
+			setup: func(t *testing.T, dir string) {
+				createTask(t, dir, "file-fallback", "", "Task")
+				// Create rule WITHOUT frontmatter bootstrap
+				createRule(t, dir, ".agents/rules/fallback-rule.md", "", "Rule content")
+				// Create file-based bootstrap (should be used)
+				createBootstrapScript(t, dir, ".agents/rules/fallback-rule.md", "#!/bin/sh\necho 'using file fallback'")
+			},
+			taskName: "file-fallback",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				if len(result.Rules) != 1 {
+					t.Errorf("expected 1 rule, got %d", len(result.Rules))
+				}
+			},
+		},
+		{
 			name: "agent option collects all rules",
 			setup: func(t *testing.T, dir string) {
 				createTask(t, dir, "agent-task", "", "Task")
