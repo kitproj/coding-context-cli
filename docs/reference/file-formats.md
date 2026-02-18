@@ -897,6 +897,8 @@ priority: high
 team: backend
 agent: cursor
 bootstrap: |
+  #! /bin/sh
+  set -eux
   echo "Running setup..." >&2
 ---
 ```
@@ -927,6 +929,8 @@ Define the bootstrap script directly in the rule's frontmatter using the `bootst
 ```markdown
 ---
 bootstrap: |
+  #! /bin/sh
+  set -eux
   echo "Fetching JIRA data..." >&2
   curl -s -H "Authorization: Bearer $JIRA_API_TOKEN" \
       "https://api.example.com/issue/$JIRA_ISSUE_KEY" \
