@@ -26,10 +26,7 @@ func TestCommandFrontMatter_Marshal(t *testing.T) {
 					Description: "This is a standard command with metadata",
 				},
 			},
-			want: `id: urn:agents:command:standard
-name: Standard Command
-description: This is a standard command with metadata
-`,
+			want: "urn:\n  id: agents\n  ss: command:standard\nname: Standard Command\ndescription: This is a standard command with metadata\n",
 		},
 		{
 			name: "command with expand false",
@@ -44,11 +41,7 @@ description: This is a standard command with metadata
 					return &b
 				}(),
 			},
-			want: `id: urn:agents:command:no-expand
-name: No Expand Command
-description: Command with expansion disabled
-expand: false
-`,
+			want: "urn:\n  id: agents\n  ss: command:no-expand\nname: No Expand Command\ndescription: Command with expansion disabled\nexpand: false\n",
 		},
 		{
 			name: "command with selectors",
@@ -63,13 +56,7 @@ expand: false
 					"feature":  "auth",
 				},
 			},
-			want: `id: urn:agents:command:selector
-name: Selector Command
-description: Command with selectors
-selectors:
-  database: postgres
-  feature: auth
-`,
+			want: "urn:\n  id: agents\n  ss: command:selector\nname: Selector Command\ndescription: Command with selectors\nselectors:\n  database: postgres\n  feature: auth\n",
 		},
 	}
 

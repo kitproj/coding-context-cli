@@ -6,12 +6,14 @@ import (
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
 	"github.com/leodido/go-urn"
+	"gopkg.in/yaml.v3"
 )
 
 // BaseFrontMatter represents parsed YAML frontmatter from markdown files
 type BaseFrontMatter struct {
 	// URN is an optional unique identifier for the prompt in URN format (e.g. urn:agents:task:<name>)
 	// Automatically inferred from filename if not specified in frontmatter
+	// In YAML frontmatter, "id" is accepted as an alias for "urn".
 	URN *urn.URN `yaml:"urn,omitempty" json:"urn,omitempty"`
 
 	// Name is the skill identifier
@@ -23,6 +25,39 @@ type BaseFrontMatter struct {
 	Description string `yaml:"description,omitempty" json:"description,omitempty"`
 
 	Content map[string]any `json:"-" yaml:",inline"`
+}
+
+type baseFrontMatterRaw struct {
+	ID          string         `yaml:"id"`
+	URN         *urn.URN       `yaml:"urn"`
+	Name        string         `yaml:"name"`
+	Description string         `yaml:"description"`
+	Content     map[string]any `yaml:",inline"`
+}
+
+// UnmarshalYAML supports "id" as an alias for URN and parses string values into *urn.URN.
+func (b *BaseFrontMatter) UnmarshalYAML(value *yaml.Node) error {
+	var raw baseFrontMatterRaw
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+	b.Name = raw.Name
+	b.Description = raw.Description
+	b.Content = raw.Content
+	if raw.Content == nil {
+		b.Content = make(map[string]any)
+	}
+	if raw.URN != nil {
+		b.URN = raw.URN
+		return nil
+	}
+	if raw.ID != "" {
+		u, ok := urn.Parse([]byte(raw.ID))
+		if ok {
+			b.URN = u
+		}
+	}
+	return nil
 }
 
 // TaskFrontMatter represents the standard frontmatter fields for task files
