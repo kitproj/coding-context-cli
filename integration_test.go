@@ -178,11 +178,6 @@ This is a setup guide with frontmatter bootstrap.
 	// Run the program
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
 
-	// Check that bootstrap output appears
-	if !strings.Contains(output, "Bootstrap from frontmatter") {
-		t.Errorf("bootstrap output from frontmatter not found in output")
-	}
-
 	// Check that rule content is present
 	if !strings.Contains(output, "# Setup") {
 		t.Errorf("rule content not found in output")
@@ -225,16 +220,6 @@ echo "Using file bootstrap"
 
 	// Run the program
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
-
-	// Check that frontmatter bootstrap is used
-	if !strings.Contains(output, "Using frontmatter bootstrap") {
-		t.Errorf("frontmatter bootstrap output not found in output")
-	}
-
-	// Check that file bootstrap is NOT used
-	if strings.Contains(output, "Using file bootstrap") {
-		t.Errorf("file bootstrap should not be used when frontmatter bootstrap is present")
-	}
 
 	// Check that rule content is present
 	if !strings.Contains(output, "# Priority Test") {

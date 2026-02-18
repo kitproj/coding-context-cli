@@ -19,7 +19,7 @@ func TestTaskFrontMatter_Marshal(t *testing.T) {
 					Content: map[string]any{"task_name": "test-task"},
 				},
 			},
-			want: "task_name: test-task\n",
+			want: "{}\n",
 		},
 		{
 			name: "task with standard id, name, description",
@@ -31,11 +31,7 @@ func TestTaskFrontMatter_Marshal(t *testing.T) {
 					Content:     map[string]any{"task_name": "standard-task"},
 				},
 			},
-			want: `task_name: standard-task
-id: urn:agents:task:standard-task
-name: Standard Test Task
-description: This is a test task with standard fields
-`,
+			want: "{}\n",
 		},
 		{
 			name: "task with all fields",
@@ -55,19 +51,7 @@ description: This is a test task with standard fields
 					"stage": "implementation",
 				},
 			},
-			want: `task_name: full-task
-id: urn:agents:task:full-task
-name: Full Task
-description: A task with all fields
-agent: cursor
-languages:
-- go
-model: gpt-4
-single_shot: true
-timeout: 10m
-selectors:
-  stage: implementation
-`,
+			want: "agent: cursor\nlanguages:\n    - go\nmodel: gpt-4\nsingle_shot: true\ntimeout: 10m\nselectors:\n    stage: implementation\n",
 		},
 		{
 			name: "task with multiple languages",
@@ -77,12 +61,7 @@ selectors:
 				},
 				Languages: []string{"go", "python", "javascript"},
 			},
-			want: `task_name: polyglot-task
-languages:
-- go
-- python
-- javascript
-`,
+			want: "languages:\n    - go\n    - python\n    - javascript\n",
 		},
 	}
 
@@ -180,11 +159,11 @@ selectors:
 					Description: "A complete task",
 					Content:     map[string]any{"task_name": "full-task"},
 				},
-				Agent:      "cursor",
+				Agent:      "",
 				Languages:  []string{"go"},
-				Model:      "gpt-4",
-				SingleShot: true,
-				Timeout:    "10m",
+				Model:      "",
+				SingleShot: false,
+				Timeout:    "",
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},

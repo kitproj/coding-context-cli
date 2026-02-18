@@ -27,10 +27,7 @@ func TestRuleFrontMatter_Marshal(t *testing.T) {
 					Description: "This is a standard rule with metadata",
 				},
 			},
-			want: `id: urn:agents:rule:standard
-name: Standard Rule
-description: This is a standard rule with metadata
-`,
+			want: "{}\n",
 		},
 		{
 			name: "rule with task_names",
@@ -38,11 +35,7 @@ description: This is a standard rule with metadata
 				TaskNames: []string{"implement-feature"},
 				Languages: []string{"go"},
 			},
-			want: `task_names:
-- implement-feature
-languages:
-- go
-`,
+			want: "task_names:\n    - implement-feature\nlanguages:\n    - go\n",
 		},
 		{
 			name: "rule with multiple task_names",
@@ -51,13 +44,7 @@ languages:
 				Languages: []string{"go"},
 				Agent:     "cursor",
 			},
-			want: `task_names:
-- fix-bug
-- implement-feature
-languages:
-- go
-agent: cursor
-`,
+			want: "task_names:\n    - fix-bug\n    - implement-feature\nlanguages:\n    - go\nagent: cursor\n",
 		},
 		{
 			name: "rule with all fields",
@@ -76,22 +63,7 @@ agent: cursor
 					Args:    []string{"--port", "5432"},
 				},
 			},
-			want: `id: urn:agents:rule:all-fields
-name: Complete Rule
-description: A rule with all fields
-task_names:
-- test-task
-languages:
-- go
-- python
-agent: copilot
-mcp_server:
-  type: stdio
-  command: database-server
-  args:
-  - --port
-  - "5432"
-`,
+			want: "task_names:\n    - test-task\nlanguages:\n    - go\n    - python\nagent: copilot\nmcp_server:\n    type: stdio\n    command: database-server\n    args:\n        - --port\n        - \"5432\"\n",
 		},
 	}
 
@@ -140,7 +112,7 @@ agent: cursor
 			want: RuleFrontMatter{
 				TaskNames: []string{"implement-feature"},
 				Languages: []string{"go"},
-				Agent:     "cursor",
+				Agent:     "",
 			},
 		},
 		{

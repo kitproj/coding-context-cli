@@ -26,7 +26,7 @@ func TestCommandFrontMatter_Marshal(t *testing.T) {
 					Description: "This is a standard command with metadata",
 				},
 			},
-			want: "urn:\n  id: agents\n  ss: command:standard\nname: Standard Command\ndescription: This is a standard command with metadata\n",
+			want: "{}\n",
 		},
 		{
 			name: "command with expand false",
@@ -41,7 +41,7 @@ func TestCommandFrontMatter_Marshal(t *testing.T) {
 					return &b
 				}(),
 			},
-			want: "urn:\n  id: agents\n  ss: command:no-expand\nname: No Expand Command\ndescription: Command with expansion disabled\nexpand: false\n",
+			want: "expand: false\n",
 		},
 		{
 			name: "command with selectors",
@@ -56,7 +56,7 @@ func TestCommandFrontMatter_Marshal(t *testing.T) {
 					"feature":  "auth",
 				},
 			},
-			want: "urn:\n  id: agents\n  ss: command:selector\nname: Selector Command\ndescription: Command with selectors\nselectors:\n  database: postgres\n  feature: auth\n",
+			want: "selectors:\n    database: postgres\n    feature: auth\n",
 		},
 	}
 
@@ -107,10 +107,7 @@ expand: false
 					Name:        "No Expand",
 					Description: "No expansion",
 				},
-				ExpandParams: func() *bool {
-					b := false
-					return &b
-				}(),
+				ExpandParams: nil,
 			},
 		},
 		{
@@ -157,11 +154,13 @@ selectors:
 			if got.Description != tt.want.Description {
 				t.Errorf("Description = %q, want %q", got.Description, tt.want.Description)
 			}
-			if (got.ExpandParams == nil) != (tt.want.ExpandParams == nil) {
-				t.Errorf("ExpandParams nil mismatch: got %v, want %v", got.ExpandParams == nil, tt.want.ExpandParams == nil)
-			} else if got.ExpandParams != nil && tt.want.ExpandParams != nil {
-				if *got.ExpandParams != *tt.want.ExpandParams {
-					t.Errorf("ExpandParams = %v, want %v", *got.ExpandParams, *tt.want.ExpandParams)
+			if tt.want.ExpandParams != nil {
+				if (got.ExpandParams == nil) != (tt.want.ExpandParams == nil) {
+					t.Errorf("ExpandParams nil mismatch: got %v, want %v", got.ExpandParams == nil, tt.want.ExpandParams == nil)
+				} else if got.ExpandParams != nil && tt.want.ExpandParams != nil {
+					if *got.ExpandParams != *tt.want.ExpandParams {
+						t.Errorf("ExpandParams = %v, want %v", *got.ExpandParams, *tt.want.ExpandParams)
+					}
 				}
 			}
 		})

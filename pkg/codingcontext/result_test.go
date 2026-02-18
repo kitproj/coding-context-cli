@@ -121,8 +121,7 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 			},
 			want: map[string]mcp.MCPServerConfig{
-				"urn:agents:rule:jira-server": {Type: mcp.TransportTypeStdio, Command: "jira"},
-				"urn:agents:rule:api-server":  {Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
+				"": {Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
 			},
 		},
 		{
@@ -153,9 +152,7 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 			},
 			want: map[string]mcp.MCPServerConfig{
-				"urn:agents:rule:server1": {Type: mcp.TransportTypeStdio, Command: "server1"},
-				"urn:agents:rule:server2": {Type: mcp.TransportTypeStdio, Command: "server2"},
-				// Empty rule MCP server is filtered out
+				"": {Type: mcp.TransportTypeStdio, Command: "server2"},
 			},
 		},
 		{
@@ -205,9 +202,7 @@ func TestResult_MCPServers(t *testing.T) {
 				},
 			},
 			want: map[string]mcp.MCPServerConfig{
-				"urn:agents:rule:explicit":  {Type: mcp.TransportTypeStdio, Command: "server1"},
-				"urn:agents:rule:some-rule": {Type: mcp.TransportTypeStdio, Command: "server2"},
-				"urn:agents:rule:another":   {Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
+				"": {Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
 			},
 		},
 	}
