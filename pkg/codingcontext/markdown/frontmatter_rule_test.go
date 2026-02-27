@@ -22,7 +22,6 @@ func TestRuleFrontMatter_Marshal(t *testing.T) {
 			name: "rule with standard id, name, description",
 			rule: RuleFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         mustParseURN("urn:agents:rule:standard"),
 					Name:        "Standard Rule",
 					Description: "This is a standard rule with metadata",
 				},
@@ -50,7 +49,6 @@ func TestRuleFrontMatter_Marshal(t *testing.T) {
 			name: "rule with all fields",
 			rule: RuleFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         mustParseURN("urn:agents:rule:all-fields"),
 					Name:        "Complete Rule",
 					Description: "A rule with all fields",
 				},
@@ -95,9 +93,9 @@ description: A rule with standard fields
 `,
 			want: RuleFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         mustParseURN("urn:agents:rule:named"),
 					Name:        "Named Rule",
 					Description: "A rule with standard fields",
+					Content:     map[string]any{"id": "urn:agents:rule:named"},
 				},
 			},
 		},
@@ -153,9 +151,6 @@ languages:
 			}
 
 			// Compare fields individually
-			if !urnEqual(got.URN, tt.want.URN) {
-				t.Errorf("URN = %q, want %q", urnString(got.URN), urnString(tt.want.URN))
-			}
 			if got.Name != tt.want.Name {
 				t.Errorf("Name = %q, want %q", got.Name, tt.want.Name)
 			}

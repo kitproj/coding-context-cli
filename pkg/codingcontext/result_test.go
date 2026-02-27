@@ -8,16 +8,7 @@ import (
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/mcp"
-	"github.com/leodido/go-urn"
 )
-
-func mustParseURN(s string) *urn.URN {
-	u, ok := urn.Parse([]byte(s))
-	if !ok {
-		panic("invalid urn: " + s)
-	}
-	return u
-}
 
 func TestResult_Prompt(t *testing.T) {
 	tests := []struct {
@@ -105,14 +96,12 @@ func TestResult_MCPServers(t *testing.T) {
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:jira-server")},
-							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "jira"},
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "jira"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:api-server")},
-							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
 						},
 					},
 				},
@@ -131,20 +120,16 @@ func TestResult_MCPServers(t *testing.T) {
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:server1")},
-							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:server2")},
-							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
 						},
 					},
 					{
-						FrontMatter: markdown.RuleFrontMatter{
-							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:empty")},
-						},
+						FrontMatter: markdown.RuleFrontMatter{},
 					},
 				},
 				Task: markdown.Markdown[markdown.TaskFrontMatter]{
@@ -161,9 +146,7 @@ func TestResult_MCPServers(t *testing.T) {
 				Name: "test-task",
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
-						FrontMatter: markdown.RuleFrontMatter{
-							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:no-server")},
-						},
+						FrontMatter: markdown.RuleFrontMatter{},
 					},
 				},
 				Task: markdown.Markdown[markdown.TaskFrontMatter]{
@@ -180,20 +163,17 @@ func TestResult_MCPServers(t *testing.T) {
 				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:explicit")},
-							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:some-rule")},
-							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
 						},
 					},
 					{
 						FrontMatter: markdown.RuleFrontMatter{
-							BaseFrontMatter: markdown.BaseFrontMatter{URN: mustParseURN("urn:agents:rule:another")},
-							MCPServer:       mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
+							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
 						},
 					},
 				},
