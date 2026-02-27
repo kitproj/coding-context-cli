@@ -21,7 +21,6 @@ func TestCommandFrontMatter_Marshal(t *testing.T) {
 			name: "command with standard id, name, description",
 			command: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         mustParseURN("urn:agents:command:standard"),
 					Name:        "Standard Command",
 					Description: "This is a standard command with metadata",
 				},
@@ -32,7 +31,6 @@ func TestCommandFrontMatter_Marshal(t *testing.T) {
 			name: "command with expand false",
 			command: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         mustParseURN("urn:agents:command:no-expand"),
 					Name:        "No Expand Command",
 					Description: "Command with expansion disabled",
 				},
@@ -47,7 +45,6 @@ func TestCommandFrontMatter_Marshal(t *testing.T) {
 			name: "command with selectors",
 			command: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         mustParseURN("urn:agents:command:selector"),
 					Name:        "Selector Command",
 					Description: "Command with selectors",
 				},
@@ -88,9 +85,9 @@ description: A command with standard fields
 `,
 			want: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         mustParseURN("urn:agents:command:named"),
 					Name:        "Named Command",
 					Description: "A command with standard fields",
+					Content:     map[string]any{"id": "urn:agents:command:named"},
 				},
 			},
 		},
@@ -103,9 +100,9 @@ expand: false
 `,
 			want: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         mustParseURN("urn:agents:command:no-expand"),
 					Name:        "No Expand",
 					Description: "No expansion",
+					Content:     map[string]any{"id": "urn:agents:command:no-expand"},
 				},
 				ExpandParams: nil,
 			},
@@ -121,9 +118,9 @@ selectors:
 `,
 			want: CommandFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
-					URN:         mustParseURN("urn:agents:command:selector"),
 					Name:        "Selector Command",
 					Description: "Has selectors",
+					Content:     map[string]any{"id": "urn:agents:command:selector"},
 				},
 				Selectors: map[string]any{
 					"database": "postgres",
@@ -145,9 +142,6 @@ selectors:
 			}
 
 			// Compare fields individually
-			if !urnEqual(got.URN, tt.want.URN) {
-				t.Errorf("URN = %q, want %q", urnString(got.URN), urnString(tt.want.URN))
-			}
 			if got.Name != tt.want.Name {
 				t.Errorf("Name = %q, want %q", got.Name, tt.want.Name)
 			}
