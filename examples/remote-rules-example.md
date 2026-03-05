@@ -68,7 +68,7 @@ coding-context-cli \
 
 ## Supported Protocols
 
-The `-r` flag uses HashiCorp's go-getter library, which supports many protocols:
+The `-d` flag uses HashiCorp's go-getter library, which supports many protocols:
 
 ### Git Repositories
 

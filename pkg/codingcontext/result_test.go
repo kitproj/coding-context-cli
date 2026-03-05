@@ -11,6 +11,7 @@ import (
 )
 
 func TestResult_Prompt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		setup    func(t *testing.T, dir string)
@@ -20,6 +21,7 @@ func TestResult_Prompt(t *testing.T) {
 		{
 			name: "task only without rules",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "test-task", "task_name: test-task", "Task content\n")
 			},
 			taskName: "test-task",
@@ -28,6 +30,7 @@ func TestResult_Prompt(t *testing.T) {
 		{
 			name: "single rule and task",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "test-task", "task_name: test-task", "Task content\n")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule 1 content\n")
 			},
@@ -37,6 +40,7 @@ func TestResult_Prompt(t *testing.T) {
 		{
 			name: "multiple rules and task",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "test-task", "task_name: test-task", "Task content\n")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule 1 content\n")
 				createRule(t, dir, ".agents/rules/rule2.md", "", "Rule 2 content\n")
@@ -48,6 +52,7 @@ func TestResult_Prompt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			tt.setup(t, tmpDir)
 
@@ -72,129 +77,89 @@ func TestResult_Prompt(t *testing.T) {
 	}
 }
 
-func TestResult_MCPServers(t *testing.T) {
-	tests := []struct {
+func rule(cfg mcp.MCPServerConfig) markdown.Markdown[markdown.RuleFrontMatter] {
+	return markdown.Markdown[markdown.RuleFrontMatter]{
+		FrontMatter: markdown.RuleFrontMatter{MCPServer: cfg},
+	}
+}
+
+func emptyRule() markdown.Markdown[markdown.RuleFrontMatter] {
+	return markdown.Markdown[markdown.RuleFrontMatter]{FrontMatter: markdown.RuleFrontMatter{}}
+}
+
+func resultWithRules(name string, rules ...markdown.Markdown[markdown.RuleFrontMatter]) Result {
+	return Result{Name: name, Rules: rules, Task: markdown.Markdown[markdown.TaskFrontMatter]{}}
+}
+
+func mcpServersCases() []struct {
+	name   string
+	result Result
+	want   map[string]mcp.MCPServerConfig
+} {
+	return []struct {
 		name   string
 		result Result
 		want   map[string]mcp.MCPServerConfig
 	}{
 		{
-			name: "no MCP servers",
-			result: Result{
-				Name:  "test-task",
-				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{},
-				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					FrontMatter: markdown.TaskFrontMatter{},
-				},
-			},
-			want: map[string]mcp.MCPServerConfig{},
+			name:   "no MCP servers",
+			result: resultWithRules("test-task"),
+			want:   map[string]mcp.MCPServerConfig{},
 		},
 		{
 			name: "MCP servers from rules with URNs",
-			result: Result{
-				Name: "test-task",
-				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
-					{
-						FrontMatter: markdown.RuleFrontMatter{
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "jira"},
-						},
-					},
-					{
-						FrontMatter: markdown.RuleFrontMatter{
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
-						},
-					},
-				},
-				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					FrontMatter: markdown.TaskFrontMatter{},
-				},
-			},
+			result: resultWithRules("test-task",
+				rule(mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "jira"}),
+				rule(mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"}),
+			),
 			want: map[string]mcp.MCPServerConfig{
 				"": {Type: mcp.TransportTypeHTTP, URL: "https://api.example.com"},
 			},
 		},
 		{
 			name: "multiple rules with MCP servers and empty rule",
-			result: Result{
-				Name: "test-task",
-				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
-					{
-						FrontMatter: markdown.RuleFrontMatter{
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
-						},
-					},
-					{
-						FrontMatter: markdown.RuleFrontMatter{
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
-						},
-					},
-					{
-						FrontMatter: markdown.RuleFrontMatter{},
-					},
-				},
-				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					FrontMatter: markdown.TaskFrontMatter{},
-				},
-			},
+			result: resultWithRules("test-task",
+				rule(mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"}),
+				rule(mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"}),
+				emptyRule(),
+			),
 			want: map[string]mcp.MCPServerConfig{
 				"": {Type: mcp.TransportTypeStdio, Command: "server2"},
 			},
 		},
 		{
-			name: "rule without MCP server",
-			result: Result{
-				Name: "test-task",
-				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
-					{
-						FrontMatter: markdown.RuleFrontMatter{},
-					},
-				},
-				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					FrontMatter: markdown.TaskFrontMatter{},
-				},
-			},
-			want: map[string]mcp.MCPServerConfig{
-				// Empty rule MCP server is filtered out
-			},
+			name:   "rule without MCP server",
+			result: resultWithRules("test-task", emptyRule()),
+			want:   map[string]mcp.MCPServerConfig{},
 		},
 		{
 			name: "mixed rules with URNs",
-			result: Result{
-				Rules: []markdown.Markdown[markdown.RuleFrontMatter]{
-					{
-						FrontMatter: markdown.RuleFrontMatter{
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"},
-						},
-					},
-					{
-						FrontMatter: markdown.RuleFrontMatter{
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"},
-						},
-					},
-					{
-						FrontMatter: markdown.RuleFrontMatter{
-							MCPServer: mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
-						},
-					},
-				},
-				Task: markdown.Markdown[markdown.TaskFrontMatter]{
-					FrontMatter: markdown.TaskFrontMatter{},
-				},
-			},
+			result: resultWithRules("",
+				rule(mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server1"}),
+				rule(mcp.MCPServerConfig{Type: mcp.TransportTypeStdio, Command: "server2"}),
+				rule(mcp.MCPServerConfig{Type: mcp.TransportTypeHTTP, URL: "https://example.com"}),
+			),
 			want: map[string]mcp.MCPServerConfig{
 				"": {Type: mcp.TransportTypeHTTP, URL: "https://example.com"},
 			},
 		},
 	}
+}
 
-	for _, tt := range tests {
+func TestResult_MCPServers(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range mcpServersCases() {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := tt.result.MCPServers()
 
 			if len(got) != len(tt.want) {
 				t.Errorf("MCPServers() returned %d servers, want %d", len(got), len(tt.want))
 				t.Logf("Got keys: %v", mapKeys(got))
 				t.Logf("Want keys: %v", mapKeys(tt.want))
+
 				return
 			}
 
@@ -202,15 +167,18 @@ func TestResult_MCPServers(t *testing.T) {
 				gotServer, ok := got[key]
 				if !ok {
 					t.Errorf("MCPServers() missing key %q", key)
+
 					continue
 				}
 
 				if gotServer.Type != wantServer.Type {
 					t.Errorf("MCPServers()[%q].Type = %v, want %v", key, gotServer.Type, wantServer.Type)
 				}
+
 				if gotServer.Command != wantServer.Command {
 					t.Errorf("MCPServers()[%q].Command = %q, want %q", key, gotServer.Command, wantServer.Command)
 				}
+
 				if gotServer.URL != wantServer.URL {
 					t.Errorf("MCPServers()[%q].URL = %q, want %q", key, gotServer.URL, wantServer.URL)
 				}
@@ -219,11 +187,12 @@ func TestResult_MCPServers(t *testing.T) {
 	}
 }
 
-// Helper function to get map keys for debugging
+// Helper function to get map keys for debugging.
 func mapKeys(m map[string]mcp.MCPServerConfig) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
+
 	return keys
 }

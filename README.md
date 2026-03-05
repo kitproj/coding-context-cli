@@ -55,6 +55,7 @@ The tool assembles context into a structured prompt with the following component
 - **Task-Specific Prompts**: Use different prompts for different tasks (e.g., `feature`, `bugfix`).
 - **Rule-Based Context**: Define reusable context snippets (rules) that can be included or excluded.
 - **Skills System**: Progressive disclosure of specialized capabilities via skill directories.
+- **Namespaces**: Isolate multiple teams' assets under `.agents/namespaces/<team>/` while sharing a global layer.
 - **Frontmatter Filtering**: Select rules based on metadata using frontmatter selectors (matches top-level YAML fields only).
 - **Bootstrap Scripts**: Run scripts to fetch or generate context dynamically.
 - **Parameter Substitution**: Inject values into your task prompts.
@@ -66,14 +67,14 @@ This tool is compatible with configuration files from various AI coding agents a
 
 ### Primary Supported Agents (with dedicated `-a` flag)
 
-- **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents` (`-a copilot`)
-- **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md` (`-a claude`)
-- **[Cursor](https://cursor.sh/)**: `.cursor/rules`, `.cursorrules` (`-a cursor`)
-- **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md` (`-a gemini`)
-- **[Augment](https://augmentcode.com/)**: `.augment/rules`, `.augment/guidelines.md` (`-a augment`)
-- **[Windsurf](https://codeium.com/windsurf)**: `.windsurf/rules`, `.windsurfrules` (`-a windsurf`)
-- **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent`, `.opencode/command`, `.opencode/rules` (`-a opencode`)
-- **[Codex](https://codex.ai/)**: `AGENTS.md`, `.codex/AGENTS.md` (`-a codex`)
+- **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents/` (`-a copilot`)
+- **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/` (directory) (`-a claude`)
+- **[Cursor](https://cursor.sh/)**: `.cursor/rules/`, `.cursorrules` (`-a cursor`)
+- **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md`, `.gemini/` (directory) (`-a gemini`)
+- **[Augment](https://augmentcode.com/)**: `.augment/rules/`, `.augment/guidelines.md` (`-a augment`)
+- **[Windsurf](https://codeium.com/windsurf)**: `.windsurf/rules/`, `.windsurfrules` (`-a windsurf`)
+- **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent/`, `.opencode/rules/` (rules); `.opencode/command/` (commands) (`-a opencode`)
+- **[Codex](https://codex.ai/)**: `AGENTS.md`, `.codex/` (directory) (`-a codex`)
 
 ### Additional Compatible Agents
 
@@ -158,13 +159,15 @@ Options:
     	Go Getter URL to a manifest file containing search paths (one per line). Every line is included as-is.
   -p value
     	Parameter to substitute in the prompt. Can be specified multiple times as key=value.
-  -r	Resume mode: skip outputting rules and select task with 'resume: true' in frontmatter.
+  -r	Resume mode: set 'resume=true' selector to filter tasks by their frontmatter resume field. Does not skip rules; use --skip-bootstrap to skip rule discovery.
   -s value
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
   -a string
     	Target agent to use. Required when using -w to write rules to the agent's user rules path. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
   -w	Write rules to agent's config file and output only task to stdout. Requires agent (via task or -a flag).
+  --skip-bootstrap
+    	Skip discovering rules, skills, and running bootstrap scripts.
 ```
 
 ### Examples
@@ -325,6 +328,57 @@ coding-context \
   /implement-feature
 ```
 
+## Namespaces
+
+Namespaces let multiple teams share a single `.agents/` directory without conflicts. Select a namespace by prefixing the task name with `namespace/`:
+
+```bash
+# Global task (existing behaviour)
+coding-context fix-bug
+
+# Namespaced task — activates the "myteam" namespace
+coding-context myteam/fix-bug
+```
+
+**Directory structure:**
+
+```
+.agents/
+├── tasks/                        # Global tasks
+├── rules/                        # Global rules (always included)
+├── commands/                     # Global commands
+├── skills/                       # Global skills
+└── namespaces/                   # Namespace root (new)
+    ├── myteam/
+    │   ├── tasks/                # Tasks accessed as "myteam/<name>"
+    │   ├── rules/                # Namespace rules (included first)
+    │   ├── commands/             # Override global commands
+    │   └── skills/
+    └── otherteam/
+        └── ...
+```
+
+**Resolution rules:**
+- **Tasks**: Namespace directory first, falls back to global if not found
+- **Rules**: Namespace rules included first, then all global rules (both always included)
+- **Commands**: Namespace command wins over global command with the same name
+- **Skills**: Namespace and global skills both discovered; namespace listed first
+
+**Scoping rules to a namespace** — add `namespace: myteam` to a rule's frontmatter:
+
+```markdown
+---
+namespace: myteam
+---
+# myteam Internal Standards
+
+Only included for myteam/* tasks.
+```
+
+Rules with no `namespace` field are always included regardless of namespace.
+
+For a complete guide, see [How to Use Namespaces](https://kitproj.github.io/coding-context-cli/how-to/use-namespaces).
+
 ## File Formats
 
 ### Task Files
@@ -438,23 +492,23 @@ The `expand` field works in:
 
 ### Resume Mode
 
-Resume mode is designed for continuing work on a task where you've already established context. When using the `-r` flag:
+Resume mode is designed for continuing work on a task where you've already established context. The `-r` flag adds a `resume=true` selector, which filters tasks to those with `resume: true` in their frontmatter.
 
-1. **Rules are skipped**: All rule files are excluded from output, saving tokens and reducing context size
-2. **Resume-specific task prompts are selected**: Automatically adds `-s resume=true` selector to find task files with `resume: true` in their frontmatter
+**What the `-r` flag does:**
+- Adds `-s resume=true` selector to find task files with `resume: true` in their frontmatter
 
-This is particularly useful in agentic workflows where an AI agent has already been primed with rules and is continuing work from a previous session.
-
-**The `-r` flag is shorthand for:**
-- Adding `-s resume=true` selector
-- Skipping all rules output
+**What the `-r` flag does NOT do:**
+- It does **not** skip rules or bootstrap scripts. To skip those, use `--skip-bootstrap`.
 
 **Example usage:**
 ```bash
-# Initial task invocation (includes all rules, uses task with resume: false)
+# Initial task invocation (includes all rules and bootstrap)
 coding-context -s resume=false fix-bug | ai-agent
 
-# Resume the task (skips rules, uses task with resume: true)
+# Resume the task with rules skipped (uses resume task, skips rules and bootstrap)
+coding-context -r --skip-bootstrap fix-bug | ai-agent
+
+# Resume the task keeping rules (just selects the resume variant of the task)
 coding-context -r fix-bug | ai-agent
 ```
 
@@ -482,7 +536,7 @@ Continue working on the bug fix.
 Review your previous work and complete remaining tasks.
 ```
 
-With this approach, you can have multiple task prompts for the same task name, differentiated by the `resume` frontmatter field. Use `-s resume=false` to select the initial task (with rules), or `-r` to select the resume task (without rules).
+With this approach, you can have multiple task prompts for the same task name, differentiated by the `resume` frontmatter field. Use `-s resume=false` to select the initial task, or `-r` to select the resume task. Combine with `--skip-bootstrap` to also skip rules.
 
 ### Rule Files
 

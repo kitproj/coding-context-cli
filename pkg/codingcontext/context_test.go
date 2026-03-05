@@ -13,226 +13,122 @@ import (
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparser"
 )
 
+const cursorSkillName = "cursor-skill"
+
 // Test helper functions for creating fixtures
 
-// createTask creates a task file in the .agents/tasks directory
+// buildMarkdownContent wraps content with a YAML frontmatter block when
+// frontmatter is non-empty. Returns content unchanged when frontmatter is empty.
+func buildMarkdownContent(frontmatter, content string) string {
+	if frontmatter == "" {
+		return content
+	}
+	return fmt.Sprintf("---\n%s\n---\n%s", frontmatter, content)
+}
+
+// writeMarkdownFile writes a markdown file (with optional frontmatter) to path,
+// creating any missing parent directories.
+func writeMarkdownFile(t *testing.T, path, frontmatter, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatalf("failed to create directory for %s: %v", path, err)
+	}
+	if err := os.WriteFile(path, []byte(buildMarkdownContent(frontmatter, content)), 0o600); err != nil {
+		t.Fatalf("failed to write file %s: %v", path, err)
+	}
+}
+
+// createTask creates a task file in the .agents/tasks directory.
 func createTask(t *testing.T, dir, name, frontmatter, content string) {
 	t.Helper()
-	taskDir := filepath.Join(dir, ".agents", "tasks")
-	if err := os.MkdirAll(taskDir, 0o755); err != nil {
-		t.Fatalf("failed to create task directory: %v", err)
-	}
-
-	var fileContent string
-	if frontmatter != "" {
-		fileContent = fmt.Sprintf("---\n%s\n---\n%s", frontmatter, content)
-	} else {
-		fileContent = content
-	}
-
-	taskPath := filepath.Join(taskDir, name+".md")
-	if err := os.WriteFile(taskPath, []byte(fileContent), 0o644); err != nil {
-		t.Fatalf("failed to create task file: %v", err)
-	}
+	writeMarkdownFile(t, filepath.Join(dir, ".agents", "tasks", name+".md"), frontmatter, content)
 }
 
-// createRule creates a rule file in the specified path within dir
+// createRule creates a rule file at relPath within dir.
 func createRule(t *testing.T, dir, relPath, frontmatter, content string) {
 	t.Helper()
-	rulePath := filepath.Join(dir, relPath)
-	ruleDir := filepath.Dir(rulePath)
-	if err := os.MkdirAll(ruleDir, 0o755); err != nil {
-		t.Fatalf("failed to create rule directory: %v", err)
-	}
-
-	var fileContent string
-	if frontmatter != "" {
-		fileContent = fmt.Sprintf("---\n%s\n---\n%s", frontmatter, content)
-	} else {
-		fileContent = content
-	}
-
-	if err := os.WriteFile(rulePath, []byte(fileContent), 0o644); err != nil {
-		t.Fatalf("failed to create rule file: %v", err)
-	}
+	writeMarkdownFile(t, filepath.Join(dir, relPath), frontmatter, content)
 }
 
-// createCommand creates a command file in the .agents/commands directory
+// createCommand creates a command file in the .agents/commands directory.
 func createCommand(t *testing.T, dir, name, frontmatter, content string) {
 	t.Helper()
-	cmdDir := filepath.Join(dir, ".agents", "commands")
-	if err := os.MkdirAll(cmdDir, 0o755); err != nil {
-		t.Fatalf("failed to create command directory: %v", err)
-	}
-
-	var fileContent string
-	if frontmatter != "" {
-		fileContent = fmt.Sprintf("---\n%s\n---\n%s", frontmatter, content)
-	} else {
-		fileContent = content
-	}
-
-	cmdPath := filepath.Join(cmdDir, name+".md")
-	if err := os.WriteFile(cmdPath, []byte(fileContent), 0o644); err != nil {
-		t.Fatalf("failed to create command file: %v", err)
-	}
+	writeMarkdownFile(t, filepath.Join(dir, ".agents", "commands", name+".md"), frontmatter, content)
 }
 
-// createBootstrapScript creates a bootstrap script for a rule file
+// createBootstrapScript creates a bootstrap script for a rule file.
 func createBootstrapScript(t *testing.T, dir, rulePath, scriptContent string) {
 	t.Helper()
+
 	fullRulePath := filepath.Join(dir, rulePath)
 	baseNameWithoutExt := strings.TrimSuffix(fullRulePath, filepath.Ext(fullRulePath))
 	bootstrapPath := baseNameWithoutExt + "-bootstrap"
 
+	// Bootstrap scripts are executed directly (support shebangs); require 0755
+	// #nosec G306 -- bootstrap scripts require 0755 for direct execution
 	if err := os.WriteFile(bootstrapPath, []byte(scriptContent), 0o755); err != nil {
 		t.Fatalf("failed to create bootstrap script: %v", err)
 	}
 }
 
-// TestNew tests the constructor with various options
+func createSkill(t *testing.T, dir, subdir, content string) {
+	t.Helper()
+
+	skillDir := filepath.Join(dir, subdir)
+
+	if err := os.MkdirAll(skillDir, 0o750); err != nil {
+		t.Fatalf("failed to create skill directory: %v", err)
+	}
+
+	skillPath := filepath.Join(skillDir, "SKILL.md")
+
+	if err := os.WriteFile(skillPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("failed to create skill file: %v", err)
+	}
+}
+
+// TestNew tests the constructor with various options.
 func TestNew(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		opts  []Option
 		check func(t *testing.T, c *Context)
 	}{
+		{name: "default context", opts: nil, check: checkNewDefault},
 		{
-			name: "default context",
-			opts: nil,
-			check: func(t *testing.T, c *Context) {
-				if c.params == nil {
-					t.Error("expected params to be initialized")
-				}
-				if c.includes == nil {
-					t.Error("expected includes to be initialized")
-				}
-				if c.logger == nil {
-					t.Error("expected logger to be initialized")
-				}
-				if c.cmdRunner == nil {
-					t.Error("expected cmdRunner to be initialized")
-				}
-			},
+			name:  "with params",
+			opts:  []Option{WithParams(taskparser.Params{"key1": []string{"value1"}, "key2": []string{"value2"}})},
+			check: checkNewWithParams,
 		},
 		{
-			name: "with params",
-			opts: []Option{
-				WithParams(taskparser.Params{"key1": []string{"value1"}, "key2": []string{"value2"}}),
-			},
-			check: func(t *testing.T, c *Context) {
-				if c.params.Value("key1") != "value1" {
-					t.Errorf("expected params[key1]=value1, got %v", c.params.Value("key1"))
-				}
-				if c.params.Value("key2") != "value2" {
-					t.Errorf("expected params[key2]=value2, got %v", c.params.Value("key2"))
-				}
-			},
+			name:  "with selectors",
+			opts:  []Option{WithSelectors(selectors.Selectors{"env": {"dev": true, "test": true}})},
+			check: checkNewWithSelectors,
 		},
 		{
-			name: "with selectors",
-			opts: []Option{
-				WithSelectors(selectors.Selectors{"env": {"dev": true, "test": true}}),
-			},
-			check: func(t *testing.T, c *Context) {
-				if !c.includes.GetValue("env", "dev") {
-					t.Error("expected env=dev selector")
-				}
-				if !c.includes.GetValue("env", "test") {
-					t.Error("expected env=test selector")
-				}
-			},
+			name:  "with manifest URL",
+			opts:  []Option{WithManifestURL("https://example.com/manifest.txt")},
+			check: checkNewWithManifestURL,
 		},
 		{
-			name: "with manifest URL",
-			opts: []Option{
-				WithManifestURL("https://example.com/manifest.txt"),
-			},
-			check: func(t *testing.T, c *Context) {
-				if c.manifestURL != "https://example.com/manifest.txt" {
-					t.Errorf("expected manifestURL to be set, got %v", c.manifestURL)
-				}
-			},
+			name:  "with search paths",
+			opts:  []Option{WithSearchPaths("/path/one", "/path/two")},
+			check: checkNewWithSearchPaths,
 		},
 		{
-			name: "with search paths",
-			opts: []Option{
-				WithSearchPaths("/path/one", "/path/two"),
-			},
-			check: func(t *testing.T, c *Context) {
-				if len(c.searchPaths) != 2 {
-					t.Errorf("expected 2 search paths, got %d", len(c.searchPaths))
-				}
-				if c.searchPaths[0] != "/path/one" {
-					t.Errorf("expected first path to be /path/one, got %v", c.searchPaths[0])
-				}
-				if c.searchPaths[1] != "/path/two" {
-					t.Errorf("expected second path to be /path/two, got %v", c.searchPaths[1])
-				}
-			},
+			name:  "with custom logger",
+			opts:  []Option{WithLogger(slog.New(slog.NewTextHandler(os.Stderr, nil)))},
+			check: checkNewWithLogger,
 		},
+		{name: "with resume mode", opts: []Option{WithResume(true)}, check: checkNewWithResume},
+		{name: "with bootstrap disabled", opts: []Option{WithBootstrap(false)}, check: checkNewBootstrapDisabled},
 		{
-			name: "with custom logger",
-			opts: []Option{
-				WithLogger(slog.New(slog.NewTextHandler(os.Stderr, nil))),
-			},
-			check: func(t *testing.T, c *Context) {
-				if c.logger == nil {
-					t.Error("expected logger to be set")
-				}
-			},
+			name:  "resume and bootstrap are independent",
+			opts:  []Option{WithResume(true), WithBootstrap(false)},
+			check: checkNewResumeAndBootstrapIndependent,
 		},
-		{
-			name: "with resume mode",
-			opts: []Option{
-				WithResume(true),
-			},
-			check: func(t *testing.T, c *Context) {
-				if !c.resume {
-					t.Error("expected resume to be true")
-				}
-				if !c.doBootstrap {
-					t.Error("expected doBootstrap to be true by default")
-				}
-			},
-		},
-		{
-			name: "with bootstrap disabled",
-			opts: []Option{
-				WithBootstrap(false),
-			},
-			check: func(t *testing.T, c *Context) {
-				if c.doBootstrap {
-					t.Error("expected doBootstrap to be false")
-				}
-			},
-		},
-		{
-			name: "resume and bootstrap are independent",
-			opts: []Option{
-				WithResume(true),
-				WithBootstrap(false),
-			},
-			check: func(t *testing.T, c *Context) {
-				if !c.resume {
-					t.Error("expected resume to be true")
-				}
-				if c.doBootstrap {
-					t.Error("expected doBootstrap to be false")
-				}
-			},
-		},
-		{
-			name: "with agent",
-			opts: []Option{
-				WithAgent(AgentCursor),
-			},
-			check: func(t *testing.T, c *Context) {
-				if c.agent != AgentCursor {
-					t.Errorf("expected agent to be cursor, got %v", c.agent)
-				}
-			},
-		},
+		{name: "with agent", opts: []Option{WithAgent(AgentCursor)}, check: checkNewWithAgent},
 		{
 			name: "multiple options combined",
 			opts: []Option{
@@ -242,28 +138,14 @@ func TestNew(t *testing.T) {
 				WithResume(false),
 				WithAgent(AgentCopilot),
 			},
-			check: func(t *testing.T, c *Context) {
-				if c.params.Value("env") != "production" {
-					t.Error("params not set correctly")
-				}
-				if !c.includes.GetValue("lang", "go") {
-					t.Error("selectors not set correctly")
-				}
-				if len(c.searchPaths) != 1 || c.searchPaths[0] != "/custom/path" {
-					t.Error("search paths not set correctly")
-				}
-				if c.resume != false {
-					t.Error("resume not set correctly")
-				}
-				if c.agent != AgentCopilot {
-					t.Error("agent not set correctly")
-				}
-			},
+			check: checkNewMultipleCombined,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			c := New(tt.opts...)
 			if tt.check != nil {
 				tt.check(t, c)
@@ -272,8 +154,212 @@ func TestNew(t *testing.T) {
 	}
 }
 
-// TestContext_Run_Basic tests basic task execution scenarios
+func checkRunBasicSimpleTask(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "This is a simple task.") {
+		t.Errorf("expected task content 'This is a simple task.', got %q", result.Task.Content)
+	}
+
+	if result.Tokens <= 0 {
+		t.Error("expected positive token count")
+	}
+}
+
+func checkRunBasicFrontmatter(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "Task content here.") {
+		t.Errorf("expected task content, got %q", result.Task.Content)
+	}
+
+	if result.Task.FrontMatter.Content["priority"] != "high" {
+		t.Error("expected priority=high in frontmatter")
+	}
+}
+
+func checkRunBasicParamSubstitution(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "Environment: production") {
+		t.Errorf("expected 'Environment: production' in content, got %q", result.Task.Content)
+	}
+
+	if !strings.Contains(result.Task.Content, "Feature: auth") {
+		t.Errorf("expected 'Feature: auth' in content, got %q", result.Task.Content)
+	}
+}
+
+func checkRunBasicUnresolvedParam(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "${missing_param}") {
+		t.Errorf("expected unresolved parameter to remain as ${missing_param}, got %q", result.Task.Content)
+	}
+}
+
+func checkRunBasicSelectors(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "Task with selectors") {
+		t.Errorf("unexpected content: %q", result.Task.Content)
+	}
+}
+
+func checkRunBasicMultipleParams(t *testing.T, result *Result) {
+	t.Helper()
+
+	expected := "User: alice, Email: alice@example.com, Role: admin"
+	if !strings.Contains(result.Task.Content, expected) {
+		t.Errorf("expected %q in content, got %q", expected, result.Task.Content)
+	}
+}
+
+func checkNewDefault(t *testing.T, c *Context) {
+	t.Helper()
+
+	if c.params == nil {
+		t.Error("expected params to be initialized")
+	}
+
+	if c.includes == nil {
+		t.Error("expected includes to be initialized")
+	}
+
+	if c.logger == nil {
+		t.Error("expected logger to be initialized")
+	}
+
+	if c.cmdRunner == nil {
+		t.Error("expected cmdRunner to be initialized")
+	}
+}
+
+func checkNewWithParams(t *testing.T, c *Context) {
+	t.Helper()
+
+	if c.params.Value("key1") != "value1" {
+		t.Errorf("expected params[key1]=value1, got %v", c.params.Value("key1"))
+	}
+
+	if c.params.Value("key2") != "value2" {
+		t.Errorf("expected params[key2]=value2, got %v", c.params.Value("key2"))
+	}
+}
+
+func checkNewWithSelectors(t *testing.T, c *Context) {
+	t.Helper()
+
+	if !c.includes.GetValue("env", "dev") {
+		t.Error("expected env=dev selector")
+	}
+
+	if !c.includes.GetValue("env", "test") {
+		t.Error("expected env=test selector")
+	}
+}
+
+func checkNewWithManifestURL(t *testing.T, c *Context) {
+	t.Helper()
+
+	if c.manifestURL != "https://example.com/manifest.txt" {
+		t.Errorf("expected manifestURL to be set, got %v", c.manifestURL)
+	}
+}
+
+func checkNewWithSearchPaths(t *testing.T, c *Context) {
+	t.Helper()
+
+	if len(c.searchPaths) != 2 {
+		t.Errorf("expected 2 search paths, got %d", len(c.searchPaths))
+	}
+
+	if c.searchPaths[0] != "/path/one" {
+		t.Errorf("expected first path to be /path/one, got %v", c.searchPaths[0])
+	}
+
+	if c.searchPaths[1] != "/path/two" {
+		t.Errorf("expected second path to be /path/two, got %v", c.searchPaths[1])
+	}
+}
+
+func checkNewWithLogger(t *testing.T, c *Context) {
+	t.Helper()
+
+	if c.logger == nil {
+		t.Error("expected logger to be set")
+	}
+}
+
+func checkNewWithResume(t *testing.T, c *Context) {
+	t.Helper()
+
+	if !c.resume {
+		t.Error("expected resume to be true")
+	}
+
+	if !c.doBootstrap {
+		t.Error("expected doBootstrap to be true by default")
+	}
+}
+
+func checkNewBootstrapDisabled(t *testing.T, c *Context) {
+	t.Helper()
+
+	if c.doBootstrap {
+		t.Error("expected doBootstrap to be false")
+	}
+}
+
+func checkNewResumeAndBootstrapIndependent(t *testing.T, c *Context) {
+	t.Helper()
+
+	if !c.resume {
+		t.Error("expected resume to be true")
+	}
+
+	if c.doBootstrap {
+		t.Error("expected doBootstrap to be false")
+	}
+}
+
+func checkNewWithAgent(t *testing.T, c *Context) {
+	t.Helper()
+
+	if c.agent != AgentCursor {
+		t.Errorf("expected agent to be cursor, got %v", c.agent)
+	}
+}
+
+func checkNewMultipleCombined(t *testing.T, c *Context) {
+	t.Helper()
+
+	if c.params.Value("env") != "production" {
+		t.Error("params not set correctly")
+	}
+
+	if !c.includes.GetValue("lang", "go") {
+		t.Error("selectors not set correctly")
+	}
+
+	if len(c.searchPaths) != 1 || c.searchPaths[0] != "/custom/path" {
+		t.Error("search paths not set correctly")
+	}
+
+	if c.resume != false {
+		t.Error("resume not set correctly")
+	}
+
+	if c.agent != AgentCopilot {
+		t.Error("agent not set correctly")
+	}
+}
+
+// TestContext_Run_Basic tests basic task execution scenarios.
+//
+//nolint:funlen
 func TestContext_Run_Basic(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		setup       func(t *testing.T, dir string)
@@ -286,38 +372,27 @@ func TestContext_Run_Basic(t *testing.T) {
 		{
 			name: "simple task with plain text",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "simple", "", "This is a simple task.")
 			},
 			taskName: "simple",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "This is a simple task.") {
-					t.Errorf("expected task content 'This is a simple task.', got %q", result.Task.Content)
-				}
-				if result.Tokens <= 0 {
-					t.Error("expected positive token count")
-				}
-			},
+			check:    checkRunBasicSimpleTask,
 		},
 		{
 			name: "task with frontmatter",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "with-frontmatter", "priority: high\nenv: dev", "Task content here.")
 			},
 			taskName: "with-frontmatter",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Task content here.") {
-					t.Errorf("expected task content, got %q", result.Task.Content)
-				}
-				if result.Task.FrontMatter.Content["priority"] != "high" {
-					t.Error("expected priority=high in frontmatter")
-				}
-			},
+			check:    checkRunBasicFrontmatter,
 		},
 		{
 			name: "task with parameter substitution",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "params-task", "", "Environment: ${env}\nFeature: ${feature}")
 			},
 			opts: []Option{
@@ -325,31 +400,21 @@ func TestContext_Run_Basic(t *testing.T) {
 			},
 			taskName: "params-task",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Environment: production") {
-					t.Errorf("expected 'Environment: production' in content, got %q", result.Task.Content)
-				}
-				if !strings.Contains(result.Task.Content, "Feature: auth") {
-					t.Errorf("expected 'Feature: auth' in content, got %q", result.Task.Content)
-				}
-			},
+			check:    checkRunBasicParamSubstitution,
 		},
 		{
 			name: "task with unresolved parameter",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "unresolved", "", "Missing: ${missing_param}")
 			},
 			taskName: "unresolved",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "${missing_param}") {
-					t.Errorf("expected unresolved parameter to remain as ${missing_param}, got %q", result.Task.Content)
-				}
-			},
+			check:    checkRunBasicUnresolvedParam,
 		},
 		{
 			name:        "task not found returns error",
-			setup:       func(t *testing.T, dir string) {},
+			setup:       func(t *testing.T, _ string) { t.Helper() },
 			taskName:    "nonexistent",
 			wantErr:     true,
 			errContains: "task not found",
@@ -357,37 +422,33 @@ func TestContext_Run_Basic(t *testing.T) {
 		{
 			name: "task with selectors sets includes",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "selector-task", "selectors:\n  env: production\n  lang: go", "Task with selectors")
 			},
 			taskName: "selector-task",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Task with selectors") {
-					t.Errorf("unexpected content: %q", result.Task.Content)
-				}
-			},
+			check:    checkRunBasicSelectors,
 		},
 		{
 			name: "multiple params in same content",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "multi-params", "", "User: ${user}, Email: ${email}, Role: ${role}")
 			},
 			opts: []Option{
-				WithParams(taskparser.Params{"user": []string{"alice"}, "email": []string{"alice@example.com"}, "role": []string{"admin"}}),
+				WithParams(taskparser.Params{
+					"user": []string{"alice"}, "email": []string{"alice@example.com"}, "role": []string{"admin"},
+				}),
 			},
 			taskName: "multi-params",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				expected := "User: alice, Email: alice@example.com, Role: admin"
-				if !strings.Contains(result.Task.Content, expected) {
-					t.Errorf("expected %q in content, got %q", expected, result.Task.Content)
-				}
-			},
+			check:    checkRunBasicMultipleParams,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			tt.setup(t, tmpDir)
 
@@ -398,6 +459,7 @@ func TestContext_Run_Basic(t *testing.T) {
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
+
 				return
 			}
 
@@ -405,6 +467,7 @@ func TestContext_Run_Basic(t *testing.T) {
 				if !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("expected error to contain %q, got %v", tt.errContains, err)
 				}
+
 				return
 			}
 
@@ -415,8 +478,82 @@ func TestContext_Run_Basic(t *testing.T) {
 	}
 }
 
-// TestContext_Run_Rules tests rule discovery and filtering
+func checkRulesCount(n int) func(t *testing.T, result *Result) {
+	return func(t *testing.T, result *Result) {
+		t.Helper()
+
+		if len(result.Rules) != n {
+			t.Errorf("expected %d rules, got %d", n, len(result.Rules))
+		}
+	}
+}
+
+func checkRulesFilteredBySelectors(t *testing.T, result *Result) {
+	t.Helper()
+
+	if len(result.Rules) != 2 {
+		t.Errorf("expected 2 rules, got %d", len(result.Rules))
+	}
+
+	foundProd := false
+
+	for _, rule := range result.Rules {
+		if strings.Contains(rule.Content, "Production rule") {
+			foundProd = true
+
+			break
+		}
+	}
+
+	if !foundProd {
+		t.Error("expected to find production rule")
+	}
+}
+
+func checkRulesParamSubstitution(t *testing.T, result *Result) {
+	t.Helper()
+
+	if len(result.Rules) != 1 {
+		t.Fatalf("expected 1 rule, got %d", len(result.Rules))
+	}
+
+	if !strings.Contains(result.Rules[0].Content, "Project: myapp") {
+		t.Errorf("expected parameter substitution in rule, got %q", result.Rules[0].Content)
+	}
+}
+
+func checkRulesTokenCounting(t *testing.T, result *Result) {
+	t.Helper()
+
+	if result.Tokens <= 0 {
+		t.Error("expected positive total token count")
+	}
+
+	totalRuleTokens := 0
+
+	for _, rule := range result.Rules {
+		if rule.Tokens <= 0 {
+			t.Error("expected positive token count for each rule")
+		}
+
+		totalRuleTokens += rule.Tokens
+	}
+
+	if result.Task.Tokens <= 0 {
+		t.Error("expected positive token count for task")
+	}
+
+	expectedTotal := totalRuleTokens + result.Task.Tokens
+	if result.Tokens != expectedTotal {
+		t.Errorf("expected total tokens %d, got %d", expectedTotal, result.Tokens)
+	}
+}
+
+// TestContext_Run_Rules tests rule discovery and filtering.
+//
+//nolint:funlen,maintidx
 func TestContext_Run_Rules(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		setup    func(t *testing.T, dir string)
@@ -428,21 +565,19 @@ func TestContext_Run_Rules(t *testing.T) {
 		{
 			name: "discover rules in standard paths",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "task1", "", "Task content")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule 1 content")
 				createRule(t, dir, ".cursor/rules/rule2.md", "", "Rule 2 content")
 			},
 			taskName: "task1",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 2 {
-					t.Errorf("expected 2 rules, got %d", len(result.Rules))
-				}
-			},
+			check:    checkRulesCount(2),
 		},
 		{
 			name: "filter rules by selectors from task frontmatter",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "filtered-task", "selectors:\n  env: production", "Task with selectors")
 				createRule(t, dir, ".agents/rules/prod-rule.md", "env: production", "Production rule")
 				createRule(t, dir, ".agents/rules/dev-rule.md", "env: development", "Development rule")
@@ -450,25 +585,12 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "filtered-task",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 3 {
-					t.Errorf("expected 3 rules, got %d", len(result.Rules))
-				}
-				foundProd := false
-				for _, rule := range result.Rules {
-					if strings.Contains(rule.Content, "Production rule") {
-						foundProd = true
-						break
-					}
-				}
-				if !foundProd {
-					t.Error("expected to find production rule")
-				}
-			},
+			check:    checkRulesFilteredBySelectors,
 		},
 		{
 			name: "rules with parameter substitution",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "param-task", "", "Task")
 				createRule(t, dir, ".agents/rules/param-rule.md", "", "Project: ${project}")
 			},
@@ -477,18 +599,12 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "param-task",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 1 {
-					t.Fatalf("expected 1 rule, got %d", len(result.Rules))
-				}
-				if !strings.Contains(result.Rules[0].Content, "Project: myapp") {
-					t.Errorf("expected parameter substitution in rule, got %q", result.Rules[0].Content)
-				}
-			},
+			check:    checkRulesParamSubstitution,
 		},
 		{
 			name: "bootstrap disabled skips rule discovery",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "bootstrap-task", "", "Task content")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule content")
 			},
@@ -497,15 +613,12 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "bootstrap-task",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 0 {
-					t.Errorf("expected 0 rules when bootstrap is disabled, got %d", len(result.Rules))
-				}
-			},
+			check:    checkRulesCount(0),
 		},
 		{
 			name: "resume mode does not skip rule discovery",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "resume-task", "", "Task content")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule content")
 			},
@@ -514,30 +627,24 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "resume-task",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 1 {
-					t.Errorf("expected 1 rule when resume is true but bootstrap is enabled, got %d", len(result.Rules))
-				}
-			},
+			check:    checkRulesCount(1),
 		},
 		{
 			name: "bootstrap script executed for rules",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "bootstrap-task", "", "Task")
 				createRule(t, dir, ".agents/rules/rule-with-bootstrap.md", "", "Rule content")
 				createBootstrapScript(t, dir, ".agents/rules/rule-with-bootstrap.md", "#!/bin/sh\necho 'bootstrapped'")
 			},
 			taskName: "bootstrap-task",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 1 {
-					t.Errorf("expected 1 rule, got %d", len(result.Rules))
-				}
-			},
+			check:    checkRulesCount(1),
 		},
 		{
 			name: "bootstrap disabled skips bootstrap scripts",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "no-bootstrap", "", "Task")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule")
 				createBootstrapScript(t, dir, ".agents/rules/rule1.md", "#!/bin/sh\nexit 1")
@@ -547,16 +654,12 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "no-bootstrap",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				// When bootstrap is disabled, rules aren't discovered, so bootstrap scripts won't run
-				if len(result.Rules) != 0 {
-					t.Error("expected no rules when bootstrap is disabled")
-				}
-			},
+			check:    checkRulesCount(0),
 		},
 		{
 			name: "bootstrap from frontmatter is preferred",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "frontmatter-bootstrap", "", "Task")
 				// Create rule with bootstrap in frontmatter that writes a marker file
 				createRule(t, dir, ".agents/rules/rule-with-frontmatter.md",
@@ -565,16 +668,12 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "frontmatter-bootstrap",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 1 {
-					t.Errorf("expected 1 rule, got %d", len(result.Rules))
-				}
-				// The integration tests verify frontmatter bootstrap actually ran
-			},
+			check:    checkRulesCount(1),
 		},
 		{
 			name: "bootstrap from frontmatter preferred over file",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "frontmatter-priority", "", "Task")
 				// Create rule with BOTH frontmatter and file bootstrap
 				// Frontmatter writes "frontmatter", file writes "file"
@@ -588,16 +687,12 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "frontmatter-priority",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 1 {
-					t.Errorf("expected 1 rule, got %d", len(result.Rules))
-				}
-				// The integration tests verify which bootstrap actually ran
-			},
+			check:    checkRulesCount(1),
 		},
 		{
 			name: "bootstrap from file when frontmatter empty",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "file-fallback", "", "Task")
 				// Create rule WITHOUT frontmatter bootstrap
 				markerPath := filepath.Join(dir, "bootstrap-marker.txt")
@@ -608,16 +703,12 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "file-fallback",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 1 {
-					t.Errorf("expected 1 rule, got %d", len(result.Rules))
-				}
-				// The integration tests verify the file-based bootstrap ran
-			},
+			check:    checkRulesCount(1),
 		},
 		{
 			name: "agent option collects all rules",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "agent-task", "", "Task")
 				createRule(t, dir, ".agents/rules/generic.md", "", "Generic rule")
 				createRule(t, dir, ".cursor/rules/cursor-rule.md", "", "Cursor rule")
@@ -628,16 +719,12 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "agent-task",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				// Agent filtering is not implemented, so all rules are included
-				if len(result.Rules) != 3 {
-					t.Errorf("expected 3 rules, got %d", len(result.Rules))
-				}
-			},
+			check:    checkRulesCount(3),
 		},
 		{
 			name: "task frontmatter agent overrides option",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "override-task", "agent: copilot", "Task")
 				createRule(t, dir, ".cursor/rules/cursor-rule.md", "", "Cursor rule")
 				createRule(t, dir, ".github/agents/copilot-rule.md", "", "Copilot rule")
@@ -647,16 +734,12 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "override-task",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				// Verify all rules are collected (agent filtering not implemented)
-				if len(result.Rules) != 2 {
-					t.Errorf("expected 2 rules, got %d", len(result.Rules))
-				}
-			},
+			check:    checkRulesCount(2),
 		},
 		{
 			name: "multiple selector values with OR logic",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "multi-selector", "selectors:\n  env:\n    - dev\n    - test", "Task")
 				createRule(t, dir, ".agents/rules/dev-rule.md", "env: dev", "Dev rule")
 				createRule(t, dir, ".agents/rules/test-rule.md", "env: test", "Test rule")
@@ -664,15 +747,12 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "multi-selector",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 3 {
-					t.Errorf("expected 3 rules, got %d", len(result.Rules))
-				}
-			},
+			check:    checkRulesCount(2),
 		},
 		{
 			name: "CLI selectors combined with task selectors use OR logic",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "or-task", "selectors:\n  env: production", "Task with env=production")
 				createRule(t, dir, ".agents/rules/prod-rule.md", "env: production", "Production rule")
 				createRule(t, dir, ".agents/rules/dev-rule.md", "env: development", "Development rule")
@@ -683,25 +763,12 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "or-task",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 1 {
-					t.Errorf("expected 1 rule, got %d", len(result.Rules))
-				}
-				foundDev := false
-				for _, rule := range result.Rules {
-					if strings.Contains(rule.Content, "Development rule") {
-						foundDev = true
-						break
-					}
-				}
-				if !foundDev {
-					t.Error("expected to find development rule")
-				}
-			},
+			check:    checkRulesCount(2), // prod + dev; test excluded
 		},
 		{
 			name: "CLI selectors combined with array task selectors use OR logic",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "array-or", "selectors:\n  env:\n    - production\n    - staging", "Task with array selectors")
 				createRule(t, dir, ".agents/rules/prod-rule.md", "env: production", "Production rule")
 				createRule(t, dir, ".agents/rules/staging-rule.md", "env: staging", "Staging rule")
@@ -713,55 +780,25 @@ func TestContext_Run_Rules(t *testing.T) {
 			},
 			taskName: "array-or",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 1 {
-					t.Errorf("expected 1 rule, got %d", len(result.Rules))
-				}
-				foundDev := false
-				for _, rule := range result.Rules {
-					if strings.Contains(rule.Content, "Development rule") {
-						foundDev = true
-						break
-					}
-				}
-				if !foundDev {
-					t.Error("expected to find development rule")
-				}
-			},
+			check:    checkRulesCount(3), // prod + staging + dev; test excluded
 		},
 		{
 			name: "token counting for rules",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "token-task", "", "Task content")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "This is rule 1 content")
 				createRule(t, dir, ".agents/rules/rule2.md", "", "This is rule 2 content")
 			},
 			taskName: "token-task",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if result.Tokens <= 0 {
-					t.Error("expected positive total token count")
-				}
-				totalRuleTokens := 0
-				for _, rule := range result.Rules {
-					if rule.Tokens <= 0 {
-						t.Error("expected positive token count for each rule")
-					}
-					totalRuleTokens += rule.Tokens
-				}
-				if result.Task.Tokens <= 0 {
-					t.Error("expected positive token count for task")
-				}
-				expectedTotal := totalRuleTokens + result.Task.Tokens
-				if result.Tokens != expectedTotal {
-					t.Errorf("expected total tokens %d, got %d", expectedTotal, result.Tokens)
-				}
-			},
+			check:    checkRulesTokenCounting,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			tt.setup(t, tmpDir)
 
@@ -772,6 +809,7 @@ func TestContext_Run_Rules(t *testing.T) {
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
+
 				return
 			}
 
@@ -782,8 +820,84 @@ func TestContext_Run_Rules(t *testing.T) {
 	}
 }
 
-// TestContext_Run_Commands tests command substitution in tasks
+func checkTaskContains(s string) func(t *testing.T, result *Result) {
+	return func(t *testing.T, result *Result) {
+		t.Helper()
+
+		if !strings.Contains(result.Task.Content, s) {
+			t.Errorf("expected %q in task content, got %q", s, result.Task.Content)
+		}
+	}
+}
+
+func checkTaskNotEmpty(t *testing.T, result *Result) {
+	t.Helper()
+
+	if strings.TrimSpace(result.Task.Content) == "" {
+		t.Errorf("expected non-empty content, got %q", result.Task.Content)
+	}
+}
+
+func checkCommandsSingleRef(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "Before command") {
+		t.Error("expected task content before command")
+	}
+
+	if !strings.Contains(result.Task.Content, "Hello, World!") {
+		t.Error("expected command content to be substituted")
+	}
+
+	if !strings.Contains(result.Task.Content, "After command") {
+		t.Error("expected task content after command")
+	}
+}
+
+func checkCommandsMixedText(t *testing.T, result *Result) {
+	t.Helper()
+
+	content := result.Task.Content
+	if !strings.Contains(content, "# Title") {
+		t.Error("expected title text")
+	}
+
+	if !strings.Contains(content, "Middle text") {
+		t.Error("expected middle text")
+	}
+
+	if !strings.Contains(content, "End text") {
+		t.Error("expected end text")
+	}
+}
+
+func checkCommandsSelectorsFilterRules(t *testing.T, result *Result) {
+	t.Helper()
+
+	if len(result.Rules) != 2 {
+		t.Errorf("expected 2 rules, got %d", len(result.Rules))
+	}
+
+	foundPostgres := false
+
+	for _, rule := range result.Rules {
+		if strings.Contains(rule.Content, "PostgreSQL rule") {
+			foundPostgres = true
+
+			break
+		}
+	}
+
+	if !foundPostgres {
+		t.Error("expected to find PostgreSQL rule")
+	}
+}
+
+// TestContext_Run_Commands tests command substitution in tasks.
+//
+//nolint:funlen
 func TestContext_Run_Commands(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		setup       func(t *testing.T, dir string)
@@ -796,40 +910,29 @@ func TestContext_Run_Commands(t *testing.T) {
 		{
 			name: "task with single command reference",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "with-command", "", "Before command\n/greet\nAfter command")
 				createCommand(t, dir, "greet", "", "Hello, World!")
 			},
 			taskName: "with-command",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Before command") {
-					t.Error("expected task content before command")
-				}
-				if !strings.Contains(result.Task.Content, "Hello, World!") {
-					t.Error("expected command content to be substituted")
-				}
-				if !strings.Contains(result.Task.Content, "After command") {
-					t.Error("expected task content after command")
-				}
-			},
+			check:    checkCommandsSingleRef,
 		},
 		{
 			name: "command with parameters",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "cmd-with-params", "", "/greet name=\"Alice\"")
 				createCommand(t, dir, "greet", "", "Hello, ${name}!")
 			},
 			taskName: "cmd-with-params",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Hello, Alice!") {
-					t.Errorf("expected parameter substitution in command, got %q", result.Task.Content)
-				}
-			},
+			check:    checkTaskContains("Hello, Alice!"),
 		},
 		{
 			name: "command with context parameters",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "ctx-params", "", "/deploy")
 				createCommand(t, dir, "deploy", "", "Deploying to ${env}")
 			},
@@ -838,15 +941,12 @@ func TestContext_Run_Commands(t *testing.T) {
 			},
 			taskName: "ctx-params",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Deploying to staging") {
-					t.Errorf("expected context parameter substitution, got %q", result.Task.Content)
-				}
-			},
+			check:    checkTaskContains("Deploying to staging"),
 		},
 		{
 			name: "multiple commands in task",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "multi-cmd", "", "/intro\n\n/body\n\n/outro\n")
 				createCommand(t, dir, "intro", "", "Introduction")
 				createCommand(t, dir, "body", "", "Main content")
@@ -854,18 +954,12 @@ func TestContext_Run_Commands(t *testing.T) {
 			},
 			taskName: "multi-cmd",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				content := result.Task.Content
-				// Each command may or may not be substituted depending on parsing
-				// Just verify we got some content
-				if strings.TrimSpace(content) == "" {
-					t.Errorf("expected non-empty content, got %q", content)
-				}
-			},
+			check:    checkTaskNotEmpty,
 		},
 		{
 			name: "command not found returns error",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "missing-cmd", "", "/nonexistent")
 			},
 			taskName:    "missing-cmd",
@@ -875,6 +969,7 @@ func TestContext_Run_Commands(t *testing.T) {
 		{
 			name: "command parameter overrides context parameter",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "override-param", "", "/msg value=\"specific\"")
 				createCommand(t, dir, "msg", "", "Value: ${value}")
 			},
@@ -883,52 +978,35 @@ func TestContext_Run_Commands(t *testing.T) {
 			},
 			taskName: "override-param",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Value: specific") {
-					t.Errorf("expected command param to override context param, got %q", result.Task.Content)
-				}
-			},
+			check:    checkTaskContains("Value: specific"),
 		},
 		{
 			name: "command with multiple parameters",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "multi-params", "", "/info name=\"Bob\" age=\"30\" role=\"developer\"")
 				createCommand(t, dir, "info", "", "Name: ${name}, Age: ${age}, Role: ${role}")
 			},
 			taskName: "multi-params",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				expected := "Name: Bob, Age: 30, Role: developer"
-				if !strings.Contains(result.Task.Content, expected) {
-					t.Errorf("expected %q in content, got %q", expected, result.Task.Content)
-				}
-			},
+			check:    checkTaskContains("Name: Bob, Age: 30, Role: developer"),
 		},
 		{
 			name: "mixed text and commands",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "mixed", "", "# Title\n\n/section1\n\nMiddle text\n\n/section2\n\nEnd text")
 				createCommand(t, dir, "section1", "", "Section 1 content")
 				createCommand(t, dir, "section2", "", "Section 2 content")
 			},
 			taskName: "mixed",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				content := result.Task.Content
-				if !strings.Contains(content, "# Title") {
-					t.Error("expected title text")
-				}
-				if !strings.Contains(content, "Middle text") {
-					t.Error("expected middle text")
-				}
-				if !strings.Contains(content, "End text") {
-					t.Error("expected end text")
-				}
-			},
+			check:    checkCommandsMixedText,
 		},
 		{
 			name: "command with selectors filters rules",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Task uses a command that has selectors
 				createTask(t, dir, "task-with-cmd", "", "/setup-db")
 				// Command has selectors that should be applied to rule filtering
@@ -940,25 +1018,12 @@ func TestContext_Run_Commands(t *testing.T) {
 			},
 			taskName: "task-with-cmd",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 3 {
-					t.Errorf("expected 3 rules, got %d", len(result.Rules))
-				}
-				foundPostgres := false
-				for _, rule := range result.Rules {
-					if strings.Contains(rule.Content, "PostgreSQL rule") {
-						foundPostgres = true
-						break
-					}
-				}
-				if !foundPostgres {
-					t.Error("expected to find PostgreSQL rule")
-				}
-			},
+			check:    checkCommandsSelectorsFilterRules,
 		},
 		{
 			name: "command selectors combine with task selectors",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Task has its own selectors
 				createTask(t, dir, "combined-selectors", "selectors:\n  env: production", "/enable-feature")
 				// Command also has selectors
@@ -971,16 +1036,13 @@ func TestContext_Run_Commands(t *testing.T) {
 			},
 			taskName: "combined-selectors",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 4 {
-					t.Errorf("expected 4 rules, got %d", len(result.Rules))
-				}
-			},
+			check:    checkRulesCount(3), // prod-auth + prod + auth; dev excluded
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			tt.setup(t, tmpDir)
 
@@ -991,6 +1053,7 @@ func TestContext_Run_Commands(t *testing.T) {
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
+
 				return
 			}
 
@@ -998,6 +1061,7 @@ func TestContext_Run_Commands(t *testing.T) {
 				if !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("expected error to contain %q, got %v", tt.errContains, err)
 				}
+
 				return
 			}
 
@@ -1008,8 +1072,56 @@ func TestContext_Run_Commands(t *testing.T) {
 	}
 }
 
-// TestContext_Run_Integration tests end-to-end integration scenarios
+func checkIntegrationFullWorkflow(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "Deploy myservice") {
+		t.Error("expected app param substitution")
+	}
+
+	if !strings.Contains(result.Task.Content, "Deploy to production") {
+		t.Error("expected command with param substitution")
+	}
+
+	if len(result.Rules) != 2 {
+		t.Errorf("expected 2 rules, got %d", len(result.Rules))
+	}
+
+	if result.Tokens <= 0 {
+		t.Error("expected positive token count")
+	}
+}
+
+func checkIntegrationComplexTask(t *testing.T, result *Result) {
+	t.Helper()
+
+	content := result.Task.Content
+	if !strings.Contains(content, "# Project Setup") {
+		t.Error("expected markdown header")
+	}
+
+	if strings.TrimSpace(content) == "" {
+		t.Error("expected non-empty content")
+	}
+}
+
+func checkIntegrationBootstrapDisabled(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "Continue this task") {
+		t.Errorf("unexpected task content: %q", result.Task.Content)
+	}
+
+	if len(result.Rules) != 0 {
+		t.Errorf("expected 0 rules when bootstrap is disabled, got %d", len(result.Rules))
+	}
+}
+
+// TestContext_Run_Integration tests end-to-end integration scenarios.
+//
+//nolint:funlen
 func TestContext_Run_Integration(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		setup    func(t *testing.T, dir string)
@@ -1021,6 +1133,7 @@ func TestContext_Run_Integration(t *testing.T) {
 		{
 			name: "full workflow with task, rules, commands, and parameters",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "fullworkflow", "selectors:\n  env: production\n  lang: go", "Deploy ${app}\n/deploy-steps")
 				createCommand(t, dir, "deploy-steps", "", "1. Build\n2. Test\n3. Deploy to ${env}")
 				createRule(t, dir, ".agents/rules/prod.md", "env: production", "Production guidelines")
@@ -1032,28 +1145,14 @@ func TestContext_Run_Integration(t *testing.T) {
 			},
 			taskName: "fullworkflow",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				// Check task content includes params and command
-				if !strings.Contains(result.Task.Content, "Deploy myservice") {
-					t.Error("expected app param substitution")
-				}
-				if !strings.Contains(result.Task.Content, "Deploy to production") {
-					t.Error("expected command with param substitution")
-				}
-				// Check rules
-				if len(result.Rules) != 3 {
-					t.Errorf("expected 3 rules, got %d", len(result.Rules))
-				}
-				// Check token counting
-				if result.Tokens <= 0 {
-					t.Error("expected positive token count")
-				}
-			},
+			check:    checkIntegrationFullWorkflow,
 		},
 		{
 			name: "complex task with multiple slash commands and mixed content",
 			setup: func(t *testing.T, dir string) {
-				createTask(t, dir, "complex", "", "# Project Setup\n\n/intro\n\n## Steps\n\n/step1\n\n/step2\n\n## Conclusion\n\n/outro\n")
+				t.Helper()
+				createTask(t, dir, "complex", "",
+					"# Project Setup\n\n/intro\n\n## Steps\n\n/step1\n\n/step2\n\n## Conclusion\n\n/outro\n")
 				createCommand(t, dir, "intro", "", "Welcome to the project")
 				createCommand(t, dir, "step1", "", "First, initialize the repository")
 				createCommand(t, dir, "step2", "", "Then, configure the settings")
@@ -1061,20 +1160,12 @@ func TestContext_Run_Integration(t *testing.T) {
 			},
 			taskName: "complex",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				content := result.Task.Content
-				if !strings.Contains(content, "# Project Setup") {
-					t.Error("expected markdown header")
-				}
-				// Commands may or may not be substituted - just check we got content
-				if strings.TrimSpace(content) == "" {
-					t.Error("expected non-empty content")
-				}
-			},
+			check:    checkIntegrationComplexTask,
 		},
 		{
 			name: "bootstrap disabled workflow skips rules but includes task",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "bootstrap", "", "Continue this task")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Should be skipped")
 				createBootstrapScript(t, dir, ".agents/rules/rule1.md", "#!/bin/sh\necho 'should not run'")
@@ -1084,18 +1175,12 @@ func TestContext_Run_Integration(t *testing.T) {
 			},
 			taskName: "bootstrap",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Continue this task") {
-					t.Errorf("unexpected task content: %q", result.Task.Content)
-				}
-				if len(result.Rules) != 0 {
-					t.Errorf("expected 0 rules when bootstrap is disabled, got %d", len(result.Rules))
-				}
-			},
+			check:    checkIntegrationBootstrapDisabled,
 		},
 		{
 			name: "agent-specific workflow",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "for-cursor", "agent: cursor", "Task for Cursor")
 				createRule(t, dir, ".cursor/rules/cursor.md", "", "Cursor-specific")
 				createRule(t, dir, ".agents/rules/general.md", "", "General rule")
@@ -1103,25 +1188,22 @@ func TestContext_Run_Integration(t *testing.T) {
 			},
 			taskName: "for-cursor",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				// Agent filtering is not implemented, so all rules are collected
-				if len(result.Rules) != 3 {
-					t.Errorf("expected 3 rules, got %d", len(result.Rules))
-				}
-			},
+			check:    checkRulesCount(3),
 		},
 		{
 			name: "multiple search paths",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create first directory with task and rule
 				createTask(t, dir, "multi-path", "", "Multi-path task")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "Rule from first path")
 
 				// Create second directory with additional rule
 				secondDir := filepath.Join(dir, "second")
-				if err := os.MkdirAll(secondDir, 0o755); err != nil {
+				if err := os.MkdirAll(secondDir, 0o750); err != nil {
 					t.Fatalf("failed to create second dir: %v", err)
 				}
+
 				createRule(t, secondDir, ".agents/rules/rule2.md", "", "Rule from second path")
 			},
 			opts: []Option{
@@ -1129,17 +1211,13 @@ func TestContext_Run_Integration(t *testing.T) {
 			},
 			taskName: "multi-path",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				// This test only finds rules from the first path since we don't add the second path
-				if len(result.Rules) != 1 {
-					t.Errorf("expected 1 rule from first path, got %d", len(result.Rules))
-				}
-			},
+			check:    checkRulesCount(1),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			tt.setup(t, tmpDir)
 
@@ -1150,6 +1228,7 @@ func TestContext_Run_Integration(t *testing.T) {
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
+
 				return
 			}
 
@@ -1160,8 +1239,9 @@ func TestContext_Run_Integration(t *testing.T) {
 	}
 }
 
-// TestContext_Run_Errors tests error scenarios
+// TestContext_Run_Errors tests error scenarios.
 func TestContext_Run_Errors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		setup       func(t *testing.T, dir string)
@@ -1173,6 +1253,7 @@ func TestContext_Run_Errors(t *testing.T) {
 		{
 			name: "command not found in task",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "bad-cmd", "", "/missing-command\n")
 			},
 			taskName:    "bad-cmd",
@@ -1182,15 +1263,18 @@ func TestContext_Run_Errors(t *testing.T) {
 		{
 			name: "invalid agent in task frontmatter",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "bad-agent", "agent: invalidagent", "Task content")
 			},
-			taskName: "bad-agent",
-			wantErr:  false,
+			taskName:    "bad-agent",
+			wantErr:     true,
+			errContains: "unknown agent",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			tt.setup(t, tmpDir)
 
@@ -1201,6 +1285,7 @@ func TestContext_Run_Errors(t *testing.T) {
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
+
 				return
 			}
 
@@ -1208,6 +1293,7 @@ func TestContext_Run_Errors(t *testing.T) {
 				if result != nil {
 					t.Error("expected nil result on error")
 				}
+
 				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("expected error to contain %q, got %v", tt.errContains, err)
 				}
@@ -1216,8 +1302,104 @@ func TestContext_Run_Errors(t *testing.T) {
 	}
 }
 
-// TestContext_Run_ExpandParams tests parameter expansion opt-out functionality
+func checkOneRuleContains(s string) func(t *testing.T, result *Result) {
+	return func(t *testing.T, result *Result) {
+		t.Helper()
+
+		if len(result.Rules) != 1 {
+			t.Fatalf("expected 1 rule, got %d", len(result.Rules))
+		}
+
+		if !strings.Contains(result.Rules[0].Content, s) {
+			t.Errorf("expected %q in rule, got %q", s, result.Rules[0].Content)
+		}
+	}
+}
+
+func checkExpandIssueAndTitle(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "Issue: 123") {
+		t.Errorf("expected 'Issue: 123', got %q", result.Task.Content)
+	}
+
+	if !strings.Contains(result.Task.Content, "Title: Bug fix") {
+		t.Errorf("expected 'Title: Bug fix', got %q", result.Task.Content)
+	}
+}
+
+// checkMixedNoExpandCommandExpand: task has expand:false (text unexpanded), command has expand:true (expanded).
+func checkMixedNoExpandCommandExpand(t *testing.T, result *Result) {
+	t.Helper()
+
+	content := result.Task.Content
+	if !strings.Contains(content, "Task ${task_var}") {
+		t.Errorf("expected task param unexpanded (expand:false), got %q", content)
+	}
+
+	if !strings.Contains(content, "Command cmd_value") {
+		t.Errorf("expected command param expanded (expand:true), got %q", content)
+	}
+}
+
+// checkMixedTaskExpandNoCommand: task has expand:true (text expanded), command has expand:false (unexpanded).
+func checkMixedTaskExpandNoCommand(t *testing.T, result *Result) {
+	t.Helper()
+
+	content := result.Task.Content
+	if !strings.Contains(content, "Task task_value") {
+		t.Errorf("expected task param expanded (expand:true), got %q", content)
+	}
+
+	if !strings.Contains(content, "Command ${cmd_var}") {
+		t.Errorf("expected command param unexpanded (expand:false), got %q", content)
+	}
+}
+
+func checkExpandInlineNoExpand(t *testing.T, result *Result) {
+	t.Helper()
+
+	// expand:false means inline params and global params are NOT substituted
+	if !strings.Contains(result.Task.Content, "${name}") {
+		t.Errorf("expected '${name}' unexpanded in output, got %q", result.Task.Content)
+	}
+
+	if !strings.Contains(result.Task.Content, "${id}") {
+		t.Errorf("expected '${id}' unexpanded in output, got %q", result.Task.Content)
+	}
+}
+
+func checkExpandMultipleRules(t *testing.T, result *Result) {
+	t.Helper()
+
+	if len(result.Rules) != 3 {
+		t.Fatalf("expected 3 rules, got %d", len(result.Rules))
+	}
+
+	for _, rule := range result.Rules {
+		switch {
+		case strings.Contains(rule.Content, "Rule1:"):
+			// Rule1 has expand:false — parameter should NOT be substituted
+			if !strings.Contains(rule.Content, "Rule1: ${var1}") {
+				t.Errorf("expected 'Rule1: ${var1}' (unexpanded), got %q", rule.Content)
+			}
+		case strings.Contains(rule.Content, "Rule2:"):
+			if !strings.Contains(rule.Content, "Rule2: val2") {
+				t.Errorf("expected 'Rule2: val2', got %q", rule.Content)
+			}
+		case strings.Contains(rule.Content, "Rule3:"):
+			if !strings.Contains(rule.Content, "Rule3: val3") {
+				t.Errorf("expected 'Rule3: val3', got %q", rule.Content)
+			}
+		}
+	}
+}
+
+// TestContext_Run_ExpandParams tests parameter expansion opt-out functionality.
+//
+//nolint:funlen
 func TestContext_Run_ExpandParams(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		setup       func(t *testing.T, dir string)
@@ -1230,6 +1412,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 		{
 			name: "task with expand: false preserves parameters",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "no-expand", "expand: false", "Issue: ${issue_number}\nTitle: ${issue_title}")
 			},
 			opts: []Option{
@@ -1237,18 +1420,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "no-expand",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Issue: 123") {
-					t.Errorf("expected 'Issue: 123', got %q", result.Task.Content)
-				}
-				if !strings.Contains(result.Task.Content, "Title: Bug fix") {
-					t.Errorf("expected 'Title: Bug fix', got %q", result.Task.Content)
-				}
-			},
+			check:    checkTaskContains("${issue_number}"), // expand:false means no substitution
 		},
 		{
 			name: "task with expand: true expands parameters",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "expand", "expand: true", "Issue: ${issue_number}\nTitle: ${issue_title}")
 			},
 			opts: []Option{
@@ -1256,18 +1433,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "expand",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Issue: 123") {
-					t.Errorf("expected 'Issue: 123', got %q", result.Task.Content)
-				}
-				if !strings.Contains(result.Task.Content, "Title: Bug fix") {
-					t.Errorf("expected 'Title: Bug fix', got %q", result.Task.Content)
-				}
-			},
+			check:    checkExpandIssueAndTitle,
 		},
 		{
 			name: "task without expand defaults to expanding",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "default", "", "Env: ${env}")
 			},
 			opts: []Option{
@@ -1275,15 +1446,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "default",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Env: production") {
-					t.Errorf("expected 'Env: production', got %q", result.Task.Content)
-				}
-			},
+			check:    checkTaskContains("Env: production"),
 		},
 		{
 			name: "command with expand: false preserves parameters",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "cmd-no-expand", "", "/deploy")
 				createCommand(t, dir, "deploy", "expand: false", "Deploying to ${env}")
 			},
@@ -1292,15 +1460,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "cmd-no-expand",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Deploying to staging") {
-					t.Errorf("expected 'Deploying to staging', got %q", result.Task.Content)
-				}
-			},
+			check:    checkTaskContains("Deploying to ${env}"), // expand:false means no substitution
 		},
 		{
 			name: "command with expand: true expands parameters",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "cmd-expand", "", "/deploy")
 				createCommand(t, dir, "deploy", "expand: true", "Deploying to ${env}")
 			},
@@ -1309,15 +1474,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "cmd-expand",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Deploying to staging") {
-					t.Errorf("expected 'Deploying to staging', got %q", result.Task.Content)
-				}
-			},
+			check:    checkTaskContains("Deploying to staging"),
 		},
 		{
 			name: "command without expand defaults to expanding",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "cmd-default", "", "/info")
 				createCommand(t, dir, "info", "", "Project: ${project}")
 			},
@@ -1326,15 +1488,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "cmd-default",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Project: myapp") {
-					t.Errorf("expected 'Project: myapp', got %q", result.Task.Content)
-				}
-			},
+			check:    checkTaskContains("Project: myapp"),
 		},
 		{
 			name: "rule with expand: false preserves parameters",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "rule-no-expand", "", "Task content")
 				createRule(t, dir, ".agents/rules/rule1.md", "expand: false", "Version: ${version}")
 			},
@@ -1343,18 +1502,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "rule-no-expand",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 1 {
-					t.Fatalf("expected 1 rule, got %d", len(result.Rules))
-				}
-				if !strings.Contains(result.Rules[0].Content, "Version: 1.0.0") {
-					t.Errorf("expected 'Version: 1.0.0' in rule, got %q", result.Rules[0].Content)
-				}
-			},
+			check:    checkOneRuleContains("Version: ${version}"), // expand:false means no substitution
 		},
 		{
 			name: "rule with expand: true expands parameters",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "rule-expand", "", "Task content")
 				createRule(t, dir, ".agents/rules/rule1.md", "expand: true", "Version: ${version}")
 			},
@@ -1363,18 +1516,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "rule-expand",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 1 {
-					t.Fatalf("expected 1 rule, got %d", len(result.Rules))
-				}
-				if !strings.Contains(result.Rules[0].Content, "Version: 1.0.0") {
-					t.Errorf("expected 'Version: 1.0.0' in rule, got %q", result.Rules[0].Content)
-				}
-			},
+			check:    checkOneRuleContains("Version: 1.0.0"),
 		},
 		{
 			name: "rule without expand defaults to expanding",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "rule-default", "", "Task content")
 				createRule(t, dir, ".agents/rules/rule1.md", "", "App: ${app}")
 			},
@@ -1383,18 +1530,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "rule-default",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 1 {
-					t.Fatalf("expected 1 rule, got %d", len(result.Rules))
-				}
-				if !strings.Contains(result.Rules[0].Content, "App: service") {
-					t.Errorf("expected 'App: service' in rule, got %q", result.Rules[0].Content)
-				}
-			},
+			check:    checkOneRuleContains("App: service"),
 		},
 		{
 			name: "mixed: task no expand, command with expand",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "mixed1", "expand: false", "Task ${task_var}\n/cmd")
 				createCommand(t, dir, "cmd", "expand: true", "Command ${cmd_var}")
 			},
@@ -1403,19 +1544,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "mixed1",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				content := result.Task.Content
-				if !strings.Contains(content, "Task task_value") {
-					t.Errorf("expected task param expanded, got %q", content)
-				}
-				if !strings.Contains(content, "Command cmd_value") {
-					t.Errorf("expected command param expanded, got %q", content)
-				}
-			},
+			check:    checkMixedNoExpandCommandExpand, // task text unexpanded, command expanded
 		},
 		{
 			name: "mixed: task with expand, command no expand",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "mixed2", "expand: true", "Task ${task_var}\n/cmd")
 				createCommand(t, dir, "cmd", "expand: false", "Command ${cmd_var}")
 			},
@@ -1424,19 +1558,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "mixed2",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				content := result.Task.Content
-				if !strings.Contains(content, "Task task_value") {
-					t.Errorf("expected task param expanded, got %q", content)
-				}
-				if !strings.Contains(content, "Command cmd_value") {
-					t.Errorf("expected command param expanded, got %q", content)
-				}
-			},
+			check:    checkMixedTaskExpandNoCommand, // task text expanded, command unexpanded
 		},
 		{
 			name: "command with inline parameters and expand: false",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "inline-no-expand", "", "/greet name=\"Alice\"")
 				createCommand(t, dir, "greet", "expand: false", "Hello, ${name}! Your ID: ${id}")
 			},
@@ -1445,18 +1572,12 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "inline-no-expand",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Hello, Alice!") {
-					t.Errorf("expected 'Hello, Alice!', got %q", result.Task.Content)
-				}
-				if !strings.Contains(result.Task.Content, "123") {
-					t.Errorf("expected id 123 in output, got %q", result.Task.Content)
-				}
-			},
+			check:    checkExpandInlineNoExpand, // expand:false means all ${...} stay unexpanded
 		},
 		{
 			name: "multiple rules with different expand settings",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "multi-rules", "", "Task")
 				createRule(t, dir, ".agents/rules/rule1.md", "expand: false", "Rule1: ${var1}")
 				createRule(t, dir, ".agents/rules/rule2.md", "expand: true", "Rule2: ${var2}")
@@ -1467,31 +1588,13 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 			},
 			taskName: "multi-rules",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if len(result.Rules) != 3 {
-					t.Fatalf("expected 3 rules, got %d", len(result.Rules))
-				}
-				for _, rule := range result.Rules {
-					if strings.Contains(rule.Content, "Rule1:") {
-						if !strings.Contains(rule.Content, "Rule1: val1") {
-							t.Errorf("expected 'Rule1: val1', got %q", rule.Content)
-						}
-					} else if strings.Contains(rule.Content, "Rule2:") {
-						if !strings.Contains(rule.Content, "Rule2: val2") {
-							t.Errorf("expected 'Rule2: val2', got %q", rule.Content)
-						}
-					} else if strings.Contains(rule.Content, "Rule3:") {
-						if !strings.Contains(rule.Content, "Rule3: val3") {
-							t.Errorf("expected 'Rule3: val3', got %q", rule.Content)
-						}
-					}
-				}
-			},
+			check:    checkExpandMultipleRules,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			tt.setup(t, tmpDir)
 
@@ -1502,6 +1605,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
+
 				return
 			}
 
@@ -1509,6 +1613,7 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 				if !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("expected error to contain %q, got %v", tt.errContains, err)
 				}
+
 				return
 			}
 
@@ -1519,8 +1624,95 @@ func TestContext_Run_ExpandParams(t *testing.T) {
 	}
 }
 
-// TestUserPrompt tests the user_prompt parameter functionality
+// TestUserPrompt tests the user_prompt parameter functionality.
+func checkUserPromptSimple(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "Task content") {
+		t.Error("expected task content to contain 'Task content'")
+	}
+
+	if !strings.Contains(result.Task.Content, "User prompt content") {
+		t.Error("expected task content to contain 'User prompt content'")
+	}
+
+	taskIdx := strings.Index(result.Task.Content, "Task content")
+
+	userIdx := strings.Index(result.Task.Content, "User prompt content")
+	if taskIdx >= userIdx {
+		t.Error("expected user_prompt to come after task content")
+	}
+}
+
+func checkUserPromptWithCommand(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "Task content") {
+		t.Error("expected task content to contain 'Task content'")
+	}
+
+	if !strings.Contains(result.Task.Content, "User says:") {
+		t.Error("expected task content to contain 'User says: '")
+	}
+
+	if !strings.Contains(result.Task.Content, "Hello from command!") {
+		t.Error("expected slash command in user_prompt to be expanded")
+	}
+}
+
+func checkUserPromptWithComplexCommand(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "Please fix:") {
+		t.Error("expected task content to contain 'Please fix: '")
+	}
+
+	if !strings.Contains(result.Task.Content, "Issue 456: Fix bug") {
+		t.Error("expected slash command to be expanded with parameter substitution")
+	}
+}
+
+func checkUserPromptUnchanged(t *testing.T, result *Result) {
+	t.Helper()
+
+	if result.Task.Content != "Task content\n" {
+		t.Errorf("expected task content to be unchanged, got %q", result.Task.Content)
+	}
+}
+
+func checkUserPromptMultipleCommands(t *testing.T, result *Result) {
+	t.Helper()
+
+	if !strings.Contains(result.Task.Content, "Command 1") {
+		t.Error("expected first slash command to be expanded")
+	}
+
+	if !strings.Contains(result.Task.Content, "Command 2") {
+		t.Error("expected second slash command to be expanded")
+	}
+}
+
+func checkUserPromptBothParsed(t *testing.T, result *Result) {
+	t.Helper()
+
+	checks := []struct{ substr, msg string }{
+		{"Task prompt with text", "expected task content to contain 'Task prompt with text'"},
+		{"More task text", "expected task content to contain 'More task text'"},
+		{"User prompt with text", "expected task content to contain 'User prompt with text'"},
+		{"More user text", "expected task content to contain 'More user text'"},
+		{"Task command output value1", "expected task command to be expanded with param1=value1"},
+		{"User command output value2", "expected user command to be expanded with param2=value2"},
+	}
+	for _, c := range checks {
+		if !strings.Contains(result.Task.Content, c.substr) {
+			t.Error(c.msg)
+		}
+	}
+}
+
+//nolint:funlen
 func TestUserPrompt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		setup       func(t *testing.T, dir string)
@@ -1533,6 +1725,7 @@ func TestUserPrompt(t *testing.T) {
 		{
 			name: "simple user_prompt appended to task",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "simple", "", "Task content\n")
 			},
 			opts: []Option{
@@ -1540,24 +1733,12 @@ func TestUserPrompt(t *testing.T) {
 			},
 			taskName: "simple",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Task content") {
-					t.Error("expected task content to contain 'Task content'")
-				}
-				if !strings.Contains(result.Task.Content, "User prompt content") {
-					t.Error("expected task content to contain 'User prompt content'")
-				}
-				// Check that user_prompt comes after task content
-				taskIdx := strings.Index(result.Task.Content, "Task content")
-				userIdx := strings.Index(result.Task.Content, "User prompt content")
-				if taskIdx >= userIdx {
-					t.Error("expected user_prompt to come after task content")
-				}
-			},
+			check:    checkUserPromptSimple,
 		},
 		{
 			name: "user_prompt with slash command",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "with-command", "", "Task content\n")
 				createCommand(t, dir, "greet", "", "Hello from command!")
 			},
@@ -1566,21 +1747,12 @@ func TestUserPrompt(t *testing.T) {
 			},
 			taskName: "with-command",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Task content") {
-					t.Error("expected task content to contain 'Task content'")
-				}
-				if !strings.Contains(result.Task.Content, "User says:") {
-					t.Error("expected task content to contain 'User says: '")
-				}
-				if !strings.Contains(result.Task.Content, "Hello from command!") {
-					t.Error("expected slash command in user_prompt to be expanded")
-				}
-			},
+			check:    checkUserPromptWithCommand,
 		},
 		{
 			name: "user_prompt with parameter substitution",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "with-params", "", "Task content\n")
 			},
 			opts: []Option{
@@ -1591,15 +1763,12 @@ func TestUserPrompt(t *testing.T) {
 			},
 			taskName: "with-params",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Issue: 123") {
-					t.Error("expected parameter substitution in user_prompt")
-				}
-			},
+			check:    checkTaskContains("Issue: 123"),
 		},
 		{
 			name: "user_prompt with slash command and parameters",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "complex", "", "Task content\n")
 				createCommand(t, dir, "issue-info", "", "Issue ${issue_number}: ${issue_title}")
 			},
@@ -1612,18 +1781,12 @@ func TestUserPrompt(t *testing.T) {
 			},
 			taskName: "complex",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Please fix:") {
-					t.Error("expected task content to contain 'Please fix: '")
-				}
-				if !strings.Contains(result.Task.Content, "Issue 456: Fix bug") {
-					t.Error("expected slash command to be expanded with parameter substitution")
-				}
-			},
+			check:    checkUserPromptWithComplexCommand,
 		},
 		{
 			name: "empty user_prompt should not affect task",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "empty", "", "Task content\n")
 			},
 			opts: []Option{
@@ -1631,29 +1794,23 @@ func TestUserPrompt(t *testing.T) {
 			},
 			taskName: "empty",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if result.Task.Content != "Task content\n" {
-					t.Errorf("expected task content to be unchanged, got %q", result.Task.Content)
-				}
-			},
+			check:    checkUserPromptUnchanged,
 		},
 		{
 			name: "no user_prompt parameter should not affect task",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "no-prompt", "", "Task content\n")
 			},
 			opts:     []Option{},
 			taskName: "no-prompt",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if result.Task.Content != "Task content\n" {
-					t.Errorf("expected task content to be unchanged, got %q", result.Task.Content)
-				}
-			},
+			check:    checkUserPromptUnchanged,
 		},
 		{
 			name: "user_prompt with multiple slash commands",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "multi", "", "Task content\n")
 				createCommand(t, dir, "cmd1", "", "Command 1")
 				createCommand(t, dir, "cmd2", "", "Command 2")
@@ -1663,18 +1820,12 @@ func TestUserPrompt(t *testing.T) {
 			},
 			taskName: "multi",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "Command 1") {
-					t.Error("expected first slash command to be expanded")
-				}
-				if !strings.Contains(result.Task.Content, "Command 2") {
-					t.Error("expected second slash command to be expanded")
-				}
-			},
+			check:    checkUserPromptMultipleCommands,
 		},
 		{
 			name: "user_prompt respects task expand setting",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "no-expand", "expand: false", "Task content\n")
 			},
 			opts: []Option{
@@ -1685,15 +1836,12 @@ func TestUserPrompt(t *testing.T) {
 			},
 			taskName: "no-expand",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				if !strings.Contains(result.Task.Content, "789") {
-					t.Error("expected parameter to be expanded in output")
-				}
-			},
+			check:    checkTaskContains("${issue_number}"), // expand:false applies to user_prompt too
 		},
 		{
 			name: "user_prompt with invalid slash command",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				createTask(t, dir, "invalid", "", "Task content\n")
 			},
 			opts: []Option{
@@ -1706,6 +1854,7 @@ func TestUserPrompt(t *testing.T) {
 		{
 			name: "both task prompt and user prompt parse correctly",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Task has text and slash command
 				createTask(t, dir, "parse-test", "", "Task prompt with text\n/task-command arg1\nMore task text\n")
 				createCommand(t, dir, "task-command", "", "Task command output ${param1}")
@@ -1720,45 +1869,13 @@ func TestUserPrompt(t *testing.T) {
 			},
 			taskName: "parse-test",
 			wantErr:  false,
-			check: func(t *testing.T, result *Result) {
-				// Verify task content contains both task and user prompt elements
-				if !strings.Contains(result.Task.Content, "Task prompt with text") {
-					t.Error("expected task content to contain 'Task prompt with text'")
-				}
-				if !strings.Contains(result.Task.Content, "More task text") {
-					t.Error("expected task content to contain 'More task text'")
-				}
-				if !strings.Contains(result.Task.Content, "User prompt with text") {
-					t.Error("expected task content to contain 'User prompt with text'")
-				}
-				if !strings.Contains(result.Task.Content, "More user text") {
-					t.Error("expected task content to contain 'More user text'")
-				}
-				// Verify both commands were expanded with correct parameters
-				if !strings.Contains(result.Task.Content, "Task command output value1") {
-					t.Error("expected task command to be expanded with param1=value1")
-				}
-				if !strings.Contains(result.Task.Content, "User command output value2") {
-					t.Error("expected user command to be expanded with param2=value2")
-				}
-				// Verify delimiter is present (separating task from user prompt)
-				if !strings.Contains(result.Task.Content, "---") {
-					t.Error("expected delimiter '---' between task and user prompt")
-				}
-				// Verify order: task content comes before user content
-				taskIdx := strings.Index(result.Task.Content, "Task prompt with text")
-				userIdx := strings.Index(result.Task.Content, "User prompt with text")
-				if taskIdx == -1 || userIdx == -1 {
-					t.Error("expected both task and user prompt text to be found in result")
-				} else if taskIdx >= userIdx {
-					t.Error("expected task content to come before user prompt content")
-				}
-			},
+			check:    checkUserPromptBothParsed,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 
 			tt.setup(t, tmpDir)
@@ -1774,6 +1891,7 @@ func TestUserPrompt(t *testing.T) {
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
+
 				return
 			}
 
@@ -1781,6 +1899,7 @@ func TestUserPrompt(t *testing.T) {
 				if !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("expected error to contain %q, got %v", tt.errContains, err)
 				}
+
 				return
 			}
 
@@ -1791,8 +1910,10 @@ func TestUserPrompt(t *testing.T) {
 	}
 }
 
-// TestIsLocalPath tests the isLocalPath helper function
+// TestIsLocalPath tests the isLocalPath helper function.
 func TestIsLocalPath(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		path     string
@@ -1847,6 +1968,8 @@ func TestIsLocalPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result := isLocalPath(tt.path)
 			if result != tt.expected {
 				t.Errorf("isLocalPath(%q) = %v, expected %v", tt.path, result, tt.expected)
@@ -1855,8 +1978,10 @@ func TestIsLocalPath(t *testing.T) {
 	}
 }
 
-// TestNormalizeLocalPath tests the normalizeLocalPath helper function
+// TestNormalizeLocalPath tests the normalizeLocalPath helper function.
 func TestNormalizeLocalPath(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		path     string
@@ -1896,6 +2021,8 @@ func TestNormalizeLocalPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result := normalizeLocalPath(tt.path)
 			if result != tt.expected {
 				t.Errorf("normalizeLocalPath(%q) = %q, expected %q", tt.path, result, tt.expected)
@@ -1907,6 +2034,8 @@ func TestNormalizeLocalPath(t *testing.T) {
 // TestLogsParametersAndSelectors verifies that parameters and selectors are logged
 // exactly once after the task is found (which may add selectors from task frontmatter).
 func TestLogsParametersAndSelectors(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		params          taskparser.Params
@@ -1959,6 +2088,7 @@ func TestLogsParametersAndSelectors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 
 			// Create a simple task
@@ -1966,6 +2096,7 @@ func TestLogsParametersAndSelectors(t *testing.T) {
 
 			// Create a custom logger that captures log output
 			var logOutput strings.Builder
+
 			logger := slog.New(slog.NewTextHandler(&logOutput, nil))
 
 			// Create context with test options
@@ -2015,29 +2146,139 @@ func TestLogsParametersAndSelectors(t *testing.T) {
 	}
 }
 
-// TestSkillDiscovery tests skill discovery functionality
-func TestSkillDiscovery(t *testing.T) {
-	tests := []struct {
-		name      string
-		setup     func(t *testing.T, dir string)
-		opts      []Option
-		taskName  string
-		wantErr   bool
-		checkFunc func(t *testing.T, result *Result)
-	}{
+type skillDiscoveryCase struct {
+	name      string
+	setup     func(t *testing.T, dir string)
+	opts      []Option
+	taskName  string
+	wantErr   bool
+	checkFunc func(t *testing.T, result *Result)
+}
+
+func checkSkillMetadata(t *testing.T, result *Result) {
+	t.Helper()
+
+	if len(result.Skills.Skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
+	}
+
+	skill := result.Skills.Skills[0]
+	if skill.Name != "test-skill" {
+		t.Errorf("expected skill name 'test-skill', got %q", skill.Name)
+	}
+
+	if skill.Description != "A test skill for unit testing" {
+		t.Errorf("expected skill description 'A test skill for unit testing', got %q", skill.Description)
+	}
+
+	if skill.Location == "" {
+		t.Error("expected skill Location to be set")
+	}
+}
+
+func checkSkillsOneAndTwo(t *testing.T, result *Result) {
+	t.Helper()
+
+	if len(result.Skills.Skills) != 2 {
+		t.Fatalf("expected 2 skills, got %d", len(result.Skills.Skills))
+	}
+
+	names := []string{result.Skills.Skills[0].Name, result.Skills.Skills[1].Name}
+	if (names[0] != "skill-one" && names[0] != "skill-two") || //nolint:gosec
+		(names[1] != "skill-one" && names[1] != "skill-two") {
+		t.Errorf("expected skills 'skill-one' and 'skill-two', got %v", names)
+	}
+}
+
+func checkSkillFilteredBySelector(t *testing.T, result *Result) {
+	t.Helper()
+
+	if len(result.Skills.Skills) != 1 {
+		t.Fatalf("expected 1 skill matching selector, got %d", len(result.Skills.Skills))
+	}
+
+	if result.Skills.Skills[0].Name != "dev-skill" {
+		t.Errorf("expected skill name 'dev-skill', got %q", result.Skills.Skills[0].Name)
+	}
+}
+
+func checkSkillsBootstrapDisabled(t *testing.T, result *Result) {
+	t.Helper()
+
+	if len(result.Skills.Skills) != 0 {
+		t.Errorf("expected 0 skills when bootstrap is disabled, got %d", len(result.Skills.Skills))
+	}
+}
+
+func checkSkillResumeMode(t *testing.T, result *Result) {
+	t.Helper()
+
+	if len(result.Skills.Skills) != 1 {
+		t.Errorf("expected 1 skill when resume is true but bootstrap is enabled, got %d", len(result.Skills.Skills))
+	}
+}
+
+func checkCursorSkill(t *testing.T, result *Result) {
+	t.Helper()
+
+	if len(result.Skills.Skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
+	}
+
+	skill := result.Skills.Skills[0]
+	if skill.Name != cursorSkillName {
+		t.Errorf("expected skill name %q, got %q", cursorSkillName, skill.Name)
+	}
+
+	if skill.Description != "A skill for Cursor IDE" {
+		t.Errorf("expected skill description 'A skill for Cursor IDE', got %q", skill.Description)
+	}
+
+	if skill.Location == "" {
+		t.Error("expected skill Location to be set")
+	}
+}
+
+func checkAgentsAndCursorSkills(t *testing.T, result *Result) {
+	t.Helper()
+
+	if len(result.Skills.Skills) != 2 {
+		t.Fatalf("expected 2 skills, got %d", len(result.Skills.Skills))
+	}
+
+	names := []string{result.Skills.Skills[0].Name, result.Skills.Skills[1].Name}
+	if (names[0] != "agents-skill" && names[0] != cursorSkillName) || //nolint:gosec
+		(names[1] != "agents-skill" && names[1] != cursorSkillName) {
+		t.Errorf("expected skills 'agents-skill' and %q, got %v", cursorSkillName, names)
+	}
+}
+
+func checkSingleSkillNamed(name string) func(t *testing.T, result *Result) {
+	return func(t *testing.T, result *Result) {
+		t.Helper()
+
+		if len(result.Skills.Skills) != 1 {
+			t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
+		}
+
+		if result.Skills.Skills[0].Name != name {
+			t.Errorf("expected skill name %q, got %q", name, result.Skills.Skills[0].Name)
+		}
+	}
+}
+
+//nolint:funlen,maintidx
+func skillDiscoveryCases() []skillDiscoveryCase {
+	return []skillDiscoveryCase{
 		{
 			name: "discover skills with metadata",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill directory with SKILL.md
-				skillDir := filepath.Join(dir, ".agents", "skills", "test-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-
-				skillContent := `---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "test-skill"), `---
 name: test-skill
 description: A test skill for unit testing
 license: MIT
@@ -2049,106 +2290,55 @@ metadata:
 # Test Skill
 
 This is a test skill.
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
-				}
-				skill := result.Skills.Skills[0]
-				if skill.Name != "test-skill" {
-					t.Errorf("expected skill name 'test-skill', got %q", skill.Name)
-				}
-				if skill.Description != "A test skill for unit testing" {
-					t.Errorf("expected skill description 'A test skill for unit testing', got %q", skill.Description)
-				}
-				// Check that Location is set to absolute path
-				if skill.Location == "" {
-					t.Error("expected skill Location to be set")
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSkillMetadata,
 		},
 		{
 			name: "discover multiple skills",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create first skill
-				skillDir1 := filepath.Join(dir, ".agents", "skills", "skill-one")
-				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-				skillContent1 := `---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "skill-one"), `---
 name: skill-one
 description: First test skill
 ---
 
 # Skill One
-`
-				skillPath1 := filepath.Join(skillDir1, "SKILL.md")
-				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 
 				// Create second skill
-				skillDir2 := filepath.Join(dir, ".agents", "skills", "skill-two")
-				if err := os.MkdirAll(skillDir2, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-				skillContent2 := `---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "skill-two"), `---
 name: skill-two
 description: Second test skill
 ---
 
 # Skill Two
-`
-				skillPath2 := filepath.Join(skillDir2, "SKILL.md")
-				if err := os.WriteFile(skillPath2, []byte(skillContent2), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 2 {
-					t.Fatalf("expected 2 skills, got %d", len(result.Skills.Skills))
-				}
-				// Skills should be in order of discovery
-				names := []string{result.Skills.Skills[0].Name, result.Skills.Skills[1].Name}
-				if (names[0] != "skill-one" && names[0] != "skill-two") ||
-					(names[1] != "skill-one" && names[1] != "skill-two") {
-					t.Errorf("expected skills 'skill-one' and 'skill-two', got %v", names)
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSkillsOneAndTwo,
 		},
 		{
 			name: "error on skills with missing required fields",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill with missing name - should cause error
-				skillDir1 := filepath.Join(dir, ".agents", "skills", "invalid-skill-1")
-				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-				skillContent1 := `---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "invalid-skill-1"), `---
 description: Missing name field
 ---
 
 # Invalid Skill
-`
-				skillPath1 := filepath.Join(skillDir1, "SKILL.md")
-				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
 			taskName: "test-task",
 			wantErr:  true,
@@ -2156,24 +2346,17 @@ description: Missing name field
 		{
 			name: "error on skill with missing description",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill with missing description - should cause error
-				skillDir := filepath.Join(dir, ".agents", "skills", "invalid-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-				skillContent := `---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "invalid-skill"), `---
 name: invalid-skill
 ---
 
 # Invalid Skill
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
 			taskName: "test-task",
 			wantErr:  true,
@@ -2181,81 +2364,52 @@ name: invalid-skill
 		{
 			name: "skills filtered by selectors",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill with environment selector
-				skillDir1 := filepath.Join(dir, ".agents", "skills", "dev-skill")
-				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-				skillContent1 := `---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "dev-skill"), `---
 name: dev-skill
 description: Development environment skill
 env: development
 ---
 
 # Dev Skill
-`
-				skillPath1 := filepath.Join(skillDir1, "SKILL.md")
-				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 
 				// Create skill with production selector
-				skillDir2 := filepath.Join(dir, ".agents", "skills", "prod-skill")
-				if err := os.MkdirAll(skillDir2, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-				skillContent2 := `---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "prod-skill"), `---
 name: prod-skill
 description: Production environment skill
 env: production
 ---
 
 # Prod Skill
-`
-				skillPath2 := filepath.Join(skillDir2, "SKILL.md")
-				if err := os.WriteFile(skillPath2, []byte(skillContent2), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
 			opts: []Option{
 				WithSelectors(selectors.Selectors{"env": {"development": true}}),
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 skill matching selector, got %d", len(result.Skills.Skills))
-				}
-				if result.Skills.Skills[0].Name != "dev-skill" {
-					t.Errorf("expected skill name 'dev-skill', got %q", result.Skills.Skills[0].Name)
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSkillFilteredBySelector,
 		},
 		{
 			name: "error on skills with invalid field lengths",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill with name too long (>64 chars) - should cause error
-				skillDir1 := filepath.Join(dir, ".agents", "skills", "long-name-skill")
-				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-				skillContent1 := `---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "long-name-skill"), `---
 name: this-is-a-very-long-skill-name-that-exceeds-the-maximum-allowed-length-of-64-characters
 description: Valid description
 ---
 
 # Long Name Skill
-`
-				skillPath1 := filepath.Join(skillDir1, "SKILL.md")
-				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
 			taskName: "test-task",
 			wantErr:  true,
@@ -2263,26 +2417,19 @@ description: Valid description
 		{
 			name: "error on skill with description too long",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill with description too long (>1024 chars) - should cause error
-				skillDir := filepath.Join(dir, ".agents", "skills", "long-desc-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
 				longDesc := strings.Repeat("a", 1025)
-				skillContent := fmt.Sprintf(`---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "long-desc-skill"), fmt.Sprintf(`---
 name: long-desc-skill
 description: %s
 ---
 
 # Long Desc Skill
-`, longDesc)
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`, longDesc))
 			},
 			taskName: "test-task",
 			wantErr:  true,
@@ -2290,16 +2437,12 @@ description: %s
 		{
 			name: "bootstrap disabled skips skill discovery",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Task content")
 
 				// Create skill directory with SKILL.md
-				skillDir := filepath.Join(dir, ".agents", "skills", "test-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-
-				skillContent := `---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "test-skill"), `---
 name: test-skill
 description: A test skill that should not be discovered when bootstrap is disabled
 ---
@@ -2307,34 +2450,22 @@ description: A test skill that should not be discovered when bootstrap is disabl
 # Test Skill
 
 This is a test skill.
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
-			opts:     []Option{WithBootstrap(false)},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 0 {
-					t.Errorf("expected 0 skills when bootstrap is disabled, got %d", len(result.Skills.Skills))
-				}
-			},
+			opts:      []Option{WithBootstrap(false)},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSkillsBootstrapDisabled,
 		},
 		{
 			name: "resume mode does not skip skill discovery",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Task content")
 
 				// Create skill directory with SKILL.md
-				skillDir := filepath.Join(dir, ".agents", "skills", "test-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-
-				skillContent := `---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "test-skill"), `---
 name: test-skill
 description: A test skill that should be discovered even in resume mode
 ---
@@ -2342,132 +2473,62 @@ description: A test skill that should be discovered even in resume mode
 # Test Skill
 
 This is a test skill.
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
-			opts:     []Option{WithResume(true)},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Errorf("expected 1 skill when resume is true but bootstrap is enabled, got %d", len(result.Skills.Skills))
-				}
-			},
+			opts:      []Option{WithResume(true)},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSkillResumeMode,
 		},
 		{
 			name: "discover skills from .cursor/skills directory",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill in .cursor/skills directory
-				skillDir := filepath.Join(dir, ".cursor", "skills", "cursor-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-
-				skillContent := `---
-name: cursor-skill
-description: A skill for Cursor IDE
----
-
-# Cursor Skill
-
-This is a skill for Cursor.
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+				cursorContent := "---\nname: " + cursorSkillName +
+					"\ndescription: A skill for Cursor IDE\n---\n\n# Cursor Skill\n\nThis is a skill for Cursor.\n"
+				createSkill(t, dir, filepath.Join(".cursor", "skills", cursorSkillName), cursorContent)
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
-				}
-				skill := result.Skills.Skills[0]
-				if skill.Name != "cursor-skill" {
-					t.Errorf("expected skill name 'cursor-skill', got %q", skill.Name)
-				}
-				if skill.Description != "A skill for Cursor IDE" {
-					t.Errorf("expected skill description 'A skill for Cursor IDE', got %q", skill.Description)
-				}
-				if skill.Location == "" {
-					t.Error("expected skill Location to be set")
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkCursorSkill,
 		},
 		{
 			name: "discover skills from both .agents/skills and .cursor/skills",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill in .agents/skills directory
-				skillDir1 := filepath.Join(dir, ".agents", "skills", "agents-skill")
-				if err := os.MkdirAll(skillDir1, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-				skillContent1 := `---
+				createSkill(t, dir, filepath.Join(".agents", "skills", "agents-skill"), `---
 name: agents-skill
 description: A generic agents skill
 ---
 
 # Agents Skill
-`
-				skillPath1 := filepath.Join(skillDir1, "SKILL.md")
-				if err := os.WriteFile(skillPath1, []byte(skillContent1), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 
 				// Create skill in .cursor/skills directory
-				skillDir2 := filepath.Join(dir, ".cursor", "skills", "cursor-skill")
-				if err := os.MkdirAll(skillDir2, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-				skillContent2 := `---
-name: cursor-skill
-description: A Cursor IDE skill
----
-
-# Cursor Skill
-`
-				skillPath2 := filepath.Join(skillDir2, "SKILL.md")
-				if err := os.WriteFile(skillPath2, []byte(skillContent2), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+				createSkill(t, dir, filepath.Join(".cursor", "skills", cursorSkillName),
+					"---\nname: "+cursorSkillName+"\ndescription: A Cursor IDE skill\n---\n\n# Cursor Skill\n")
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 2 {
-					t.Fatalf("expected 2 skills, got %d", len(result.Skills.Skills))
-				}
-				names := []string{result.Skills.Skills[0].Name, result.Skills.Skills[1].Name}
-				// Verify both skills are present (order doesn't matter)
-				if (names[0] != "agents-skill" && names[0] != "cursor-skill") ||
-					(names[1] != "agents-skill" && names[1] != "cursor-skill") {
-					t.Errorf("expected skills 'agents-skill' and 'cursor-skill', got %v", names)
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkAgentsAndCursorSkills,
 		},
 		{
 			name: "discover skills from .opencode/skills directory",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill in .opencode/skills directory
-				skillDir := filepath.Join(dir, ".opencode", "skills", "opencode-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-
-				skillContent := `---
+				createSkill(t, dir, filepath.Join(".opencode", "skills", "opencode-skill"), `---
 name: opencode-skill
 description: A skill for OpenCode
 ---
@@ -2475,37 +2536,21 @@ description: A skill for OpenCode
 # OpenCode Skill
 
 This is a skill for OpenCode.
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
-				}
-				skill := result.Skills.Skills[0]
-				if skill.Name != "opencode-skill" {
-					t.Errorf("expected skill name 'opencode-skill', got %q", skill.Name)
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSingleSkillNamed("opencode-skill"),
 		},
 		{
 			name: "discover skills from .github/skills directory",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill in .github/skills directory
-				skillDir := filepath.Join(dir, ".github", "skills", "copilot-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-
-				skillContent := `---
+				createSkill(t, dir, filepath.Join(".github", "skills", "copilot-skill"), `---
 name: copilot-skill
 description: A skill for GitHub Copilot
 ---
@@ -2513,37 +2558,21 @@ description: A skill for GitHub Copilot
 # Copilot Skill
 
 This is a skill for GitHub Copilot.
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
-				}
-				skill := result.Skills.Skills[0]
-				if skill.Name != "copilot-skill" {
-					t.Errorf("expected skill name 'copilot-skill', got %q", skill.Name)
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSingleSkillNamed("copilot-skill"),
 		},
 		{
 			name: "discover skills from .augment/skills directory",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill in .augment/skills directory
-				skillDir := filepath.Join(dir, ".augment", "skills", "augment-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-
-				skillContent := `---
+				createSkill(t, dir, filepath.Join(".augment", "skills", "augment-skill"), `---
 name: augment-skill
 description: A skill for Augment
 ---
@@ -2551,37 +2580,21 @@ description: A skill for Augment
 # Augment Skill
 
 This is a skill for Augment.
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
-				}
-				skill := result.Skills.Skills[0]
-				if skill.Name != "augment-skill" {
-					t.Errorf("expected skill name 'augment-skill', got %q", skill.Name)
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSingleSkillNamed("augment-skill"),
 		},
 		{
 			name: "discover skills from .windsurf/skills directory",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill in .windsurf/skills directory
-				skillDir := filepath.Join(dir, ".windsurf", "skills", "windsurf-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-
-				skillContent := `---
+				createSkill(t, dir, filepath.Join(".windsurf", "skills", "windsurf-skill"), `---
 name: windsurf-skill
 description: A skill for Windsurf
 ---
@@ -2589,37 +2602,21 @@ description: A skill for Windsurf
 # Windsurf Skill
 
 This is a skill for Windsurf.
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
-				}
-				skill := result.Skills.Skills[0]
-				if skill.Name != "windsurf-skill" {
-					t.Errorf("expected skill name 'windsurf-skill', got %q", skill.Name)
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSingleSkillNamed("windsurf-skill"),
 		},
 		{
 			name: "discover skills from .claude/skills directory",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill in .claude/skills directory
-				skillDir := filepath.Join(dir, ".claude", "skills", "claude-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-
-				skillContent := `---
+				createSkill(t, dir, filepath.Join(".claude", "skills", "claude-skill"), `---
 name: claude-skill
 description: A skill for Claude
 ---
@@ -2627,37 +2624,21 @@ description: A skill for Claude
 # Claude Skill
 
 This is a skill for Claude.
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
-				}
-				skill := result.Skills.Skills[0]
-				if skill.Name != "claude-skill" {
-					t.Errorf("expected skill name 'claude-skill', got %q", skill.Name)
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSingleSkillNamed("claude-skill"),
 		},
 		{
 			name: "discover skills from .gemini/skills directory",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill in .gemini/skills directory
-				skillDir := filepath.Join(dir, ".gemini", "skills", "gemini-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-
-				skillContent := `---
+				createSkill(t, dir, filepath.Join(".gemini", "skills", "gemini-skill"), `---
 name: gemini-skill
 description: A skill for Gemini
 ---
@@ -2665,37 +2646,21 @@ description: A skill for Gemini
 # Gemini Skill
 
 This is a skill for Gemini.
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
-				}
-				skill := result.Skills.Skills[0]
-				if skill.Name != "gemini-skill" {
-					t.Errorf("expected skill name 'gemini-skill', got %q", skill.Name)
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSingleSkillNamed("gemini-skill"),
 		},
 		{
 			name: "discover skills from .codex/skills directory",
 			setup: func(t *testing.T, dir string) {
+				t.Helper()
 				// Create task
 				createTask(t, dir, "test-task", "", "Test task content")
 
 				// Create skill in .codex/skills directory
-				skillDir := filepath.Join(dir, ".codex", "skills", "codex-skill")
-				if err := os.MkdirAll(skillDir, 0o755); err != nil {
-					t.Fatalf("failed to create skill directory: %v", err)
-				}
-
-				skillContent := `---
+				createSkill(t, dir, filepath.Join(".codex", "skills", "codex-skill"), `---
 name: codex-skill
 description: A skill for Codex
 ---
@@ -2703,52 +2668,44 @@ description: A skill for Codex
 # Codex Skill
 
 This is a skill for Codex.
-`
-				skillPath := filepath.Join(skillDir, "SKILL.md")
-				if err := os.WriteFile(skillPath, []byte(skillContent), 0o644); err != nil {
-					t.Fatalf("failed to create skill file: %v", err)
-				}
+`)
 			},
-			taskName: "test-task",
-			wantErr:  false,
-			checkFunc: func(t *testing.T, result *Result) {
-				if len(result.Skills.Skills) != 1 {
-					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
-				}
-				skill := result.Skills.Skills[0]
-				if skill.Name != "codex-skill" {
-					t.Errorf("expected skill name 'codex-skill', got %q", skill.Name)
-				}
-			},
+			taskName:  "test-task",
+			wantErr:   false,
+			checkFunc: checkSingleSkillNamed("codex-skill"),
 		},
 	}
+}
 
-	for _, tt := range tests {
+// TestSkillDiscovery tests skill discovery functionality.
+func TestSkillDiscovery(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range skillDiscoveryCases() {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 
-			// Setup test fixtures
 			tt.setup(t, tmpDir)
 
-			// Create context with test directory and options
 			opts := append([]Option{
 				WithSearchPaths("file://" + tmpDir),
 			}, tt.opts...)
 			cc := New(opts...)
 
-			// Run the context
 			result, err := cc.Run(context.Background(), tt.taskName)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error but got none")
 				}
+
 				return
 			}
+
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			// Run checks
 			if tt.checkFunc != nil {
 				tt.checkFunc(t, result)
 			}

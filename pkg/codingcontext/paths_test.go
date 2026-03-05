@@ -2,10 +2,18 @@ package codingcontext
 
 import (
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
+const (
+	testProjectDir = "/project"
+	testNamespace  = "myteam"
+)
+
 func TestRulePaths(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		dir          string
@@ -13,31 +21,26 @@ func TestRulePaths(t *testing.T) {
 	}{
 		{
 			name: "directory includes all agent paths",
-			dir:  "/project",
+			dir:  testProjectDir,
 			wantContains: []string{
-				filepath.Join("/project", ".agents", "rules"),
-				filepath.Join("/project", ".cursor", "rules"),
-				filepath.Join("/project", ".cursorrules"),
-				filepath.Join("/project", ".claude"),
-				filepath.Join("/project", ".codex"),
+				filepath.Join(testProjectDir, ".agents", "rules"),
+				filepath.Join(testProjectDir, ".cursor", "rules"),
+				filepath.Join(testProjectDir, ".cursorrules"),
+				filepath.Join(testProjectDir, ".claude"),
+				filepath.Join(testProjectDir, ".codex"),
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			paths := rulePaths(tt.dir)
 
 			// Check that expected paths are present
 			for _, want := range tt.wantContains {
-				found := false
-				for _, path := range paths {
-					if path == want {
-						found = true
-						break
-					}
-				}
-				if !found {
+				if !slices.Contains(paths, want) {
 					t.Errorf("Expected path %q not found in rulePaths", want)
 				}
 			}
@@ -46,25 +49,22 @@ func TestRulePaths(t *testing.T) {
 }
 
 func TestTaskSearchPaths(t *testing.T) {
-	dir := "/project"
+	t.Parallel()
+
+	dir := testProjectDir
 	paths := taskSearchPaths(dir)
 
 	// Should contain at least the .agents/tasks path
 	expectedPath := filepath.Join(dir, ".agents", "tasks")
-	found := false
-	for _, path := range paths {
-		if path == expectedPath {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !slices.Contains(paths, expectedPath) {
 		t.Errorf("Expected path %q not found in taskSearchPaths", expectedPath)
 	}
 }
 
 func TestCommandSearchPaths(t *testing.T) {
-	dir := "/project"
+	t.Parallel()
+
+	dir := testProjectDir
 	paths := commandSearchPaths(dir)
 
 	// Should contain at least the .agents/commands path
@@ -75,41 +75,29 @@ func TestCommandSearchPaths(t *testing.T) {
 	}
 
 	for _, expected := range expectedPaths {
-		found := false
-		for _, path := range paths {
-			if path == expected {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(paths, expected) {
 			t.Errorf("Expected path %q not found in commandSearchPaths", expected)
 		}
 	}
 }
 
 func TestSkillSearchPaths(t *testing.T) {
-	dir := "/project"
+	t.Parallel()
+
+	dir := testProjectDir
 	paths := skillSearchPaths(dir)
 
 	// Should contain at least the .agents/skills path
 	expectedPath := filepath.Join(dir, ".agents", "skills")
-	found := false
-	for _, path := range paths {
-		if path == expectedPath {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !slices.Contains(paths, expectedPath) {
 		t.Errorf("Expected path %q not found in skillSearchPaths", expectedPath)
 	}
 }
 
 func TestPathsUseAgentsPaths(t *testing.T) {
+	t.Parallel()
 	// Verify that all path functions are using the agentsPaths configuration
 	// by checking that they return paths for all configured agents
-
 	dir := "/test"
 
 	// Get paths from functions

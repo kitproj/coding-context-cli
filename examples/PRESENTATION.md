@@ -76,7 +76,7 @@ Focus on these slides:
 coding-context fix-bug | llm -m claude-3-5-sonnet-20241022
 
 # With parameters
-coding-context -p issue=BUG-123 -s languages=go fix-bug
+coding-context -p issue=BUG-123 -s language=go fix-bug
 ```
 
 ### Scenario 2: Technical Deep Dive (15 minutes)
@@ -91,10 +91,10 @@ Cover these sections:
 **Demo commands:**
 ```bash
 # Show rule discovery
-coding-context -s languages=go fix-bug | head -50
+coding-context -s language=go fix-bug | head -50
 
 # Show with selectors
-coding-context -s languages=go -s stage=implementation implement-feature
+coding-context -s language=go -s stage=implementation implement-feature
 
 # Show remote rules
 coding-context -d git::https://github.com/company/rules.git fix-bug

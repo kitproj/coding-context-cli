@@ -7,6 +7,8 @@ import (
 )
 
 func TestEstimateTokens(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		text string
@@ -29,7 +31,8 @@ func TestEstimateTokens(t *testing.T) {
 		},
 		{
 			name: "paragraph",
-			text: "This is a longer paragraph with multiple words that should result in more tokens being counted by our estimation algorithm.",
+			text: "This is a longer paragraph with multiple words that should result in more tokens " +
+				"being counted by our estimation algorithm.",
 			want: 30, // 123 chars / 4 = 30
 		},
 		{
@@ -60,6 +63,8 @@ This is content.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := tokencount.EstimateTokens(tt.text)
 			if got != tt.want {
 				t.Errorf("estimateTokens() = %d, want %d", got, tt.want)

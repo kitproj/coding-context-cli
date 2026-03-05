@@ -1,0 +1,34 @@
+# https://golangci-lint.run/usage/linters/
+# The goal here is to:
+# (a) reduce bugs
+# (b) make code more readable to make code reviews faster
+# (c) speed up development by catching some things that would otherwise be caught by the compiler
+# (d) prefer automatically fixing code
+version: "2"
+linters:
+  default: all
+  enable:
+    - wsl_v5
+  disable:
+    - wsl
+    - depguard
+    - noinlineerr
+    - exhaustruct
+    - testpackage
+    - varnamelen
+  settings:
+    funlen:
+      lines: 100
+    gocognit:
+      min-complexity: 50
+    cyclop:
+      max-complexity: 15
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+          yaml: snake

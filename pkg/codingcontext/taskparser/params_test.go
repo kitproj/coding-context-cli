@@ -8,73 +8,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseTaskParameters(t *testing.T) {
-	t.Parallel()
+type parseTaskParametersCase struct {
+	name     string
+	input    string
+	expected taskparser.Params
+}
 
-	tests := []struct {
-		name     string
-		input    string
-		expected taskparser.Params
-	}{
-		{
-			name:     "empty string",
-			input:    "",
-			expected: taskparser.Params{},
-		},
-		{
-			name:     "whitespace only",
-			input:    "   ",
-			expected: taskparser.Params{},
-		},
-		{
-			name:  "single pair",
-			input: "key=value",
-			expected: taskparser.Params{
-				"key": {"value"},
-			},
-		},
-		{
-			name:  "comma separated pairs",
-			input: "key=value,foo=bar",
-			expected: taskparser.Params{
-				"key": {"value"},
-				"foo": {"bar"},
-			},
-		},
-		{
-			name:  "space separated pairs",
-			input: "key=value foo=bar",
-			expected: taskparser.Params{
-				"key": {"value"},
-				"foo": {"bar"},
-			},
-		},
-		{
-			name:  "wrapped single quotes",
-			input: "key=\"'value'\"",
-			expected: taskparser.Params{
-				"key": {"'value'"},
-			},
-		},
-		{
-			name:  "wrapped single quotes",
-			input: "key='\"value\"'",
-			expected: taskparser.Params{
-				"key": {`"value"`},
-			},
-		},
-		{
-			name:  "mixed separators",
-			input: "key1=value1, key2=value2 key3=value3",
-			expected: taskparser.Params{
-				"key1": {"value1"},
-				"key2": {"value2"},
-				"key3": {"value3"},
-			},
-		},
-		{
-			name:  "trailing comma",
-			input: "key=value,",
+func parseTaskParametersCases() []parseTaskParametersCase { //nolint:funlen
+	return []parseTaskParametersCase{
+		{name: "empty string", input: "", expected: taskparser.Params{}},
+		{name: "whitespace only", input: "   ", expected: taskparser.Params{}},
+		{name: "single pair", input: "key=value", expected: taskparser.Params{"key": {"value"}}},
+		{name: "comma separated pairs", input: "key=value,foo=bar",
+			expected: taskparser.Params{"key": {"value"}, "foo": {"bar"}}},
+		{name: "space separated pairs", input: "key=value foo=bar",
+			expected: taskparser.Params{"key": {"value"}, "foo": {"bar"}}},
+		{name: "wrapped single quotes", input: "key=\"'value'\"",
+			expected: taskparser.Params{"key": {"'value'"}}},
+		{name: "wrapped single quotes 2", input: "key='\"value\"'",
+			expected: taskparser.Params{"key": {`"value"`}}},
+		{name: "mixed separators", input: "key1=value1, key2=value2 key3=value3",
+			expected: taskparser.Params{"key1": {"value1"}, "key2": {"value2"}, "key3": {"value3"}}},
+		{name: "trailing comma", input: "key=value,",
 			expected: taskparser.Params{
 				"key": {"value"},
 			},
@@ -286,12 +241,12 @@ func TestParseTaskParameters(t *testing.T) {
 		},
 		{
 			name:  "UTF-8 characters",
-			input: "ключ=значение, key=こんにちは, 键=值, emoji=🚀",
+			input: "ключ=значение, key=こんにちは, \u952e=\u503c, emoji=🚀",
 			expected: taskparser.Params{
-				"ключ":  {"значение"},
-				"key":   {"こんにちは"},
-				"键":     {"值"},
-				"emoji": {"🚀"},
+				"ключ":   {"значение"},
+				"key":    {"こんにちは"},
+				"\u952e": {"\u503c"},
+				"emoji":  {"🚀"},
 			},
 		},
 		{
@@ -326,36 +281,43 @@ func TestParseTaskParameters(t *testing.T) {
 			},
 		},
 	}
+}
 
-	for _, tt := range tests {
+func runParseTaskParameters(t *testing.T, tt parseTaskParametersCase) {
+	t.Helper()
+
+	result, err := taskparser.ParseParams(tt.input)
+	require.NoError(t, err)
+
+	expectedArgs, hasArgs := tt.expected[taskparser.ArgumentsKey]
+	actualArgs := result.Arguments()
+
+	if hasArgs {
+		assert.Equal(t, expectedArgs, actualArgs, "positional arguments mismatch")
+	} else {
+		assert.Empty(t, actualArgs, "expected no positional arguments")
+	}
+
+	for key, expectedValues := range tt.expected {
+		if key != taskparser.ArgumentsKey {
+			assert.Equal(t, expectedValues, result.Values(key), "values mismatch for key %q", key)
+		}
+	}
+
+	for key := range result {
+		if key != taskparser.ArgumentsKey && tt.expected[key] == nil {
+			t.Errorf("unexpected key in result: %q", key)
+		}
+	}
+}
+
+func TestParseTaskParameters(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range parseTaskParametersCases() {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-
-			result, err := taskparser.ParseParams(tt.input)
-			require.NoError(t, err)
-
-			// Check positional arguments using Arguments() accessor
-			expectedArgs, hasArgs := tt.expected[taskparser.ArgumentsKey]
-			actualArgs := result.Arguments()
-			if hasArgs {
-				assert.Equal(t, expectedArgs, actualArgs, "positional arguments mismatch")
-			} else {
-				assert.Empty(t, actualArgs, "expected no positional arguments")
-			}
-
-			// Check named parameters
-			for key, expectedValues := range tt.expected {
-				if key != taskparser.ArgumentsKey {
-					assert.Equal(t, expectedValues, result.Values(key), "values mismatch for key %q", key)
-				}
-			}
-
-			// Verify no unexpected keys
-			for key := range result {
-				if key != taskparser.ArgumentsKey && tt.expected[key] == nil {
-					t.Errorf("unexpected key in result: %q", key)
-				}
-			}
+			runParseTaskParameters(t, tt)
 		})
 	}
 }
@@ -475,7 +437,7 @@ func TestParams_NilSafety(t *testing.T) {
 
 	var params taskparser.Params
 
-	assert.Equal(t, "", params.Value("key"))
+	assert.Empty(t, params.Value("key"))
 	assert.Nil(t, params.Values("key"))
 }
 
@@ -634,10 +596,13 @@ func TestParse_Error(t *testing.T) {
 	}
 }
 
-func TestParseParams_PositionalArguments(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
+//nolint:funlen
+func positionalArgumentsCases() []struct {
+	name     string
+	input    string
+	expected taskparser.Params
+} {
+	return []struct {
 		name     string
 		input    string
 		expected taskparser.Params
@@ -776,8 +741,12 @@ func TestParseParams_PositionalArguments(t *testing.T) {
 			},
 		},
 	}
+}
 
-	for _, tt := range tests {
+func TestParseParams_PositionalArguments(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range positionalArgumentsCases() {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 

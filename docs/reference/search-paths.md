@@ -23,6 +23,8 @@ Within each directory, task files are searched in the following locations:
 
 **Note:** Task files are matched by filename (without `.md` extension), not by `task_name` in frontmatter.
 
+**Namespaced tasks:** Use `namespace/taskname` syntax (e.g., `myteam/fix-bug`) to search `.agents/namespaces/myteam/tasks/` first, falling back to `.agents/tasks/`. See [Namespace Search Paths](#namespace-search-paths) below.
+
 ### Command File Search Paths (for slash commands)
 
 Command files are referenced via slash commands inside task content. Within each directory, command files are searched in:
@@ -123,6 +125,61 @@ coding-context plan-feature      → Uses ~/.agents/tasks/plan-feature.md (from 
 
 **Note:** The working directory and home directory are automatically added to search paths, so tasks in those locations are found automatically.
 
+## Namespace Search Paths
+
+When a task name contains a `/` (e.g., `myteam/fix-bug`), the part before the slash is treated as a namespace. Namespace paths are always searched **before** their global equivalents so that namespace assets take precedence.
+
+### Namespace Directory Root
+
+```
+.agents/namespaces/<namespace>/
+├── tasks/
+├── rules/
+├── commands/
+└── skills/
+```
+
+### Namespace Path Resolution Order
+
+| Asset | Search order |
+|---|---|
+| **Tasks** | `.agents/namespaces/<ns>/tasks/` → `.agents/tasks/` |
+| **Rules** | `.agents/namespaces/<ns>/rules/` then **all** global rule paths (both layers always included) |
+| **Commands** | `.agents/namespaces/<ns>/commands/` → global command paths (first match wins) |
+| **Skills** | `.agents/namespaces/<ns>/skills/` + all global skill paths (all included; namespace listed first) |
+
+**Non-namespaced tasks** (e.g., `fix-bug`) use only the standard global paths — no namespace layer is consulted.
+
+Only the generic `.agents/` structure supports namespacing. Agent-specific paths (`.cursor/`, `.claude/`, `.github/`, etc.) are unaffected.
+
+### Namespace Example
+
+```
+.agents/
+├── tasks/
+│   └── fix-bug.md              # global task
+├── rules/
+│   └── company-standards.md   # global rule, always included
+└── namespaces/
+    └── myteam/
+        ├── tasks/
+        │   └── build.md        # accessed via "myteam/build"
+        ├── rules/
+        │   └── team-rules.md   # included first, before global rules
+        └── commands/
+            └── deploy.md       # overrides any global "deploy" command
+
+Commands:
+coding-context myteam/build
+  Tasks searched:   .agents/namespaces/myteam/tasks/ then .agents/tasks/
+  Rules included:   .agents/namespaces/myteam/rules/ + .agents/rules/ (both)
+  Commands:         .agents/namespaces/myteam/commands/ then .agents/commands/
+```
+
+See [How to Use Namespaces](../how-to/use-namespaces) for a full guide.
+
+---
+
 ## Rule File Search Paths
 
 Rule files are discovered from directories specified via the `-d` flag (plus automatically-added working directory and home directory). Within each directory, the CLI searches for all standard file patterns listed below.
@@ -135,57 +192,50 @@ Rule files are discovered from directories specified via the `-d` flag (plus aut
 
 ### Rule File Locations Within Each Directory
 
-**Agent-specific directories:**
+**Agent-specific directories (all `.md`/`.mdc` files within these are indexed):**
 ```
 .agents/rules/
 .cursor/rules/
 .augment/rules/
 .windsurf/rules/
 .opencode/agent/
+.opencode/rules/
 .github/agents/
+.claude/
+.codex/
+.gemini/
 ```
 
 **Specific files:**
 ```
 CLAUDE.local.md
+CLAUDE.md
+GEMINI.md
+AGENTS.md
+.cursorrules
+.windsurfrules
 .github/copilot-instructions.md
 .gemini/styleguide.md
 .augment/guidelines.md
 ```
 
-**Standard files:**
-```
-AGENTS.md
-CLAUDE.md
-GEMINI.md
-.cursorrules
-.windsurfrules
-```
-
-**User-specific locations (only in home directory):**
-```
-.agents/rules/
-.claude/CLAUDE.md
-.codex/AGENTS.md
-.gemini/GEMINI.md
-.opencode/rules/
-```
+**Note:** All paths are searched in every search-path directory (working dir, home dir, and any `-d` directories). There is no distinction between project-level and user-level paths — the same set of sub-paths is checked in each root directory.
 
 ## Supported AI Agent Formats
 
 The CLI automatically discovers rules from configuration files for these AI coding agents:
 
-| Agent | File Locations |
+| Agent | Rule Locations |
 |-------|----------------|
-| **Anthropic Claude** | `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md` |
-| **Codex** | `AGENTS.md`, `.codex/AGENTS.md` |
-| **Cursor** | `.cursor/rules/`, `.cursorrules`, `.cursor/commands/` (commands, not tasks) |
+| **Anthropic Claude** | `CLAUDE.md`, `CLAUDE.local.md`, `.claude/` (all `.md`/`.mdc` files in directory) |
+| **Codex** | `AGENTS.md`, `.codex/` (all `.md`/`.mdc` files in directory) |
+| **Cursor** | `.cursor/rules/`, `.cursorrules` |
 | **Augment** | `.augment/rules/`, `.augment/guidelines.md` |
 | **Windsurf** | `.windsurf/rules/`, `.windsurfrules` |
-| **OpenCode.ai** | `.opencode/agent/`, `.opencode/rules/`, `.opencode/command/` (commands, not tasks) |
+| **OpenCode.ai** | `.opencode/agent/`, `.opencode/rules/` (rules); `.opencode/command/` (commands) |
 | **GitHub Copilot** | `.github/copilot-instructions.md`, `.github/agents/` |
-| **Google Gemini** | `GEMINI.md`, `.gemini/styleguide.md` |
-| **Generic** | `AGENTS.md`, `.agents/rules/`, `.agents/tasks/` (tasks), `.agents/commands/` (commands) |
+| **Google Gemini** | `GEMINI.md`, `.gemini/styleguide.md`, `.gemini/` (all `.md`/`.mdc` files in directory) |
+| **Generic** | `.agents/rules/` (rules), `.agents/tasks/` (tasks), `.agents/commands/` (commands) |
 
 ## Discovery Behavior
 

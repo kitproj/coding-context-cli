@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,7 +10,138 @@ import (
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparser"
 )
 
+func TestParseError_Error(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		err  ParseError
+		want string
+	}{
+		{
+			name: "line and column set",
+			err:  ParseError{File: "test.md", Line: 3, Column: 5, Message: "syntax error"},
+			want: "test.md:3:5: syntax error",
+		},
+		{
+			name: "line set without column",
+			err:  ParseError{File: "test.md", Line: 3, Column: 0, Message: "syntax error"},
+			want: "test.md:3: syntax error",
+		},
+		{
+			name: "neither line nor column",
+			err:  ParseError{File: "test.md", Line: 0, Column: 0, Message: "syntax error"},
+			want: "test.md: syntax error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tt.err.Error()
+			if got != tt.want {
+				t.Errorf("ParseError.Error() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFromContent(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "empty content",
+			content: "",
+		},
+		{
+			name:    "simple content",
+			content: "Hello world",
+		},
+		{
+			name:    "markdown content",
+			content: "# Title\n\nThis is a paragraph with **bold** text.\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			fm := BaseFrontMatter{Name: "test-rule", Description: "a test rule"}
+			md := FromContent(fm, tt.content)
+
+			if md.Content != tt.content {
+				t.Errorf("Content = %q, want %q", md.Content, tt.content)
+			}
+
+			if md.FrontMatter.Name != fm.Name {
+				t.Errorf("FrontMatter.Name = %q, want %q", md.FrontMatter.Name, fm.Name)
+			}
+
+			if md.FrontMatter.Description != fm.Description {
+				t.Errorf("FrontMatter.Description = %q, want %q", md.FrontMatter.Description, fm.Description)
+			}
+
+			if md.Structure == nil {
+				t.Error("Structure should not be nil")
+			}
+
+			if len(tt.content) > 0 && md.Tokens == 0 {
+				t.Error("Tokens should be non-zero for non-empty content")
+			}
+
+			if len(tt.content) == 0 && md.Tokens != 0 {
+				t.Errorf("Tokens should be zero for empty content, got %d", md.Tokens)
+			}
+		})
+	}
+}
+
+func TestParseMarkdownFile_YAMLErrorHasLineInfo(t *testing.T) {
+	t.Parallel()
+
+	// Unclosed bracket in YAML produces a parse error that goldmark-meta surfaces
+	// with line information. Verify ParseError carries the line number.
+	content := "---\nkey: [unclosed\n---\ncontent\n"
+
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test.md")
+
+	if err := os.WriteFile(tmpFile, []byte(content), 0o600); err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+
+	var fm BaseFrontMatter
+
+	_, err := ParseMarkdownFile(tmpFile, &fm)
+	if err == nil {
+		t.Fatal("expected error for invalid YAML frontmatter, got nil")
+	}
+
+	parseErr := &ParseError{}
+
+	ok := errors.As(err, &parseErr)
+	if !ok {
+		t.Fatalf("expected *ParseError, got %T: %v", err, err)
+	}
+
+	if parseErr.Line == 0 {
+		t.Errorf("ParseError.Line should be > 0 when YAML error includes line info, got 0; error: %v", parseErr)
+	}
+
+	if parseErr.File != tmpFile {
+		t.Errorf("ParseError.File = %q, want %q", parseErr.File, tmpFile)
+	}
+}
+
 func TestParseMarkdownFile(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		content         string
@@ -63,20 +195,24 @@ This is the content.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a temporary file
 			tmpDir := t.TempDir()
+
 			tmpFile := filepath.Join(tmpDir, "test.md")
-			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o644); err != nil {
+			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o600); err != nil {
 				t.Fatalf("failed to create temp file: %v", err)
 			}
 
 			// Parse the file
 			var frontmatter BaseFrontMatter
+
 			md, err := ParseMarkdownFile(tmpFile, &frontmatter)
 
 			// Check error
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseMarkdownFile() error = %v, wantErr %v", err, tt.wantErr)
+
 				return
 			}
 
@@ -89,6 +225,7 @@ This is the content.
 			if len(frontmatter.Content) != len(tt.wantFrontmatter) {
 				t.Errorf("ParseMarkdownFile() frontmatter length = %d, want %d", len(frontmatter.Content), len(tt.wantFrontmatter))
 			}
+
 			for k, v := range tt.wantFrontmatter {
 				if fmVal, ok := frontmatter.Content[k].(string); !ok || fmVal != v {
 					t.Errorf("ParseMarkdownFile() frontmatter[%q] = %v, want %q", k, frontmatter.Content[k], v)
@@ -99,7 +236,10 @@ This is the content.
 }
 
 func TestParseMarkdownFile_FileNotFound(t *testing.T) {
+	t.Parallel()
+
 	var frontmatter BaseFrontMatter
+
 	_, err := ParseMarkdownFile("/nonexistent/file.md", &frontmatter)
 	if err == nil {
 		t.Error("ParseMarkdownFile() expected error for non-existent file, got nil")
@@ -111,6 +251,8 @@ func TestParseMarkdownFile_FileNotFound(t *testing.T) {
 }
 
 func TestParseMarkdownFile_ErrorsIncludeFilePath(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		content string
@@ -122,21 +264,24 @@ func TestParseMarkdownFile_ErrorsIncludeFilePath(t *testing.T) {
 invalid: yaml: : syntax
 ---
 Content here`,
-			want: "failed to unmarshal frontmatter in file",
+			want: "failed to parse YAML frontmatter",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a temporary file
 			tmpDir := t.TempDir()
+
 			tmpFile := filepath.Join(tmpDir, "test.md")
-			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o644); err != nil {
+			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o600); err != nil {
 				t.Fatalf("failed to create temp file: %v", err)
 			}
 
 			// Parse the file
 			var frontmatter BaseFrontMatter
+
 			_, err := ParseMarkdownFile(tmpFile, &frontmatter)
 
 			// Check that we got an error
@@ -157,14 +302,53 @@ Content here`,
 	}
 }
 
-func TestParseMarkdownFile_CustomStruct(t *testing.T) {
-	// Define a custom struct for task frontmatter
-	type TaskFrontmatter struct {
-		TaskName string   `yaml:"task_name"`
-		Resume   bool     `yaml:"resume"`
-		Priority string   `yaml:"priority"`
-		Tags     []string `yaml:"tags"`
+type testTaskFrontmatter struct {
+	TaskName string   `yaml:"task_name"`
+	Resume   bool     `yaml:"resume"`
+	Priority string   `yaml:"priority"`
+	Tags     []string `yaml:"tags"`
+}
+
+func assertCustomFrontmatter(t *testing.T, fm testTaskFrontmatter, md Markdown[testTaskFrontmatter], err error,
+	wantErr bool, wantContent, wantTaskName, wantPriority string, wantResume bool, wantTags []string,
+) {
+	t.Helper()
+
+	if (err != nil) != wantErr {
+		t.Errorf("ParseMarkdownFile() error = %v, wantErr %v", err, wantErr)
+
+		return
 	}
+
+	if md.Content != wantContent {
+		t.Errorf("ParseMarkdownFile() content = %q, want %q", md.Content, wantContent)
+	}
+
+	if fm.TaskName != wantTaskName {
+		t.Errorf("frontmatter.TaskName = %q, want %q", fm.TaskName, wantTaskName)
+	}
+
+	if fm.Resume != wantResume {
+		t.Errorf("frontmatter.Resume = %v, want %v", fm.Resume, wantResume)
+	}
+
+	if fm.Priority != wantPriority {
+		t.Errorf("frontmatter.Priority = %q, want %q", fm.Priority, wantPriority)
+	}
+
+	if len(fm.Tags) != len(wantTags) {
+		t.Errorf("frontmatter.Tags length = %d, want %d", len(fm.Tags), len(wantTags))
+	}
+
+	for i, tag := range wantTags {
+		if i < len(fm.Tags) && fm.Tags[i] != tag {
+			t.Errorf("frontmatter.Tags[%d] = %q, want %q", i, fm.Tags[i], tag)
+		}
+	}
+}
+
+func TestParseMarkdownFile_CustomStruct(t *testing.T) {
+	t.Parallel()
 
 	tests := []struct {
 		name         string
@@ -231,51 +415,27 @@ This task has no frontmatter.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a temporary file
+			t.Parallel()
+
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "test.md")
-			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o644); err != nil {
+
+			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o600); err != nil {
 				t.Fatalf("failed to create temp file: %v", err)
 			}
 
-			// Parse the file into custom struct
-			var frontmatter TaskFrontmatter
+			var frontmatter testTaskFrontmatter
+
 			md, err := ParseMarkdownFile(tmpFile, &frontmatter)
 
-			// Check error
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseMarkdownFile() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			// Check content
-			if md.Content != tt.wantContent {
-				t.Errorf("ParseMarkdownFile() content = %q, want %q", md.Content, tt.wantContent)
-			}
-
-			// Check frontmatter fields
-			if frontmatter.TaskName != tt.wantTaskName {
-				t.Errorf("frontmatter.TaskName = %q, want %q", frontmatter.TaskName, tt.wantTaskName)
-			}
-			if frontmatter.Resume != tt.wantResume {
-				t.Errorf("frontmatter.Resume = %v, want %v", frontmatter.Resume, tt.wantResume)
-			}
-			if frontmatter.Priority != tt.wantPriority {
-				t.Errorf("frontmatter.Priority = %q, want %q", frontmatter.Priority, tt.wantPriority)
-			}
-			if len(frontmatter.Tags) != len(tt.wantTags) {
-				t.Errorf("frontmatter.Tags length = %d, want %d", len(frontmatter.Tags), len(tt.wantTags))
-			}
-			for i, tag := range tt.wantTags {
-				if i < len(frontmatter.Tags) && frontmatter.Tags[i] != tag {
-					t.Errorf("frontmatter.Tags[%d] = %q, want %q", i, frontmatter.Tags[i], tag)
-				}
-			}
+			assertCustomFrontmatter(t, frontmatter, md, err, tt.wantErr,
+				tt.wantContent, tt.wantTaskName, tt.wantPriority, tt.wantResume, tt.wantTags)
 		})
 	}
 }
 
 func TestParseMarkdownFile_MultipleNewlinesAfterFrontmatter(t *testing.T) {
+	t.Parallel()
 	// This test verifies that multiple newlines after the frontmatter
 	// closing delimiter are handled correctly.
 	// The parser should:
@@ -327,21 +487,25 @@ Start of context
 
 Start of context
 `,
-			wantContent: "  \n\t \n\nStart of context\n", // Content copied as-is, preserving whitespace (newline after --- is preserved)
+			// Content copied as-is, preserving whitespace (newline after --- is preserved)
+			wantContent: "  \n\t \n\nStart of context\n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a temporary file
 			tmpDir := t.TempDir()
+
 			tmpFile := filepath.Join(tmpDir, "test.md")
-			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o644); err != nil {
+			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o600); err != nil {
 				t.Fatalf("failed to create temp file: %v", err)
 			}
 
 			// Parse the file
 			var frontmatter BaseFrontMatter
+
 			md, err := ParseMarkdownFile(tmpFile, &frontmatter)
 			if err != nil {
 				t.Fatalf("ParseMarkdownFile() error = %v", err)
@@ -358,6 +522,7 @@ Start of context
 			if err != nil {
 				t.Fatalf("ParseTask() failed: %v, content = %q", err, md.Content)
 			}
+
 			if len(task) == 0 && strings.TrimSpace(md.Content) != "" {
 				t.Errorf("ParseTask() returned empty task for non-empty content: %q", md.Content)
 			}

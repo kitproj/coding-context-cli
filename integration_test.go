@@ -1,7 +1,9 @@
+// Package main provides the coding-context CLI and its integration tests.
 package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,23 +12,25 @@ import (
 	"testing"
 )
 
-// testDirs holds the directory structure for a test
+// testDirs holds the directory structure for a test.
 type testDirs struct {
 	tmpDir   string
 	rulesDir string
 	tasksDir string
 }
 
-// setupTestDirs creates the standard directory structure for tests
+// setupTestDirs creates the standard directory structure for tests.
 func setupTestDirs(t *testing.T) testDirs {
+	t.Helper()
 	tmpDir := t.TempDir()
 	rulesDir := filepath.Join(tmpDir, ".agents", "rules")
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+	if err := os.MkdirAll(rulesDir, 0o750); err != nil {
 		t.Fatalf("failed to create rules dir: %v", err)
 	}
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
@@ -40,29 +44,65 @@ func setupTestDirs(t *testing.T) testDirs {
 // runTool executes the program using "go run ." with the given arguments
 // It fatally fails the test if the command returns an error.
 func runTool(t *testing.T, args ...string) string {
+	t.Helper()
+
 	output, err := runToolWithError(args...)
 	if err != nil {
 		t.Fatalf("failed to run tool: %v\n%s", err, output)
 	}
-	return string(output)
+
+	return output
+}
+
+// runToolWithEnv executes the program with additional env vars (e.g. HOME for isolation).
+// Each override is "KEY=value"; existing env vars are preserved.
+func runToolWithEnv(t *testing.T, envOverrides []string, args ...string) string {
+	t.Helper()
+
+	output, err := runToolWithErrorAndEnv(envOverrides, args...)
+	if err != nil {
+		t.Fatalf("failed to run tool: %v\n%s", err, output)
+	}
+
+	return output
 }
 
 // runToolWithError executes the program using "go run ." with the given arguments
 // and returns both output and error (for tests that expect errors).
 func runToolWithError(args ...string) (string, error) {
+	return runToolWithErrorAndEnv(nil, args...)
+}
+
+func runToolWithErrorAndEnv(envOverrides []string, args ...string) (string, error) {
 	// Get the current working directory to use as the source path for go run
 	wd, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get working directory: %w", err)
 	}
-	cmd := exec.Command("go", append([]string{"run", wd}, args...)...)
+
+	absWd, err := filepath.Abs(filepath.Clean(wd))
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve working directory: %w", err)
+	}
+
+	// #nosec G204 -- integration test runs "go run" with controlled args
+	cmd := exec.CommandContext(context.Background(), "go", append([]string{"run", absWd}, args...)...)
+	if len(envOverrides) > 0 {
+		cmd.Env = append(os.Environ(), envOverrides...)
+	}
+
 	output, err := cmd.CombinedOutput()
+
 	return string(output), err
 }
 
-// createStandardTask creates a standard task file with the given task name
-func createStandardTask(t *testing.T, tasksDir, taskName string) {
+// createStandardTask creates a standard task file for integration tests.
+func createStandardTask(t *testing.T, tasksDir string) {
+	t.Helper()
+
+	taskName := "test-task"
 	taskFile := filepath.Join(tasksDir, taskName+".md")
+
 	taskContent := `---
 task_name: ` + taskName + `
 ---
@@ -70,36 +110,43 @@ task_name: ` + taskName + `
 
 Please help with this task.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 }
 
 func TestBootstrapFromFile(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a rule file
 	ruleFile := filepath.Join(dirs.rulesDir, "setup.md")
+
 	ruleContent := `---
 ---
 # Development Setup
 
 This is a setup guide.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a bootstrap file for the rule (setup.md -> setup-bootstrap)
 	bootstrapFile := filepath.Join(dirs.rulesDir, "setup-bootstrap")
+
 	bootstrapContent := `#!/bin/bash
 echo "Running bootstrap"
 `
-	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0o755); err != nil {
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0o600); err != nil {
 		t.Fatalf("failed to write bootstrap file: %v", err)
 	}
+	// #nosec G302 -- bootstrap scripts must be executable to run
+	if err := os.Chmod(bootstrapFile, 0o755); err != nil {
+		t.Fatalf("failed to chmod bootstrap file: %v", err)
+	}
 
-	createStandardTask(t, dirs.tasksDir, "test-task")
+	createStandardTask(t, dirs.tasksDir)
 
 	// Run the program
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
@@ -111,9 +158,11 @@ echo "Running bootstrap"
 	if bootstrapIdx == -1 {
 		t.Errorf("bootstrap output not found in stdout")
 	}
+
 	if setupIdx == -1 {
 		t.Errorf("rule content not found in stdout")
 	}
+
 	if bootstrapIdx != -1 && setupIdx != -1 && bootstrapIdx > setupIdx {
 		t.Errorf("bootstrap output should appear before rule content")
 	}
@@ -125,21 +174,23 @@ echo "Running bootstrap"
 }
 
 func TestBootstrapFileNotRequired(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a rule file WITHOUT a bootstrap
 	ruleFile := filepath.Join(dirs.rulesDir, "info.md")
+
 	ruleContent := `---
 ---
 # Project Info
 
 General information about the project.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
-	createStandardTask(t, dirs.tasksDir, "test-task")
+	createStandardTask(t, dirs.tasksDir)
 
 	// Run the program - should succeed without a bootstrap file
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
@@ -156,10 +207,12 @@ General information about the project.
 }
 
 func TestBootstrapFromFrontmatter(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a rule file with bootstrap in frontmatter
 	ruleFile := filepath.Join(dirs.rulesDir, "setup.md")
+
 	ruleContent := `---
 bootstrap: |
   #!/bin/sh
@@ -169,11 +222,11 @@ bootstrap: |
 
 This is a setup guide with frontmatter bootstrap.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
-	createStandardTask(t, dirs.tasksDir, "test-task")
+	createStandardTask(t, dirs.tasksDir)
 
 	// Run the program
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
@@ -190,10 +243,12 @@ This is a setup guide with frontmatter bootstrap.
 }
 
 func TestBootstrapFrontmatterPreferredOverFile(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a rule file with bootstrap in frontmatter
 	ruleFile := filepath.Join(dirs.rulesDir, "setup.md")
+
 	ruleContent := `---
 bootstrap: |
   #!/bin/sh
@@ -203,20 +258,25 @@ bootstrap: |
 
 Testing that frontmatter bootstrap is preferred.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Also create a file-based bootstrap (should be ignored)
 	bootstrapFile := filepath.Join(dirs.rulesDir, "setup-bootstrap")
+
 	bootstrapContent := `#!/bin/bash
 echo "Using file bootstrap"
 `
-	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0o755); err != nil {
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0o600); err != nil {
 		t.Fatalf("failed to write bootstrap file: %v", err)
 	}
+	// #nosec G302 -- bootstrap scripts must be executable to run
+	if err := os.Chmod(bootstrapFile, 0o755); err != nil {
+		t.Fatalf("failed to chmod bootstrap file: %v", err)
+	}
 
-	createStandardTask(t, dirs.tasksDir, "test-task")
+	createStandardTask(t, dirs.tasksDir)
 
 	// Run the program
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
@@ -228,49 +288,62 @@ echo "Using file bootstrap"
 }
 
 func TestMultipleBootstrapFiles(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create first rule file with bootstrap
 	ruleFile1 := filepath.Join(dirs.rulesDir, "setup.md")
+
 	ruleContent1 := `---
 ---
 # Setup
 
-Setup instructions.
+Bootstrap instructions.
 `
-	if err := os.WriteFile(ruleFile1, []byte(ruleContent1), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile1, []byte(ruleContent1), 0o600); err != nil {
 		t.Fatalf("failed to write rule file 1: %v", err)
 	}
 
 	bootstrapFile1 := filepath.Join(dirs.rulesDir, "setup-bootstrap")
+
 	bootstrapContent1 := `#!/bin/bash
 echo "Running setup bootstrap"
 `
-	if err := os.WriteFile(bootstrapFile1, []byte(bootstrapContent1), 0o755); err != nil {
+	if err := os.WriteFile(bootstrapFile1, []byte(bootstrapContent1), 0o600); err != nil {
 		t.Fatalf("failed to write bootstrap file 1: %v", err)
+	}
+	// #nosec G302 -- bootstrap scripts must be executable to run
+	if err := os.Chmod(bootstrapFile1, 0o755); err != nil {
+		t.Fatalf("failed to chmod bootstrap file 1: %v", err)
 	}
 
 	// Create second rule file with bootstrap
 	ruleFile2 := filepath.Join(dirs.rulesDir, "deploy.md")
+
 	ruleContent2 := `---
 ---
 # Deploy
 
 Deployment instructions.
 `
-	if err := os.WriteFile(ruleFile2, []byte(ruleContent2), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile2, []byte(ruleContent2), 0o600); err != nil {
 		t.Fatalf("failed to write rule file 2: %v", err)
 	}
 
 	bootstrapFile2 := filepath.Join(dirs.rulesDir, "deploy-bootstrap")
+
 	bootstrapContent2 := `#!/bin/bash
 echo "Running deploy bootstrap"
 `
-	if err := os.WriteFile(bootstrapFile2, []byte(bootstrapContent2), 0o755); err != nil {
+	if err := os.WriteFile(bootstrapFile2, []byte(bootstrapContent2), 0o600); err != nil {
 		t.Fatalf("failed to write bootstrap file 2: %v", err)
 	}
+	// #nosec G302 -- bootstrap scripts must be executable to run
+	if err := os.Chmod(bootstrapFile2, 0o755); err != nil {
+		t.Fatalf("failed to chmod bootstrap file 2: %v", err)
+	}
 
-	createStandardTask(t, dirs.tasksDir, "test-task")
+	createStandardTask(t, dirs.tasksDir)
 
 	// Run the program
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
@@ -279,6 +352,7 @@ echo "Running deploy bootstrap"
 	if !strings.Contains(output, "Running setup bootstrap") {
 		t.Errorf("setup bootstrap output not found in stdout")
 	}
+
 	if !strings.Contains(output, "Running deploy bootstrap") {
 		t.Errorf("deploy bootstrap output not found in stdout")
 	}
@@ -287,16 +361,19 @@ echo "Running deploy bootstrap"
 	if !strings.Contains(output, "# Setup") {
 		t.Errorf("setup rule content not found in stdout")
 	}
+
 	if !strings.Contains(output, "# Deploy") {
 		t.Errorf("deploy rule content not found in stdout")
 	}
 }
 
 func TestSelectorFiltering(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create rule files with different Selectors
 	ruleFile1 := filepath.Join(dirs.rulesDir, "python.md")
+
 	ruleContent1 := `---
 language: python
 ---
@@ -304,11 +381,12 @@ language: python
 
 Python specific guidelines.
 `
-	if err := os.WriteFile(ruleFile1, []byte(ruleContent1), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile1, []byte(ruleContent1), 0o600); err != nil {
 		t.Fatalf("failed to write python rule file: %v", err)
 	}
 
 	ruleFile2 := filepath.Join(dirs.rulesDir, "golang.md")
+
 	ruleContent2 := `---
 language: go
 ---
@@ -316,11 +394,11 @@ language: go
 
 Go specific guidelines.
 `
-	if err := os.WriteFile(ruleFile2, []byte(ruleContent2), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile2, []byte(ruleContent2), 0o600); err != nil {
 		t.Fatalf("failed to write go rule file: %v", err)
 	}
 
-	createStandardTask(t, dirs.tasksDir, "test-task")
+	createStandardTask(t, dirs.tasksDir)
 
 	// Run the program with selector filtering for Python
 	output := runTool(t, "-C", dirs.tmpDir, "-s", "language=python", "test-task")
@@ -329,21 +407,24 @@ Go specific guidelines.
 	if !strings.Contains(output, "# Python Guidelines") {
 		t.Errorf("Python guidelines not found in stdout")
 	}
+
 	if strings.Contains(output, "# Go Guidelines") {
 		t.Errorf("Go guidelines should not be in stdout when filtering for Python")
 	}
 }
 
 func TestTemplateExpansionWithOsExpand(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create a task file with template variables
 	taskFile := filepath.Join(tasksDir, "test-task.md")
+
 	taskContent := `---
 task_name: test-task
 ---
@@ -351,7 +432,7 @@ task_name: test-task
 
 Please work on ${component} and fix ${issue}.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
@@ -365,21 +446,23 @@ Please work on ${component} and fix ${issue}.
 }
 
 func TestExpanderIntegration(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create a test file for path expansion
 	dataFile := filepath.Join(tmpDir, "data.txt")
-	if err := os.WriteFile(dataFile, []byte("file content"), 0o644); err != nil {
+	if err := os.WriteFile(dataFile, []byte("file content"), 0o600); err != nil {
 		t.Fatalf("failed to write data file: %v", err)
 	}
 
 	// Create a task file with all three expansion types
 	taskFile := filepath.Join(tasksDir, "test-expander.md")
+
 	taskContent := fmt.Sprintf(`---
 task_name: test-expander
 ---
@@ -390,7 +473,7 @@ Command: !`+"`echo hello`"+`
 Path: @%s
 Combined: ${component} !`+"`echo world`"+`
 `, dataFile)
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
@@ -419,21 +502,23 @@ Combined: ${component} !`+"`echo world`"+`
 }
 
 func TestExpanderSecurityIntegration(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create a file that contains expansion syntax (should not be re-expanded)
 	dataFile := filepath.Join(tmpDir, "injection.txt")
-	if err := os.WriteFile(dataFile, []byte("${injected} and !`echo hacked`"), 0o644); err != nil {
+	if err := os.WriteFile(dataFile, []byte("${injected} and !`echo hacked`"), 0o600); err != nil {
 		t.Fatalf("failed to write data file: %v", err)
 	}
 
 	// Create a task file that tests security (no re-expansion)
 	taskFile := filepath.Join(tasksDir, "test-security.md")
+
 	taskContent := fmt.Sprintf(`---
 task_name: test-security
 ---
@@ -443,7 +528,7 @@ File content: @%s
 Param with command: ${evil}
 Command with param: !`+"`echo '${secret}'`"+`
 `, dataFile)
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
@@ -453,13 +538,16 @@ Command with param: !`+"`echo '${secret}'`"+`
 	// Split output into lines to separate stderr logs from stdout prompt
 	// Since task frontmatter is no longer printed, we identify stdout by filtering out stderr log lines
 	lines := strings.Split(output, "\n")
+
 	var promptLines []string
+
 	for _, line := range lines {
 		// Stderr log lines start with "time=", stdout lines don't
 		if !strings.HasPrefix(line, "time=") {
 			promptLines = append(promptLines, line)
 		}
 	}
+
 	promptOutput := strings.Join(promptLines, "\n")
 
 	// Check that file content with expansion syntax is NOT re-expanded
@@ -490,21 +578,23 @@ Command with param: !`+"`echo '${secret}'`"+`
 }
 
 func TestMdcFileSupport(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a .mdc rule file
 	ruleFile := filepath.Join(dirs.rulesDir, "custom.mdc")
+
 	ruleContent := `---
 ---
 # Custom Rules
 
 This is a .mdc file.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write .mdc rule file: %v", err)
 	}
 
-	createStandardTask(t, dirs.tasksDir, "test-task")
+	createStandardTask(t, dirs.tasksDir)
 
 	// Run the program
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
@@ -516,30 +606,37 @@ This is a .mdc file.
 }
 
 func TestMdcFileWithBootstrap(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a .mdc rule file
 	ruleFile := filepath.Join(dirs.rulesDir, "custom.mdc")
+
 	ruleContent := `---
 ---
 # Custom Rules
 
 This is a .mdc file with bootstrap.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write .mdc rule file: %v", err)
 	}
 
 	// Create a bootstrap file for the .mdc file (custom.mdc -> custom-bootstrap)
 	bootstrapFile := filepath.Join(dirs.rulesDir, "custom-bootstrap")
+
 	bootstrapContent := `#!/bin/bash
 echo "Running custom bootstrap"
 `
-	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0o755); err != nil {
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0o600); err != nil {
 		t.Fatalf("failed to write bootstrap file: %v", err)
 	}
+	// #nosec G302 -- bootstrap scripts must be executable to run
+	if err := os.Chmod(bootstrapFile, 0o755); err != nil {
+		t.Fatalf("failed to chmod bootstrap file: %v", err)
+	}
 
-	createStandardTask(t, dirs.tasksDir, "test-task")
+	createStandardTask(t, dirs.tasksDir)
 
 	// Run the program
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
@@ -548,23 +645,26 @@ echo "Running custom bootstrap"
 	if !strings.Contains(output, "Running custom bootstrap") {
 		t.Errorf("custom bootstrap output not found in stdout")
 	}
+
 	if !strings.Contains(output, "# Custom Rules") {
 		t.Errorf(".mdc file content not found in stdout")
 	}
 }
 
 func TestBootstrapWithoutExecutePermission(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a rule file
 	ruleFile := filepath.Join(dirs.rulesDir, "setup.md")
+
 	ruleContent := `---
 ---
 # Development Setup
 
 This is a setup guide.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
@@ -572,10 +672,11 @@ This is a setup guide.
 	// This simulates a bootstrap file that was checked out from git on Windows
 	// or otherwise doesn't have the executable bit set
 	bootstrapFile := filepath.Join(dirs.rulesDir, "setup-bootstrap")
+
 	bootstrapContent := `#!/bin/bash
 echo "Bootstrap executed successfully"
 `
-	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0o644); err != nil {
+	if err := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0o600); err != nil {
 		t.Fatalf("failed to write bootstrap file: %v", err)
 	}
 
@@ -584,11 +685,12 @@ echo "Bootstrap executed successfully"
 	if err != nil {
 		t.Fatalf("failed to stat bootstrap file: %v", err)
 	}
+
 	if fileInfo.Mode()&0o111 != 0 {
 		t.Fatalf("bootstrap file should not be executable initially, but has mode: %v", fileInfo.Mode())
 	}
 
-	createStandardTask(t, dirs.tasksDir, "test-task")
+	createStandardTask(t, dirs.tasksDir)
 
 	// Run the program - this should chmod +x the bootstrap file before running it
 	output := runTool(t, "-C", dirs.tmpDir, "test-task")
@@ -613,35 +715,40 @@ echo "Bootstrap executed successfully"
 	if err != nil {
 		t.Fatalf("failed to stat bootstrap file after run: %v", err)
 	}
+
 	if fileInfo.Mode()&0o111 == 0 {
 		t.Errorf("bootstrap file should be executable after run, but has mode: %v", fileInfo.Mode())
 	}
 }
 
 func TestOpenCodeRulesSupport(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	openCodeAgentDir := filepath.Join(tmpDir, ".opencode", "agent")
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(openCodeAgentDir, 0o755); err != nil {
+	if err := os.MkdirAll(openCodeAgentDir, 0o750); err != nil {
 		t.Fatalf("failed to create opencode agent dir: %v", err)
 	}
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create an agent rule file in .opencode/agent
 	agentFile := filepath.Join(openCodeAgentDir, "docs.md")
+
 	agentContent := `# Documentation Agent
 
 This agent helps with documentation.
 `
-	if err := os.WriteFile(agentFile, []byte(agentContent), 0o644); err != nil {
+	if err := os.WriteFile(agentFile, []byte(agentContent), 0o600); err != nil {
 		t.Fatalf("failed to write agent file: %v", err)
 	}
 
 	// Create a task file
 	taskFile := filepath.Join(tasksDir, "test-opencode.md")
+
 	taskContent := `---
 task_name: test-opencode
 ---
@@ -649,7 +756,7 @@ task_name: test-opencode
 
 This is a test task.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
@@ -668,16 +775,18 @@ This is a test task.
 }
 
 func TestOpenCodeCommandTaskSupport(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	// Tasks must be in .agents/tasks directory
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create a task file in the correct location
 	taskFile := filepath.Join(tasksDir, "fix-bug.md")
+
 	taskContent := `---
 task_name: fix-bug
 ---
@@ -685,7 +794,7 @@ task_name: fix-bug
 
 This is a task for fixing bugs.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
@@ -696,28 +805,31 @@ This is a task for fixing bugs.
 	if !strings.Contains(output, "# Fix Bug Task") {
 		t.Errorf("task content not found in stdout")
 	}
+
 	if !strings.Contains(output, "This is a task for fixing bugs.") {
 		t.Errorf("task description not found in stdout")
 	}
 }
 
 func TestTaskSelectionByFrontmatter(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create a task file - task name is based on filename now
 	taskFile := filepath.Join(tasksDir, "my-special-task.md")
+
 	taskContent := `---
 ---
 # My Special Task
 
 This task name is based on the filename.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
@@ -731,15 +843,17 @@ This task name is based on the filename.
 }
 
 func TestTaskWithoutTaskNameUsesFilename(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create a file WITHOUT task_name in frontmatter - should use filename
 	taskFile := filepath.Join(tasksDir, "my-task.md")
+
 	taskContent := `---
 description: A task without task_name
 ---
@@ -747,7 +861,7 @@ description: A task without task_name
 
 This file uses the filename as task_name.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -758,21 +872,24 @@ This file uses the filename as task_name.
 	if !strings.Contains(output, "# My Task") {
 		t.Errorf("task content not found in stdout")
 	}
+
 	if !strings.Contains(output, "This file uses the filename as task_name.") {
 		t.Errorf("task description not found in stdout")
 	}
 }
 
 func TestTaskSelectionWithSelectors(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
 	// Create two task files with different filenames but same base name and different environments
 	taskFile1 := filepath.Join(tasksDir, "deploy-staging.md")
+
 	taskContent1 := `---
 environment: staging
 ---
@@ -780,11 +897,12 @@ environment: staging
 
 Deploy to the staging environment.
 `
-	if err := os.WriteFile(taskFile1, []byte(taskContent1), 0o644); err != nil {
+	if err := os.WriteFile(taskFile1, []byte(taskContent1), 0o600); err != nil {
 		t.Fatalf("failed to write staging task file: %v", err)
 	}
 
 	taskFile2 := filepath.Join(tasksDir, "deploy-production.md")
+
 	taskContent2 := `---
 environment: production
 ---
@@ -792,7 +910,7 @@ environment: production
 
 Deploy to the production environment.
 `
-	if err := os.WriteFile(taskFile2, []byte(taskContent2), 0o644); err != nil {
+	if err := os.WriteFile(taskFile2, []byte(taskContent2), 0o600); err != nil {
 		t.Fatalf("failed to write production task file: %v", err)
 	}
 
@@ -803,6 +921,7 @@ Deploy to the production environment.
 	if !strings.Contains(output, "# Deploy to Staging") {
 		t.Errorf("staging task content not found in stdout")
 	}
+
 	if strings.Contains(output, "# Deploy to Production") {
 		t.Errorf("production task content should not be in stdout when selecting staging")
 	}
@@ -814,49 +933,60 @@ Deploy to the production environment.
 	if !strings.Contains(output, "# Deploy to Production") {
 		t.Errorf("production task content not found in stdout")
 	}
+
 	if strings.Contains(output, "# Deploy to Staging") {
 		t.Errorf("staging task content should not be in stdout when selecting production")
 	}
 }
 
+//nolint:cyclop,funlen
 func TestResumeMode(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a rule file that should be included in normal mode
 	ruleFile := filepath.Join(dirs.rulesDir, "coding-standards.md")
+
 	ruleContent := `---
 ---
 # Coding Standards
 
 These are the coding standards for the project.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a bootstrap script for the rule file to verify it doesn't run in resume mode
 	ruleBootstrapFile := filepath.Join(dirs.rulesDir, "coding-standards-bootstrap")
+
 	ruleBootstrapContent := `#!/bin/bash
 echo "RULE_BOOTSTRAP_RAN" >&2
 `
-	if err := os.WriteFile(ruleBootstrapFile, []byte(ruleBootstrapContent), 0o755); err != nil {
+	if err := os.WriteFile(ruleBootstrapFile, []byte(ruleBootstrapContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule bootstrap file: %v", err)
+	}
+	// #nosec G302 -- bootstrap scripts must be executable to run
+	if err := os.Chmod(ruleBootstrapFile, 0o755); err != nil {
+		t.Fatalf("failed to chmod rule bootstrap file: %v", err)
 	}
 
 	// Create a normal task file (without resume field)
 	normalTaskFile := filepath.Join(dirs.tasksDir, "fix-bug.md")
+
 	normalTaskContent := `---
 ---
 # Fix Bug (Initial)
 
 This is the initial task prompt for fixing a bug.
 `
-	if err := os.WriteFile(normalTaskFile, []byte(normalTaskContent), 0o644); err != nil {
+	if err := os.WriteFile(normalTaskFile, []byte(normalTaskContent), 0o600); err != nil {
 		t.Fatalf("failed to write normal task file: %v", err)
 	}
 
 	// Create a resume task file (with resume: true)
 	resumeTaskFile := filepath.Join(dirs.tasksDir, "fix-bug-resume.md")
+
 	resumeTaskContent := `---
 resume: true
 ---
@@ -864,7 +994,7 @@ resume: true
 
 This is the resume task prompt for continuing the bug fix.
 `
-	if err := os.WriteFile(resumeTaskFile, []byte(resumeTaskContent), 0o644); err != nil {
+	if err := os.WriteFile(resumeTaskFile, []byte(resumeTaskContent), 0o600); err != nil {
 		t.Fatalf("failed to write resume task file: %v", err)
 	}
 
@@ -874,13 +1004,24 @@ This is the resume task prompt for continuing the bug fix.
 	if err != nil {
 		t.Fatalf("failed to get working directory: %v", err)
 	}
-	cmd := exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-s", "resume=false", "fix-bug")
+
+	absWd, err := filepath.Abs(filepath.Clean(wd))
+	if err != nil {
+		t.Fatalf("failed to resolve working directory: %v", err)
+	}
+
+	// #nosec G204 -- integration test runs "go run" with controlled args
+	cmd := exec.CommandContext(t.Context(), "go", "run", absWd, "-C", dirs.tmpDir, "-s", "resume=false", "fix-bug")
+
 	var stdout, stderr bytes.Buffer
+
 	cmd.Stdout = &stdout
+
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to run binary in normal mode: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
 	}
+
 	output := stdout.String()
 	stderrOutput := stderr.String()
 
@@ -898,20 +1039,28 @@ This is the resume task prompt for continuing the bug fix.
 	if !strings.Contains(output, "# Fix Bug (Initial)") {
 		t.Errorf("normal mode: normal task content not found in stdout")
 	}
+
 	if strings.Contains(output, "# Fix Bug (Resume)") {
 		t.Errorf("normal mode: resume task content should not be in stdout")
 	}
 
 	// Test 2: Run with resume selector and bootstrap disabled (with -s resume=true and --skip-bootstrap)
 	// Capture stdout and stderr separately to verify bootstrap scripts don't run
-	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-s", "resume=true", "--skip-bootstrap", "fix-bug-resume")
+	// #nosec G204 -- integration test runs "go run" with controlled args
+	cmd = exec.CommandContext(t.Context(), "go", "run", absWd,
+		"-C", dirs.tmpDir, "-s", "resume=true", "--skip-bootstrap", "fix-bug-resume")
+
 	stdout.Reset()
 	stderr.Reset()
+
 	cmd.Stdout = &stdout
+
 	cmd.Stderr = &stderr
 	if err = cmd.Run(); err != nil {
-		t.Fatalf("failed to run binary with resume selector and bootstrap disabled: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
+		t.Fatalf("failed to run binary with resume selector and bootstrap disabled: %v\nstdout: %s\nstderr: %s",
+			err, stdout.String(), stderr.String())
 	}
+
 	output = stdout.String()
 	stderrOutput = stderr.String()
 
@@ -929,19 +1078,27 @@ This is the resume task prompt for continuing the bug fix.
 	if !strings.Contains(output, "# Fix Bug (Resume)") {
 		t.Errorf("resume selector: resume task content not found in stdout")
 	}
+
 	if strings.Contains(output, "# Fix Bug (Initial)") {
 		t.Errorf("resume selector: normal task content should not be in stdout")
 	}
 
 	// Test 3: Run with -r flag (sets resume selector) and --skip-bootstrap (disables bootstrap)
-	cmd = exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-r", "--skip-bootstrap", "fix-bug-resume")
+	// #nosec G204 -- integration test runs "go run" with controlled args
+	cmd = exec.CommandContext(t.Context(), "go", "run", absWd,
+		"-C", dirs.tmpDir, "-r", "--skip-bootstrap", "fix-bug-resume")
+
 	stdout.Reset()
 	stderr.Reset()
+
 	cmd.Stdout = &stdout
+
 	cmd.Stderr = &stderr
 	if err = cmd.Run(); err != nil {
-		t.Fatalf("failed to run binary with -r flag and --skip-bootstrap: %v\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
+		t.Fatalf("failed to run binary with -r flag and --skip-bootstrap: %v\nstdout: %s\nstderr: %s",
+			err, stdout.String(), stderr.String())
 	}
+
 	output = stdout.String()
 	stderrOutput = stderr.String()
 
@@ -952,35 +1109,40 @@ This is the resume task prompt for continuing the bug fix.
 
 	// With bootstrap disabled, bootstrap scripts should NOT run
 	if strings.Contains(stderrOutput, "RULE_BOOTSTRAP_RAN") {
-		t.Errorf("bootstrap disabled (--skip-bootstrap): rule bootstrap script should not run (found in stderr: %s)", stderrOutput)
+		t.Errorf("bootstrap disabled (--skip-bootstrap): rule bootstrap script should not run (found in stderr: %s)",
+			stderrOutput)
 	}
 
 	// With -r flag, should use the resume task
 	if !strings.Contains(output, "# Fix Bug (Resume)") {
 		t.Errorf("resume selector (-r flag): resume task content not found in stdout")
 	}
+
 	if strings.Contains(output, "# Fix Bug (Initial)") {
 		t.Errorf("resume selector (-r flag): normal task content should not be in stdout")
 	}
 }
 
 func TestRemoteRuleFromHTTP(t *testing.T) {
+	t.Parallel()
 	// Create a remote directory structure to serve
 	remoteDir := t.TempDir()
+
 	rulesDir := filepath.Join(remoteDir, ".agents", "rules")
-	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+	if err := os.MkdirAll(rulesDir, 0o750); err != nil {
 		t.Fatalf("failed to create remote rules dir: %v", err)
 	}
 
 	// Create a remote rule file
 	remoteRuleFile := filepath.Join(rulesDir, "remote-rule.md")
+
 	remoteRuleContent := `---
 ---
 # Remote Rule
 
 This is a rule loaded from a remote directory.
 `
-	if err := os.WriteFile(remoteRuleFile, []byte(remoteRuleContent), 0o644); err != nil {
+	if err := os.WriteFile(remoteRuleFile, []byte(remoteRuleContent), 0o600); err != nil {
 		t.Fatalf("failed to write remote rule file: %v", err)
 	}
 
@@ -988,11 +1150,11 @@ This is a rule loaded from a remote directory.
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	createStandardTask(t, tasksDir, "test-task")
+	createStandardTask(t, tasksDir)
 
 	// Run the program with remote directory (using file:// URL)
 	remoteURL := "file://" + remoteDir
@@ -1002,6 +1164,7 @@ This is a rule loaded from a remote directory.
 	if !strings.Contains(output, "# Remote Rule") {
 		t.Errorf("remote rule content not found in stdout")
 	}
+
 	if !strings.Contains(output, "This is a rule loaded from a remote directory") {
 		t.Errorf("remote rule description not found in stdout")
 	}
@@ -1013,10 +1176,12 @@ This is a rule loaded from a remote directory.
 }
 
 func TestPrintTaskFrontmatter(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a rule file
 	ruleFile := filepath.Join(dirs.rulesDir, "test-rule.md")
+
 	ruleContent := `---
 language: go
 ---
@@ -1024,12 +1189,13 @@ language: go
 
 This is a test rule.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a task file with frontmatter
 	taskFile := filepath.Join(dirs.tasksDir, "test-task.md")
+
 	taskContent := `---
 task_name: test-task
 author: tester
@@ -1039,20 +1205,31 @@ version: 1.0
 
 This is a test task.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
 	// Test that task frontmatter is NOT printed
-	output := runTool(t, "-C", dirs.tmpDir, "test-task")
+	// Use isolated HOME so the tool does not discover rules/skills from the real home directory.
+	// Set GOMODCACHE outside tmpDir so "go run" does not pollute the temp dir with read-only
+	// module cache files, which would cause RemoveAll cleanup to fail with permission denied.
+	envOverrides := []string{"HOME=" + dirs.tmpDir}
+	if gomodcache := os.Getenv("GOMODCACHE"); gomodcache != "" {
+		envOverrides = append(envOverrides, "GOMODCACHE="+gomodcache)
+	} else {
+		envOverrides = append(envOverrides, "GOMODCACHE="+filepath.Join(os.Getenv("HOME"), "go", "pkg", "mod"))
+	}
+	output := runToolWithEnv(t, envOverrides, "-C", dirs.tmpDir, "test-task")
 
 	// Task frontmatter fields should NOT be in the output
 	if strings.Contains(output, "task_name: test-task") {
 		t.Errorf("task frontmatter field 'task_name' should not be in output")
 	}
+
 	if strings.Contains(output, "author: tester") {
 		t.Errorf("task frontmatter field 'author' should not be in output")
 	}
+
 	if strings.Contains(output, "version: 1.0") {
 		t.Errorf("task frontmatter field 'version' should not be in output")
 	}
@@ -1086,10 +1263,12 @@ This is a test task.
 }
 
 func TestTaskBootstrapFromFile(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a simple task file
 	taskFile := filepath.Join(dirs.tasksDir, "test-task.md")
+
 	taskContent := `---
 task_name: test-task
 ---
@@ -1097,7 +1276,7 @@ task_name: test-task
 
 This is a test task.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
@@ -1113,10 +1292,12 @@ This is a test task.
 }
 
 func TestTaskBootstrapFileNotRequired(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a task file WITHOUT a bootstrap
 	taskFile := filepath.Join(dirs.tasksDir, "no-bootstrap-task.md")
+
 	taskContent := `---
 task_name: no-bootstrap-task
 ---
@@ -1124,7 +1305,7 @@ task_name: no-bootstrap-task
 
 This task has no bootstrap script.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
@@ -1138,30 +1319,38 @@ This task has no bootstrap script.
 }
 
 func TestTaskBootstrapWithRuleBootstrap(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a rule file with bootstrap
 	ruleFile := filepath.Join(dirs.rulesDir, "setup.md")
+
 	ruleContent := `---
 ---
 # Setup Rule
 
 Setup instructions.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	ruleBootstrapFile := filepath.Join(dirs.rulesDir, "setup-bootstrap")
+
 	ruleBootstrapContent := `#!/bin/bash
 echo "Running rule bootstrap"
 `
-	if err := os.WriteFile(ruleBootstrapFile, []byte(ruleBootstrapContent), 0o755); err != nil {
+	if err := os.WriteFile(ruleBootstrapFile, []byte(ruleBootstrapContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule bootstrap file: %v", err)
+	}
+	// #nosec G302 -- bootstrap scripts must be executable to run
+	if err := os.Chmod(ruleBootstrapFile, 0o755); err != nil {
+		t.Fatalf("failed to chmod rule bootstrap file: %v", err)
 	}
 
 	// Create a task file (tasks no longer have bootstrap scripts)
 	taskFile := filepath.Join(dirs.tasksDir, "deploy-task.md")
+
 	taskContent := `---
 task_name: deploy-task
 ---
@@ -1169,7 +1358,7 @@ task_name: deploy-task
 
 Deploy instructions.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
@@ -1185,6 +1374,7 @@ Deploy instructions.
 	if !strings.Contains(output, "# Setup Rule") {
 		t.Errorf("rule content not found in stdout")
 	}
+
 	if !strings.Contains(output, "# Deploy Task") {
 		t.Errorf("task content not found in stdout")
 	}
@@ -1197,26 +1387,30 @@ Deploy instructions.
 	if ruleBootstrapIdx > ruleContentIdx {
 		t.Errorf("rule bootstrap should run before rule content")
 	}
+
 	if ruleContentIdx > taskContentIdx {
 		t.Errorf("rule content should appear before task content")
 	}
 }
 
 func TestManifestFile(t *testing.T) {
+	t.Parallel()
 	// Create main project directory
 	mainDir := t.TempDir()
 	mainRulesDir := filepath.Join(mainDir, ".agents", "rules")
 	mainTasksDir := filepath.Join(mainDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(mainRulesDir, 0o755); err != nil {
+	if err := os.MkdirAll(mainRulesDir, 0o750); err != nil {
 		t.Fatalf("failed to create main rules dir: %v", err)
 	}
-	if err := os.MkdirAll(mainTasksDir, 0o755); err != nil {
+
+	if err := os.MkdirAll(mainTasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create main tasks dir: %v", err)
 	}
 
 	// Create a task file in the main directory
 	taskFile := filepath.Join(mainTasksDir, "test-task.md")
+
 	taskContent := `---
 task_name: test-task
 ---
@@ -1224,44 +1418,48 @@ task_name: test-task
 
 This is a test task.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
 	// Create a rule file in the main directory (should be included)
 	mainRuleFile := filepath.Join(mainRulesDir, "main-rule.md")
+
 	mainRuleContent := `---
 ---
 # Main Rule
 
 This rule is in the main project.
 `
-	if err := os.WriteFile(mainRuleFile, []byte(mainRuleContent), 0o644); err != nil {
+	if err := os.WriteFile(mainRuleFile, []byte(mainRuleContent), 0o600); err != nil {
 		t.Fatalf("failed to write main rule file: %v", err)
 	}
 
 	// Create a remote directory with rules
 	remoteDir := t.TempDir()
+
 	remoteRulesDir := filepath.Join(remoteDir, ".agents", "rules")
-	if err := os.MkdirAll(remoteRulesDir, 0o755); err != nil {
+	if err := os.MkdirAll(remoteRulesDir, 0o750); err != nil {
 		t.Fatalf("failed to create remote rules dir: %v", err)
 	}
 
 	remoteRuleFile := filepath.Join(remoteRulesDir, "remote-rule.md")
+
 	remoteRuleContent := `---
 ---
 # Remote Rule
 
 This rule is from a remote directory.
 `
-	if err := os.WriteFile(remoteRuleFile, []byte(remoteRuleContent), 0o644); err != nil {
+	if err := os.WriteFile(remoteRuleFile, []byte(remoteRuleContent), 0o600); err != nil {
 		t.Fatalf("failed to write remote rule file: %v", err)
 	}
 
 	// Create a manifest file that references the remote directory
 	manifestFile := filepath.Join(t.TempDir(), "manifest.txt")
+
 	manifestContent := fmt.Sprintf("file://%s\n", remoteDir)
-	if err := os.WriteFile(manifestFile, []byte(manifestContent), 0o644); err != nil {
+	if err := os.WriteFile(manifestFile, []byte(manifestContent), 0o600); err != nil {
 		t.Fatalf("failed to write manifest file: %v", err)
 	}
 
@@ -1284,16 +1482,18 @@ This rule is from a remote directory.
 	}
 }
 
-// TestSingleExpansion verifies that content is expanded only once in the full flow
+// TestSingleExpansion verifies that content is expanded only once in the full flow.
 func TestSingleExpansion(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a task that uses a parameter with expansion syntax
 	taskFile := filepath.Join(dirs.tasksDir, "test-expand.md")
+
 	taskContent := `Task with parameter: ${param1}
 
 And a value that looks like expansion syntax but should not be expanded: ${"nested"}`
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to create task file: %v", err)
 	}
 
@@ -1313,25 +1513,29 @@ And a value that looks like expansion syntax but should not be expanded: ${"nest
 	}
 }
 
-// TestCommandExpansionOnce verifies that command files are expanded only once
+// TestCommandExpansionOnce verifies that command files are expanded only once.
 func TestCommandExpansionOnce(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
+
 	commandsDir := filepath.Join(dirs.tmpDir, ".agents", "commands")
-	if err := os.MkdirAll(commandsDir, 0o755); err != nil {
+	if err := os.MkdirAll(commandsDir, 0o750); err != nil {
 		t.Fatalf("failed to create commands dir: %v", err)
 	}
 
 	// Create a command file with a parameter
 	commandFile := filepath.Join(commandsDir, "test-cmd.md")
+
 	commandContent := `Command param: ${cmd_param}`
-	if err := os.WriteFile(commandFile, []byte(commandContent), 0o644); err != nil {
+	if err := os.WriteFile(commandFile, []byte(commandContent), 0o600); err != nil {
 		t.Fatalf("failed to create command file: %v", err)
 	}
 
 	// Create a task that calls the command with a param containing expansion syntax
 	taskFile := filepath.Join(dirs.tasksDir, "test-cmd-task.md")
+
 	taskContent := `/test-cmd cmd_param="!` + "`echo injected`" + `"`
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to create task file: %v", err)
 	}
 
@@ -1350,11 +1554,14 @@ func TestCommandExpansionOnce(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestWriteRulesOption(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a rule file
 	ruleFile := filepath.Join(dirs.rulesDir, "test-rule.md")
+
 	ruleContent := `---
 language: go
 ---
@@ -1362,12 +1569,13 @@ language: go
 
 This is a test rule that should be written to the user rules path.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a task file
 	taskFile := filepath.Join(dirs.tasksDir, "test-task.md")
+
 	taskContent := `---
 task_name: test-task
 ---
@@ -1375,7 +1583,7 @@ task_name: test-task
 
 This is the task prompt.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
@@ -1387,8 +1595,17 @@ This is the task prompt.
 	if err != nil {
 		t.Fatalf("failed to get working directory: %v", err)
 	}
-	cmd := exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-a", "copilot", "-w", "test-task")
+
+	absWd, err := filepath.Abs(filepath.Clean(wd))
+	if err != nil {
+		t.Fatalf("failed to resolve working directory: %v", err)
+	}
+
+	// #nosec G204 -- integration test runs "go run" with controlled args
+	cmd := exec.CommandContext(t.Context(), "go", "run", absWd, "-C", dirs.tmpDir, "-a", "copilot", "-w", "test-task")
+
 	var stdout, stderr bytes.Buffer
+
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	// Build a clean environment that explicitly sets GOMODCACHE outside tmpDir
@@ -1397,6 +1614,7 @@ This is the task prompt.
 	if gomodcache == "" {
 		gomodcache = filepath.Join(os.Getenv("HOME"), "go", "pkg", "mod")
 	}
+
 	cmd.Env = append(os.Environ(),
 		"HOME="+tmpHome,
 		"GOMODCACHE="+gomodcache,
@@ -1417,12 +1635,14 @@ This is the task prompt.
 	if !strings.Contains(output, "# Test Task") {
 		t.Errorf("task content not found in stdout")
 	}
+
 	if !strings.Contains(output, "This is the task prompt.") {
 		t.Errorf("task description not found in stdout")
 	}
 
 	// Verify that rules were written to the user rules path
-	expectedRulesPath := filepath.Join(tmpHome, ".github", "agents", "AGENTS.md")
+	expectedRulesPath := filepath.Clean(filepath.Join(tmpHome, ".github", "agents", "AGENTS.md"))
+
 	rulesFileContent, err := os.ReadFile(expectedRulesPath)
 	if err != nil {
 		t.Fatalf("failed to read rules file at %s: %v", expectedRulesPath, err)
@@ -1432,6 +1652,7 @@ This is the task prompt.
 	if !strings.Contains(rulesStr, "# Test Rule") {
 		t.Errorf("rules file does not contain rule content")
 	}
+
 	if !strings.Contains(rulesStr, "This is a test rule that should be written to the user rules path.") {
 		t.Errorf("rules file does not contain rule description")
 	}
@@ -1443,10 +1664,11 @@ This is the task prompt.
 }
 
 func TestWriteRulesOptionWithoutAgent(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a simple task file without agent field
-	createStandardTask(t, dirs.tasksDir, "test-task")
+	createStandardTask(t, dirs.tasksDir)
 
 	// Run with -w flag but WITHOUT -a flag and task has no agent field (should fail)
 	output, err := runToolWithError("-C", dirs.tmpDir, "-w", "test-task")
@@ -1460,11 +1682,14 @@ func TestWriteRulesOptionWithoutAgent(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestWriteRulesOptionWithResumeMode(t *testing.T) {
+	t.Parallel()
 	dirs := setupTestDirs(t)
 
 	// Create a rule file
 	ruleFile := filepath.Join(dirs.rulesDir, "test-rule.md")
+
 	ruleContent := `---
 language: go
 ---
@@ -1472,12 +1697,13 @@ language: go
 
 This is a test rule that should NOT be written in resume mode.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a resume task file
 	taskFile := filepath.Join(dirs.tasksDir, "test-task-resume.md")
+
 	taskContent := `---
 resume: true
 ---
@@ -1485,7 +1711,7 @@ resume: true
 
 This is the task prompt for resume mode.
 `
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
 		t.Fatalf("failed to write task file: %v", err)
 	}
 
@@ -1497,8 +1723,21 @@ This is the task prompt for resume mode.
 	if err != nil {
 		t.Fatalf("failed to get working directory: %v", err)
 	}
-	cmd := exec.Command("go", "run", wd, "-C", dirs.tmpDir, "-a", "copilot", "-w", "-r", "--skip-bootstrap", "test-task-resume")
+
+	absWd, err := filepath.Abs(filepath.Clean(wd))
+	if err != nil {
+		t.Fatalf("failed to resolve working directory: %v", err)
+	}
+
+	runArgs := []string{
+		"run", absWd, "-C", dirs.tmpDir, "-a", "copilot",
+		"-w", "-r", "--skip-bootstrap", "test-task-resume",
+	}
+	// #nosec G204 -- integration test runs "go run" with controlled args
+	cmd := exec.CommandContext(t.Context(), "go", runArgs...)
+
 	var stdout, stderr bytes.Buffer
+
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	// Build a clean environment that explicitly sets GOMODCACHE outside tmpDir
@@ -1507,6 +1746,7 @@ This is the task prompt for resume mode.
 	if gomodcache == "" {
 		gomodcache = filepath.Join(os.Getenv("HOME"), "go", "pkg", "mod")
 	}
+
 	cmd.Env = append(os.Environ(),
 		"HOME="+tmpHome,
 		"GOMODCACHE="+gomodcache,
@@ -1527,6 +1767,7 @@ This is the task prompt for resume mode.
 	if !strings.Contains(output, "# Test Task Resume") {
 		t.Errorf("task content not found in stdout")
 	}
+
 	if !strings.Contains(output, "This is the task prompt for resume mode.") {
 		t.Errorf("task description not found in stdout")
 	}
@@ -1534,7 +1775,8 @@ This is the task prompt for resume mode.
 	// Verify that NO rules file was created when bootstrap is disabled
 	expectedRulesPath := filepath.Join(tmpHome, ".github", "agents", "AGENTS.md")
 	if _, err := os.Stat(expectedRulesPath); err == nil {
-		t.Errorf("rules file should NOT be created when bootstrap is disabled with -w flag, but found at %s", expectedRulesPath)
+		t.Errorf("rules file should NOT be created when bootstrap is disabled with -w flag, but found at %s",
+			expectedRulesPath)
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("unexpected error checking for rules file: %v", err)
 	}
@@ -1548,16 +1790,18 @@ This is the task prompt for resume mode.
 // TestLocalDirectoryNotDeleted verifies that local directories passed via -d flag
 // are not deleted after the command completes.
 func TestLocalDirectoryNotDeleted(t *testing.T) {
+	t.Parallel()
 	// Create a local directory with a rule file and a marker file
 	localDir := t.TempDir()
 	rulesDir := filepath.Join(localDir, ".agents", "rules")
 
-	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+	if err := os.MkdirAll(rulesDir, 0o750); err != nil {
 		t.Fatalf("failed to create rules dir: %v", err)
 	}
 
 	// Create a rule file
 	ruleFile := filepath.Join(rulesDir, "local-rule.md")
+
 	ruleContent := `---
 language: go
 ---
@@ -1565,13 +1809,13 @@ language: go
 
 This is a rule from a local directory.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a marker file to verify the directory is not deleted
 	markerFile := filepath.Join(localDir, "marker.txt")
-	if err := os.WriteFile(markerFile, []byte("marker"), 0o644); err != nil {
+	if err := os.WriteFile(markerFile, []byte("marker"), 0o600); err != nil {
 		t.Fatalf("failed to write marker file: %v", err)
 	}
 
@@ -1579,11 +1823,11 @@ This is a rule from a local directory.
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	createStandardTask(t, tasksDir, "test-task")
+	createStandardTask(t, tasksDir)
 
 	// Run the program with local directory using file:// URL
 	localURL := "file://" + localDir
@@ -1593,6 +1837,7 @@ This is a rule from a local directory.
 	if !strings.Contains(output, "# Local Rule") {
 		t.Errorf("local rule content not found in stdout")
 	}
+
 	if !strings.Contains(output, "This is a rule from a local directory") {
 		t.Errorf("local rule description not found in stdout")
 	}
@@ -1619,16 +1864,18 @@ This is a rule from a local directory.
 // TestLocalDirectoryWithoutProtocol verifies that local directories passed
 // without the file:// protocol are not deleted.
 func TestLocalDirectoryWithoutProtocol(t *testing.T) {
+	t.Parallel()
 	// Create a local directory with a rule file and a marker file
 	localDir := t.TempDir()
 	rulesDir := filepath.Join(localDir, ".agents", "rules")
 
-	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
+	if err := os.MkdirAll(rulesDir, 0o750); err != nil {
 		t.Fatalf("failed to create rules dir: %v", err)
 	}
 
 	// Create a rule file
 	ruleFile := filepath.Join(rulesDir, "local-rule.md")
+
 	ruleContent := `---
 language: go
 ---
@@ -1636,13 +1883,13 @@ language: go
 
 This is a rule from a local directory without protocol.
 `
-	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o644); err != nil {
+	if err := os.WriteFile(ruleFile, []byte(ruleContent), 0o600); err != nil {
 		t.Fatalf("failed to write rule file: %v", err)
 	}
 
 	// Create a marker file to verify the directory is not deleted
 	markerFile := filepath.Join(localDir, "marker.txt")
-	if err := os.WriteFile(markerFile, []byte("marker"), 0o644); err != nil {
+	if err := os.WriteFile(markerFile, []byte("marker"), 0o600); err != nil {
 		t.Fatalf("failed to write marker file: %v", err)
 	}
 
@@ -1650,11 +1897,11 @@ This is a rule from a local directory without protocol.
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, ".agents", "tasks")
 
-	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+	if err := os.MkdirAll(tasksDir, 0o750); err != nil {
 		t.Fatalf("failed to create tasks dir: %v", err)
 	}
 
-	createStandardTask(t, tasksDir, "test-task")
+	createStandardTask(t, tasksDir)
 
 	// Run the program with local directory using absolute path (no protocol)
 	output := runTool(t, "-C", tmpDir, "-d", localDir, "test-task")
@@ -1663,6 +1910,7 @@ This is a rule from a local directory without protocol.
 	if !strings.Contains(output, "# Local Rule") {
 		t.Errorf("local rule content not found in stdout")
 	}
+
 	if !strings.Contains(output, "This is a rule from a local directory without protocol") {
 		t.Errorf("local rule description not found in stdout")
 	}
@@ -1689,6 +1937,8 @@ This is a rule from a local directory without protocol.
 // TestTaskWithEmptyContent verifies that tasks with only frontmatter
 // and empty or whitespace-only content are handled gracefully.
 func TestTaskWithEmptyContent(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		taskName    string
@@ -1735,12 +1985,13 @@ task_name: whitespace-task
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dirs := setupTestDirs(t)
 
 			// Create task file with empty or whitespace content
 			// Use the task name in the filename
 			taskFile := filepath.Join(dirs.tasksDir, tt.taskName+".md")
-			if err := os.WriteFile(taskFile, []byte(tt.taskContent), 0o644); err != nil {
+			if err := os.WriteFile(taskFile, []byte(tt.taskContent), 0o600); err != nil {
 				t.Fatalf("failed to write task file: %v", err)
 			}
 

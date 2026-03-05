@@ -186,6 +186,24 @@ coding-context implement-feature
 
 The frontmatter (with `selectors`, `languages`, etc.) is parsed and used to filter rules and control behavior, but it does not appear in the final output sent to the AI agent.
 
+## Namespaced Tasks
+
+If your project uses namespaces (multiple teams sharing `.agents/`), create team-specific tasks under `.agents/namespaces/<team>/tasks/`:
+
+```
+.agents/namespaces/myteam/tasks/build.md
+```
+
+Invoke with the `team/task` format:
+
+```bash
+coding-context myteam/build
+```
+
+If the task file doesn't exist in the namespace directory, the tool automatically falls back to `.agents/tasks/build.md`.
+
+See [How to Use Namespaces](./use-namespaces) for a full guide including rules, commands, and skills.
+
 ## Best Practices
 
 1. **Use descriptive task names**: Make them clear and specific

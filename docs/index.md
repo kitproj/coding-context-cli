@@ -40,6 +40,7 @@ Practical guides to solve specific problems:
 - [Create Rule Files](./how-to/create-rules) - Provide reusable context
 - [Create Skills](./how-to/create-skills) - Organize specialized capabilities
 - [Use Frontmatter Selectors](./how-to/use-selectors) - Filter rules and tasks
+- [Use Namespaces](./how-to/use-namespaces) - Isolate team assets in a shared repository
 - [Use Remote Directories](./how-to/use-remote-directories) - Load rules from Git, HTTP, or S3
 - [Use with AI Agents](./how-to/use-with-ai-agents) - Integrate with various AI tools
 - [Integrate with GitHub Actions](./how-to/github-actions) - Automate with CI/CD
@@ -72,6 +73,7 @@ Conceptual guides to deepen your understanding:
 - **Task-Specific Prompts**: Different prompts for different tasks
 - **Rule-Based Context**: Reusable context snippets
 - **Skills System**: Progressive disclosure of specialized capabilities
+- **Namespaces**: Isolate multiple teams' assets in a shared `.agents/` directory
 - **Frontmatter Filtering**: Select rules based on metadata
 - **Bootstrap Scripts**: Fetch or generate context dynamically
 - **Parameter Substitution**: Inject runtime values

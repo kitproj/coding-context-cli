@@ -4,12 +4,12 @@ name: Example Task with Standard Frontmatter Fields
 description: This task demonstrates all standard frontmatter fields supported by the coding-context CLI
 task_name: example-with-standard-fields
 agent: cursor
-language: go
 model: anthropic.claude-sonnet-4-20250514-v1-0
 single_shot: false
 timeout: 10m
 selectors:
   stage: implementation
+  language: go
 ---
 
 # Example Task with Standard Frontmatter Fields
@@ -31,7 +31,6 @@ These fields are metadata only and do not affect task matching or filtering.
 These fields automatically filter rules when present in task frontmatter:
 
 - **agent**: `cursor` - Only includes rules with `agent: cursor` (or no agent field)
-- **language**: `go` - Only includes rules with `language: go` (or no language field)
 
 ## Standard Fields (Metadata Only)
 
@@ -43,16 +42,17 @@ These fields are stored in frontmatter and passed through to output, but do NOT 
 
 ## Custom Selectors
 
-Additional filtering criteria beyond the standard fields:
+Additional filtering criteria specified in the `selectors:` map:
 
 - **selectors.stage**: `implementation` - Only includes rules with `stage: implementation`
+- **selectors.language**: `go` - Only includes rules with `language: go`
 
 ## How Filtering Works
 
 When this task runs, rules are included if they match ALL of the following:
 1. `agent: cursor` OR no agent field
-2. `language: go` OR no language field  
-3. `stage: implementation` OR no stage field
+2. `stage: implementation` OR no stage field
+3. `language: go` OR no language field
 4. `task_name: example-with-standard-fields` OR no task_name field
 
 Rules without any selectors are always included (generic rules).
@@ -60,7 +60,7 @@ Rules without any selectors are always included (generic rules).
 ## Usage
 
 ```bash
-coding-context-cli example-with-standard-fields
+coding-context example-with-standard-fields
 ```
 
 The output will include:

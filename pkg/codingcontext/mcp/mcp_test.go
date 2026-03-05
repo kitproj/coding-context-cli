@@ -4,10 +4,53 @@ import (
 	"encoding/json"
 	"testing"
 
-	"gopkg.in/yaml.v3"
+	yaml "github.com/goccy/go-yaml"
 )
 
+// assertMCPConfig checks common MCPServerConfig fields against expected values.
+func assertMCPConfig(t *testing.T, got, want MCPServerConfig, err error, wantErr bool) {
+	t.Helper()
+
+	if (err != nil) != wantErr {
+		t.Errorf("Unmarshal() error = %v, wantErr %v", err, wantErr)
+
+		return
+	}
+
+	if got.Type != want.Type {
+		t.Errorf("Type = %v, want %v", got.Type, want.Type)
+	}
+
+	if got.Command != want.Command {
+		t.Errorf("Command = %v, want %v", got.Command, want.Command)
+	}
+
+	if got.URL != want.URL {
+		t.Errorf("URL = %v, want %v", got.URL, want.URL)
+	}
+
+	for key := range want.Content {
+		if _, exists := got.Content[key]; !exists {
+			t.Errorf("Content missing key %q", key)
+		}
+	}
+}
+
+// requireConfig retrieves a named config from MCPServerConfigs or fails the test.
+func requireConfig(t *testing.T, configs MCPServerConfigs, name string) MCPServerConfig {
+	t.Helper()
+
+	cfg, ok := configs[name]
+	if !ok {
+		t.Fatalf("%s config not found", name)
+	}
+
+	return cfg
+}
+
 func TestMCPServerConfig_YAML_ArbitraryFields(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		yaml    string
@@ -94,36 +137,20 @@ python_version: "3.11"
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			var got MCPServerConfig
+
 			err := yaml.Unmarshal([]byte(tt.yaml), &got)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Unmarshal() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			// Compare standard fields
-			if got.Type != tt.want.Type {
-				t.Errorf("Type = %v, want %v", got.Type, tt.want.Type)
-			}
-			if got.Command != tt.want.Command {
-				t.Errorf("Command = %v, want %v", got.Command, tt.want.Command)
-			}
-			if got.URL != tt.want.URL {
-				t.Errorf("URL = %v, want %v", got.URL, tt.want.URL)
-			}
-
-			// Compare Content map - at least verify keys exist
-			for key := range tt.want.Content {
-				if _, exists := got.Content[key]; !exists {
-					t.Errorf("Content missing key %q", key)
-				}
-			}
+			assertMCPConfig(t, got, tt.want, err, tt.wantErr)
 		})
 	}
 }
 
 func TestMCPServerConfig_JSON_ArbitraryFields(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		json    string
@@ -187,36 +214,20 @@ func TestMCPServerConfig_JSON_ArbitraryFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			var got MCPServerConfig
+
 			err := json.Unmarshal([]byte(tt.json), &got)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Unmarshal() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			// Compare standard fields
-			if got.Type != tt.want.Type {
-				t.Errorf("Type = %v, want %v", got.Type, tt.want.Type)
-			}
-			if got.Command != tt.want.Command {
-				t.Errorf("Command = %v, want %v", got.Command, tt.want.Command)
-			}
-			if got.URL != tt.want.URL {
-				t.Errorf("URL = %v, want %v", got.URL, tt.want.URL)
-			}
-
-			// Compare Content map - at least verify keys exist
-			for key := range tt.want.Content {
-				if _, exists := got.Content[key]; !exists {
-					t.Errorf("Content missing key %q", key)
-				}
-			}
+			assertMCPConfig(t, got, tt.want, err, tt.wantErr)
 		})
 	}
 }
 
 func TestMCPServerConfig_Marshal_YAML(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		config MCPServerConfig
@@ -243,6 +254,8 @@ func TestMCPServerConfig_Marshal_YAML(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			data, err := yaml.Marshal(&tt.config)
 			if err != nil {
 				t.Fatalf("Marshal() error = %v", err)
@@ -258,6 +271,7 @@ func TestMCPServerConfig_Marshal_YAML(t *testing.T) {
 			if got.Type != tt.config.Type {
 				t.Errorf("Type = %v, want %v", got.Type, tt.config.Type)
 			}
+
 			if got.Command != tt.config.Command {
 				t.Errorf("Command = %v, want %v", got.Command, tt.config.Command)
 			}
@@ -266,6 +280,8 @@ func TestMCPServerConfig_Marshal_YAML(t *testing.T) {
 }
 
 func TestMCPServerConfigs_WithArbitraryFields(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `
 filesystem:
   type: stdio
@@ -282,6 +298,7 @@ api:
 `
 
 	var configs MCPServerConfigs
+
 	err := yaml.Unmarshal([]byte(yamlContent), &configs)
 	if err != nil {
 		t.Fatalf("Unmarshal() error = %v", err)
@@ -291,47 +308,137 @@ api:
 		t.Errorf("Expected 3 configs, got %d", len(configs))
 	}
 
-	// Check filesystem config
-	if fs, ok := configs["filesystem"]; ok {
-		if fs.Type != TransportTypeStdio {
-			t.Errorf("filesystem.Type = %v, want %v", fs.Type, TransportTypeStdio)
-		}
-		if fs.Command != "filesystem" {
-			t.Errorf("filesystem.Command = %v, want %v", fs.Command, "filesystem")
-		}
-		if fs.Content["cache_enabled"] != true {
-			t.Errorf("filesystem.Content[cache_enabled] = %v, want true", fs.Content["cache_enabled"])
-		}
-	} else {
-		t.Error("filesystem config not found")
+	checkFilesystemConfig(t, configs)
+	checkGitConfig(t, configs)
+	checkAPIConfig(t, configs)
+}
+
+func checkFilesystemConfig(t *testing.T, configs MCPServerConfigs) {
+	t.Helper()
+
+	fs := requireConfig(t, configs, "filesystem")
+
+	if fs.Type != TransportTypeStdio {
+		t.Errorf("filesystem.Type = %v, want %v", fs.Type, TransportTypeStdio)
 	}
 
-	// Check git config
-	if git, ok := configs["git"]; ok {
-		if git.Type != TransportTypeStdio {
-			t.Errorf("git.Type = %v, want %v", git.Type, TransportTypeStdio)
-		}
-		// Verify custom field exists
-		if _, exists := git.Content["max_depth"]; !exists {
-			t.Error("git.Content[max_depth] not found")
-		}
-	} else {
-		t.Error("git config not found")
+	if fs.Command != "filesystem" {
+		t.Errorf("filesystem.Command = %v, want %v", fs.Command, "filesystem")
 	}
 
-	// Check api config
-	if api, ok := configs["api"]; ok {
-		if api.Type != TransportTypeHTTP {
-			t.Errorf("api.Type = %v, want %v", api.Type, TransportTypeHTTP)
-		}
-		if api.URL != "https://api.example.com" {
-			t.Errorf("api.URL = %v, want %v", api.URL, "https://api.example.com")
-		}
-		// Verify custom field exists
-		if _, exists := api.Content["rate_limit"]; !exists {
-			t.Error("api.Content[rate_limit] not found")
-		}
-	} else {
-		t.Error("api config not found")
+	if fs.Content["cache_enabled"] != true {
+		t.Errorf("filesystem.Content[cache_enabled] = %v, want true", fs.Content["cache_enabled"])
+	}
+}
+
+func checkGitConfig(t *testing.T, configs MCPServerConfigs) {
+	t.Helper()
+
+	git := requireConfig(t, configs, "git")
+
+	if git.Type != TransportTypeStdio {
+		t.Errorf("git.Type = %v, want %v", git.Type, TransportTypeStdio)
+	}
+
+	if _, exists := git.Content["max_depth"]; !exists {
+		t.Error("git.Content[max_depth] not found")
+	}
+}
+
+func checkAPIConfig(t *testing.T, configs MCPServerConfigs) {
+	t.Helper()
+
+	api := requireConfig(t, configs, "api")
+
+	if api.Type != TransportTypeHTTP {
+		t.Errorf("api.Type = %v, want %v", api.Type, TransportTypeHTTP)
+	}
+
+	if api.URL != "https://api.example.com" {
+		t.Errorf("api.URL = %v, want %v", api.URL, "https://api.example.com")
+	}
+
+	if _, exists := api.Content["rate_limit"]; !exists {
+		t.Error("api.Content[rate_limit] not found")
+	}
+}
+
+func TestMCPServerConfig_JSON_EdgeCases(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    string
+		wantErr  bool
+		validate func(t *testing.T, cfg MCPServerConfig)
+	}{
+		{
+			name:  "empty JSON object gives zero-value struct",
+			input: `{}`,
+			validate: func(t *testing.T, cfg MCPServerConfig) {
+				t.Helper()
+
+				if cfg.Type != "" {
+					t.Errorf("Type = %q, want empty", cfg.Type)
+				}
+
+				if cfg.Command != "" {
+					t.Errorf("Command = %q, want empty", cfg.Command)
+				}
+
+				if cfg.Content == nil {
+					t.Error("Content should be non-nil empty map for {}")
+				}
+			},
+		},
+		{
+			name:  "only unknown fields go to Content map",
+			input: `{"foo": "bar", "num": 42, "flag": true}`,
+			validate: func(t *testing.T, cfg MCPServerConfig) {
+				t.Helper()
+
+				if cfg.Type != "" {
+					t.Errorf("Type = %q, want empty", cfg.Type)
+				}
+
+				if cfg.Content == nil {
+					t.Fatal("Content should not be nil")
+				}
+
+				if cfg.Content["foo"] != "bar" {
+					t.Errorf("Content[foo] = %v, want bar", cfg.Content["foo"])
+				}
+
+				if cfg.Content["num"] != float64(42) {
+					t.Errorf("Content[num] = %v, want 42", cfg.Content["num"])
+				}
+
+				if cfg.Content["flag"] != true {
+					t.Errorf("Content[flag] = %v, want true", cfg.Content["flag"])
+				}
+			},
+		},
+		{
+			name:    "invalid JSON returns error",
+			input:   `{not valid`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var cfg MCPServerConfig
+
+			err := json.Unmarshal([]byte(tt.input), &cfg)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if err == nil && tt.validate != nil {
+				tt.validate(t, cfg)
+			}
+		})
 	}
 }

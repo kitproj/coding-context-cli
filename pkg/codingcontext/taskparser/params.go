@@ -9,20 +9,20 @@ import (
 )
 
 const (
-	// ArgumentsKey is the key used to store positional arguments in Params
+	// ArgumentsKey is the key used to store positional arguments in Params.
 	ArgumentsKey = "ARGUMENTS"
 )
 
 var (
-	// ErrEmptyKey is returned when a parameter key is empty
+	// ErrEmptyKey is returned when a parameter key is empty.
 	ErrEmptyKey = errors.New("empty key in parameter")
-	// ErrInvalidEscapeSequence is returned when an escape sequence is invalid
+	// ErrInvalidEscapeSequence is returned when an escape sequence is invalid.
 	ErrInvalidEscapeSequence = errors.New("invalid escape sequence")
-	// ErrInvalidFormat is returned when the input format is invalid
+	// ErrInvalidFormat is returned when the input format is invalid.
 	ErrInvalidFormat = errors.New("invalid parameter format: missing '='")
-	// ErrMismatchedQuotes is returned when quotes don't match
+	// ErrMismatchedQuotes is returned when quotes don't match.
 	ErrMismatchedQuotes = errors.New("mismatched quote types")
-	// ErrUnclosedQuote is returned when a quoted string is not properly closed
+	// ErrUnclosedQuote is returned when a quoted string is not properly closed.
 	ErrUnclosedQuote = errors.New("unclosed quote")
 )
 
@@ -159,14 +159,14 @@ func ParseParams(value string) (Params, error) {
 	// Parse using Participle
 	input, err := paramsParser().ParseString("", value)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse params: %w", err)
 	}
 
 	// Convert parsed structure to Params map
 	return convertToParams(input)
 }
 
-// convertToParams converts the parsed AST to Params map
+// convertToParams converts the parsed AST to Params map.
 func convertToParams(input *ParamsInput) (Params, error) {
 	params := make(Params)
 
@@ -178,31 +178,10 @@ func convertToParams(input *ParamsInput) (Params, error) {
 
 		// Handle named parameters
 		if item.Named != nil {
-			key := strings.ToLower(item.Named.Key)
-			if key == "" {
-				return nil, ErrEmptyKey
+			if err := addNamedParam(params, item.Named); err != nil {
+				return nil, err
 			}
 
-			// Handle empty value (key= vs key="")
-			if item.Named.Value == nil {
-				// Empty unquoted value: key=
-				if params[key] == nil {
-					params[key] = []string{}
-				}
-			} else {
-				value, wasQuoted, err := extractValue(item.Named.Value)
-				if err != nil {
-					return nil, err
-				}
-
-				// Add value if quoted (even if empty) or non-empty
-				if wasQuoted || value != "" {
-					params[key] = append(params[key], value)
-				} else if params[key] == nil {
-					// Empty unquoted value
-					params[key] = []string{}
-				}
-			}
 			continue
 		}
 
@@ -212,9 +191,7 @@ func convertToParams(input *ParamsInput) (Params, error) {
 			if err != nil {
 				return nil, err
 			}
-			if params[ArgumentsKey] == nil {
-				params[ArgumentsKey] = []string{}
-			}
+
 			params[ArgumentsKey] = append(params[ArgumentsKey], value)
 		}
 	}
@@ -222,20 +199,52 @@ func convertToParams(input *ParamsInput) (Params, error) {
 	return params, nil
 }
 
+// addNamedParam adds a named parameter to the params map.
+func addNamedParam(params Params, named *NamedParam) error {
+	key := strings.ToLower(named.Key)
+	if key == "" {
+		return ErrEmptyKey
+	}
+
+	if named.Value == nil {
+		if params[key] == nil {
+			params[key] = []string{}
+		}
+
+		return nil
+	}
+
+	value, wasQuoted, err := extractValue(named.Value)
+	if err != nil {
+		return err
+	}
+
+	if wasQuoted || value != "" {
+		params[key] = append(params[key], value)
+	} else if params[key] == nil {
+		params[key] = []string{}
+	}
+
+	return nil
+}
+
 // extractValue extracts the string value from a Value node
-// Returns the value, whether it was quoted, and any error
+// Returns the value, whether it was quoted, and any error.
 func extractValue(val *Value) (string, bool, error) {
 	raw := val.Raw
 
-	// Check if it's a quoted string
-	if len(raw) >= 2 {
+	// Check if it's a quoted string (need at least 2 chars for open/close quote)
+	const minQuotedLen = 2
+	if len(raw) >= minQuotedLen {
 		if (raw[0] == '"' && raw[len(raw)-1] == '"') || (raw[0] == '\'' && raw[len(raw)-1] == '\'') {
 			// Quoted value - extract content and process escapes
 			content := raw[1 : len(raw)-1]
+
 			processed, err := processEscapes(content)
 			if err != nil {
 				return "", true, err
 			}
+
 			return strings.TrimSpace(processed), true, nil
 		}
 	}
@@ -245,10 +254,11 @@ func extractValue(val *Value) (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
+
 	return strings.TrimSpace(processed), false, nil
 }
 
-// processEscapes processes all escape sequences in a string
+// processEscapes processes all escape sequences in a string.
 func processEscapes(s string) (string, error) {
 	if !strings.Contains(s, "\\") {
 		// Fast path: no escapes
@@ -256,91 +266,141 @@ func processEscapes(s string) (string, error) {
 	}
 
 	var result strings.Builder
-	result.Grow(len(s)) // Pre-allocate
+
+	result.Grow(len(s))
 
 	for i := 0; i < len(s); i++ {
 		if s[i] != '\\' {
 			result.WriteByte(s[i])
+
 			continue
 		}
 
-		// Handle escape sequence
 		if i+1 >= len(s) {
 			// Incomplete escape at end - treat as literal backslash
 			result.WriteByte('\\')
+
 			continue
 		}
 
-		next := s[i+1]
-		switch next {
-		case 'n':
-			result.WriteByte('\n')
-			i++
-		case 't':
-			result.WriteByte('\t')
-			i++
-		case 'r':
-			result.WriteByte('\r')
-			i++
-		case '\\':
-			result.WriteByte('\\')
-			i++
-		case '"':
-			result.WriteByte('"')
-			i++
-		case '\'':
-			result.WriteByte('\'')
-			i++
-		case 'u':
-			// Unicode escape: \uXXXX
-			if i+5 < len(s) {
-				hex := s[i+2 : i+6]
-				val, err := strconv.ParseUint(hex, 16, 16)
-				if err != nil {
-					return "", fmt.Errorf("%w: \\u%s", ErrInvalidEscapeSequence, hex)
-				}
-				result.WriteRune(rune(val))
-				i += 5
-			} else {
-				return "", fmt.Errorf("%w: incomplete \\u escape", ErrInvalidEscapeSequence)
-			}
-		case 'x':
-			// Hex escape: \xHH
-			if i+3 < len(s) {
-				hex := s[i+2 : i+4]
-				val, err := strconv.ParseUint(hex, 16, 8)
-				if err != nil {
-					return "", fmt.Errorf("%w: \\x%s", ErrInvalidEscapeSequence, hex)
-				}
-				result.WriteByte(byte(val))
-				i += 3
-			} else {
-				return "", fmt.Errorf("%w: incomplete \\x escape", ErrInvalidEscapeSequence)
-			}
-		case '0', '1', '2', '3', '4', '5', '6', '7':
-			// Octal escape: \OOO (1-3 digits)
-			end := i + 2
-			for end < len(s) && end < i+4 && s[end] >= '0' && s[end] <= '7' {
-				end++
-			}
-			octal := s[i+1 : end]
-			val, err := strconv.ParseUint(octal, 8, 8)
-			if err != nil {
-				return "", fmt.Errorf("%w: \\%s", ErrInvalidEscapeSequence, octal)
-			}
-			result.WriteByte(byte(val))
-			i = end - 1
-		default:
-			// Any other escape - return the character after backslash
-			result.WriteByte(next)
-			i++
+		advance, err := writeEscapeChar(&result, s, i)
+		if err != nil {
+			return "", err
 		}
+
+		i += advance
 	}
 
 	return result.String(), nil
 }
 
-// validateQuotes checks if all quoted strings in the input are properly closed
+// writeEscapeChar writes the character for the escape sequence at s[i] to result.
+// i points to the backslash; returns the index advance (not counting the backslash itself).
+func writeEscapeChar(result *strings.Builder, s string, i int) (int, error) {
+	next := s[i+1]
+
+	// simpleEscapes maps single-character escape sequences to their byte values.
+	simpleEscapes := map[byte]byte{
+		'n':  '\n',
+		't':  '\t',
+		'r':  '\r',
+		'\\': '\\',
+		'"':  '"',
+		'\'': '\'',
+	}
+
+	if b, ok := simpleEscapes[next]; ok {
+		result.WriteByte(b)
+
+		return 1, nil
+	}
+
+	switch next {
+	case 'u':
+		return processUnicodeEscape(result, s, i)
+	case 'x':
+		return processHexEscape(result, s, i)
+	case '0', '1', '2', '3', '4', '5', '6', '7':
+		return processOctalEscape(result, s, i)
+	default:
+		// Any other escape - use the character after backslash literally
+		result.WriteByte(next)
+
+		return 1, nil
+	}
+}
+
+// processUnicodeEscape handles \uXXXX escape sequences.
+// Returns the index advance past the full escape sequence.
+func processUnicodeEscape(result *strings.Builder, s string, i int) (int, error) {
+	const unicodeEscapeLen = 6 // \uXXXX: backslash + 'u' + 4 hex digits
+
+	const unicodeAdvance = unicodeEscapeLen - 1 // advance past 'u' + 4 hex digits
+
+	if i+unicodeEscapeLen > len(s) {
+		return 0, fmt.Errorf("%w: incomplete \\u escape", ErrInvalidEscapeSequence)
+	}
+
+	hex := s[i+2 : i+6]
+
+	val, err := strconv.ParseUint(hex, 16, 16)
+	if err != nil {
+		return 0, fmt.Errorf("%w: \\u%s", ErrInvalidEscapeSequence, hex)
+	}
+
+	result.WriteRune(rune(val))
+
+	return unicodeAdvance, nil
+}
+
+// processHexEscape handles \xHH escape sequences.
+// Returns the index advance past the full escape sequence.
+func processHexEscape(result *strings.Builder, s string, i int) (int, error) {
+	const hexEscapeLen = 4 // \xHH: backslash + 'x' + 2 hex digits
+
+	const hexAdvance = hexEscapeLen - 1 // advance past 'x' + 2 hex digits
+
+	if i+hexEscapeLen > len(s) {
+		return 0, fmt.Errorf("%w: incomplete \\x escape", ErrInvalidEscapeSequence)
+	}
+
+	hex := s[i+2 : i+4]
+
+	val, err := strconv.ParseUint(hex, 16, 8)
+	if err != nil {
+		return 0, fmt.Errorf("%w: \\x%s", ErrInvalidEscapeSequence, hex)
+	}
+
+	result.WriteByte(byte(val))
+
+	return hexAdvance, nil
+}
+
+// processOctalEscape handles \OOO escape sequences (1-3 octal digits).
+// Returns the index advance past the full escape sequence.
+func processOctalEscape(result *strings.Builder, s string, i int) (int, error) {
+	const octalStartOffset = 2
+
+	const maxOctalDigits = 3
+
+	end := i + octalStartOffset
+	for end < len(s) && end < i+1+maxOctalDigits && s[end] >= '0' && s[end] <= '7' {
+		end++
+	}
+
+	octal := s[i+1 : end]
+
+	val, err := strconv.ParseUint(octal, 8, 8)
+	if err != nil {
+		return 0, fmt.Errorf("%w: \\%s", ErrInvalidEscapeSequence, octal)
+	}
+
+	result.WriteByte(byte(val))
+
+	return end - i - 1, nil
+}
+
+// validateQuotes checks if all quoted strings in the input are properly closed.
 func validateQuotes(input string) error {
 	inDoubleQuote := false
 	inSingleQuote := false
@@ -349,11 +409,13 @@ func validateQuotes(input string) error {
 	for _, r := range input {
 		if escapeNext {
 			escapeNext = false
+
 			continue
 		}
 
 		if r == '\\' {
 			escapeNext = true
+
 			continue
 		}
 
@@ -371,6 +433,7 @@ func validateQuotes(input string) error {
 	return nil
 }
 
+// Set parses and merges key=value parameters from the given string into the Params.
 func (p Params) Set(value string) error {
 	// Auto-quote values that need quoting for better CLI UX
 	quotedValue := autoQuoteParamValue(value)
@@ -407,20 +470,22 @@ func autoQuoteParamValue(input string) string {
 	return input
 }
 
-// needsQuoting checks if a value contains characters that require quoting
+// charsRequiringQuote is the set of runes that require a value to be quoted.
+const charsRequiringQuote = " \t\n\r,=\"'\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005" +
+	"\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000"
+
+// needsQuoting checks if a value contains characters that require quoting.
 func needsQuoting(value string) bool {
 	if value == "" {
 		return false
 	}
 
-	unicodeWhitespace := "\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000"
 	for _, r := range value {
-		if r == ' ' || r == '\t' || r == '\n' || r == '\r' ||
-			r == ',' || r == '=' || r == '"' || r == '\'' ||
-			strings.ContainsRune(unicodeWhitespace, r) {
+		if strings.ContainsRune(charsRequiringQuote, r) {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -441,21 +506,26 @@ func (p Params) Value(key string) string {
 	if p == nil {
 		return ""
 	}
+
 	values := p[strings.ToLower(key)]
 	if len(values) == 0 {
 		return ""
 	}
+
 	return values[0]
 }
 
+// Lookup returns the first value for the given key, or empty string and false if not found.
 func (p Params) Lookup(key string) (string, bool) {
 	if p == nil {
 		return "", false
 	}
+
 	values := p[strings.ToLower(key)]
 	if len(values) == 0 {
 		return "", false
 	}
+
 	return values[0], true
 }
 
@@ -465,6 +535,7 @@ func (p Params) Values(key string) []string {
 	if p == nil {
 		return nil
 	}
+
 	return p[strings.ToLower(key)]
 }
 
@@ -475,5 +546,6 @@ func (p Params) Arguments() []string {
 	if p == nil {
 		return nil
 	}
+
 	return p[ArgumentsKey]
 }

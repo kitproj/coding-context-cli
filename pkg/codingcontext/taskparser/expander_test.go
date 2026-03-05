@@ -11,6 +11,8 @@ import (
 )
 
 func TestExpandParameters(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		params   taskparser.Params
@@ -81,10 +83,13 @@ func TestExpandParameters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result, err := tt.params.Expand(tt.content)
 			if err != nil {
 				t.Errorf("expand() = %v, want nil", err)
 			}
+
 			if result != tt.expected {
 				t.Errorf("expand() = %q, want %q", result, tt.expected)
 			}
@@ -93,6 +98,8 @@ func TestExpandParameters(t *testing.T) {
 }
 
 func TestExpandCommands(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		content  string
@@ -163,8 +170,11 @@ func TestExpandCommands(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result, err := (taskparser.Params{}).Expand(tt.content)
 			require.NoError(t, err)
+
 			if tt.contains != "" {
 				if !strings.Contains(result, tt.contains) {
 					t.Errorf("expand() = %q, should contain %q", result, tt.contains)
@@ -179,22 +189,23 @@ func TestExpandCommands(t *testing.T) {
 }
 
 func TestExpandPaths(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 
 	// Create test files
 	testFile1 := filepath.Join(tmpDir, "test1.txt")
-	if err := os.WriteFile(testFile1, []byte("content1"), 0o644); err != nil {
+	if err := os.WriteFile(testFile1, []byte("content1"), 0o600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
 	testFile2 := filepath.Join(tmpDir, "test2.txt")
-	if err := os.WriteFile(testFile2, []byte("content2"), 0o644); err != nil {
+	if err := os.WriteFile(testFile2, []byte("content2"), 0o600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
 	testFileWithSpace := filepath.Join(tmpDir, "test file.txt")
-	if err := os.WriteFile(testFileWithSpace, []byte("spaced content"), 0o644); err != nil {
+	if err := os.WriteFile(testFileWithSpace, []byte("spaced content"), 0o600); err != nil {
 		t.Fatalf("failed to create test file with space: %v", err)
 	}
 
@@ -262,8 +273,11 @@ func TestExpandPaths(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result, err := (taskparser.Params{}).Expand(tt.content)
 			require.NoError(t, err)
+
 			if result != tt.expected {
 				t.Errorf("expand() = %q, want %q", result, tt.expected)
 			}
@@ -272,11 +286,12 @@ func TestExpandPaths(t *testing.T) {
 }
 
 func TestExpandCombined(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 
 	testFile := filepath.Join(tmpDir, "data.txt")
-	if err := os.WriteFile(testFile, []byte("file-${param}"), 0o644); err != nil {
+	if err := os.WriteFile(testFile, []byte("file-${param}"), 0o600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -320,8 +335,11 @@ func TestExpandCombined(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result, err := tt.params.Expand(tt.content)
 			require.NoError(t, err)
+
 			if result != tt.expected {
 				t.Errorf("expand() = %q, want %q", result, tt.expected)
 			}
@@ -330,12 +348,14 @@ func TestExpandCombined(t *testing.T) {
 }
 
 func TestExpandBasic(t *testing.T) {
+	t.Parallel()
 	// Test basic expansion functionality
 	content := "Hello ${name}!"
 	params := taskparser.Params{"name": []string{"World"}}
 
 	result, err := params.Expand(content)
 	require.NoError(t, err)
+
 	expected := "Hello World!"
 	if result != expected {
 		t.Errorf("expand() = %q, want %q", result, expected)
@@ -343,6 +363,8 @@ func TestExpandBasic(t *testing.T) {
 }
 
 func TestValidatePath(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		path    string
@@ -382,6 +404,8 @@ func TestValidatePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			err := taskparser.ValidatePath(tt.path)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validatePath() error = %v, wantErr %v", err, tt.wantErr)
@@ -390,7 +414,122 @@ func TestValidatePath(t *testing.T) {
 	}
 }
 
+func TestExpandWithSkipCommands(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		params   taskparser.Params
+		content  string
+		expected string
+	}{
+		{
+			name:     "command preserved as literal",
+			params:   taskparser.Params{},
+			content:  "Output: !`echo hello`",
+			expected: "Output: !`echo hello`",
+		},
+		{
+			name:     "parameter expansion still works",
+			params:   taskparser.Params{"name": []string{"World"}},
+			content:  "Hello ${name}! !`echo cmd`",
+			expected: "Hello World! !`echo cmd`",
+		},
+		{
+			name:     "multiple commands all preserved",
+			params:   taskparser.Params{},
+			content:  "!`echo foo` and !`echo bar`",
+			expected: "!`echo foo` and !`echo bar`",
+		},
+		{
+			name:     "no command - content unchanged",
+			params:   taskparser.Params{},
+			content:  "plain text",
+			expected: "plain text",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result, err := tt.params.ExpandWith(tt.content, taskparser.ExpandOptions{SkipCommands: true})
+			require.NoError(t, err)
+
+			if result != tt.expected {
+				t.Errorf("ExpandWith(SkipCommands=true) = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExpandWithPathRefs(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("file content"), 0o600); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	testFile2 := filepath.Join(tmpDir, "test2.txt")
+	if err := os.WriteFile(testFile2, []byte("file2 content"), 0o600); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	t.Run("resolved path appended to PathRefs", func(t *testing.T) {
+		t.Parallel()
+
+		var pathRefs []string
+
+		result, err := (taskparser.Params{}).ExpandWith("@"+testFile, taskparser.ExpandOptions{PathRefs: &pathRefs})
+		require.NoError(t, err)
+		require.Equal(t, "file content", result)
+		require.Len(t, pathRefs, 1)
+
+		if !strings.HasSuffix(pathRefs[0], "test.txt") {
+			t.Errorf("PathRefs[0] = %q, expected suffix test.txt", pathRefs[0])
+		}
+	})
+
+	t.Run("missing file not added to PathRefs", func(t *testing.T) {
+		t.Parallel()
+
+		var pathRefs []string
+
+		opts := taskparser.ExpandOptions{PathRefs: &pathRefs}
+		result, err := (taskparser.Params{}).ExpandWith("@/nonexistent/file.txt", opts)
+		require.NoError(t, err)
+		require.Equal(t, "@/nonexistent/file.txt", result)
+		require.Empty(t, pathRefs)
+	})
+
+	t.Run("nil PathRefs still expands correctly", func(t *testing.T) {
+		t.Parallel()
+
+		result, err := (taskparser.Params{}).ExpandWith("@"+testFile, taskparser.ExpandOptions{})
+		require.NoError(t, err)
+		require.Equal(t, "file content", result)
+	})
+
+	t.Run("multiple resolved paths all tracked", func(t *testing.T) {
+		t.Parallel()
+
+		var pathRefs []string
+
+		content := "@" + testFile + " and @" + testFile2
+
+		result, err := (taskparser.Params{}).ExpandWith(content, taskparser.ExpandOptions{PathRefs: &pathRefs})
+		require.NoError(t, err)
+		require.Equal(t, "file content and file2 content", result)
+		require.Len(t, pathRefs, 2)
+	})
+}
+
 func TestExpandSecurityNoReExpansion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		params   taskparser.Params
@@ -430,8 +569,11 @@ func TestExpandSecurityNoReExpansion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result, err := tt.params.Expand(tt.content)
 			require.NoError(t, err)
+
 			if result != tt.expected {
 				t.Errorf("Security test failed: %s\nexpand() = %q, want %q", tt.desc, result, tt.expected)
 			}
