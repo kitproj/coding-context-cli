@@ -344,6 +344,10 @@ Skills metadata (when present) is output as XML after rules and before the task 
 ```markdown
 # Rule content here...
 
+# Skills
+
+You have access to the following skills. Skills are specialized capabilities that provide domain expertise, workflows, and procedural knowledge. When a task matches a skill's description, you can load the full skill content by reading the SKILL.md file at the location provided.
+
 <available_skills>
   <skill>
     <name>data-analysis</name>

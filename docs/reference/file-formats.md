@@ -1251,7 +1251,7 @@ If multiple task files have the same filename (without `.md` extension) in diffe
 
 ### Rules Without Frontmatter
 
-Rules without frontmatter are always included (unless resume mode is active).
+Rules without frontmatter are always included (unless filtered out by selectors or `--skip-bootstrap`).
 
 ```markdown
 # General Standards
@@ -1263,15 +1263,18 @@ This rule is included in every context assembly.
 
 ### Resume Mode Special Handling
 
-The `-r` flag:
-1. Skips all rule file output
-2. Adds implicit `-s resume=true` selector
+The `-r` flag adds an implicit `-s resume=true` selector to filter tasks by their `resume` frontmatter field. It does **not** skip rule discovery or bootstrap scripts.
+
+To skip rules and bootstrap, use `--skip-bootstrap`.
 
 **Equivalent commands:**
 ```bash
-# These are NOT exactly equivalent:
-coding-context -r fix-bug                    # Skips rules
-coding-context -s resume=true fix-bug        # Includes rules
+# These ARE equivalent (both include rules):
+coding-context -r fix-bug
+coding-context -s resume=true fix-bug
+
+# To skip rules, use --skip-bootstrap (independent of -r):
+coding-context -r --skip-bootstrap fix-bug
 ```
 
 ## Validation

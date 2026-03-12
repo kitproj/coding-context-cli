@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -16,35 +17,137 @@ import (
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparser"
 )
 
+var (
+	errInvalidUsage         = errors.New("invalid usage: expected one task name argument and optional user-prompt")
+	errWriteRulesNoAgent    = errors.New("-w flag requires an agent to be specified (via task 'agent' field or -a flag)")
+	errNoUserRulePath       = errors.New("no user rule path available for agent")
+	errRulesPathEscapesHome = errors.New("rules path escapes home directory")
+)
+
+type cliConfig struct {
+	workDir       string
+	resume        bool
+	skipBootstrap bool
+	writeRules    bool
+	agent         codingcontext.Agent
+	params        taskparser.Params
+	includes      selectors.Selectors
+	searchPaths   []string
+	manifestURL   string
+	taskName      string
+	userPrompt    string
+}
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
-	var workDir string
-	var resume bool
-	var skipBootstrap bool // When true, skips bootstrap (default false means bootstrap enabled)
-	var writeRules bool
-	var agent codingcontext.Agent
-	params := make(taskparser.Params)
-	includes := make(selectors.Selectors)
-	var searchPaths []string
-	var manifestURL string
+	if err := run(ctx, logger); err != nil {
+		logger.Error("Error", "error", err)
+		cancel()
+		os.Exit(1)
+	}
 
-	flag.StringVar(&workDir, "C", ".", "Change to directory before doing anything.")
-	flag.BoolVar(&resume, "r", false, "Resume mode: set 'resume=true' selector to filter tasks by their frontmatter resume field.")
-	flag.BoolVar(&skipBootstrap, "skip-bootstrap", false, "Skip bootstrap: skip discovering rules, skills, and running bootstrap scripts.")
-	flag.BoolVar(&writeRules, "w", false, "Write rules to the agent's user rules path and only print the prompt to stdout. Requires agent (via task 'agent' field or -a flag).")
-	flag.Var(&agent, "a", "Target agent to use. Required when using -w to write rules to the agent's user rules path. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
-	flag.Var(&params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
-	flag.Var(&includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
-	flag.Func("d", "Directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, file:// etc.).", func(s string) error {
-		searchPaths = append(searchPaths, s)
-		return nil
-	})
-	flag.StringVar(&manifestURL, "m", "", "Go Getter URL to a manifest file containing search paths (one per line). Every line is included as-is.")
+	cancel()
+}
 
+func run(ctx context.Context, logger *slog.Logger) error {
+	cfg, err := parseFlags(logger)
+	if err != nil {
+		return err
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get user home directory: %w", err)
+	}
+
+	cfg.searchPaths = append(cfg.searchPaths, "file://"+cfg.workDir)
+	cfg.searchPaths = append(cfg.searchPaths, "file://"+homeDir)
+
+	cc := codingcontext.New(
+		codingcontext.WithParams(cfg.params),
+		codingcontext.WithSelectors(cfg.includes),
+		codingcontext.WithSearchPaths(cfg.searchPaths...),
+		codingcontext.WithLogger(logger),
+		codingcontext.WithResume(cfg.resume),
+		codingcontext.WithBootstrap(!cfg.skipBootstrap),
+		codingcontext.WithAgent(cfg.agent),
+		codingcontext.WithManifestURL(cfg.manifestURL),
+		codingcontext.WithUserPrompt(cfg.userPrompt),
+	)
+
+	result, err := cc.Run(ctx, cfg.taskName)
+	if err != nil {
+		flag.Usage()
+
+		return fmt.Errorf("%w", err)
+	}
+
+	outputContent, err := buildOutputContent(result, cfg, homeDir, logger)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stdout.Write(append([]byte(outputContent), '\n')); err != nil {
+		return fmt.Errorf("writing output: %w", err)
+	}
+
+	return nil
+}
+
+func buildOutputContent(
+	result *codingcontext.Result, cfg *cliConfig, homeDir string, logger *slog.Logger,
+) (string, error) {
+	if !cfg.writeRules {
+		return result.Prompt, nil
+	}
+
+	if err := writeRulesToAgent(result, homeDir, cfg.skipBootstrap, logger); err != nil {
+		return "", err
+	}
+
+	return result.Task.Content, nil
+}
+
+func parseFlags(logger *slog.Logger) (*cliConfig, error) {
+	cfg := &cliConfig{
+		params:   make(taskparser.Params),
+		includes: make(selectors.Selectors),
+	}
+
+	flag.StringVar(&cfg.workDir, "C", ".", "Change to directory before doing anything.")
+	flag.BoolVar(&cfg.resume, "r", false,
+		"Resume mode: set 'resume=true' selector to filter tasks by their frontmatter resume field.")
+	flag.BoolVar(&cfg.skipBootstrap, "skip-bootstrap", false,
+		"Skip bootstrap: skip discovering rules, skills, and running bootstrap scripts.")
+	flag.BoolVar(&cfg.writeRules, "w", false,
+		"Write rules to the agent's user rules path and only print the prompt to stdout. "+
+			"Requires agent (via task 'agent' field or -a flag).")
+	flag.Var(&cfg.agent, "a",
+		"Target agent to use. Required when using -w to write rules to the agent's user rules path. "+
+			"Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
+	flag.Var(&cfg.params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
+	flag.Var(&cfg.includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
+	flag.Func("d",
+		"Directory containing rules and tasks. Can be specified multiple times. "+
+			"Supports various protocols via go-getter (http://, https://, git::, s3::, file:// etc.).",
+		func(s string) error {
+			cfg.searchPaths = append(cfg.searchPaths, s)
+
+			return nil
+		})
+	flag.StringVar(&cfg.manifestURL, "m", "",
+		"Go Getter URL to a manifest file containing search paths (one per line). Every line is included as-is.")
+
+	setupUsage(logger)
+	flag.Parse()
+
+	return parseFlagArgs(cfg)
+}
+
+func setupUsage(logger *slog.Logger) {
 	flag.Usage = func() {
 		logger.Info("Usage:")
 		logger.Info("  coding-context [options] <task-name> [user-prompt]")
@@ -59,99 +162,79 @@ func main() {
 		logger.Info("Options:")
 		flag.PrintDefaults()
 	}
-	flag.Parse()
+}
 
+func parseFlagArgs(cfg *cliConfig) (*cliConfig, error) {
 	args := flag.Args()
-	if len(args) < 1 || len(args) > 2 {
-		logger.Error("Error", "error", fmt.Errorf("invalid usage: expected one task name argument and optional user-prompt"))
+
+	const maxArgs = 2
+
+	if len(args) < 1 || len(args) > maxArgs {
 		flag.Usage()
-		os.Exit(1)
+
+		return nil, errInvalidUsage
 	}
 
-	taskName := args[0]
-	var userPrompt string
-	if len(args) == 2 {
-		userPrompt = args[1]
+	cfg.taskName = args[0]
+
+	if len(args) == maxArgs {
+		cfg.userPrompt = args[1]
 	}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		logger.Error("Error", "error", fmt.Errorf("failed to get user home directory: %w", err))
-		os.Exit(1)
+	return cfg, nil
+}
+
+func writeRulesToAgent(result *codingcontext.Result, homeDir string, skipBootstrap bool, logger *slog.Logger) error {
+	if !result.Agent.IsSet() {
+		return errWriteRulesNoAgent
 	}
 
-	searchPaths = append(searchPaths, "file://"+workDir)
-	searchPaths = append(searchPaths, "file://"+homeDir)
-
-	cc := codingcontext.New(
-		codingcontext.WithParams(params),
-		codingcontext.WithSelectors(includes),
-		codingcontext.WithSearchPaths(searchPaths...),
-		codingcontext.WithLogger(logger),
-		codingcontext.WithResume(resume),
-		codingcontext.WithBootstrap(!skipBootstrap), // Invert: skipBootstrap=false means bootstrap enabled
-		codingcontext.WithAgent(agent),
-		codingcontext.WithManifestURL(manifestURL),
-		codingcontext.WithUserPrompt(userPrompt),
-	)
-
-	result, err := cc.Run(ctx, taskName)
-	if err != nil {
-		logger.Error("Error", "error", err)
-		flag.Usage()
-		os.Exit(1)
+	if skipBootstrap {
+		return nil
 	}
 
-	// If writeRules flag is set, write rules to UserRulePath and only output task
-	if writeRules {
-		// Get the user rule path from the agent (could be from task or -a flag)
-		if !result.Agent.IsSet() {
-			logger.Error("Error", "error", fmt.Errorf("-w flag requires an agent to be specified (via task 'agent' field or -a flag)"))
-			os.Exit(1)
+	relativePath := result.Agent.UserRulePath()
+	if relativePath == "" {
+		return errNoUserRulePath
+	}
+
+	rulesFile := filepath.Join(homeDir, relativePath)
+	rulesFile = filepath.Clean(rulesFile)
+
+	homeDirAbs := filepath.Clean(homeDir) + string(filepath.Separator)
+	if !strings.HasPrefix(rulesFile, homeDirAbs) && rulesFile != filepath.Clean(homeDir) {
+		return fmt.Errorf("%w: %s", errRulesPathEscapesHome, rulesFile)
+	}
+
+	rulesDir := filepath.Dir(rulesFile)
+
+	const dirMode = 0o750
+
+	// #nosec G703 -- rulesDir is validated to be within homeDir via rulesFile check above
+	if err := os.MkdirAll(rulesDir, dirMode); err != nil {
+		return fmt.Errorf("failed to create rules directory %s: %w", rulesDir, err)
+	}
+
+	var rulesContent strings.Builder
+
+	for i, rule := range result.Rules {
+		if i > 0 {
+			rulesContent.WriteString("\n\n")
 		}
 
-		// Skip writing rules file if bootstrap is disabled since no rules are collected
-		if !skipBootstrap {
-			relativePath := result.Agent.UserRulePath()
-			if relativePath == "" {
-				logger.Error("Error", "error", fmt.Errorf("no user rule path available for agent"))
-				os.Exit(1)
-			}
-
-			// Construct full path by joining with home directory
-			rulesFile := filepath.Join(homeDir, relativePath)
-			rulesDir := filepath.Dir(rulesFile)
-
-			// Create directory if it doesn't exist
-			if err := os.MkdirAll(rulesDir, 0o755); err != nil {
-				logger.Error("Error", "error", fmt.Errorf("failed to create rules directory %s: %w", rulesDir, err))
-				os.Exit(1)
-			}
-
-			// Build rules content, trimming each rule and joining with consistent spacing
-			var rulesContent strings.Builder
-			for i, rule := range result.Rules {
-				if i > 0 {
-					rulesContent.WriteString("\n\n")
-				}
-				rulesContent.WriteString(strings.TrimSpace(rule.Content))
-			}
-			rulesContent.WriteString("\n")
-
-			if err := os.WriteFile(rulesFile, []byte(rulesContent.String()), 0o644); err != nil {
-				logger.Error("Error", "error", fmt.Errorf("failed to write rules to %s: %w", rulesFile, err))
-				os.Exit(1)
-			}
-
-			logger.Info("Rules written", "path", rulesFile)
-		}
-
-		// Output only task content (task frontmatter is not included)
-		fmt.Println(result.Task.Content)
-	} else {
-		// Normal mode: output everything
-		// Output the combined prompt (rules + skills + task)
-		// Note: Task frontmatter is not included in the output
-		fmt.Println(result.Prompt)
+		rulesContent.WriteString(strings.TrimSpace(rule.Content))
 	}
+
+	rulesContent.WriteString("\n")
+
+	const fileMode = 0o600
+
+	// #nosec G703 -- rulesFile is validated to be within homeDir via HasPrefix check above
+	if err := os.WriteFile(rulesFile, []byte(rulesContent.String()), fileMode); err != nil {
+		return fmt.Errorf("failed to write rules to %s: %w", rulesFile, err)
+	}
+
+	logger.Info("Rules written", "path", rulesFile)
+
+	return nil
 }

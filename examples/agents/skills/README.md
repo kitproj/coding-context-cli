@@ -53,7 +53,7 @@ description: Extract text and tables from PDF files, fill forms, merge documents
 - `license`: License name or reference
 - `compatibility`: Environment requirements
 - `metadata`: Additional key-value pairs
-- `allowed-tools`: Pre-approved tools (experimental)
+- `allowed_tools`: Pre-approved tools (experimental)
 
 ## Progressive Disclosure
 

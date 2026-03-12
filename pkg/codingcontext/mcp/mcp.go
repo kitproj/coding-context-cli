@@ -1,3 +1,4 @@
+// Package mcp provides types for MCP (Model Context Protocol) server configuration.
 package mcp
 
 import (
@@ -23,6 +24,8 @@ const (
 
 // MCPServerConfig defines the common configuration fields supported by both platforms.
 // It also supports arbitrary additional fields via the Content map.
+//
+//revive:disable-next-line:exported // keep name for API compatibility
 type MCPServerConfig struct {
 	// Type specifies the connection protocol.
 	// Values: "stdio", "sse", "http".
@@ -50,10 +53,11 @@ type MCPServerConfig struct {
 	Content map[string]any `json:"-" yaml:",inline"`
 }
 
-// UnmarshalJSON custom unmarshaler that populates both typed fields and Content map
+// UnmarshalJSON custom unmarshaler that populates both typed fields and Content map.
 func (m *MCPServerConfig) UnmarshalJSON(data []byte) error {
 	// First unmarshal into a temporary type to avoid infinite recursion
 	type Alias MCPServerConfig
+
 	aux := &struct {
 		*Alias
 	}{
@@ -78,4 +82,6 @@ func (m *MCPServerConfig) UnmarshalJSON(data []byte) error {
 }
 
 // MCPServerConfigs maps server names to their configurations.
+//
+//revive:disable-next-line:exported // keep name for API compatibility
 type MCPServerConfigs map[string]MCPServerConfig

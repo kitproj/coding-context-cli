@@ -111,6 +111,33 @@ coding-context -s source=jira fix-bug
 coding-context -s source=github code-review
 ```
 
+## Namespace Selector (Automatic)
+
+When you run a namespaced task (e.g., `myteam/fix-bug`), the tool automatically adds `namespace=myteam` to the active selectors. You don't need to pass `-s namespace=myteam` manually.
+
+This means you can scope any rule to a specific namespace by adding `namespace:` to its frontmatter:
+
+```markdown
+---
+namespace: myteam
+---
+
+# myteam Internal Standards
+
+Only included when running myteam/* tasks.
+```
+
+For non-namespaced tasks (e.g., `fix-bug`), the namespace selector is set to the empty string, so rules that declare a specific `namespace:` value are automatically excluded.
+
+Rules with **no** `namespace` field are always included regardless of the task's namespace.
+
+```bash
+# namespace=myteam is auto-injected — no -s flag needed
+coding-context myteam/fix-bug
+```
+
+See [How to Use Namespaces](./use-namespaces) for a complete guide.
+
 ## Resume Mode
 
 The `-r` flag sets the resume selector to "true", which can be used to filter tasks by their frontmatter `resume` field:

@@ -1,6 +1,6 @@
 # Example: Agentic Code Review Workflow
 #
-# This workflow demonstrates how to use coding-context-cli to prepare
+# This workflow demonstrates how to use coding-context to prepare
 # context for an AI agent that performs automated code reviews.
 
 name: Agentic Code Review
@@ -23,16 +23,20 @@ jobs:
           fetch-depth: 0  # Full history for better context
       
       - name: Install Coding Context CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          curl -fsL -o /usr/local/bin/coding-context-cli \
-            https://github.com/kitproj/coding-context-cli/releases/latest/download/coding-context-cli_linux_amd64
-          chmod +x /usr/local/bin/coding-context-cli
+          gh release download \
+            --repo kitproj/coding-context-cli \
+            --pattern 'coding-context_*_linux_amd64' \
+            --output /usr/local/bin/coding-context
+          chmod +x /usr/local/bin/coding-context
       
       - name: Assemble Review Context
         id: context
         run: |
           # Assemble context with PR-specific parameters
-          coding-context-cli \
+          coding-context \
             -s task=code-review \
             -s language=${{ github.event.repository.language }} \
             -p pr_number=${{ github.event.pull_request.number }} \

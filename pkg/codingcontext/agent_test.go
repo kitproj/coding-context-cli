@@ -5,100 +5,48 @@ import (
 	"testing"
 )
 
-func TestParseAgent(t *testing.T) {
-	tests := []struct {
+func parseAgentCases() []struct {
+	name    string
+	input   string
+	want    Agent
+	wantErr bool
+} {
+	return []struct {
 		name    string
 		input   string
 		want    Agent
 		wantErr bool
 	}{
-		{
-			name:    "valid - cursor",
-			input:   "cursor",
-			want:    AgentCursor,
-			wantErr: false,
-		},
-		{
-			name:    "valid - opencode",
-			input:   "opencode",
-			want:    AgentOpenCode,
-			wantErr: false,
-		},
-		{
-			name:    "valid - copilot",
-			input:   "copilot",
-			want:    AgentCopilot,
-			wantErr: false,
-		},
-		{
-			name:    "valid - claude",
-			input:   "claude",
-			want:    AgentClaude,
-			wantErr: false,
-		},
-		{
-			name:    "valid - gemini",
-			input:   "gemini",
-			want:    AgentGemini,
-			wantErr: false,
-		},
-		{
-			name:    "valid - augment",
-			input:   "augment",
-			want:    AgentAugment,
-			wantErr: false,
-		},
-		{
-			name:    "valid - windsurf",
-			input:   "windsurf",
-			want:    AgentWindsurf,
-			wantErr: false,
-		},
-		{
-			name:    "valid - codex",
-			input:   "codex",
-			want:    AgentCodex,
-			wantErr: false,
-		},
-		{
-			name:    "uppercase should fail",
-			input:   "CURSOR",
-			want:    "",
-			wantErr: true,
-		},
-		{
-			name:    "mixed case should fail",
-			input:   "OpenCode",
-			want:    "",
-			wantErr: true,
-		},
-		{
-			name:    "with spaces should fail",
-			input:   "  cursor  ",
-			want:    "",
-			wantErr: true,
-		},
-		{
-			name:    "invalid agent",
-			input:   "invalid",
-			want:    "",
-			wantErr: true,
-		},
-		{
-			name:    "empty string",
-			input:   "",
-			want:    "",
-			wantErr: true,
-		},
+		{name: "valid - cursor", input: "cursor", want: AgentCursor},
+		{name: "valid - opencode", input: "opencode", want: AgentOpenCode},
+		{name: "valid - copilot", input: "copilot", want: AgentCopilot},
+		{name: "valid - claude", input: "claude", want: AgentClaude},
+		{name: "valid - gemini", input: "gemini", want: AgentGemini},
+		{name: "valid - augment", input: "augment", want: AgentAugment},
+		{name: "valid - windsurf", input: "windsurf", want: AgentWindsurf},
+		{name: "valid - codex", input: "codex", want: AgentCodex},
+		{name: "uppercase should fail", input: "CURSOR", want: "", wantErr: true},
+		{name: "mixed case should fail", input: "OpenCode", want: "", wantErr: true},
+		{name: "with spaces should fail", input: "  cursor  ", want: "", wantErr: true},
+		{name: "invalid agent", input: "invalid", want: "", wantErr: true},
+		{name: "empty string", input: "", want: "", wantErr: true},
 	}
+}
 
-	for _, tt := range tests {
+func TestParseAgent(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range parseAgentCases() {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got, err := ParseAgent(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseAgent() error = %v, wantErr %v", err, tt.wantErr)
+
 				return
 			}
+
 			if got != tt.want {
 				t.Errorf("ParseAgent() = %v, want %v", got, tt.want)
 			}
@@ -106,125 +54,47 @@ func TestParseAgent(t *testing.T) {
 	}
 }
 
-func TestAgent_MatchesPath(t *testing.T) {
-	tests := []struct {
+func agentMatchesPathCases() []struct {
+	name      string
+	agent     Agent
+	path      string
+	wantMatch bool
+} {
+	return []struct {
 		name      string
 		agent     Agent
 		path      string
 		wantMatch bool
 	}{
-		{
-			name:      "cursor matches .cursor/rules",
-			agent:     AgentCursor,
-			path:      ".cursor/rules/example.md",
-			wantMatch: true,
-		},
-		{
-			name:      "cursor matches .cursorrules",
-			agent:     AgentCursor,
-			path:      ".cursorrules",
-			wantMatch: true,
-		},
-		{
-			name:      "cursor does not match .agents/rules",
-			agent:     AgentCursor,
-			path:      ".agents/rules/example.md",
-			wantMatch: false,
-		},
-		{
-			name:      "opencode matches .opencode/agent",
-			agent:     AgentOpenCode,
-			path:      ".opencode/agent/rule.md",
-			wantMatch: true,
-		},
-		{
-			name:      "opencode matches .opencode/command",
-			agent:     AgentOpenCode,
-			path:      ".opencode/command/task.md",
-			wantMatch: true,
-		},
-		{
-			name:      "copilot matches instructions",
-			agent:     AgentCopilot,
-			path:      ".github/copilot-instructions.md",
-			wantMatch: true,
-		},
-		{
-			name:      "copilot matches agents dir",
-			agent:     AgentCopilot,
-			path:      ".github/agents/rule.md",
-			wantMatch: true,
-		},
-		{
-			name:      "claude matches CLAUDE.md",
-			agent:     AgentClaude,
-			path:      "CLAUDE.md",
-			wantMatch: true,
-		},
-		{
-			name:      "claude matches CLAUDE.local.md",
-			agent:     AgentClaude,
-			path:      "CLAUDE.local.md",
-			wantMatch: true,
-		},
-		{
-			name:      "claude matches .claude dir",
-			agent:     AgentClaude,
-			path:      ".claude/CLAUDE.md",
-			wantMatch: true,
-		},
-		{
-			name:      "gemini matches GEMINI.md",
-			agent:     AgentGemini,
-			path:      "GEMINI.md",
-			wantMatch: true,
-		},
-		{
-			name:      "gemini matches .gemini/styleguide.md",
-			agent:     AgentGemini,
-			path:      ".gemini/styleguide.md",
-			wantMatch: true,
-		},
-		{
-			name:      "augment matches .augment/rules",
-			agent:     AgentAugment,
-			path:      ".augment/rules/example.md",
-			wantMatch: true,
-		},
-		{
-			name:      "windsurf matches .windsurf/rules",
-			agent:     AgentWindsurf,
-			path:      ".windsurf/rules/example.md",
-			wantMatch: true,
-		},
-		{
-			name:      "windsurf matches .windsurfrules",
-			agent:     AgentWindsurf,
-			path:      ".windsurfrules",
-			wantMatch: true,
-		},
-		{
-			name:      "codex matches .codex dir",
-			agent:     AgentCodex,
-			path:      ".codex/AGENTS.md",
-			wantMatch: true,
-		},
-		{
-			name:      "codex matches AGENTS.md",
-			agent:     AgentCodex,
-			path:      "AGENTS.md",
-			wantMatch: true,
-		},
-		{
-			name:      "absolute path matching",
-			agent:     AgentCursor,
-			path:      "/home/user/project/.cursor/rules/example.md",
-			wantMatch: true,
-		},
+		{name: "cursor matches .cursor/rules", agent: AgentCursor, path: ".cursor/rules/example.md", wantMatch: true},
+		{name: "cursor matches .cursorrules", agent: AgentCursor, path: ".cursorrules", wantMatch: true},
+		{name: "cursor does not match .agents/rules", agent: AgentCursor, path: ".agents/rules/example.md", wantMatch: false},
+		{name: "opencode matches .opencode/agent", agent: AgentOpenCode, path: ".opencode/agent/rule.md", wantMatch: true},
+		{name: "opencode matches .opencode/command", agent: AgentOpenCode,
+			path: ".opencode/command/task.md", wantMatch: true},
+		{name: "copilot matches instructions", agent: AgentCopilot, path: ".github/copilot-instructions.md", wantMatch: true},
+		{name: "copilot matches agents dir", agent: AgentCopilot, path: ".github/agents/rule.md", wantMatch: true},
+		{name: "claude matches CLAUDE.md", agent: AgentClaude, path: "CLAUDE.md", wantMatch: true},
+		{name: "claude matches CLAUDE.local.md", agent: AgentClaude, path: "CLAUDE.local.md", wantMatch: true},
+		{name: "claude matches .claude dir", agent: AgentClaude, path: ".claude/CLAUDE.md", wantMatch: true},
+		{name: "gemini matches GEMINI.md", agent: AgentGemini, path: "GEMINI.md", wantMatch: true},
+		{name: "gemini matches .gemini/styleguide.md", agent: AgentGemini, path: ".gemini/styleguide.md", wantMatch: true},
+		{name: "augment matches .augment/rules", agent: AgentAugment, path: ".augment/rules/example.md", wantMatch: true},
+		{name: "windsurf matches .windsurf/rules", agent: AgentWindsurf, path: ".windsurf/rules/example.md", wantMatch: true},
+		{name: "windsurf matches .windsurfrules", agent: AgentWindsurf, path: ".windsurfrules", wantMatch: true},
+		{name: "codex matches .codex dir", agent: AgentCodex, path: ".codex/AGENTS.md", wantMatch: true},
+		{name: "codex matches AGENTS.md", agent: AgentCodex, path: "AGENTS.md", wantMatch: true},
+		{name: "absolute path matching", agent: AgentCursor,
+			path: "/home/user/project/.cursor/rules/example.md", wantMatch: true},
 	}
+}
 
-	for _, tt := range tests {
+func TestAgent_MatchesPath(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range agentMatchesPathCases() {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Normalize path for testing
 			normalizedPath := filepath.FromSlash(tt.path)
 
@@ -236,6 +106,8 @@ func TestAgent_MatchesPath(t *testing.T) {
 }
 
 func TestAgent_Set(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		value     string
@@ -284,11 +156,15 @@ func TestAgent_Set(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			var a Agent
+
 			err := a.Set(tt.value)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Set() error = %v, wantErr %v", err, tt.wantErr)
+
 				return
 			}
 
@@ -302,6 +178,8 @@ func TestAgent_Set(t *testing.T) {
 }
 
 func TestAgent_ShouldExcludePath(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		targetAgent string
@@ -354,6 +232,8 @@ func TestAgent_ShouldExcludePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			var a Agent
 			if tt.targetAgent != "" {
 				if err := a.Set(tt.targetAgent); err != nil {
@@ -372,18 +252,25 @@ func TestAgent_ShouldExcludePath(t *testing.T) {
 }
 
 func TestAgent_IsSet(t *testing.T) {
+	t.Parallel()
+
 	var a Agent
 	if a.IsSet() {
 		t.Errorf("IsSet() on empty agent = true, want false")
 	}
 
-	a.Set("cursor")
+	if err := a.Set("cursor"); err != nil {
+		t.Fatal(err)
+	}
+
 	if !a.IsSet() {
 		t.Errorf("IsSet() on set agent = false, want true")
 	}
 }
 
 func TestAgent_UserRulePath(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		agent    Agent
@@ -438,6 +325,8 @@ func TestAgent_UserRulePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := tt.agent.UserRulePath()
 			if got != tt.wantPath {
 				t.Errorf("UserRulePath() = %q, want %q", got, tt.wantPath)

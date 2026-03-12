@@ -1,3 +1,4 @@
+// Package taskparser provides parsing and expansion for task content and parameters.
 package taskparser
 
 import (
@@ -116,49 +117,30 @@ func ParseTask(text string) (Task, error) {
 		return Task{}, nil
 	}
 
-	input, err := parser().ParseString("", text)
-	if err != nil {
-		return nil, err
-	}
-	return Task(input.Blocks), nil
+	return parseMarkdownAware(text)
 }
 
 // Params converts the slash command's arguments into a parameter map using ParseParams.
 // This provides a more permissive parser that supports commas, single quotes, and other features.
 // Returns a map with:
 // - "ARGUMENTS": positional arguments (values without keys)
-// - named parameters: key-value pairs from key="value" or key='value' arguments
-func (s *SlashCommand) Params() Params {
-	// Reconstruct the arguments string from the parsed Arguments
-	var argStrings []string
-	for _, arg := range s.Arguments {
-		if arg.Key != "" {
-			// Named parameter: key="value" or key='value'
-			argStrings = append(argStrings, arg.Key+"="+arg.Value)
-		} else {
-			// Positional parameter
-			argStrings = append(argStrings, arg.Value)
-		}
+// - named parameters: key-value pairs from key="value" or key='value' arguments.
+func (s SlashCommand) Params() Params {
+	argStrings := make([]string, len(s.Arguments))
+	for i, arg := range s.Arguments {
+		argStrings[i] = arg.String()
 	}
 
-	// Join arguments with spaces (preserving the original format)
-	argsString := strings.Join(argStrings, " ")
-
-	// Use ParseParams to parse the arguments string
-	// This is more permissive and handles commas, single quotes, etc.
-	params, err := ParseParams(argsString)
+	params, err := ParseParams(strings.Join(argStrings, " "))
 	if err != nil {
-		// If parsing fails, return empty params
-		// This should rarely happen since ParseParams handles the same format
-		// that was parsed by the grammar, but we handle it gracefully
 		return make(Params)
 	}
 
 	return params
 }
 
-// Content returns the text content with all lines concatenated
-func (t *Text) Content() string {
+// Content returns the text content with all lines concatenated.
+func (t Text) Content() string {
 	var sb strings.Builder
 	// Write leading newlines first
 	for _, nl := range t.LeadingNewlines {
@@ -169,57 +151,67 @@ func (t *Text) Content() string {
 		for _, tok := range line.NonSlashStart {
 			sb.WriteString(tok)
 		}
+
 		for _, tok := range line.RestOfLine {
 			sb.WriteString(tok)
 		}
+
 		sb.WriteString(line.NewlineOpt)
 	}
+
 	return sb.String()
 }
 
-// String returns the original text representation of a task
+// String returns the original text representation of a task.
 func (t Task) String() string {
 	var sb strings.Builder
 	for _, block := range t {
 		sb.WriteString(block.String())
 	}
+
 	return sb.String()
 }
 
-// String returns the original text representation of a block
+// String returns the original text representation of a block.
 func (b Block) String() string {
 	if b.SlashCommand != nil {
 		return b.SlashCommand.String()
 	}
+
 	if b.Text != nil {
 		return b.Text.String()
 	}
+
 	return ""
 }
 
-// String returns the original text representation of a slash command
+// String returns the original text representation of a slash command.
 func (s SlashCommand) String() string {
 	var sb strings.Builder
 	sb.WriteString(s.LeadingWhitespace)
 	sb.WriteString("/")
 	sb.WriteString(s.Name)
+
 	for _, arg := range s.Arguments {
 		sb.WriteString(" ")
 		sb.WriteString(arg.String())
 	}
+
 	sb.WriteString("\n")
+
 	return sb.String()
 }
 
-// String returns the original text representation of an argument
+// String returns the original text representation of an argument.
 func (a Argument) String() string {
 	if a.Key != "" {
 		return a.Key + "=" + a.Value
 	}
+
 	return a.Value
 }
 
-// String returns the original text representation of text
+// String returns the original text representation of text.
 func (t Text) String() string {
 	return t.Content()
 }

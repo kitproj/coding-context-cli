@@ -17,6 +17,7 @@ These guides are problem-oriented and help you achieve specific goals.
 - [Create Rule Files](./create-rules) - Provide reusable context
 - [Create Skills](./create-skills) - Organize specialized capabilities with progressive disclosure
 - [Use Frontmatter Selectors](./use-selectors) - Filter rules and tasks
+- [Use Namespaces](./use-namespaces) - Isolate team assets in a shared repository
 - [Use Remote Directories](./use-remote-directories) - Load rules from Git, HTTP, or S3
 - [Use with AI Agents](./use-with-ai-agents) - Integrate with various AI tools
 - [Integrate with GitHub Actions](./github-actions) - Automate with CI/CD
