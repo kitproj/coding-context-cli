@@ -485,4 +485,3 @@ func TestDiscoveredTask_Fields(t *testing.T) {
 		t.Errorf("namespaced Path = %q, want *ns-task.md", namespaced.Path)
 	}
 }
-

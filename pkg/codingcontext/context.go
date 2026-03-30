@@ -17,6 +17,7 @@ import (
 
 	"github.com/hashicorp/go-getter/v2"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/memoryusage"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/selectors"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/skills"
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/taskparser"
@@ -52,25 +53,25 @@ const (
 
 // Context holds the configuration and state for assembling coding context.
 type Context struct {
-	params          taskparser.Params
-	includes        selectors.Selectors
-	manifestURL     string
-	searchPaths     []string
-	downloadedPaths []string
-	task            markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
-	rules           []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
-	skills          skills.AvailableSkills                        // Discovered skills (metadata only)
-	totalTokens     int
-	logger          *slog.Logger
-	cmdRunner       func(cmd *exec.Cmd) error
+	params           taskparser.Params
+	includes         selectors.Selectors
+	manifestURL      string
+	searchPaths      []string
+	downloadedPaths  []string
+	task             markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
+	rules            []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
+	skills           skills.AvailableSkills                        // Discovered skills (metadata only)
+	totalTokens      int
+	logger           *slog.Logger
+	cmdRunner        func(cmd *exec.Cmd) error
 	resume           bool
 	doBootstrap      bool // Controls whether to discover rules, skills, and run bootstrap scripts
 	includeByDefault bool // Controls whether unmatched rules/skills are included by default
-	agent           Agent
-	namespace       string // Active namespace derived from task name (e.g. "myteam" from "myteam/fix-bug")
-	userPrompt      string // User-provided prompt to append to task
-	lintMode        bool
-	lintCollector   *lintCollector
+	agent            Agent
+	namespace        string // Active namespace derived from task name (e.g. "myteam" from "myteam/fix-bug")
+	userPrompt       string // User-provided prompt to append to task
+	lintMode         bool
+	lintCollector    *lintCollector
 }
 
 // parseNamespacedTaskName splits a task name into its optional namespace and base name.
@@ -102,11 +103,11 @@ func parseNamespacedTaskName(taskName string) (string, string, error) {
 // New creates a new Context with the given options.
 func New(opts ...Option) *Context {
 	c := &Context{
-		params:      make(taskparser.Params),
-		includes:    make(selectors.Selectors),
-		rules:       make([]markdown.Markdown[markdown.RuleFrontMatter], 0),
-		skills:      skills.AvailableSkills{Skills: make([]skills.Skill, 0)},
-		logger:      slog.New(slog.NewTextHandler(os.Stderr, nil)),
+		params:           make(taskparser.Params),
+		includes:         make(selectors.Selectors),
+		rules:            make([]markdown.Markdown[markdown.RuleFrontMatter], 0),
+		skills:           skills.AvailableSkills{Skills: make([]skills.Skill, 0)},
+		logger:           slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		doBootstrap:      true, // Default to true for backward compatibility
 		includeByDefault: true, // Default to true for backward compatibility
 		cmdRunner: func(cmd *exec.Cmd) error {
@@ -174,6 +175,11 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 	// Estimate tokens for task
 	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
+
+	// Log current cgroup v2 memory usage if available (e.g. in containerized environments)
+	if memBytes, err := memoryusage.ReadCurrent(); err == nil {
+		cc.logger.Info("Current memory usage", "bytes", memBytes)
+	}
 
 	// Build the combined prompt from all rules and task content
 	var promptBuilder strings.Builder
