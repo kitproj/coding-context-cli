@@ -2006,3 +2006,26 @@ task_name: whitespace-task
 		})
 	}
 }
+
+// TestNonExistentSlashCommandPassesThrough verifies that a task referencing a
+// slash command that does not exist passes through the text as-is instead of erroring.
+func TestNonExistentSlashCommandPassesThrough(t *testing.T) {
+	t.Parallel()
+	dirs := setupTestDirs(t)
+
+	// Create a task that references a non-existent slash command
+	taskContent := `# My Task with a File Path
+
+	/home/coder/.config should be ignored
+	`
+	taskFile := filepath.Join(dirs.tasksDir, "bad-command-task.md")
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o600); err != nil {
+		t.Fatalf("failed to write task file: %v", err)
+	}
+
+	output := runTool(t, "-C", dirs.tmpDir, "bad-command-task")
+
+	if !strings.Contains(output, "/home/coder/.config should be ignored") {
+		t.Errorf("expected non-existent slash command to pass through as-is, got: %s", output)
+	}
+}

@@ -957,14 +957,19 @@ func TestContext_Run_Commands(t *testing.T) {
 			check:    checkTaskNotEmpty,
 		},
 		{
-			name: "command not found returns error",
+			name: "command not found passes through as-is",
 			setup: func(t *testing.T, dir string) {
 				t.Helper()
 				createTask(t, dir, "missing-cmd", "", "/nonexistent")
 			},
-			taskName:    "missing-cmd",
-			wantErr:     true,
-			errContains: "command not found",
+			taskName: "missing-cmd",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				t.Helper()
+				if !strings.Contains(result.Prompt, "/nonexistent") {
+					t.Errorf("expected pass-through of /nonexistent, got %q", result.Prompt)
+				}
+			},
 		},
 		{
 			name: "command parameter overrides context parameter",
@@ -1249,16 +1254,22 @@ func TestContext_Run_Errors(t *testing.T) {
 		taskName    string
 		wantErr     bool
 		errContains string
+		check       func(t *testing.T, result *Result)
 	}{
 		{
-			name: "command not found in task",
+			name: "command not found in task passes through as-is",
 			setup: func(t *testing.T, dir string) {
 				t.Helper()
 				createTask(t, dir, "bad-cmd", "", "/missing-command\n")
 			},
-			taskName:    "bad-cmd",
-			wantErr:     true,
-			errContains: "command not found",
+			taskName: "bad-cmd",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				t.Helper()
+				if !strings.Contains(result.Prompt, "/missing-command") {
+					t.Errorf("expected pass-through of /missing-command, got %q", result.Prompt)
+				}
+			},
 		},
 		{
 			name: "invalid agent in task frontmatter",
@@ -1297,6 +1308,10 @@ func TestContext_Run_Errors(t *testing.T) {
 				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("expected error to contain %q, got %v", tt.errContains, err)
 				}
+			}
+
+			if !tt.wantErr && tt.check != nil {
+				tt.check(t, result)
 			}
 		})
 	}
@@ -1839,7 +1854,7 @@ func TestUserPrompt(t *testing.T) {
 			check:    checkTaskContains("${issue_number}"), // expand:false applies to user_prompt too
 		},
 		{
-			name: "user_prompt with invalid slash command",
+			name: "user_prompt with invalid slash command passes through as-is",
 			setup: func(t *testing.T, dir string) {
 				t.Helper()
 				createTask(t, dir, "invalid", "", "Task content\n")
@@ -1847,9 +1862,14 @@ func TestUserPrompt(t *testing.T) {
 			opts: []Option{
 				WithUserPrompt("/nonexistent-command\n"),
 			},
-			taskName:    "invalid",
-			wantErr:     true,
-			errContains: "command not found",
+			taskName: "invalid",
+			wantErr:  false,
+			check: func(t *testing.T, result *Result) {
+				t.Helper()
+				if !strings.Contains(result.Prompt, "/nonexistent-command") {
+					t.Errorf("expected pass-through of /nonexistent-command, got %q", result.Prompt)
+				}
+			},
 		},
 		{
 			name: "both task prompt and user prompt parse correctly",
