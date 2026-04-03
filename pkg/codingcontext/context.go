@@ -465,11 +465,16 @@ func (cc *Context) processTaskBlock(block taskparser.Block, path string, expandP
 	if block.SlashCommand != nil {
 		commandContent, err := cc.findCommand(block.SlashCommand.Name, block.SlashCommand.Params())
 		if err != nil {
-			if cc.lintMode && errors.Is(err, ErrCommandNotFound) {
-				cc.lintCollector.recordError(path, LintErrorKindMissingCommand,
-					"command not found: "+block.SlashCommand.Name)
+			if errors.Is(err, ErrCommandNotFound) {
+				if cc.lintMode {
+					cc.lintCollector.recordError(path, LintErrorKindMissingCommand,
+						"command not found: "+block.SlashCommand.Name)
+				} else {
+					cc.logger.Warn("Command not found, passing through as-is",
+						"command", block.SlashCommand.Name)
+				}
 
-				return "/" + block.SlashCommand.Name, nil
+				return block.SlashCommand.String(), nil
 			}
 
 			return "", fmt.Errorf("failed to find command %s: %w", block.SlashCommand.Name, err)
