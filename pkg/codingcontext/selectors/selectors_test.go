@@ -164,6 +164,33 @@ func matchesIncludesCases() []matchesIncludesCase {
 			frontmatter: fm(map[string]any{"env": "production"}), wantMatch: false},
 		{name: "empty value selector - key missing in frontmatter (match)", selectors: []string{"env="},
 			frontmatter: fm(map[string]any{"language": "go"}), wantMatch: true},
+		// Array frontmatter values (YAML arrays like `languages: [nodejs]` are parsed as []interface{})
+		{name: "array frontmatter value - single element match", selectors: []string{},
+			frontmatter: fm(map[string]any{"languages": []interface{}{"nodejs"}}), wantMatch: true,
+			setupSelectors: func(s Selectors) {
+				s.SetValue("languages", "nodejs")
+				s.SetValue("languages", "python")
+			}},
+		{name: "array frontmatter value - single element no match", selectors: []string{},
+			frontmatter: fm(map[string]any{"languages": []interface{}{"java"}}), wantMatch: false,
+			setupSelectors: func(s Selectors) {
+				s.SetValue("languages", "nodejs")
+				s.SetValue("languages", "python")
+			}},
+		{name: "array frontmatter value - multi element match", selectors: []string{},
+			frontmatter: fm(map[string]any{"languages": []interface{}{"go", "python"}}), wantMatch: true,
+			setupSelectors: func(s Selectors) {
+				s.SetValue("languages", "nodejs")
+				s.SetValue("languages", "python")
+			}},
+		{name: "array frontmatter value - multi element no match", selectors: []string{},
+			frontmatter: fm(map[string]any{"languages": []interface{}{"java", "rust"}}), wantMatch: false,
+			setupSelectors: func(s Selectors) {
+				s.SetValue("languages", "nodejs")
+				s.SetValue("languages", "python")
+			}},
+		{name: "array frontmatter value - with string selector", selectors: []string{"languages=nodejs"},
+			frontmatter: fm(map[string]any{"languages": []interface{}{"nodejs"}}), wantMatch: true},
 		// excludeUnmatched=true cases
 		{name: "exclude by default - key missing", selectors: []string{"env=production"},
 			frontmatter: fm(map[string]any{"language": "go"}), excludeUnmatched: true, wantMatch: false},
