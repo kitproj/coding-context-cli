@@ -419,17 +419,10 @@ func TestSelectorFiltering_LanguagesField(t *testing.T) {
 	t.Parallel()
 	dirs := setupTestDirs(t)
 
-	// Rule with array languages
+	// Rule with inline array languages (YAML flow sequence)
 	nodeRule := filepath.Join(dirs.rulesDir, "nodejs.md")
 
-	nodeContent := `---
-languages:
-  - nodejs
----
-# Node.js Guidelines
-
-Node.js specific guidelines.
-`
+	nodeContent := "---\nlanguages: [nodejs]\n---\n# Node.js Guidelines\n\nNode.js specific guidelines.\n"
 	if err := os.WriteFile(nodeRule, []byte(nodeContent), 0o600); err != nil {
 		t.Fatalf("failed to write nodejs rule file: %v", err)
 	}
