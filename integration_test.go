@@ -419,7 +419,7 @@ func TestSelectorFiltering_LanguagesField(t *testing.T) {
 	t.Parallel()
 	dirs := setupTestDirs(t)
 
-	// Rule with array languages (the real-world pattern from bot-code-prompts)
+	// Rule with array languages
 	nodeRule := filepath.Join(dirs.rulesDir, "nodejs.md")
 
 	nodeContent := `---

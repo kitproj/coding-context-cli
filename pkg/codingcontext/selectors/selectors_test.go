@@ -164,7 +164,6 @@ func matchesIncludesCases() []matchesIncludesCase {
 			frontmatter: fm(map[string]any{"env": "production"}), wantMatch: false},
 		{name: "empty value selector - key missing in frontmatter (match)", selectors: []string{"env="},
 			frontmatter: fm(map[string]any{"language": "go"}), wantMatch: true},
-		// Array frontmatter values (YAML arrays like `languages: [nodejs]` are parsed as []interface{})
 		{name: "array frontmatter value - single element match", selectors: []string{},
 			frontmatter: fm(map[string]any{"languages": []interface{}{"nodejs"}}), wantMatch: true,
 			setupSelectors: func(s Selectors) {
