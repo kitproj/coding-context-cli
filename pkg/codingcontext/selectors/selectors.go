@@ -152,9 +152,9 @@ func (s *Selectors) MatchesIncludes(frontmatter markdown.BaseFrontMatter, includ
 		fmStrings := toStringSlice(fmValue)
 
 		matched := false
-		for _, s := range fmStrings {
-			if values[s] {
-				matchedSelectors = append(matchedSelectors, fmt.Sprintf("%s=%s", key, s))
+		for _, fmStr := range fmStrings {
+			if values[fmStr] {
+				matchedSelectors = append(matchedSelectors, fmt.Sprintf("%s=%s", key, fmStr))
 				matched = true
 
 				break
