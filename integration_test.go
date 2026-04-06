@@ -413,6 +413,83 @@ Go specific guidelines.
 	}
 }
 
+// TestSelectorFiltering_LanguagesField verifies that the typed `languages` field
+// on RuleFrontMatter participates in selector matching via `-s languages=X`.
+func TestSelectorFiltering_LanguagesField(t *testing.T) {
+	t.Parallel()
+	dirs := setupTestDirs(t)
+
+	// Rule with inline array languages (YAML flow sequence)
+	nodeRule := filepath.Join(dirs.rulesDir, "nodejs.md")
+
+	nodeContent := "---\nlanguages: [nodejs]\n---\n# Node.js Guidelines\n\nNode.js specific guidelines.\n"
+	if err := os.WriteFile(nodeRule, []byte(nodeContent), 0o600); err != nil {
+		t.Fatalf("failed to write nodejs rule file: %v", err)
+	}
+
+	// Rule with multi-element array languages
+	multiRule := filepath.Join(dirs.rulesDir, "multi-lang.md")
+
+	multiContent := `---
+languages:
+  - go
+  - python
+---
+# Multi-Language Guidelines
+
+Go and Python guidelines.
+`
+	if err := os.WriteFile(multiRule, []byte(multiContent), 0o600); err != nil {
+		t.Fatalf("failed to write multi-lang rule file: %v", err)
+	}
+
+	// Rule with scalar languages value
+	rustRule := filepath.Join(dirs.rulesDir, "rust.md")
+
+	rustContent := `---
+languages:
+  - rust
+---
+# Rust Guidelines
+
+Rust specific guidelines.
+`
+	if err := os.WriteFile(rustRule, []byte(rustContent), 0o600); err != nil {
+		t.Fatalf("failed to write rust rule file: %v", err)
+	}
+
+	createStandardTask(t, dirs.tasksDir)
+
+	// Run with selector filtering for nodejs
+	output := runTool(t, "-C", dirs.tmpDir, "-s", "languages=nodejs", "test-task")
+
+	// The nodejs rule (languages: [nodejs]) should be included
+	if !strings.Contains(output, "# Node.js Guidelines") {
+		t.Errorf("Node.js guidelines not found in output when filtering for languages=nodejs")
+	}
+
+	// The multi-lang rule should NOT be included (it has [go, python], not nodejs)
+	if strings.Contains(output, "# Multi-Language Guidelines") {
+		t.Errorf("Multi-language guidelines should not be in output when filtering for nodejs")
+	}
+
+	// The rust rule should NOT be included
+	if strings.Contains(output, "# Rust Guidelines") {
+		t.Errorf("Rust guidelines should not be in output when filtering for nodejs")
+	}
+
+	// Run with selector filtering for python — should match multi-lang rule
+	output2 := runTool(t, "-C", dirs.tmpDir, "-s", "languages=python", "test-task")
+
+	if !strings.Contains(output2, "# Multi-Language Guidelines") {
+		t.Errorf("Multi-language guidelines not found in output when filtering for languages=python")
+	}
+
+	if strings.Contains(output2, "# Node.js Guidelines") {
+		t.Errorf("Node.js guidelines should not be in output when filtering for python")
+	}
+}
+
 func TestTemplateExpansionWithOsExpand(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()

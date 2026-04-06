@@ -101,6 +101,23 @@ func (s *Selectors) GetValue(key, value string) bool {
 	return innerMap[value]
 }
 
+// toStringSlice converts a frontmatter value to a slice of strings.
+// Slices are expanded element-wise; scalars become a single-element slice.
+func toStringSlice(v any) []string {
+	switch val := v.(type) {
+	case []any:
+		out := make([]string, 0, len(val))
+		for _, elem := range val {
+			out = append(out, fmt.Sprint(elem))
+		}
+		return out
+	case []string:
+		return val
+	default:
+		return []string{fmt.Sprint(v)}
+	}
+}
+
 // MatchesIncludes returns whether the frontmatter matches all include selectors,
 // along with a human-readable reason explaining the result.
 // If a key doesn't exist in frontmatter, it's allowed when includeByDefault is true (the default).
@@ -129,17 +146,28 @@ func (s *Selectors) MatchesIncludes(frontmatter markdown.BaseFrontMatter, includ
 			continue
 		}
 
-		fmStr := fmt.Sprint(fmValue)
-		if values[fmStr] {
-			// This selector matched
-			matchedSelectors = append(matchedSelectors, fmt.Sprintf("%s=%s", key, fmStr))
-		} else {
-			// This selector didn't match
+		// Flatten the frontmatter value into a list of strings so that
+		// YAML arrays (e.g. languages: [go, python]) are compared
+		// element-by-element instead of being stringified as "[go python]".
+		fmStrings := toStringSlice(fmValue)
+
+		matched := false
+		for _, fmStr := range fmStrings {
+			if values[fmStr] {
+				matchedSelectors = append(matchedSelectors, fmt.Sprintf("%s=%s", key, fmStr))
+				matched = true
+
+				break
+			}
+		}
+
+		if !matched {
 			var expectedValues []string
 			for val := range values {
 				expectedValues = append(expectedValues, val)
 			}
 
+			fmStr := strings.Join(fmStrings, ", ")
 			if len(expectedValues) == 1 {
 				noMatchReasons = append(noMatchReasons, fmt.Sprintf("%s=%s (expected %s=%s)", key, fmStr, key, expectedValues[0]))
 			} else {
