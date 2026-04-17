@@ -2732,3 +2732,275 @@ func TestSkillDiscovery(t *testing.T) {
 		})
 	}
 }
+
+// TestLenientSearchPaths tests that WithLenientSearchPaths makes a best effort
+// to recover or skip problematic files instead of returning errors.
+func TestLenientSearchPaths(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		setup     func(t *testing.T, strictDir, lenientDir string)
+		taskName  string
+		wantErr   bool
+		checkFunc func(t *testing.T, result *Result)
+	}{
+		{
+			name: "lenient: infer skill name from directory when name is missing",
+			setup: func(t *testing.T, strictDir, lenientDir string) {
+				t.Helper()
+				createTask(t, strictDir, "test-task", "", "Test task content")
+
+				// Skill missing name — should infer "analyze-transcripts" from directory
+				createSkill(t, lenientDir, filepath.Join(".agents", "skills", "analyze-transcripts"), `---
+description: Analyzes call transcripts
+---
+
+# Analyze Transcripts
+`)
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				t.Helper()
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
+				}
+				if result.Skills.Skills[0].Name != "analyze-transcripts" {
+					t.Errorf("expected inferred skill name 'analyze-transcripts', got %q", result.Skills.Skills[0].Name)
+				}
+			},
+		},
+		{
+			name: "lenient: skip skill when description is missing",
+			setup: func(t *testing.T, strictDir, lenientDir string) {
+				t.Helper()
+				createTask(t, strictDir, "test-task", "", "Test task content")
+
+				// Skill missing description — should be skipped
+				createSkill(t, lenientDir, filepath.Join(".agents", "skills", "no-desc-skill"), `---
+name: no-desc-skill
+---
+
+# No Description Skill
+`)
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				t.Helper()
+				if len(result.Skills.Skills) != 0 {
+					t.Errorf("expected 0 skills (skipped due to missing description), got %d", len(result.Skills.Skills))
+				}
+			},
+		},
+		{
+			name: "lenient: skip skill when name exceeds max length",
+			setup: func(t *testing.T, strictDir, lenientDir string) {
+				t.Helper()
+				createTask(t, strictDir, "test-task", "", "Test task content")
+
+				createSkill(t, lenientDir, filepath.Join(".agents", "skills", "long-name-skill"), `---
+name: this-is-a-very-long-skill-name-that-exceeds-the-maximum-allowed-length-of-64-characters
+description: Valid description
+---
+
+# Long Name Skill
+`)
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				t.Helper()
+				if len(result.Skills.Skills) != 0 {
+					t.Errorf("expected 0 skills (skipped due to name too long), got %d", len(result.Skills.Skills))
+				}
+			},
+		},
+		{
+			name: "lenient: skip skill with bad YAML frontmatter",
+			setup: func(t *testing.T, strictDir, lenientDir string) {
+				t.Helper()
+				createTask(t, strictDir, "test-task", "", "Test task content")
+
+				createSkill(t, lenientDir, filepath.Join(".agents", "skills", "bad-yaml-skill"), `---
+name: [invalid yaml
+description: this won't parse
+---
+
+# Bad YAML Skill
+`)
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				t.Helper()
+				if len(result.Skills.Skills) != 0 {
+					t.Errorf("expected 0 skills (skipped due to bad YAML), got %d", len(result.Skills.Skills))
+				}
+			},
+		},
+		{
+			name: "strict path still errors on skill missing name",
+			setup: func(t *testing.T, strictDir, _ string) {
+				t.Helper()
+				createTask(t, strictDir, "test-task", "", "Test task content")
+
+				// Same broken skill on strict path — should still error
+				createSkill(t, strictDir, filepath.Join(".agents", "skills", "invalid-skill"), `---
+description: Missing name field
+---
+
+# Invalid Skill
+`)
+			},
+			taskName: "test-task",
+			wantErr:  true,
+		},
+		{
+			name: "lenient: valid skills from lenient path are still discovered",
+			setup: func(t *testing.T, strictDir, lenientDir string) {
+				t.Helper()
+				createTask(t, strictDir, "test-task", "", "Test task content")
+
+				createSkill(t, lenientDir, filepath.Join(".agents", "skills", "good-skill"), `---
+name: good-skill
+description: A perfectly valid skill on a lenient path
+---
+
+# Good Skill
+`)
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				t.Helper()
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
+				}
+				if result.Skills.Skills[0].Name != "good-skill" {
+					t.Errorf("expected skill name 'good-skill', got %q", result.Skills.Skills[0].Name)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			strictDir := t.TempDir()
+			lenientDir := t.TempDir()
+
+			tt.setup(t, strictDir, lenientDir)
+
+			opts := []Option{
+				WithSearchPaths("file://" + strictDir),
+				WithLenientSearchPaths("file://" + lenientDir),
+			}
+			cc := New(opts...)
+
+			result, err := cc.Run(context.Background(), tt.taskName)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error but got none")
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if tt.checkFunc != nil {
+				tt.checkFunc(t, result)
+			}
+		})
+	}
+}
+
+// TestLenientAgent tests that WithLenientAgent makes agent paths lenient.
+func TestLenientAgent(t *testing.T) {
+	t.Parallel()
+
+	t.Run("lenient agent skips skill with missing description", func(t *testing.T) {
+		t.Parallel()
+		tmpDir := t.TempDir()
+
+		createTask(t, tmpDir, "test-task", "", "Test task content")
+
+		// Skill missing description in a claude agent path
+		createSkill(t, tmpDir, filepath.Join(".claude", "skills", "broken-skill"), `---
+name: broken-skill
+---
+
+# Broken Skill
+`)
+
+		cc := New(
+			WithSearchPaths("file://"+tmpDir),
+			WithLenientAgent(AgentClaude),
+		)
+
+		result, err := cc.Run(context.Background(), "test-task")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(result.Skills.Skills) != 0 {
+			t.Errorf("expected 0 skills (skipped due to missing description), got %d", len(result.Skills.Skills))
+		}
+	})
+
+	t.Run("lenient agent infers skill name from directory", func(t *testing.T) {
+		t.Parallel()
+		tmpDir := t.TempDir()
+
+		createTask(t, tmpDir, "test-task", "", "Test task content")
+
+		// Skill missing name in a claude agent path
+		createSkill(t, tmpDir, filepath.Join(".claude", "skills", "inferred-skill"), `---
+description: Should infer name from directory
+---
+
+# Inferred Skill
+`)
+
+		cc := New(
+			WithSearchPaths("file://"+tmpDir),
+			WithLenientAgent(AgentClaude),
+		)
+
+		result, err := cc.Run(context.Background(), "test-task")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(result.Skills.Skills) != 1 {
+			t.Fatalf("expected 1 skill, got %d", len(result.Skills.Skills))
+		}
+
+		if result.Skills.Skills[0].Name != "inferred-skill" {
+			t.Errorf("expected inferred skill name 'inferred-skill', got %q", result.Skills.Skills[0].Name)
+		}
+	})
+}
+
+// TestLenientAgentMutualExclusion tests that -a and -A are mutually exclusive.
+func TestLenientAgentMutualExclusion(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	createTask(t, tmpDir, "test-task", "", "Test task content")
+
+	cc := New(
+		WithSearchPaths("file://"+tmpDir),
+		WithAgent(AgentClaude),
+		WithLenientAgent(AgentClaude),
+	)
+
+	_, err := cc.Run(context.Background(), "test-task")
+	if err == nil {
+		t.Fatal("expected error when both WithAgent and WithLenientAgent are set, but got none")
+	}
+}
