@@ -1062,9 +1062,11 @@ Writes rules to: `~/.github/agents/AGENTS.md`
 
 ### 10.1 Search Path Order
 
-1. Directories specified via `-d` flags (in order)
+1. Directories specified via `-d` (strict) or `-D` (lenient) flags (in order)
 2. Working directory (auto-added): `.`, parent dirs for some files
 3. User home directory (auto-added): `~`
+
+**Lenient search paths** (`-D`): Errors are logged as warnings and problematic files are skipped instead of causing a fatal error. For skills with a missing `name` field, the name is inferred from the directory name.
 
 ### 10.2 Task Discovery
 

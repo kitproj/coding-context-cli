@@ -154,7 +154,9 @@ Options:
   -C string
     	Change to directory before doing anything. (default ".")
   -d value
-    	Remote directory containing rules and tasks. Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, etc.).
+    	Directory containing rules and tasks (strict: errors are fatal). Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, file:// etc.).
+  -D value
+    	Directory containing rules and tasks (lenient: errors are warnings). Can be specified multiple times. Supports various protocols via go-getter (http://, https://, git::, s3::, file:// etc.).
   -m string
     	Go Getter URL to a manifest file containing search paths (one per line). Every line is included as-is.
   -p value
@@ -164,7 +166,9 @@ Options:
     	Include rules with matching frontmatter. Can be specified multiple times as key=value.
     	Note: Only matches top-level YAML fields in frontmatter.
   -a string
-    	Target agent to use. Required when using -w to write rules to the agent's user rules path. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
+    	Target agent to use (strict: errors are fatal). Required when using -w to write rules to the agent's user rules path. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
+  -A string
+    	Target agent with lenient error handling (errors are warnings, missing skill names inferred from directory). Mutually exclusive with -a. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.
   -w	Write rules to agent's config file and output only task to stdout. Requires agent (via task or -a flag).
   --skip-bootstrap
     	Skip discovering rules, skills, and running bootstrap scripts.
