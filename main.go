@@ -69,28 +69,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	cfg.searchPaths = append(cfg.searchPaths, "file://"+cfg.workDir)
 	cfg.searchPaths = append(cfg.searchPaths, "file://"+homeDir)
 
-	opts := []codingcontext.Option{
+	cc := codingcontext.New(
 		codingcontext.WithParams(cfg.params),
 		codingcontext.WithSelectors(cfg.includes),
 		codingcontext.WithSearchPaths(cfg.searchPaths...),
+		codingcontext.WithLenientSearchPaths(cfg.lenientSearchPaths...),
 		codingcontext.WithLogger(logger),
 		codingcontext.WithResume(cfg.resume),
 		codingcontext.WithBootstrap(!cfg.skipBootstrap),
 		codingcontext.WithManifestURL(cfg.manifestURL),
 		codingcontext.WithUserPrompt(cfg.userPrompt),
-	}
-
-	if len(cfg.lenientSearchPaths) > 0 {
-		opts = append(opts, codingcontext.WithLenientSearchPaths(cfg.lenientSearchPaths...))
-	}
-
-	if cfg.lenientAgent.IsSet() {
-		opts = append(opts, codingcontext.WithLenientAgent(cfg.lenientAgent))
-	} else {
-		opts = append(opts, codingcontext.WithAgent(cfg.agent))
-	}
-
-	cc := codingcontext.New(opts...)
+		codingcontext.WithAgent(cfg.agent),
+		codingcontext.WithLenientAgent(cfg.lenientAgent),
+	)
 
 	result, err := cc.Run(ctx, cfg.taskName)
 	if err != nil {
@@ -142,6 +133,9 @@ func parseFlags(logger *slog.Logger) (*cliConfig, error) {
 	flag.Var(&cfg.agent, "a",
 		"Target agent to use. Required when using -w to write rules to the agent's user rules path. "+
 			"Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
+	flag.Var(&cfg.lenientAgent, "A",
+		"Target agent with lenient error handling (errors are warnings, missing skill names inferred from directory). "+
+			"Mutually exclusive with -a. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.Var(&cfg.params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&cfg.includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Func("d",
@@ -160,9 +154,6 @@ func parseFlags(logger *slog.Logger) (*cliConfig, error) {
 
 			return nil
 		})
-	flag.Var(&cfg.lenientAgent, "A",
-		"Target agent with lenient error handling (errors are warnings, missing skill names inferred from directory). "+
-			"Mutually exclusive with -a. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.StringVar(&cfg.manifestURL, "m", "",
 		"Go Getter URL to a manifest file containing search paths (one per line). Every line is included as-is.")
 

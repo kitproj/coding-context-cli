@@ -37,8 +37,9 @@ var (
 	// ErrSkillDescriptionLength is returned when a skill's description exceeds the maximum length.
 	ErrSkillDescriptionLength = errors.New("skill 'description' field must be 1-1024 characters")
 
-	// ErrAgentMutualExclusion is returned when both WithAgent and WithLenientAgent are set.
-	ErrAgentMutualExclusion = errors.New("WithAgent and WithLenientAgent are mutually exclusive")
+	// ErrMultipleAgents is returned when more than one agent option (WithAgent, WithLenientAgent) is used.
+	// These options are mutually exclusive; only one agent may be set.
+	ErrMultipleAgents = errors.New("only one agent option (WithAgent or WithLenientAgent) may be used")
 
 	// ErrInvalidTaskNameNamespace is returned when the task name has an empty namespace.
 	ErrInvalidTaskNameNamespace = errors.New("namespace must not be empty")
@@ -63,27 +64,27 @@ type SearchPath struct {
 }
 
 type Context struct {
-	params          taskparser.Params
-	includes        selectors.Selectors
-	manifestURL     string
-	searchPaths     []SearchPath
-	downloadedPaths []SearchPath
-	task            markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
-	rules           []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
-	skills          skills.AvailableSkills                        // Discovered skills (metadata only)
-	totalTokens     int
-	logger          *slog.Logger
-	cmdRunner       func(cmd *exec.Cmd) error
+	params           taskparser.Params
+	includes         selectors.Selectors
+	manifestURL      string
+	searchPaths      []SearchPath
+	downloadedPaths  []SearchPath
+	task             markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
+	rules            []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
+	skills           skills.AvailableSkills                        // Discovered skills (metadata only)
+	totalTokens      int
+	logger           *slog.Logger
+	cmdRunner        func(cmd *exec.Cmd) error
 	resume           bool
 	doBootstrap      bool // Controls whether to discover rules, skills, and run bootstrap scripts
 	includeByDefault bool // Controls whether unmatched rules/skills are included by default
-	agent           Agent
-	strictAgent     bool   // Set by WithAgent (explicit strict agent)
-	lenientAgent    bool   // Set by WithLenientAgent (agent paths treated as lenient)
-	namespace       string // Active namespace derived from task name (e.g. "myteam" from "myteam/fix-bug")
-	userPrompt      string // User-provided prompt to append to task
-	lintMode        bool
-	lintCollector   *lintCollector
+	agent            Agent
+	lenientAgent     bool   // When true, agent-specific paths are treated as lenient
+	agentSetCount    int    // Incremented by WithAgent and WithLenientAgent; >1 means conflict
+	namespace        string // Active namespace derived from task name (e.g. "myteam" from "myteam/fix-bug")
+	userPrompt       string // User-provided prompt to append to task
+	lintMode         bool
+	lintCollector    *lintCollector
 }
 
 // parseNamespacedTaskName splits a task name into its optional namespace and base name.
@@ -147,9 +148,8 @@ type markdownVisitor func(path string, fm *markdown.BaseFrontMatter) error
 // The taskName is looked up in task search paths and its content is parsed into blocks.
 // If the taskName cannot be found as a task file, an error is returned.
 func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
-	// Validate that WithAgent and WithLenientAgent are not both set
-	if cc.strictAgent && cc.lenientAgent {
-		return nil, ErrAgentMutualExclusion
+	if cc.agentSetCount > 1 {
+		return nil, ErrMultipleAgents
 	}
 
 	// Parse manifest file first to get additional search paths

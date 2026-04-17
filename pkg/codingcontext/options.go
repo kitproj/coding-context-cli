@@ -81,8 +81,13 @@ func WithBootstrap(doBootstrap bool) Option {
 // Mutually exclusive with WithLenientAgent.
 func WithAgent(agent Agent) Option {
 	return func(c *Context) {
+		if !agent.IsSet() {
+			return
+		}
+
 		c.agent = agent
-		c.strictAgent = agent.IsSet()
+		c.lenientAgent = false
+		c.agentSetCount++
 	}
 }
 
@@ -92,8 +97,13 @@ func WithAgent(agent Agent) Option {
 // Mutually exclusive with WithAgent.
 func WithLenientAgent(agent Agent) Option {
 	return func(c *Context) {
+		if !agent.IsSet() {
+			return
+		}
+
 		c.agent = agent
 		c.lenientAgent = true
+		c.agentSetCount++
 	}
 }
 

@@ -2986,7 +2986,7 @@ description: Should infer name from directory
 	})
 }
 
-// TestLenientAgentMutualExclusion tests that -a and -A are mutually exclusive.
+// TestLenientAgentMutualExclusion tests that WithAgent and WithLenientAgent are mutually exclusive.
 func TestLenientAgentMutualExclusion(t *testing.T) {
 	t.Parallel()
 
