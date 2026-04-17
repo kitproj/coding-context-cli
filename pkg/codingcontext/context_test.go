@@ -274,12 +274,12 @@ func checkNewWithSearchPaths(t *testing.T, c *Context) {
 		t.Errorf("expected 2 search paths, got %d", len(c.searchPaths))
 	}
 
-	if c.searchPaths[0] != "/path/one" {
-		t.Errorf("expected first path to be /path/one, got %v", c.searchPaths[0])
+	if c.searchPaths[0].Path != "/path/one" {
+		t.Errorf("expected first path to be /path/one, got %v", c.searchPaths[0].Path)
 	}
 
-	if c.searchPaths[1] != "/path/two" {
-		t.Errorf("expected second path to be /path/two, got %v", c.searchPaths[1])
+	if c.searchPaths[1].Path != "/path/two" {
+		t.Errorf("expected second path to be /path/two, got %v", c.searchPaths[1].Path)
 	}
 }
 
@@ -342,7 +342,7 @@ func checkNewMultipleCombined(t *testing.T, c *Context) {
 		t.Error("selectors not set correctly")
 	}
 
-	if len(c.searchPaths) != 1 || c.searchPaths[0] != "/custom/path" {
+	if len(c.searchPaths) != 1 || c.searchPaths[0].Path != "/custom/path" {
 		t.Error("search paths not set correctly")
 	}
 

@@ -31,10 +31,25 @@ func WithManifestURL(manifestURL string) Option {
 	}
 }
 
-// WithSearchPaths adds one or more search paths.
+// WithSearchPaths adds one or more strict search paths.
+// Errors encountered while processing files from these paths are treated as fatal.
 func WithSearchPaths(paths ...string) Option {
 	return func(c *Context) {
-		c.searchPaths = append(c.searchPaths, paths...)
+		for _, p := range paths {
+			c.searchPaths = append(c.searchPaths, SearchPath{Path: p})
+		}
+	}
+}
+
+// WithLenientSearchPaths adds one or more lenient search paths.
+// Errors encountered while processing files from these paths are logged as warnings
+// and the problematic files are skipped rather than causing a fatal error.
+// For skills with a missing name, the name is inferred from the directory name.
+func WithLenientSearchPaths(paths ...string) Option {
+	return func(c *Context) {
+		for _, p := range paths {
+			c.searchPaths = append(c.searchPaths, SearchPath{Path: p, Lenient: true})
+		}
 	}
 }
 
@@ -62,9 +77,23 @@ func WithBootstrap(doBootstrap bool) Option {
 }
 
 // WithAgent sets the target agent, which excludes that agent's own rules.
+// Agent-specific paths are treated as strict (errors are fatal).
+// Mutually exclusive with WithLenientAgent.
 func WithAgent(agent Agent) Option {
 	return func(c *Context) {
 		c.agent = agent
+		c.strictAgent = agent.IsSet()
+	}
+}
+
+// WithLenientAgent sets the target agent with lenient error handling.
+// Agent-specific paths are treated as lenient: errors are logged as warnings
+// and problematic files are skipped rather than causing a fatal error.
+// Mutually exclusive with WithAgent.
+func WithLenientAgent(agent Agent) Option {
+	return func(c *Context) {
+		c.agent = agent
+		c.lenientAgent = true
 	}
 }
 
