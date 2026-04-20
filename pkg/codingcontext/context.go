@@ -37,6 +37,10 @@ var (
 	// ErrSkillDescriptionLength is returned when a skill's description exceeds the maximum length.
 	ErrSkillDescriptionLength = errors.New("skill 'description' field must be 1-1024 characters")
 
+	// ErrMultipleAgents is returned when more than one agent option (WithAgent, WithLenientAgent) is used.
+	// These options are mutually exclusive; only one agent may be set.
+	ErrMultipleAgents = errors.New("only one agent option (WithAgent or WithLenientAgent) may be used")
+
 	// ErrInvalidTaskNameNamespace is returned when the task name has an empty namespace.
 	ErrInvalidTaskNameNamespace = errors.New("namespace must not be empty")
 	// ErrInvalidTaskNameBase is returned when the task name has an empty base name.
@@ -51,26 +55,36 @@ const (
 )
 
 // Context holds the configuration and state for assembling coding context.
+// SearchPath represents a search path with an optional lenient flag.
+// When Lenient is true, errors encountered while processing files from this path
+// are logged as warnings and skipped rather than treated as fatal errors.
+type SearchPath struct {
+	Path    string
+	Lenient bool
+}
+
 type Context struct {
-	params          taskparser.Params
-	includes        selectors.Selectors
-	manifestURL     string
-	searchPaths     []string
-	downloadedPaths []string
-	task            markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
-	rules           []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
-	skills          skills.AvailableSkills                        // Discovered skills (metadata only)
-	totalTokens     int
-	logger          *slog.Logger
-	cmdRunner       func(cmd *exec.Cmd) error
+	params           taskparser.Params
+	includes         selectors.Selectors
+	manifestURL      string
+	searchPaths      []SearchPath
+	downloadedPaths  []SearchPath
+	task             markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
+	rules            []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
+	skills           skills.AvailableSkills                        // Discovered skills (metadata only)
+	totalTokens      int
+	logger           *slog.Logger
+	cmdRunner        func(cmd *exec.Cmd) error
 	resume           bool
 	doBootstrap      bool // Controls whether to discover rules, skills, and run bootstrap scripts
 	includeByDefault bool // Controls whether unmatched rules/skills are included by default
-	agent           Agent
-	namespace       string // Active namespace derived from task name (e.g. "myteam" from "myteam/fix-bug")
-	userPrompt      string // User-provided prompt to append to task
-	lintMode        bool
-	lintCollector   *lintCollector
+	agent            Agent
+	lenientAgent     bool   // When true, agent-specific paths are treated as lenient
+	agentSetCount    int    // Incremented by WithAgent and WithLenientAgent; >1 means conflict
+	namespace        string // Active namespace derived from task name (e.g. "myteam" from "myteam/fix-bug")
+	userPrompt       string // User-provided prompt to append to task
+	lintMode         bool
+	lintCollector    *lintCollector
 }
 
 // parseNamespacedTaskName splits a task name into its optional namespace and base name.
@@ -134,13 +148,19 @@ type markdownVisitor func(path string, fm *markdown.BaseFrontMatter) error
 // The taskName is looked up in task search paths and its content is parsed into blocks.
 // If the taskName cannot be found as a task file, an error is returned.
 func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
+	if cc.agentSetCount > 1 {
+		return nil, ErrMultipleAgents
+	}
+
 	// Parse manifest file first to get additional search paths
 	manifestPaths, err := cc.parseManifestFile(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse manifest file: %w", err)
 	}
 
-	cc.searchPaths = append(cc.searchPaths, manifestPaths...)
+	for _, p := range manifestPaths {
+		cc.searchPaths = append(cc.searchPaths, SearchPath{Path: p})
+	}
 
 	// Download all remote directories (including those from manifest)
 	if err := cc.downloadRemoteDirectories(ctx); err != nil {
@@ -218,13 +238,27 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 }
 
 func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, visitor markdownVisitor) error {
-	searchDirs := make([]string, 0, len(cc.downloadedPaths))
-	for _, path := range cc.downloadedPaths {
-		searchDirs = append(searchDirs, searchDirFn(path)...)
+	type searchDir struct {
+		path    string
+		lenient bool
+	}
+
+	searchDirs := make([]searchDir, 0, len(cc.downloadedPaths))
+
+	for _, sp := range cc.downloadedPaths {
+		for _, dir := range searchDirFn(sp.Path) {
+			searchDirs = append(searchDirs, searchDir{path: dir, lenient: sp.Lenient})
+		}
 	}
 
 	for _, dir := range searchDirs {
-		if err := cc.visitMarkdownInDir(dir, visitor); err != nil {
+		if err := cc.visitMarkdownInDir(dir.path, visitor); err != nil {
+			if dir.lenient {
+				cc.logger.Warn("skipping directory", "path", dir.path, "error", err)
+
+				continue
+			}
+
 			return err
 		}
 	}
@@ -723,40 +757,46 @@ func (cc *Context) parseManifestFile(ctx context.Context) ([]string, error) {
 }
 
 func (cc *Context) downloadRemoteDirectories(ctx context.Context) error {
-	for _, path := range cc.searchPaths {
+	for _, sp := range cc.searchPaths {
 		// If the path is local, use it directly without downloading
-		if isLocalPath(path) {
-			localPath := normalizeLocalPath(path)
+		if isLocalPath(sp.Path) {
+			localPath := normalizeLocalPath(sp.Path)
 			cc.logger.Info("Using local directory", "path", localPath)
-			cc.downloadedPaths = append(cc.downloadedPaths, localPath)
+			cc.downloadedPaths = append(cc.downloadedPaths, SearchPath{Path: localPath, Lenient: sp.Lenient})
 
 			continue
 		}
 
 		// Download remote directories
-		cc.logger.Info("Downloading remote directory", "path", path)
+		cc.logger.Info("Downloading remote directory", "path", sp.Path)
 
-		dst := downloadDir(path)
-		if _, err := getter.Get(ctx, dst, path); err != nil {
-			return fmt.Errorf("failed to download remote directory %s: %w", path, err)
+		dst := downloadDir(sp.Path)
+		if _, err := getter.Get(ctx, dst, sp.Path); err != nil {
+			if sp.Lenient {
+				cc.logger.Warn("skipping remote directory", "path", sp.Path, "error", err)
+
+				continue
+			}
+
+			return fmt.Errorf("failed to download remote directory %s: %w", sp.Path, err)
 		}
 
 		cc.logger.Info("Downloaded to", "path", dst)
-		cc.downloadedPaths = append(cc.downloadedPaths, dst)
+		cc.downloadedPaths = append(cc.downloadedPaths, SearchPath{Path: dst, Lenient: sp.Lenient})
 	}
 
 	return nil
 }
 
 func (cc *Context) cleanupDownloadedDirectories() {
-	for _, path := range cc.searchPaths {
+	for _, sp := range cc.searchPaths {
 		// Skip cleanup for local paths - they should not be deleted
-		if isLocalPath(path) {
+		if isLocalPath(sp.Path) {
 			continue
 		}
 
 		// Only clean up downloaded remote directories
-		dst := downloadDir(path)
+		dst := downloadDir(sp.Path)
 		if err := os.RemoveAll(dst); err != nil {
 			cc.logger.Error("Error cleaning up downloaded directory", "path", dst, "error", err)
 		}
@@ -910,14 +950,35 @@ func (cc *Context) discoverSkills() error {
 		return nil
 	}
 
-	var skillPaths []string
+	type skillDir struct {
+		path    string
+		lenient bool
+	}
 
-	for _, path := range cc.downloadedPaths {
-		skillPaths = append(skillPaths, namespacedSkillSearchPaths(path, cc.namespace)...)
+	// Determine the agent's skill path prefix for lenient agent handling.
+	var agentSkillSuffix string
+	if cc.lenientAgent && cc.agent.IsSet() {
+		agentPaths := getAgentsPaths()
+		if cfg, ok := agentPaths[cc.agent]; ok {
+			agentSkillSuffix = cfg.skillsPath
+		}
+	}
+
+	var skillPaths []skillDir
+
+	for _, sp := range cc.downloadedPaths {
+		for _, dir := range namespacedSkillSearchPaths(sp.Path, cc.namespace) {
+			lenient := sp.Lenient
+			if !lenient && agentSkillSuffix != "" && strings.HasSuffix(dir, agentSkillSuffix) {
+				lenient = true
+			}
+
+			skillPaths = append(skillPaths, skillDir{path: dir, lenient: lenient})
+		}
 	}
 
 	for _, dir := range skillPaths {
-		if err := cc.discoverSkillsInDir(dir); err != nil {
+		if err := cc.discoverSkillsInDir(dir.path, dir.lenient); err != nil {
 			return err
 		}
 	}
@@ -926,15 +987,27 @@ func (cc *Context) discoverSkills() error {
 }
 
 // discoverSkillsInDir discovers skills within a single directory.
-func (cc *Context) discoverSkillsInDir(dir string) error {
+func (cc *Context) discoverSkillsInDir(dir string, lenient bool) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
+		if lenient {
+			cc.logger.Warn("skipping skill directory", "path", dir, "error", err)
+
+			return nil
+		}
+
 		return fmt.Errorf("failed to stat skill directory %s: %w", dir, err)
 	}
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
+		if lenient {
+			cc.logger.Warn("skipping skill directory", "path", dir, "error", err)
+
+			return nil
+		}
+
 		return fmt.Errorf("failed to read skill directory %s: %w", dir, err)
 	}
 
@@ -945,7 +1018,7 @@ func (cc *Context) discoverSkillsInDir(dir string) error {
 
 		skillFile := filepath.Join(dir, entry.Name(), "SKILL.md")
 
-		if err := cc.loadSkillEntry(skillFile); err != nil {
+		if err := cc.loadSkillEntry(skillFile, lenient); err != nil {
 			return err
 		}
 	}
@@ -954,16 +1027,28 @@ func (cc *Context) discoverSkillsInDir(dir string) error {
 }
 
 // loadSkillEntry loads and validates a single skill from its SKILL.md file.
-func (cc *Context) loadSkillEntry(skillFile string) error {
+func (cc *Context) loadSkillEntry(skillFile string, lenient bool) error {
 	if _, err := os.Stat(skillFile); os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
+		if lenient {
+			cc.logger.Warn("skipping skill file", "path", skillFile, "error", err)
+
+			return nil
+		}
+
 		return fmt.Errorf("failed to stat skill file %s: %w", skillFile, err)
 	}
 
 	var frontmatter markdown.SkillFrontMatter
 
 	if _, err := markdown.ParseMarkdownFile(skillFile, &frontmatter); err != nil {
+		if lenient {
+			cc.logger.Warn("skipping skill file: failed to parse YAML frontmatter", "path", skillFile, "error", err)
+
+			return nil
+		}
+
 		return fmt.Errorf("failed to parse skill file %s: %w", skillFile, err)
 	}
 
@@ -980,25 +1065,33 @@ func (cc *Context) loadSkillEntry(skillFile string) error {
 		return nil
 	}
 
-	return cc.validateAndAddSkill(frontmatter, skillFile, reason)
+	return cc.validateAndAddSkill(frontmatter, skillFile, reason, lenient)
 }
 
 // validateAndAddSkill validates skill metadata and adds it to the skill collection.
-func (cc *Context) validateAndAddSkill(frontmatter markdown.SkillFrontMatter, skillFile, reason string) error {
+func (cc *Context) validateAndAddSkill(frontmatter markdown.SkillFrontMatter, skillFile, reason string, lenient bool) error {
 	if frontmatter.Name == "" {
-		if cc.lintMode {
+		if lenient {
+			// Infer name from the skill's parent directory
+			frontmatter.Name = filepath.Base(filepath.Dir(skillFile))
+			cc.logger.Warn("using inferred skill name", "name", frontmatter.Name, "path", skillFile)
+		} else if cc.lintMode {
 			cc.lintCollector.recordError(skillFile, LintErrorKindSkillValidation,
 				fmt.Sprintf("%v: %s", ErrSkillMissingName, skillFile))
 
 			return nil
+		} else {
+			return fmt.Errorf("%w: %s", ErrSkillMissingName, skillFile)
 		}
-
-		return fmt.Errorf("%w: %s", ErrSkillMissingName, skillFile)
 	}
 
 	const maxSkillNameLen = 64
 	if len(frontmatter.Name) > maxSkillNameLen {
-		if cc.lintMode {
+		if lenient {
+			cc.logger.Warn("skipping skill: name exceeds maximum length", "path", skillFile, "length", len(frontmatter.Name))
+
+			return nil
+		} else if cc.lintMode {
 			cc.lintCollector.recordError(skillFile, LintErrorKindSkillValidation,
 				fmt.Sprintf("%v: %s (got %d)", ErrSkillNameLength, skillFile, len(frontmatter.Name)))
 
@@ -1009,7 +1102,11 @@ func (cc *Context) validateAndAddSkill(frontmatter markdown.SkillFrontMatter, sk
 	}
 
 	if frontmatter.Description == "" {
-		if cc.lintMode {
+		if lenient {
+			cc.logger.Warn("skipping skill: missing 'description' field", "path", skillFile)
+
+			return nil
+		} else if cc.lintMode {
 			cc.lintCollector.recordError(skillFile, LintErrorKindSkillValidation,
 				fmt.Sprintf("%v: %s", ErrSkillMissingDesc, skillFile))
 

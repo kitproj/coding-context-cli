@@ -18,24 +18,27 @@ import (
 )
 
 var (
-	errInvalidUsage         = errors.New("invalid usage: expected one task name argument and optional user-prompt")
-	errWriteRulesNoAgent    = errors.New("-w flag requires an agent to be specified (via task 'agent' field or -a flag)")
-	errNoUserRulePath       = errors.New("no user rule path available for agent")
-	errRulesPathEscapesHome = errors.New("rules path escapes home directory")
+	errInvalidUsage          = errors.New("invalid usage: expected one task name argument and optional user-prompt")
+	errWriteRulesNoAgent     = errors.New("-w flag requires an agent to be specified (via task 'agent' field or -a flag)")
+	errNoUserRulePath        = errors.New("no user rule path available for agent")
+	errRulesPathEscapesHome  = errors.New("rules path escapes home directory")
+	errAgentFlagsMutExcl     = errors.New("-a and -A flags are mutually exclusive")
 )
 
 type cliConfig struct {
-	workDir       string
-	resume        bool
-	skipBootstrap bool
-	writeRules    bool
-	agent         codingcontext.Agent
-	params        taskparser.Params
-	includes      selectors.Selectors
-	searchPaths   []string
-	manifestURL   string
-	taskName      string
-	userPrompt    string
+	workDir            string
+	resume             bool
+	skipBootstrap      bool
+	writeRules         bool
+	agent              codingcontext.Agent
+	lenientAgent       codingcontext.Agent
+	params             taskparser.Params
+	includes           selectors.Selectors
+	searchPaths        []string
+	lenientSearchPaths []string
+	manifestURL        string
+	taskName           string
+	userPrompt         string
 }
 
 func main() {
@@ -70,12 +73,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		codingcontext.WithParams(cfg.params),
 		codingcontext.WithSelectors(cfg.includes),
 		codingcontext.WithSearchPaths(cfg.searchPaths...),
+		codingcontext.WithLenientSearchPaths(cfg.lenientSearchPaths...),
 		codingcontext.WithLogger(logger),
 		codingcontext.WithResume(cfg.resume),
 		codingcontext.WithBootstrap(!cfg.skipBootstrap),
-		codingcontext.WithAgent(cfg.agent),
 		codingcontext.WithManifestURL(cfg.manifestURL),
 		codingcontext.WithUserPrompt(cfg.userPrompt),
+		codingcontext.WithAgent(cfg.agent),
+		codingcontext.WithLenientAgent(cfg.lenientAgent),
 	)
 
 	result, err := cc.Run(ctx, cfg.taskName)
@@ -128,13 +133,24 @@ func parseFlags(logger *slog.Logger) (*cliConfig, error) {
 	flag.Var(&cfg.agent, "a",
 		"Target agent to use. Required when using -w to write rules to the agent's user rules path. "+
 			"Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
+	flag.Var(&cfg.lenientAgent, "A",
+		"Target agent with lenient error handling (errors are warnings, missing skill names inferred from directory). "+
+			"Mutually exclusive with -a. Supported agents: cursor, opencode, copilot, claude, gemini, augment, windsurf, codex.")
 	flag.Var(&cfg.params, "p", "Parameter to substitute in the prompt. Can be specified multiple times as key=value.")
 	flag.Var(&cfg.includes, "s", "Include rules with matching frontmatter. Can be specified multiple times as key=value.")
 	flag.Func("d",
-		"Directory containing rules and tasks. Can be specified multiple times. "+
+		"Directory containing rules and tasks (strict: errors are fatal). Can be specified multiple times. "+
 			"Supports various protocols via go-getter (http://, https://, git::, s3::, file:// etc.).",
 		func(s string) error {
 			cfg.searchPaths = append(cfg.searchPaths, s)
+
+			return nil
+		})
+	flag.Func("D",
+		"Directory containing rules and tasks (lenient: errors are warnings). Can be specified multiple times. "+
+			"Supports various protocols via go-getter (http://, https://, git::, s3::, file:// etc.).",
+		func(s string) error {
+			cfg.lenientSearchPaths = append(cfg.lenientSearchPaths, s)
 
 			return nil
 		})
@@ -165,6 +181,10 @@ func setupUsage(logger *slog.Logger) {
 }
 
 func parseFlagArgs(cfg *cliConfig) (*cliConfig, error) {
+	if cfg.agent.IsSet() && cfg.lenientAgent.IsSet() {
+		return nil, errAgentFlagsMutExcl
+	}
+
 	args := flag.Args()
 
 	const maxArgs = 2

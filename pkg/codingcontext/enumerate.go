@@ -31,7 +31,9 @@ func (cc *Context) ListTasks(ctx context.Context) ([]DiscoveredTask, error) {
 		return nil, fmt.Errorf("failed to parse manifest file: %w", err)
 	}
 
-	cc.searchPaths = append(cc.searchPaths, manifestPaths...)
+	for _, p := range manifestPaths {
+		cc.searchPaths = append(cc.searchPaths, SearchPath{Path: p})
+	}
 
 	if err := cc.downloadRemoteDirectories(ctx); err != nil {
 		return nil, fmt.Errorf("failed to download remote directories: %w", err)
@@ -43,8 +45,9 @@ func (cc *Context) ListTasks(ctx context.Context) ([]DiscoveredTask, error) {
 
 	seen := make(map[string]bool)
 
-	for _, dir := range cc.downloadedPaths {
+	for _, sp := range cc.downloadedPaths {
 		// Global tasks.
+		dir := sp.Path
 		for _, taskDir := range taskSearchPaths(dir) {
 			found, err := listTasksInDir(taskDir, "")
 			if err != nil {

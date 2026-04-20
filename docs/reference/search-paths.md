@@ -11,7 +11,9 @@ Complete reference for where the CLI searches for task files and rule files.
 
 ## Search Paths Overview
 
-The CLI searches for rules and tasks in directories specified via the `-d` flag. The working directory (`-C` or current directory) and home directory (`~`) are **automatically added** to the search paths, so they don't need to be specified explicitly.
+The CLI searches for rules and tasks in directories specified via the `-d` (strict) or `-D` (lenient) flags. The working directory (`-C` or current directory) and home directory (`~`) are **automatically added** as strict search paths, so they don't need to be specified explicitly.
+
+**Lenient search paths** (`-D`): Errors are logged as warnings and problematic files are skipped instead of causing a fatal error. For skills with a missing `name` field, the name is inferred from the directory name. This is useful for third-party or shared directories where you don't control file quality.
 
 All directories (local and remote) are processed via go-getter, which downloads remote directories to temporary locations and processes local directories directly.
 
