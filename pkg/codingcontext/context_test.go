@@ -2795,7 +2795,7 @@ name: no-desc-skill
 			},
 		},
 		{
-			name: "lenient: skip skill when name exceeds max length",
+			name: "lenient: include skill when name exceeds max length",
 			setup: func(t *testing.T, strictDir, lenientDir string) {
 				t.Helper()
 				createTask(t, strictDir, "test-task", "", "Test task content")
@@ -2812,8 +2812,39 @@ description: Valid description
 			wantErr:  false,
 			checkFunc: func(t *testing.T, result *Result) {
 				t.Helper()
-				if len(result.Skills.Skills) != 0 {
-					t.Errorf("expected 0 skills (skipped due to name too long), got %d", len(result.Skills.Skills))
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 skill (lenient mode allows oversized name), got %d", len(result.Skills.Skills))
+				}
+				wantName := "this-is-a-very-long-skill-name-that-exceeds-the-maximum-allowed-length-of-64-characters"
+				if result.Skills.Skills[0].Name != wantName {
+					t.Errorf("expected skill name %q, got %q", wantName, result.Skills.Skills[0].Name)
+				}
+			},
+		},
+		{
+			name: "lenient: include skill when description exceeds max length",
+			setup: func(t *testing.T, strictDir, lenientDir string) {
+				t.Helper()
+				createTask(t, strictDir, "test-task", "", "Test task content")
+
+				longDesc := strings.Repeat("a", 1025)
+				createSkill(t, lenientDir, filepath.Join(".agents", "skills", "long-desc-skill"), fmt.Sprintf(`---
+name: long-desc-skill
+description: %s
+---
+
+# Long Desc Skill
+`, longDesc))
+			},
+			taskName: "test-task",
+			wantErr:  false,
+			checkFunc: func(t *testing.T, result *Result) {
+				t.Helper()
+				if len(result.Skills.Skills) != 1 {
+					t.Fatalf("expected 1 skill (lenient mode allows oversized description), got %d", len(result.Skills.Skills))
+				}
+				if got := len(result.Skills.Skills[0].Description); got != 1025 {
+					t.Errorf("expected description length 1025, got %d", got)
 				}
 			},
 		},
