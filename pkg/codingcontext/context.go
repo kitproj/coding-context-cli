@@ -1088,17 +1088,15 @@ func (cc *Context) validateAndAddSkill(frontmatter markdown.SkillFrontMatter, sk
 	const maxSkillNameLen = 64
 	if len(frontmatter.Name) > maxSkillNameLen {
 		if lenient {
-			cc.logger.Warn("skipping skill: name exceeds maximum length", "path", skillFile, "length", len(frontmatter.Name))
-
-			return nil
+			cc.logger.Warn("skill name exceeds maximum length", "path", skillFile, "length", len(frontmatter.Name))
 		} else if cc.lintMode {
 			cc.lintCollector.recordError(skillFile, LintErrorKindSkillValidation,
 				fmt.Sprintf("%v: %s (got %d)", ErrSkillNameLength, skillFile, len(frontmatter.Name)))
 
 			return nil
+		} else {
+			return fmt.Errorf("%w: %s (got %d)", ErrSkillNameLength, skillFile, len(frontmatter.Name))
 		}
-
-		return fmt.Errorf("%w: %s (got %d)", ErrSkillNameLength, skillFile, len(frontmatter.Name))
 	}
 
 	if frontmatter.Description == "" {
@@ -1118,14 +1116,16 @@ func (cc *Context) validateAndAddSkill(frontmatter markdown.SkillFrontMatter, sk
 
 	const maxSkillDescLen = 1024
 	if len(frontmatter.Description) > maxSkillDescLen {
-		if cc.lintMode {
+		if lenient {
+			cc.logger.Warn("skill description exceeds maximum length", "path", skillFile, "length", len(frontmatter.Description))
+		} else if cc.lintMode {
 			cc.lintCollector.recordError(skillFile, LintErrorKindSkillValidation,
 				fmt.Sprintf("%v: %s (got %d)", ErrSkillDescriptionLength, skillFile, len(frontmatter.Description)))
 
 			return nil
+		} else {
+			return fmt.Errorf("%w: %s (got %d)", ErrSkillDescriptionLength, skillFile, len(frontmatter.Description))
 		}
-
-		return fmt.Errorf("%w: %s (got %d)", ErrSkillDescriptionLength, skillFile, len(frontmatter.Description))
 	}
 
 	absPath, err := filepath.Abs(skillFile)
