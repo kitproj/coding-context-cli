@@ -269,3 +269,34 @@ func TestLint_Command_Tracked(t *testing.T) {
 		t.Errorf("expected command file in LoadedFiles, got %+v", result.LoadedFiles)
 	}
 }
+
+// TestLint_SelectorMatched_FromSkillFrontmatter verifies that frontmatter keys
+// declared in SKILL.md files contribute to the selector-coverage 'seen' map.
+// Regression test: previously loadSkillEntry recorded the file but not its
+// frontmatter values, so a selector key declared only in skill frontmatter
+// (e.g. a plugin whose only converted output is a SKILL.md) would falsely
+// trigger 'selector matched no discovered files'.
+func TestLint_SelectorMatched_FromSkillFrontmatter(t *testing.T) {
+	t.Parallel()
+	dir := lintTestDir(t)
+
+	createTask(t, dir, "task1", "", "Do stuff.")
+	createSkill(t, dir, ".agents/skills/myskill",
+		"---\nname: myskill\ndescription: A skill that declares a custom selector key.\ncategory: alpha\n---\nbody")
+
+	cc := New(
+		WithSearchPaths(dir),
+		WithSelectors(map[string]map[string]bool{
+			"category": {"alpha": true},
+		}),
+	)
+
+	result, err := cc.Lint(context.Background(), "task1")
+	if err != nil {
+		t.Fatalf("Lint() returned error: %v", err)
+	}
+
+	if hasLintError(result, LintErrorKindSelectorNoMatch, "category=alpha") {
+		t.Errorf("skill frontmatter should satisfy selector coverage, got errors: %+v", result.Errors)
+	}
+}
