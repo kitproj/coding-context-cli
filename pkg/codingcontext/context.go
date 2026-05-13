@@ -1054,6 +1054,7 @@ func (cc *Context) loadSkillEntry(skillFile string, lenient bool) error {
 
 	if cc.lintCollector != nil {
 		cc.lintCollector.recordFile(skillFile, LoadedFileKindSkill)
+		cc.lintCollector.recordFrontmatterValues(frontmatter.BaseFrontMatter)
 	}
 
 	matches, reason := cc.includes.MatchesIncludes(frontmatter.BaseFrontMatter, cc.includeByDefault)
