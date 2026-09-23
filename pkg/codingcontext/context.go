@@ -40,6 +40,8 @@ var (
 	// ErrMultipleAgents is returned when more than one agent option (WithAgent, WithLenientAgent) is used.
 	// These options are mutually exclusive; only one agent may be set.
 	ErrMultipleAgents = errors.New("only one agent option (WithAgent or WithLenientAgent) may be used")
+	// ErrCallerNotAllowed is returned when a task does not permit the configured invocation surface or caller.
+	ErrCallerNotAllowed = errors.New("task invocation not allowed")
 
 	// ErrInvalidTaskNameNamespace is returned when the task name has an empty namespace.
 	ErrInvalidTaskNameNamespace = errors.New("namespace must not be empty")
@@ -83,6 +85,8 @@ type Context struct {
 	agentSetCount    int    // Incremented by WithAgent and WithLenientAgent; >1 means conflict
 	namespace        string // Active namespace derived from task name (e.g. "myteam" from "myteam/fix-bug")
 	userPrompt       string // User-provided prompt to append to task
+	surface          string
+	caller           CallerIdentity
 	lintMode         bool
 	lintCollector    *lintCollector
 }
@@ -197,6 +201,10 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 	// Get the task by name
 	if err := cc.findTask(taskName); err != nil {
+		if errors.Is(err, ErrCallerNotAllowed) {
+			return nil, err
+		}
+
 		return nil, fmt.Errorf("task not found: %w", err)
 	}
 
@@ -275,6 +283,10 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 
 	for _, dir := range searchDirs {
 		if err := cc.visitMarkdownInDir(dir.path, visitor); err != nil {
+			if errors.Is(err, ErrCallerNotAllowed) {
+				return err
+			}
+
 			if dir.lenient {
 				cc.logger.Warn("skipping directory", "path", dir.path, "error", err)
 
@@ -419,6 +431,12 @@ func (cc *Context) loadTask(path, taskName string) error {
 
 	if frontMatter.Name == "" {
 		frontMatter.Name = nameFromPath(path)
+	}
+
+	if !cc.lintMode {
+		if err := cc.authorizeTaskInvocation(frontMatter); err != nil {
+			return err
+		}
 	}
 
 	// Extract selector labels from task frontmatter and add them to cc.includes.

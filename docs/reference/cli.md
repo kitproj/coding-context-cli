@@ -184,7 +184,7 @@ coding-context \
 
 ### `-a <agent>`
 
-**Type:** String  
+**Type:** String
 **Default:** (empty)
 
 Specify the target agent being used. This is currently used for:
@@ -215,6 +215,41 @@ coding-context -a copilot -w implement-feature
 **Note:** Task files can override this with an `agent` field in their frontmatter.
 
 **See also:** [Targeting a Specific Agent](../../README.md#targeting-a-specific-agent) in README
+
+### `-surface <surface>`
+
+**Type:** String
+**Default:** (empty)
+
+Set the invocation surface used to authorize a task that declares
+`allowed_surfaces`. Matching is case-insensitive. A restricted task rejects an
+empty or non-matching surface.
+
+### `-caller <username>`
+
+**Type:** String
+**Default:** (empty)
+
+Set the requester username used to authorize a task that declares
+`allowed_requesters`.
+
+### `-caller-email <email>`
+
+**Type:** String
+**Default:** (empty)
+
+Set the requester email address used to authorize a task that declares
+`allowed_requesters`. Either the configured username or email may match an
+allowed requester.
+
+**Example:**
+```bash
+coding-context \
+  -surface jira \
+  -caller alice \
+  -caller-email alice@example.com \
+  deploy-service
+```
 
 ### `-r`
 
