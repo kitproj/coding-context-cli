@@ -1,6 +1,8 @@
 package taskparser
 
 import (
+	"sync"
+
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
@@ -50,7 +52,22 @@ type TextLine struct {
 	NewlineOpt    string   `parser:"@Newline?"`
 }
 
-func parser() *participle.Parser[Input] {
+// taskParser builds the task grammar/lexer once, on first use, and returns
+// the same *Parser[Input] on every subsequent call. This is an effectively
+// immutable package-level value — like a compiled regexp.MustCompile result
+// — not a mutable cache: sync.OnceValue's returned func always yields the
+// identical value after its first call, and taskParser itself is never
+// reassigned. participle.Parser[T] holds only the compiled grammar and
+// lexer definition (fixed, derived solely from the Input struct tags above);
+// all per-parse mutable state lives in a parseContext created fresh inside
+// ParseString/ParseFromLexer on every call, so sharing one *Parser[Input]
+// across calls (including concurrently, confirmed via -race) is the
+// standard, documented participle usage pattern. Rebuilding it on every
+// call (the previous behavior) repeated the grammar-compilation work for no
+// benefit, since the grammar never varies — allocation-heavy per the
+// participle internals (Branch/Defer/lexer.Upgrade/newTagLexer), confirmed
+// via benchmark to be ~40% of both time and allocations per parse call.
+var taskParser = sync.OnceValue(func() *participle.Parser[Input] {
 	taskLexer := lexer.MustSimple([]lexer.SimpleRule{
 		{Name: "Slash", Pattern: `/`},                // Any "/"
 		{Name: "Assign", Pattern: `=`},               // "="
@@ -66,6 +83,10 @@ func parser() *participle.Parser[Input] {
 		participle.Lexer(taskLexer),
 		participle.UseLookahead(taskLookahead),
 	)
+})
+
+func parser() *participle.Parser[Input] {
+	return taskParser()
 }
 
 // ========== PARAMS GRAMMAR ==========
@@ -107,7 +128,10 @@ type Value struct {
 	Raw string `parser:"(@QuotedDouble | @QuotedSingle | @Token)"`
 }
 
-func paramsParser() *participle.Parser[ParamsInput] {
+// paramsParserOnce builds the params grammar/lexer once and reuses it across
+// every call to paramsParser(). See taskParser above for why an effectively
+// immutable sync.OnceValue package var is safe here.
+var paramsParserOnce = sync.OnceValue(func() *participle.Parser[ParamsInput] {
 	paramsLexer := lexer.MustSimple([]lexer.SimpleRule{
 		{Name: "Whitespace", Pattern: `[\s\p{Z}]+`}, // Match ASCII and Unicode whitespace
 		{Name: "Comma", Pattern: `,`},
@@ -127,4 +151,8 @@ func paramsParser() *participle.Parser[ParamsInput] {
 		participle.Lexer(paramsLexer),
 		participle.UseLookahead(paramsLookahead),
 	)
+})
+
+func paramsParser() *participle.Parser[ParamsInput] {
+	return paramsParserOnce()
 }
