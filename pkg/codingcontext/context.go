@@ -201,11 +201,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 	// Get the task by name
 	if err := cc.findTask(taskName); err != nil {
-		if errors.Is(err, ErrCallerNotAllowed) {
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("task not found: %w", err)
+		return nil, fmt.Errorf("find task %q: %w", taskName, err)
 	}
 
 	// Log parameters and selectors after task is found
@@ -283,17 +279,13 @@ func (cc *Context) visitMarkdownFiles(searchDirFn func(path string) []string, vi
 
 	for _, dir := range searchDirs {
 		if err := cc.visitMarkdownInDir(dir.path, visitor); err != nil {
-			if errors.Is(err, ErrCallerNotAllowed) {
-				return err
-			}
-
-			if dir.lenient {
+			if dir.lenient && !errors.Is(err, ErrCallerNotAllowed) {
 				cc.logger.Warn("skipping directory", "path", dir.path, "error", err)
 
 				continue
 			}
 
-			return err
+			return fmt.Errorf("process markdown search path %q: %w", dir.path, err)
 		}
 	}
 
@@ -435,7 +427,7 @@ func (cc *Context) loadTask(path, taskName string) error {
 
 	if !cc.lintMode {
 		if err := cc.authorizeTaskInvocation(frontMatter); err != nil {
-			return err
+			return fmt.Errorf("authorize task %q: %w", taskName, err)
 		}
 	}
 
