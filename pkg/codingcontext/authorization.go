@@ -14,47 +14,30 @@ type CallerIdentity struct {
 }
 
 func (cc *Context) authorizeTaskInvocation(frontMatter markdown.TaskFrontMatter) error {
-	if err := authorizeSurface(frontMatter.AllowedSurfaces, cc.surface); err != nil {
-		return err
+	if !isAllowed(frontMatter.AllowedSurfaces, cc.surface) {
+		return fmt.Errorf("%w: surface is not permitted", ErrCallerNotAllowed)
 	}
 
-	return authorizeRequester(frontMatter.AllowedRequesters, cc.caller)
-}
-
-func authorizeSurface(allowed []string, surface string) error {
-	if len(allowed) == 0 {
-		return nil
-	}
-
-	surface = strings.TrimSpace(surface)
-	if matchesAllowedValue(allowed, surface) {
-		return nil
-	}
-
-	return fmt.Errorf("%w: surface %q is not permitted", ErrCallerNotAllowed, surface)
-}
-
-func authorizeRequester(allowed []string, caller CallerIdentity) error {
-	if len(allowed) == 0 {
-		return nil
-	}
-
-	if !matchesAllowedValue(allowed, caller.Username, caller.Email) {
+	if !isAllowed(frontMatter.AllowedRequesters, cc.caller.Username, cc.caller.Email) {
 		return fmt.Errorf("%w: requester identity is not permitted", ErrCallerNotAllowed)
 	}
 
 	return nil
 }
 
-func matchesAllowedValue(allowed []string, actualValues ...string) bool {
-	for _, actual := range actualValues {
-		actual = strings.TrimSpace(actual)
-		if actual == "" {
+func isAllowed(allowlist []string, values ...string) bool {
+	if len(allowlist) == 0 {
+		return true
+	}
+
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
 			continue
 		}
 
-		for _, candidate := range allowed {
-			if strings.EqualFold(actual, strings.TrimSpace(candidate)) {
+		for _, allowed := range allowlist {
+			if strings.EqualFold(value, strings.TrimSpace(allowed)) {
 				return true
 			}
 		}
