@@ -22,6 +22,15 @@ type BaseFrontMatter struct {
 	// With yaml:",inline", goccy/go-yaml populates this map with all unknown keys,
 	// while known fields on the embedding struct (e.g. TaskNames, License) are set
 	// directly on those fields. This ensures outer-struct fields are not shadowed.
+	//
+	// Treat this map as read-only after parsing. Parsed frontmatter is memoized
+	// and shared across Context instances (see SkillCache), and copying the
+	// struct copies only the map header — so a write here would be visible to
+	// every other holder of the same cached parse. Nothing writes to it today,
+	// and that sharing is only safe for as long as that stays true. Callers in
+	// the lint-all-tasks path run sequentially, so such a write would surface as
+	// cross-task contamination rather than a race the detector would flag. To
+	// vary a value per-consumer, copy the map instead of mutating in place.
 	Content map[string]any `json:"-" yaml:",inline"`
 }
 
@@ -165,6 +174,9 @@ type SkillFrontMatter struct {
 	Compatibility string `json:"compatibility,omitempty" yaml:"compatibility,omitempty"`
 
 	// Metadata contains arbitrary key-value pairs (optional)
+	//
+	// Read-only after parsing, for the same reason as BaseFrontMatter.Content:
+	// this map is shared by every consumer of a cached skill parse.
 	Metadata map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 
 	// AllowedTools is a space-delimited list of pre-approved tools (optional, experimental)

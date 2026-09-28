@@ -214,7 +214,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	}
 
 	// Discover skills (load metadata only for progressive disclosure)
-	if err := cc.discoverSkills(); err != nil {
+	if err := cc.discoverSkills(ctx); err != nil {
 		return nil, fmt.Errorf("failed to discover skills: %w", err)
 	}
 
@@ -1036,7 +1036,7 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path string, frontmat
 
 // discoverSkills searches for skill directories and loads only their metadata (name and description)
 // for progressive disclosure. Skills are folders containing a SKILL.md file.
-func (cc *Context) discoverSkills() error {
+func (cc *Context) discoverSkills(ctx context.Context) error {
 	// Skip skill discovery if bootstrap is disabled
 	if !cc.doBootstrap {
 		return nil
@@ -1069,8 +1069,10 @@ func (cc *Context) discoverSkills() error {
 		}
 	}
 
+	cache := skillCacheFromContext(ctx)
+
 	for _, dir := range skillPaths {
-		if err := cc.discoverSkillsInDir(dir.path, dir.lenient); err != nil {
+		if err := cc.discoverSkillsInDir(dir.path, dir.lenient, cache); err != nil {
 			return err
 		}
 	}
@@ -1078,8 +1080,9 @@ func (cc *Context) discoverSkills() error {
 	return nil
 }
 
-// discoverSkillsInDir discovers skills within a single directory.
-func (cc *Context) discoverSkillsInDir(dir string, lenient bool) error {
+// discoverSkillsInDir discovers skills within a single directory. cache may
+// be nil (no caching, parse every call) — see skillCacheFromContext.
+func (cc *Context) discoverSkillsInDir(dir string, lenient bool, cache *SkillCache) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
@@ -1110,7 +1113,7 @@ func (cc *Context) discoverSkillsInDir(dir string, lenient bool) error {
 
 		skillFile := filepath.Join(dir, entry.Name(), "SKILL.md")
 
-		if err := cc.loadSkillEntry(skillFile, lenient); err != nil {
+		if err := cc.loadSkillEntry(skillFile, lenient, cache); err != nil {
 			return err
 		}
 	}
@@ -1119,7 +1122,8 @@ func (cc *Context) discoverSkillsInDir(dir string, lenient bool) error {
 }
 
 // loadSkillEntry loads and validates a single skill from its SKILL.md file.
-func (cc *Context) loadSkillEntry(skillFile string, lenient bool) error {
+// cache may be nil — see skillCacheFromContext.
+func (cc *Context) loadSkillEntry(skillFile string, lenient bool, cache *SkillCache) error {
 	if _, err := os.Stat(skillFile); os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
@@ -1132,16 +1136,41 @@ func (cc *Context) loadSkillEntry(skillFile string, lenient bool) error {
 		return fmt.Errorf("failed to stat skill file %s: %w", skillFile, err)
 	}
 
-	var frontmatter markdown.SkillFrontMatter
+	var (
+		frontmatter markdown.SkillFrontMatter
+		parseErr    error
+	)
 
-	if _, err := markdown.ParseMarkdownFileWithLogger(skillFile, &frontmatter, cc.logger); err != nil {
+	if cached, ok := cache.get(skillFile); ok {
+		frontmatter, parseErr = cached.frontmatter, cached.err
+	} else {
+		_, parseErr = markdown.ParseMarkdownFileWithLogger(skillFile, &frontmatter, cc.logger)
+
+		// Cache only deterministic outcomes. A parse error means the file was
+		// read and its content rejected, so every later call would reject it
+		// identically; an I/O error (permissions, fd exhaustion, a flaky
+		// network filesystem, a file that vanished mid-walk) says nothing
+		// about the next attempt, and caching one would let a single transient
+		// blip poison the rest of the run.
+		if parseErr == nil {
+			cache.set(skillFile, skillParseResult{frontmatter: frontmatter})
+		} else if isDeterministicParseError(parseErr) {
+			// Discard frontmatter on error: parsing populates it field by
+			// field, so a failed parse can leave it partly filled. Only err is
+			// consulted while it is non-nil, but caching a half-built struct
+			// invites a later reader to trust it.
+			cache.set(skillFile, skillParseResult{err: parseErr})
+		}
+	}
+
+	if parseErr != nil {
 		if lenient {
-			cc.logger.Warn("skipping skill file: failed to parse YAML frontmatter", "path", skillFile, "error", err)
+			cc.logger.Warn("skipping skill file: failed to parse YAML frontmatter", "path", skillFile, "error", parseErr)
 
 			return nil
 		}
 
-		return fmt.Errorf("failed to parse skill file %s: %w", skillFile, err)
+		return fmt.Errorf("failed to parse skill file %s: %w", skillFile, parseErr)
 	}
 
 	if cc.lintCollector != nil {

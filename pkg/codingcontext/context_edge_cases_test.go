@@ -227,6 +227,143 @@ func TestSkillSelectorFiltering(t *testing.T) {
 	}
 }
 
+// TestSkillCacheSharedAcrossContexts verifies that a SkillCache attached via
+// NewContextWithSkillCache is actually consulted: a second *Context, sharing
+// the same ctx (so the same cache) as the first, gets back a skill parsed by
+// the first call even after the underlying file changes on disk. This is the
+// intended usage: codegen-runner's lint-all-tasks loop constructs a new
+// *Context per task, and shares one SkillCache across all of them via ctx to
+// avoid re-parsing an unchanged skill tree once per task.
+func TestSkillCacheSharedAcrossContexts(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	createTask(t, dir, "task", "", "Task content")
+
+	skillPath := filepath.Join(dir, ".agents", "skills", "cached-skill", "SKILL.md")
+	createSkill(t, dir, ".agents/skills/cached-skill",
+		"---\nname: cached-skill\ndescription: Original description.\n---\n")
+
+	cache := NewSkillCache()
+	ctx := NewContextWithSkillCache(context.Background(), cache)
+
+	// First Context/Run populates the cache.
+	c1 := New(WithSearchPaths(dir))
+
+	result1, err := c1.Run(ctx, "task")
+	if err != nil {
+		t.Fatalf("first Run() error: %v", err)
+	}
+
+	if len(result1.Skills.Skills) != 1 || result1.Skills.Skills[0].Description != "Original description." {
+		t.Fatalf("first Run() skills = %v, want one skill with original description", result1.Skills.Skills)
+	}
+
+	// Change the file on disk. A second Context sharing the same ctx (and so
+	// the same cache) should still see the cached (original) result, proving
+	// the cache — not a fresh parse — served the second call.
+	if err := os.WriteFile(skillPath,
+		[]byte("---\nname: cached-skill\ndescription: Changed after caching.\n---\n"), 0o600); err != nil {
+		t.Fatalf("failed to rewrite skill file: %v", err)
+	}
+
+	c2 := New(WithSearchPaths(dir))
+
+	result2, err := c2.Run(ctx, "task")
+	if err != nil {
+		t.Fatalf("second Run() error: %v", err)
+	}
+
+	if len(result2.Skills.Skills) != 1 || result2.Skills.Skills[0].Description != "Original description." {
+		t.Fatalf("second Run() skills = %v, want cached original description (cache was not consulted)",
+			result2.Skills.Skills)
+	}
+}
+
+// TestSkillCacheCachesParseErrors verifies that a parse failure (not a
+// missing-file case, which is handled separately) is itself cached: a second
+// Context sharing the same cache must get back the same error rather than
+// silently succeeding because only the happy path was memoized.
+func TestSkillCacheCachesParseErrors(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	createTask(t, dir, "task", "", "Task content")
+
+	skillPath := filepath.Join(dir, ".agents", "skills", "bad-skill", "SKILL.md")
+	createSkill(t, dir, ".agents/skills/bad-skill", "---\nname: [unclosed\n---\nBody.\n")
+
+	cache := NewSkillCache()
+	ctx := NewContextWithSkillCache(context.Background(), cache)
+
+	c1 := New(WithSearchPaths(dir))
+	if _, err := c1.Run(ctx, "task"); err == nil {
+		t.Fatal("first Run() expected an error for malformed skill frontmatter, got nil")
+	}
+
+	// Fixing the file on disk should NOT change the outcome for a second
+	// Context sharing the same cache: the cached error must still be served.
+	if err := os.WriteFile(skillPath,
+		[]byte("---\nname: bad-skill\ndescription: Now valid.\n---\n"), 0o600); err != nil {
+		t.Fatalf("failed to rewrite skill file: %v", err)
+	}
+
+	c2 := New(WithSearchPaths(dir))
+	if _, err := c2.Run(ctx, "task"); err == nil {
+		t.Fatal("second Run() expected the cached parse error to be reused, got nil")
+	}
+}
+
+// TestSkillCacheDoesNotCacheTransientIOErrors verifies the counterpart to
+// TestSkillCacheCachesParseErrors: an error that describes one I/O attempt
+// rather than the file's content must NOT be memoized. Caching one would let
+// a single unreadable moment early in a run persist for every later caller,
+// which is strictly worse than not caching at all.
+func TestSkillCacheDoesNotCacheTransientIOErrors(t *testing.T) {
+	t.Parallel()
+
+	if os.Geteuid() == 0 {
+		t.Skip("running as root: permission bits do not deny reads")
+	}
+
+	dir := t.TempDir()
+	createTask(t, dir, "task", "", "Task content")
+
+	skillPath := filepath.Join(dir, ".agents", "skills", "locked-skill", "SKILL.md")
+	createSkill(t, dir, ".agents/skills/locked-skill",
+		"---\nname: locked-skill\ndescription: Readable once permissions allow.\n---\n")
+
+	// Make the file unreadable so the first pass fails on I/O, not on content.
+	if err := os.Chmod(skillPath, 0o000); err != nil {
+		t.Fatalf("failed to chmod skill file: %v", err)
+	}
+
+	cache := NewSkillCache()
+	ctx := NewContextWithSkillCache(context.Background(), cache)
+
+	c1 := New(WithSearchPaths(dir))
+	if _, err := c1.Run(ctx, "task"); err == nil {
+		t.Fatal("first Run() expected an error for an unreadable skill file, got nil")
+	}
+
+	// Restore access. A second Context sharing the cache must retry the read
+	// and succeed, rather than being served the earlier permission error.
+	if err := os.Chmod(skillPath, 0o600); err != nil {
+		t.Fatalf("failed to restore skill file permissions: %v", err)
+	}
+
+	c2 := New(WithSearchPaths(dir))
+
+	result, err := c2.Run(ctx, "task")
+	if err != nil {
+		t.Fatalf("second Run() expected the transient error to be retried, got: %v", err)
+	}
+
+	if !strings.Contains(result.Prompt, "Readable once permissions allow.") {
+		t.Error("second Run() did not pick up the now-readable skill")
+	}
+}
+
 // TestMergeSelectorsIntegerYAMLValue verifies that task frontmatter selectors whose
 // YAML values parse as integers (not strings) still match rule frontmatter correctly.
 // The mergeSelectors function uses fmt.Sprint, and MatchesIncludes does the same;
