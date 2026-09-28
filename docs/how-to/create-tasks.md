@@ -169,6 +169,45 @@ coding-context -s priority=high implement-feature
 
 **Note:** Language values should be lowercase (e.g., `go`, `python`, `javascript`).
 
+## Restricting Task Invocation
+
+Use `allowed_surfaces` and `allowed_requesters` to limit who may run a task and
+where the invocation may originate:
+
+```markdown
+---
+allowed_surfaces:
+  - jira
+  - github
+allowed_requesters:
+  - alice
+  - alice@example.com
+---
+# Deploy Service
+
+Deploy the requested service update.
+```
+
+Values within each list use case-insensitive OR logic. When both fields are
+present, the invocation must match both restrictions. Omitting a field or
+setting it to an empty list leaves that dimension unrestricted.
+
+Library callers provide trusted invocation data with `WithSurface` and
+`WithCaller`. Direct CLI callers use `-surface`, `-caller`, and optionally
+`-caller-email`:
+
+```bash
+coding-context \
+  -surface jira \
+  -caller alice \
+  -caller-email alice@example.com \
+  deploy-service
+```
+
+Restricted tasks reject missing or non-matching invocation data before task
+content is assembled. Linting validates the task file without enforcing
+invocation restrictions.
+
 ## Task Frontmatter
 
 Task frontmatter is used for filtering and metadata purposes but is **NOT included in the output**. The frontmatter controls behavior (like auto-filtering rules via the `selectors` field) but only the task content below the frontmatter delimiters is included in the assembled context.

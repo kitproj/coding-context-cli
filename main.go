@@ -18,11 +18,11 @@ import (
 )
 
 var (
-	errInvalidUsage          = errors.New("invalid usage: expected one task name argument and optional user-prompt")
-	errWriteRulesNoAgent     = errors.New("-w flag requires an agent to be specified (via task 'agent' field or -a flag)")
-	errNoUserRulePath        = errors.New("no user rule path available for agent")
-	errRulesPathEscapesHome  = errors.New("rules path escapes home directory")
-	errAgentFlagsMutExcl     = errors.New("-a and -A flags are mutually exclusive")
+	errInvalidUsage         = errors.New("invalid usage: expected one task name argument and optional user-prompt")
+	errWriteRulesNoAgent    = errors.New("-w flag requires an agent to be specified (via task 'agent' field or -a flag)")
+	errNoUserRulePath       = errors.New("no user rule path available for agent")
+	errRulesPathEscapesHome = errors.New("rules path escapes home directory")
+	errAgentFlagsMutExcl    = errors.New("-a and -A flags are mutually exclusive")
 )
 
 type cliConfig struct {
@@ -37,6 +37,8 @@ type cliConfig struct {
 	searchPaths        []string
 	lenientSearchPaths []string
 	manifestURL        string
+	surface            string
+	caller             codingcontext.CallerIdentity
 	taskName           string
 	userPrompt         string
 }
@@ -81,6 +83,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		codingcontext.WithUserPrompt(cfg.userPrompt),
 		codingcontext.WithAgent(cfg.agent),
 		codingcontext.WithLenientAgent(cfg.lenientAgent),
+		codingcontext.WithSurface(cfg.surface),
+		codingcontext.WithCaller(cfg.caller),
 	)
 
 	result, err := cc.Run(ctx, cfg.taskName)
@@ -156,6 +160,12 @@ func parseFlags(logger *slog.Logger) (*cliConfig, error) {
 		})
 	flag.StringVar(&cfg.manifestURL, "m", "",
 		"Go Getter URL to a manifest file containing search paths (one per line). Every line is included as-is.")
+	flag.StringVar(&cfg.surface, "surface", "",
+		"Invocation surface used to authorize tasks that declare allowed_surfaces.")
+	flag.StringVar(&cfg.caller.Username, "caller", "",
+		"Requester username used to authorize tasks that declare allowed_requesters.")
+	flag.StringVar(&cfg.caller.Email, "caller-email", "",
+		"Requester email used to authorize tasks that declare allowed_requesters.")
 
 	setupUsage(logger)
 	flag.Parse()

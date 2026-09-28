@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 
 	yaml "github.com/goccy/go-yaml"
@@ -48,12 +49,21 @@ func TestTaskFrontMatter_Marshal(t *testing.T) {
 				Model:      "gpt-4",
 				SingleShot: true,
 				Timeout:    "10m",
+				AllowedSurfaces: []string{
+					"jira",
+					"github",
+				},
+				AllowedRequesters: []string{
+					"alice",
+					"alice@example.com",
+				},
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},
 			},
 			want: "name: Full Task\ndescription: A task with all fields\ntask_name: full-task\nagent: cursor\n" +
-				"languages:\n- go\nmodel: gpt-4\nsingle_shot: true\ntimeout: 10m\nselectors:\n  stage: implementation\n",
+				"languages:\n- go\nmodel: gpt-4\nsingle_shot: true\ntimeout: 10m\nselectors:\n  stage: implementation\n" +
+				"allowed_surfaces:\n- jira\n- github\nallowed_requesters:\n- alice\n- alice@example.com\n",
 		},
 		{
 			name: "task with multiple languages",
@@ -172,6 +182,12 @@ single_shot: true
 timeout: 10m
 selectors:
   stage: implementation
+allowed_surfaces:
+  - jira
+  - github
+allowed_requesters:
+  - alice
+  - alice@example.com
 `,
 			want: TaskFrontMatter{
 				BaseFrontMatter: BaseFrontMatter{
@@ -187,6 +203,14 @@ selectors:
 				Model:      "gpt-4",
 				SingleShot: true,
 				Timeout:    "10m",
+				AllowedSurfaces: []string{
+					"jira",
+					"github",
+				},
+				AllowedRequesters: []string{
+					"alice",
+					"alice@example.com",
+				},
 				Selectors: map[string]any{
 					"stage": "implementation",
 				},
@@ -251,6 +275,14 @@ func assertTaskFrontMatter(t *testing.T, got, want TaskFrontMatter, err error, w
 
 	if got.Timeout != want.Timeout {
 		t.Errorf("Timeout = %q, want %q", got.Timeout, want.Timeout)
+	}
+
+	if !slices.Equal(got.AllowedSurfaces, want.AllowedSurfaces) {
+		t.Errorf("AllowedSurfaces = %v, want %v", got.AllowedSurfaces, want.AllowedSurfaces)
+	}
+
+	if !slices.Equal(got.AllowedRequesters, want.AllowedRequesters) {
+		t.Errorf("AllowedRequesters = %v, want %v", got.AllowedRequesters, want.AllowedRequesters)
 	}
 
 	switch {

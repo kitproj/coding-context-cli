@@ -114,9 +114,24 @@ func WithUserPrompt(userPrompt string) Option {
 	}
 }
 
+// WithSurface sets the surface from which the task invocation originated.
+func WithSurface(surface string) Option {
+	return func(c *Context) {
+		c.surface = surface
+	}
+}
+
+// WithCaller sets the identity of the requester invoking the task.
+func WithCaller(caller CallerIdentity) Option {
+	return func(c *Context) {
+		c.caller = caller
+	}
+}
+
 // WithLint enables lint mode: skips bootstrap script execution and shell command
 // expansion (!`cmd`). File access is tracked and non-fatal structural errors are
-// collected in LintResult. Use Lint() instead of Run() to retrieve results.
+// collected in LintResult. Caller allowlists are parsed but not enforced.
+// Use Lint() instead of Run() to retrieve results.
 func WithLint(lint bool) Option {
 	return func(c *Context) {
 		c.lintMode = lint

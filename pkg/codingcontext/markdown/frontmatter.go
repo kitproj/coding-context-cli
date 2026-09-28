@@ -72,6 +72,14 @@ type TaskFrontMatter struct {
 	// any active selector are included by default. Defaults to true (current behaviour).
 	// Set to false to require an explicit selector match (strict/opt-in mode).
 	IncludeUnmatched *bool `json:"include_unmatched,omitempty" yaml:"include_unmatched,omitempty"`
+
+	// AllowedSurfaces restricts which invocation surfaces may run the task.
+	// An empty list leaves the task unrestricted by surface.
+	AllowedSurfaces []string `json:"allowed_surfaces,omitempty" yaml:"allowed_surfaces,omitempty"`
+
+	// AllowedRequesters restricts which requester usernames or email addresses may run the task.
+	// An empty list leaves the task unrestricted by requester.
+	AllowedRequesters []string `json:"allowed_requesters,omitempty" yaml:"allowed_requesters,omitempty"`
 }
 
 // populateContent unmarshals raw JSON into the inline Content map.

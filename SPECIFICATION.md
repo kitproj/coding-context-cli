@@ -581,6 +581,43 @@ expand: false
 ---
 ```
 
+#### 5.2.13 `allowed_surfaces` (optional)
+- **Type:** Array of strings
+- **Purpose:** Restrict task execution to matching invocation surfaces
+- **Default:** Unrestricted when omitted or empty
+- **Matching:** Case-insensitive OR logic across entries
+
+```yaml
+---
+allowed_surfaces:
+  - jira
+  - github
+---
+```
+
+The caller must configure its invocation surface with `WithSurface` or the
+`-surface` CLI flag. A restricted task rejects invocations with a missing or
+non-matching surface before task content is assembled.
+
+#### 5.2.14 `allowed_requesters` (optional)
+- **Type:** Array of strings
+- **Purpose:** Restrict task execution to matching requester usernames or email addresses
+- **Default:** Unrestricted when omitted or empty
+- **Matching:** Case-insensitive OR logic across entries
+
+```yaml
+---
+allowed_requesters:
+  - alice
+  - alice@example.com
+---
+```
+
+The caller must configure a requester with `WithCaller` or the `-caller` and
+`-caller-email` CLI flags. A username or email match permits the requester.
+When both `allowed_surfaces` and `allowed_requesters` are present, both
+restrictions must match.
+
 ### 5.3 Standard Rule Fields
 
 #### 5.3.1 `id` (optional)
@@ -1554,6 +1591,16 @@ Potential future additions while maintaining backward compatibility:
       "description": "Enable/disable parameter expansion",
       "default": true
     },
+    "allowed_surfaces": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Invocation surfaces permitted to run a task"
+    },
+    "allowed_requesters": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Requester usernames or email addresses permitted to run a task"
+    },
     "selectors": {
       "type": "object",
       "description": "Auto-filter rules",
@@ -1634,6 +1681,8 @@ Potential future additions while maintaining backward compatibility:
 | `timeout` | string | No | Timeout duration |
 | `selectors` | object | No | Auto-filter rules |
 | `expand` | boolean | No | Parameter expansion control |
+| `allowed_surfaces` | array | No | Permitted invocation surfaces |
+| `allowed_requesters` | array | No | Permitted requester usernames or email addresses |
 
 ### Rule Fields
 
