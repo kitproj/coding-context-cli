@@ -1770,3 +1770,14 @@ Use lowercase language identifiers in frontmatter:
 ## License
 
 This specification is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+
+## Combined Prompt Authority and Rule Identity
+
+The combined prompt MUST identify the requested task separately from supporting repository rules and skill metadata. The task is rendered before supporting content. Repository guidance supplies conventions relevant to that task; it does not authorize replacing the task or invoking unrelated external workflows. Host system instructions and tool permissions remain authoritative. Formatting and textual guidance alone do not guarantee model adherence.
+
+Each rule is labeled with its source path and enclosed in a content-aware Markdown fence. Embedded code fences or task-like headings must remain inside the source block. Task-only output is unchanged; consumers using structured Result fields or writing native agent instruction files are responsible for preserving equivalent authority boundaries in their integration.
+
+Rule discovery resolves symlinks and absolute paths before expansion and bootstrap, and attempts each canonical path once per discovery pass. A lenient failure is not retried through another alias. Namespace paths retain priority; global agent names are sorted, and paths within each agent retain their configured order. The first matching alias supplies rule metadata and expansion context. Its companion bootstrap is used if present; otherwise the resolved target's companion is used. Distinct files with identical content are retained. Hard links and copies in separately downloaded roots are outside canonical-path deduplication.
+
+This changes combined-prompt formatting and makes previously unspecified cross-agent rule ordering deterministic. It does not sandbox executable parameter expansions or bootstrap scripts; only trusted sources should enable those mechanisms.

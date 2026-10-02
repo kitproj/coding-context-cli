@@ -10,44 +10,19 @@ This tool collects context from predefined rule files and a task-specific prompt
 
 ## Generated Context Structure
 
-The tool assembles context into a structured prompt with the following components:
+When supporting context exists, the generated prompt contains:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Generated Coding Context Prompt                             │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │ 1. Rules Content (Markdown)                           │  │
-│  │    • Coding standards and guidelines                  │  │
-│  │    • Team conventions and best practices              │  │
-│  │    • Filtered by selectors (-s flag)                  │  │
-│  │    • Skipped in resume mode (-r flag)                 │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                               │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │ 2. Skills Metadata (XML) - Optional                   │  │
-│  │    • Available skills with names & descriptions       │  │
-│  │    • Progressive disclosure - full content on demand  │  │
-│  │    • Only included if skills are discovered           │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                               │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │ 3. Task Content (Markdown)                            │  │
-│  │    • Task-specific instructions                       │  │
-│  │    • Parameter substitutions (${param})               │  │
-│  │    • Command expansions (!`command`)                  │  │
-│  │    • Path expansions (@file)                          │  │
-│  └───────────────────────────────────────────────────────┘  │
-│                                                               │
-└─────────────────────────────────────────────────────────────┘
-```
+1. Explicit guidance: the requested task defines the objective; repository rules and skills support that task and do not authorize unrelated workflows or external actions.
+2. The requested task, before repository context.
+3. Repository rules, each labeled with its source path and enclosed in a Markdown fence longer than any backtick sequence in its content.
+4. Optional skill metadata, with full skill content still loaded only on demand.
+5. A reminder to continue the requested task.
 
-**Key Points:**
-- **Rules**: Reusable context that applies across multiple tasks
-- **Skills**: Enable progressive disclosure of specialized capabilities
-- **Task Content**: Specific instructions for the current task with dynamic content expansion
-- **Note**: Task frontmatter is used for filtering and metadata but is not included in the output
+Task-only output remains unchanged. `Result.Task`, `Result.Rules`, and `Result.Skills` still expose their original content separately. Consumers depending on the old concatenation order or exact `Prompt` string must account for this format change.
+
+These boundaries provide model-facing guidance, not an authorization mechanism. Hosts remain responsible for tool permissions and instruction hierarchy. Agents that independently load repository instructions, and the CLI's `-w` mode, also need host-level handling; this format applies to the combined prompt. See [the opt-in behavioral evaluation](evals/prompt-boundaries/README.md).
+
+Rule aliases resolve to an absolute canonical path before expansion or bootstrap. Each identity is attempted once per discovery pass, including lenient failures. Search roots keep their configured order; namespaces are visited first, then agent names in sorted order, preserving each agent's instruction/rules ordering. The first matching alias supplies the rule name, source attribution, and expansion context. Its companion bootstrap wins if present; otherwise the canonical target's companion is used. Different files with identical text remain distinct. Hard links and separate remote clones are not deduplicated by content.
 
 ## Features
 
@@ -187,7 +162,7 @@ This command will:
 3. Filter the rules based on selectors.
 4. Execute any associated bootstrap scripts.
 5. Substitute `${jira_issue_key}` with `PROJ-1234` in the task prompt.
-6. Print the combined context (rules + task) to `stdout`.
+6. Print the combined context (task + supporting context) to `stdout`.
 7. Pipe the output to another program (in this case, `llm`).
 
 **Using remote directories:**

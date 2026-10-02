@@ -73,6 +73,7 @@ type Context struct {
 	downloadedPaths  []SearchPath
 	task             markdown.Markdown[markdown.TaskFrontMatter]   // Parsed task
 	rules            []markdown.Markdown[markdown.RuleFrontMatter] // Collected rule files
+	ruleSources      []string                                      // First-discovered paths, aligned with rules
 	skills           skills.AvailableSkills                        // Discovered skills (metadata only)
 	totalTokens      int
 	logger           *slog.Logger
@@ -164,10 +165,11 @@ func (e *ruleFileError) Unwrap() error {
 
 // pendingRule is a parsed, expanded rule that has not been bootstrapped yet.
 type pendingRule struct {
-	path   string
-	md     markdown.Markdown[markdown.RuleFrontMatter]
-	reason string // selector match explanation
-	tokens int
+	path          string
+	bootstrapPath string // Alias companion if present, otherwise canonical companion
+	md            markdown.Markdown[markdown.RuleFrontMatter]
+	reason        string // selector match explanation
+	tokens        int
 }
 
 // Run executes the context assembly for the given taskName and returns the assembled result.
@@ -221,32 +223,10 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 	// Estimate tokens for task
 	cc.logger.Info("Total estimated tokens", "tokens", cc.totalTokens)
 
-	// Build the combined prompt from all rules and task content
-	var promptBuilder strings.Builder
-	for _, rule := range cc.rules {
-		promptBuilder.WriteString(rule.Content)
-		promptBuilder.WriteString("\n")
+	prompt, err := cc.buildPrompt()
+	if err != nil {
+		return nil, err
 	}
-
-	// Add skills section if there are any skills
-	if len(cc.skills.Skills) > 0 {
-		promptBuilder.WriteString("\n# Skills\n\n")
-		promptBuilder.WriteString("You have access to the following skills. Skills are specialized capabilities ")
-		promptBuilder.WriteString("that provide ")
-		promptBuilder.WriteString("domain expertise, workflows, and procedural knowledge. When a task matches a skill's ")
-		promptBuilder.WriteString("description, you can load the full skill content by reading the SKILL.md file at the ")
-		promptBuilder.WriteString("location provided.\n\n")
-
-		skillsXML, err := cc.skills.AsXML()
-		if err != nil {
-			return nil, fmt.Errorf("failed to encode skills as XML: %w", err)
-		}
-
-		promptBuilder.WriteString(skillsXML)
-		promptBuilder.WriteString("\n\n")
-	}
-
-	promptBuilder.WriteString(cc.task.Content)
 
 	// Build and return the result
 	result := &Result{
@@ -257,7 +237,7 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 		Skills:    cc.skills,
 		Tokens:    cc.totalTokens,
 		Agent:     cc.agent,
-		Prompt:    promptBuilder.String(),
+		Prompt:    prompt,
 	}
 
 	return result, nil
@@ -849,14 +829,41 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context) error {
 		return namespacedRuleSearchPaths(dir, cc.namespace)
 	}
 
+	// Claim an identity before expansion or bootstrap: a lenient failure must
+	// not retry side effects through another alias later in the same run.
+	seen := make(map[string]struct{})
 	for _, sp := range cc.downloadedPaths {
 		for _, dir := range namespacedRulePaths(sp.Path) {
 			var pending []pendingRule
 
 			discoveryErr := cc.visitMarkdownInDir(dir, func(path string, baseFm *markdown.BaseFrontMatter) error {
+				identity, err := filepath.EvalSymlinks(path)
+				if err != nil {
+					return &ruleFileError{path: path, err: fmt.Errorf("resolve rule identity: %w", err)}
+				}
+				identity, err = filepath.Abs(identity)
+				if err != nil {
+					return &ruleFileError{path: path, err: fmt.Errorf("resolve absolute rule path: %w", err)}
+				}
+				if _, exists := seen[identity]; exists {
+					cc.logger.Debug("Skipping duplicate rule file", "path", path)
+					return nil
+				}
+				seen[identity] = struct{}{}
 				rule, err := cc.discoverPendingRule(path, baseFm)
 				if err != nil {
 					return err
+				}
+				// Preserve a companion next to the first-discovered alias. If it
+				// has none, use the canonical file's companion so deduplication
+				// does not silently drop the target's setup script.
+				if rule.md.FrontMatter.Bootstrap == "" {
+					companion := strings.TrimSuffix(path, filepath.Ext(path)) + "-bootstrap"
+					if _, err := os.Stat(companion); os.IsNotExist(err) {
+						rule.bootstrapPath = identity
+					} else if err != nil {
+						return &ruleFileError{path: path, err: fmt.Errorf("stat rule companion: %w", err)}
+					}
 				}
 
 				pending = append(pending, rule)
@@ -912,10 +919,11 @@ func (cc *Context) discoverPendingRule(
 	_, reason := cc.includes.MatchesIncludes(*baseFm, cc.includeByDefault)
 
 	return pendingRule{
-		path:   path,
-		md:     markdown.FromContent(frontmatter, processedContent),
-		reason: reason,
-		tokens: tokens,
+		path:          path,
+		bootstrapPath: path,
+		md:            markdown.FromContent(frontmatter, processedContent),
+		reason:        reason,
+		tokens:        tokens,
 	}, nil
 }
 
@@ -928,7 +936,7 @@ func (cc *Context) bootstrapAndPublishRules(
 	lenient bool,
 ) error {
 	for _, rule := range pending {
-		if err := cc.runBootstrapScript(ctx, rule.path, rule.md.FrontMatter.Bootstrap); err != nil {
+		if err := cc.runBootstrapScript(ctx, rule.bootstrapPath, rule.md.FrontMatter.Bootstrap); err != nil {
 			if lenient {
 				cc.logger.Warn(
 					"skipping rule file after bootstrap failure",
@@ -943,6 +951,7 @@ func (cc *Context) bootstrapAndPublishRules(
 		}
 
 		cc.rules = append(cc.rules, rule.md)
+		cc.ruleSources = append(cc.ruleSources, rule.path)
 		cc.totalTokens += rule.tokens
 		cc.logger.Info(
 			"Including rule file",
