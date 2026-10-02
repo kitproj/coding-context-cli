@@ -68,13 +68,13 @@ This tool is compatible with configuration files from various AI coding agents a
 ### Primary Supported Agents (with dedicated `-a` flag)
 
 - **[GitHub Copilot](https://github.com/features/copilot)**: `.github/copilot-instructions.md`, `.github/agents/` (`-a copilot`)
-- **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/` (directory) (`-a claude`)
+- **[Anthropic Claude](https://claude.ai/)**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`, `.claude/CLAUDE.local.md`, `.claude/rules/` (`-a claude`)
 - **[Cursor](https://cursor.sh/)**: `.cursor/rules/`, `.cursorrules` (`-a cursor`)
-- **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/styleguide.md`, `.gemini/` (directory) (`-a gemini`)
+- **[Google Gemini](https://gemini.google.com/)**: `GEMINI.md`, `.gemini/GEMINI.md`, `.gemini/styleguide.md`, `.gemini/rules/` (`-a gemini`)
 - **[Augment](https://augmentcode.com/)**: `.augment/rules/`, `.augment/guidelines.md` (`-a augment`)
 - **[Windsurf](https://codeium.com/windsurf)**: `.windsurf/rules/`, `.windsurfrules` (`-a windsurf`)
 - **[OpenCode.ai](https://opencode.ai/)**: `.opencode/agent/`, `.opencode/rules/` (rules); `.opencode/command/` (commands) (`-a opencode`)
-- **[Codex](https://codex.ai/)**: `AGENTS.md`, `.codex/` (directory) (`-a codex`)
+- **[Codex](https://codex.ai/)**: `AGENTS.md`, `.codex/AGENTS.md`, `.codex/rules/` (`-a codex`)
 
 ### Additional Compatible Agents
 
@@ -273,7 +273,7 @@ The tool automatically searches for task and rule files in various locations. Fo
 - `./.agents/commands/` - Reusable command blocks
 - `./.agents/skills/*/SKILL.md` - Specialized skills
 - Various agent-specific paths (`.cursor/`, `.github/`, `.opencode/`, etc.)
-- User-wide rules in `~/.agents/rules`, `~/.claude/`, `~/.codex/`, etc.
+- User-wide rules in `~/.agents/rules`, `~/.claude/rules`, `~/.codex/rules`, and explicit instruction files
 
 See the full [Search Paths Reference](https://kitproj.github.io/coding-context-cli/reference/search-paths) for the complete list of locations.
 

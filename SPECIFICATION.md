@@ -1270,14 +1270,14 @@ tokens ≈ (characters / 4) + (words / 0.75)
 
 ### 12.1 Supported AI Agents
 
-- **Anthropic Claude**: `CLAUDE.md`, `.claude/`
+- **Anthropic Claude**: `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`, `.claude/CLAUDE.local.md`, `.claude/rules/`
 - **GitHub Copilot**: `.github/copilot-instructions.md`, `.github/agents/`
 - **Cursor**: `.cursor/rules`, `.cursorrules`
 - **OpenCode.ai**: `.opencode/agent`, `.opencode/command`, `.opencode/rules`
 - **Augment**: `.augment/rules`, `.augment/guidelines.md`
 - **Windsurf**: `.windsurf/rules`, `.windsurfrules`
-- **Google Gemini**: `GEMINI.md`, `.gemini/styleguide.md`
-- **Codex**: `AGENTS.md`, `.codex/AGENTS.md`
+- **Google Gemini**: `GEMINI.md`, `.gemini/GEMINI.md`, `.gemini/styleguide.md`, `.gemini/rules/`
+- **Codex**: `AGENTS.md`, `.codex/AGENTS.md`, `.codex/rules/`
 
 ### 12.2 Backward Compatibility
 

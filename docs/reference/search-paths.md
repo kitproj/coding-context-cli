@@ -203,9 +203,9 @@ Rule files are discovered from directories specified via the `-d` flag (plus aut
 .opencode/agent/
 .opencode/rules/
 .github/agents/
-.claude/
-.codex/
-.gemini/
+.claude/rules/
+.codex/rules/
+.gemini/rules/
 ```
 
 **Specific files:**
@@ -218,6 +218,10 @@ AGENTS.md
 .windsurfrules
 .github/copilot-instructions.md
 .gemini/styleguide.md
+.gemini/GEMINI.md
+.claude/CLAUDE.md
+.claude/CLAUDE.local.md
+.codex/AGENTS.md
 .augment/guidelines.md
 ```
 
@@ -229,15 +233,21 @@ The CLI automatically discovers rules from configuration files for these AI codi
 
 | Agent | Rule Locations |
 |-------|----------------|
-| **Anthropic Claude** | `CLAUDE.md`, `CLAUDE.local.md`, `.claude/` (all `.md`/`.mdc` files in directory) |
-| **Codex** | `AGENTS.md`, `.codex/` (all `.md`/`.mdc` files in directory) |
+| **Anthropic Claude** | `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`, `.claude/CLAUDE.local.md`, `.claude/rules/` |
+| **Codex** | `AGENTS.md`, `.codex/AGENTS.md`, `.codex/rules/` |
 | **Cursor** | `.cursor/rules/`, `.cursorrules` |
 | **Augment** | `.augment/rules/`, `.augment/guidelines.md` |
 | **Windsurf** | `.windsurf/rules/`, `.windsurfrules` |
 | **OpenCode.ai** | `.opencode/agent/`, `.opencode/rules/` (rules); `.opencode/command/` (commands) |
 | **GitHub Copilot** | `.github/copilot-instructions.md`, `.github/agents/` |
-| **Google Gemini** | `GEMINI.md`, `.gemini/styleguide.md`, `.gemini/` (all `.md`/`.mdc` files in directory) |
+| **Google Gemini** | `GEMINI.md`, `.gemini/GEMINI.md`, `.gemini/styleguide.md`, `.gemini/rules/` |
 | **Generic** | `.agents/rules/` (rules), `.agents/tasks/` (tasks), `.agents/commands/` (commands) |
+
+### Migrating rules from agent directories
+
+The entire `.claude/`, `.codex/`, and `.gemini/` directories are no longer recursively scanned as rules. Move other `.md`/`.mdc` rule files previously stored directly in those directories (or arbitrary subdirectories) into their `rules/` directory, or into `.agents/rules/`. The explicit instruction files listed above remain supported.
+
+Skill bodies and their reference files, commands, and cached plugin content outside rule directories are not inlined as rules. Skills in the supported `skills/` locations remain available through metadata-only discovery; agents can read a skill when needed. This prevents prompt size from growing with the full content of every installed skill.
 
 ## Discovery Behavior
 

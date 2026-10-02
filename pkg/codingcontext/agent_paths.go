@@ -12,6 +12,8 @@ type agentPathsConfig struct {
 // getAgentsPaths returns the map of each agent to its specific search paths.
 // Empty string agent ("") represents the generic .agents directory structure.
 // If a path is empty, it is not defined for that agent.
+// Rule directories must be scoped explicitly: walking an entire agent directory
+// would also inline skills, references, commands, and cached plugins as rules.
 func getAgentsPaths() map[Agent]agentPathsConfig {
 	return map[Agent]agentPathsConfig{
 		// Generic .agents directory structure (empty agent name)
@@ -43,13 +45,15 @@ func getAgentsPaths() map[Agent]agentPathsConfig {
 		},
 		// Claude agent paths
 		AgentClaude: {
-			rulesPaths: []string{".claude", "CLAUDE.md", "CLAUDE.local.md"},
+			// Keep the instruction files ahead of nested rules, in the same lexical
+			// order as the former directory walk, including bootstrap execution.
+			rulesPaths: []string{".claude/CLAUDE.local.md", ".claude/CLAUDE.md", ".claude/rules", "CLAUDE.md", "CLAUDE.local.md"},
 			skillsPath: ".claude/skills",
 			// No commands or tasks paths defined for Claude
 		},
 		// Gemini agent paths
 		AgentGemini: {
-			rulesPaths: []string{".gemini/styleguide.md", ".gemini", "GEMINI.md"},
+			rulesPaths: []string{".gemini/styleguide.md", ".gemini/GEMINI.md", ".gemini/rules", "GEMINI.md"},
 			skillsPath: ".gemini/skills",
 			// No commands or tasks paths defined for Gemini
 		},
@@ -67,7 +71,7 @@ func getAgentsPaths() map[Agent]agentPathsConfig {
 		},
 		// Codex agent paths
 		AgentCodex: {
-			rulesPaths: []string{".codex", "AGENTS.md"},
+			rulesPaths: []string{".codex/AGENTS.md", ".codex/rules", "AGENTS.md"},
 			skillsPath: ".codex/skills",
 			// No commands or tasks paths defined for Codex
 		},
