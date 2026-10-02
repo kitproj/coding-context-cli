@@ -102,3 +102,69 @@ func TestRulePaths_DeterministicDiscoveryOrder(t *testing.T) {
 		require.Equal(t, first, rulePaths("workspace"), "first-discovered aliases must be stable across runs")
 	}
 }
+
+func TestRun_StrictAliasReportsEarlierLenientFailureWithoutRetry(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	createTask(t, dir, "task", "", "TASK")
+	createRule(t, dir, "AGENTS.md", "bootstrap: |\n  #!/bin/sh\n  exit 1", "RULE")
+	cc := New(WithLenientSearchPaths("file://"+dir), WithSearchPaths("file://"+dir))
+	bootstrapErr := errors.New("required setup failed")
+	calls := 0
+	cc.cmdRunner = func(_ *exec.Cmd) error { calls++; return bootstrapErr }
+	result, err := cc.Run(context.Background(), "task")
+	require.ErrorIs(t, err, bootstrapErr, "strict roots must not silently accept a failed dependency")
+	require.Nil(t, result)
+	require.Equal(t, 1, calls, "report the original error without repeating side effects")
+}
+
+func TestRun_StrictAliasReportsEarlierDiscoveryFailure(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	createTask(t, dir, "task", "", "TASK")
+	createRule(t, dir, ".agents/rules/broken.md", "expand:\n  - true", "RULE")
+	cc := New(WithLenientSearchPaths("file://"+dir), WithSearchPaths("file://"+dir))
+	result, err := cc.Run(context.Background(), "task")
+	require.Nil(t, result)
+	require.ErrorContains(t, err, "parse markdown file")
+	requireRuleFileError(t, err, "broken.md")
+}
+
+func TestRun_LenientCompanionStatFailureDoesNotStopDiscovery(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	createTask(t, dir, "task", "", "TASK")
+	createRule(t, dir, ".agents/rules/01-broken.md", "", "BROKEN_RULE")
+	createRule(t, dir, ".agents/rules/02-after.md", "", "AFTER_RULE")
+	path := filepath.Join(dir, ".agents/rules/01-broken-bootstrap")
+	require.NoError(t, os.Symlink(filepath.Base(path), path))
+	result, err := New(WithLenientSearchPaths("file://"+dir)).Run(context.Background(), "task")
+	require.NoError(t, err)
+	require.Len(t, result.Rules, 1)
+	require.Contains(t, result.Prompt, "AFTER_RULE")
+	require.NotContains(t, result.Prompt, "BROKEN_RULE")
+}
+
+func TestRun_AliasCompanionCreatedByEarlierBootstrap(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	createTask(t, dir, "task", "", "TASK")
+	createRule(t, dir, ".agents/rules/01-setup.md", "", "SETUP")
+	createBootstrapScript(t, dir, ".agents/rules/01-setup.md", "#!/bin/sh\nexit 0")
+	createRule(t, dir, "AGENTS.md", "", "RULE")
+	alias := ".agents/rules/02-alias.md"
+	require.NoError(t, os.Symlink("../../AGENTS.md", filepath.Join(dir, alias)))
+	cc := New(WithSearchPaths("file://" + dir))
+	var calls []string
+	cc.cmdRunner = func(cmd *exec.Cmd) error {
+		name := filepath.Base(cmd.Path)
+		calls = append(calls, name)
+		if name == "01-setup-bootstrap" {
+			createBootstrapScript(t, dir, alias, "#!/bin/sh\nexit 0")
+		}
+		return nil
+	}
+	_, err := cc.Run(context.Background(), "task")
+	require.NoError(t, err)
+	require.Equal(t, []string{"01-setup-bootstrap", "02-alias-bootstrap"}, calls)
+}

@@ -166,7 +166,7 @@ func (e *ruleFileError) Unwrap() error {
 // pendingRule is a parsed, expanded rule that has not been bootstrapped yet.
 type pendingRule struct {
 	path          string
-	bootstrapPath string // Alias companion if present, otherwise canonical companion
+	canonicalPath string // Resolved identity; also the fallback companion location
 	md            markdown.Markdown[markdown.RuleFrontMatter]
 	reason        string // selector match explanation
 	tokens        int
@@ -831,7 +831,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context) error {
 
 	// Claim an identity before expansion or bootstrap: a lenient failure must
 	// not retry side effects through another alias later in the same run.
-	seen := make(map[string]struct{})
+	attempts := make(map[string]error)
 	for _, sp := range cc.downloadedPaths {
 		for _, dir := range namespacedRulePaths(sp.Path) {
 			var pending []pendingRule
@@ -845,26 +845,20 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context) error {
 				if err != nil {
 					return &ruleFileError{path: path, err: fmt.Errorf("resolve absolute rule path: %w", err)}
 				}
-				if _, exists := seen[identity]; exists {
+				if previousErr, exists := attempts[identity]; exists {
+					if previousErr != nil && !sp.Lenient {
+						return previousErr
+					}
 					cc.logger.Debug("Skipping duplicate rule file", "path", path)
 					return nil
 				}
-				seen[identity] = struct{}{}
+				attempts[identity] = nil
 				rule, err := cc.discoverPendingRule(path, baseFm)
 				if err != nil {
+					attempts[identity] = err
 					return err
 				}
-				// Preserve a companion next to the first-discovered alias. If it
-				// has none, use the canonical file's companion so deduplication
-				// does not silently drop the target's setup script.
-				if rule.md.FrontMatter.Bootstrap == "" {
-					companion := strings.TrimSuffix(path, filepath.Ext(path)) + "-bootstrap"
-					if _, err := os.Stat(companion); os.IsNotExist(err) {
-						rule.bootstrapPath = identity
-					} else if err != nil {
-						return &ruleFileError{path: path, err: fmt.Errorf("stat rule companion: %w", err)}
-					}
-				}
+				rule.canonicalPath = identity
 
 				pending = append(pending, rule)
 
@@ -878,7 +872,7 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context) error {
 				cc.logger.Warn("stopping rule discovery after error", "path", dir, "error", discoveryErr)
 			}
 
-			if err := cc.bootstrapAndPublishRules(ctx, pending, sp.Lenient); err != nil {
+			if err := cc.bootstrapAndPublishRules(ctx, pending, sp.Lenient, attempts); err != nil {
 				return err
 			}
 		}
@@ -919,11 +913,10 @@ func (cc *Context) discoverPendingRule(
 	_, reason := cc.includes.MatchesIncludes(*baseFm, cc.includeByDefault)
 
 	return pendingRule{
-		path:          path,
-		bootstrapPath: path,
-		md:            markdown.FromContent(frontmatter, processedContent),
-		reason:        reason,
-		tokens:        tokens,
+		path:   path,
+		md:     markdown.FromContent(frontmatter, processedContent),
+		reason: reason,
+		tokens: tokens,
 	}, nil
 }
 
@@ -934,9 +927,12 @@ func (cc *Context) bootstrapAndPublishRules(
 	ctx context.Context,
 	pending []pendingRule,
 	lenient bool,
+	attempts map[string]error,
 ) error {
 	for _, rule := range pending {
-		if err := cc.runBootstrapScript(ctx, rule.bootstrapPath, rule.md.FrontMatter.Bootstrap); err != nil {
+		if err := cc.runRuleBootstrap(ctx, rule); err != nil {
+			failure := &ruleFileError{path: rule.path, err: fmt.Errorf("run bootstrap script: %w", err)}
+			attempts[rule.canonicalPath] = failure
 			if lenient {
 				cc.logger.Warn(
 					"skipping rule file after bootstrap failure",
@@ -947,7 +943,7 @@ func (cc *Context) bootstrapAndPublishRules(
 				continue
 			}
 
-			return &ruleFileError{path: rule.path, err: fmt.Errorf("run bootstrap script: %w", err)}
+			return failure
 		}
 
 		cc.rules = append(cc.rules, rule.md)
@@ -962,6 +958,22 @@ func (cc *Context) bootstrapAndPublishRules(
 	}
 
 	return nil
+}
+
+// Select the companion at execution time: an earlier rule's bootstrap may
+// create it. Companion stat errors belong to bootstrap failure isolation,
+// rather than interrupting discovery of the rest of the directory.
+func (cc *Context) runRuleBootstrap(ctx context.Context, rule pendingRule) error {
+	path := rule.path
+	if rule.md.FrontMatter.Bootstrap == "" {
+		companion := strings.TrimSuffix(path, filepath.Ext(path)) + "-bootstrap"
+		if _, err := os.Stat(companion); os.IsNotExist(err) {
+			path = rule.canonicalPath
+		} else if err != nil {
+			return fmt.Errorf("stat rule companion: %w", err)
+		}
+	}
+	return cc.runBootstrapScript(ctx, path, rule.md.FrontMatter.Bootstrap)
 }
 
 func (cc *Context) runBootstrapScript(ctx context.Context, path string, frontmatterBootstrap string) error {
