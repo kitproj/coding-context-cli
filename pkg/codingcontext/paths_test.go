@@ -26,8 +26,8 @@ func TestRulePaths(t *testing.T) {
 				filepath.Join(testProjectDir, ".agents", "rules"),
 				filepath.Join(testProjectDir, ".cursor", "rules"),
 				filepath.Join(testProjectDir, ".cursorrules"),
-				filepath.Join(testProjectDir, ".claude"),
-				filepath.Join(testProjectDir, ".codex"),
+				filepath.Join(testProjectDir, ".claude", "rules"),
+				filepath.Join(testProjectDir, ".codex", "rules"),
 			},
 		},
 	}
