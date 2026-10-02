@@ -222,11 +222,13 @@ func TestRun_LenientRuleParseFailurePreservesEarlierRules(t *testing.T) {
 
 	result, err := cc.Run(context.Background(), "test-task")
 	require.NoError(t, err)
-	require.Equal(t, []string{"before"}, bootstrapIsolationRuleNames(result.Rules))
+	require.Equal(t, []string{"before", "after"}, bootstrapIsolationRuleNames(result.Rules))
 	require.Equal(t, []string{"01-before-bootstrap"}, calls)
-	require.Contains(t, logs.String(), "stopping rule discovery after error")
+	require.Contains(t, logs.String(), "skipping rule file after discovery failure")
 	require.Contains(t, logs.String(), "02-failing.md")
-	require.NotContains(t, result.Prompt, "After content")
+	require.Contains(t, result.Prompt, "Before content")
+	require.NotContains(t, result.Prompt, "Failing content")
+	require.Contains(t, result.Prompt, "After content")
 }
 
 func TestRun_LenientRuleParseFailureDoesNotBlockLaterLenientSearchPath(t *testing.T) {
@@ -259,13 +261,13 @@ func TestRun_LenientRuleParseFailureDoesNotBlockLaterLenientSearchPath(t *testin
 
 	result, err := cc.Run(context.Background(), "test-task")
 	require.NoError(t, err)
-	require.Equal(t, []string{"before", "target"}, bootstrapIsolationRuleNames(result.Rules))
+	require.Equal(t, []string{"before", "after", "target"}, bootstrapIsolationRuleNames(result.Rules))
 	require.Equal(t, []string{"01-before-bootstrap", "01-target-bootstrap"}, calls)
 	require.Contains(t, result.Prompt, "Before content")
 	require.NotContains(t, result.Prompt, "Failing content")
-	require.NotContains(t, result.Prompt, "After content")
+	require.Contains(t, result.Prompt, "After content")
 	require.Contains(t, result.Prompt, "Target content")
-	require.Contains(t, logs.String(), "stopping rule discovery after error")
+	require.Contains(t, logs.String(), "skipping rule file after discovery failure")
 	require.Contains(t, logs.String(), "02-failing.md")
 }
 

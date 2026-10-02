@@ -837,9 +837,8 @@ func (cc *Context) cleanupDownloadedDirectories() {
 
 // findExecuteRuleFiles discovers rule files in each rule directory, then
 // bootstraps and publishes them. Discovery of one directory finishes before
-// any of that directory's bootstrap scripts run. A lenient bootstrap failure
-// skips only that rule; a parse or expand error still stops discovery of the
-// rest of that directory.
+// any of that directory's bootstrap scripts run. On a lenient path, a parse,
+// expand, or bootstrap failure skips only that rule.
 func (cc *Context) findExecuteRuleFiles(ctx context.Context) error {
 	if !cc.doBootstrap {
 		return nil
@@ -853,22 +852,27 @@ func (cc *Context) findExecuteRuleFiles(ctx context.Context) error {
 		for _, dir := range namespacedRulePaths(sp.Path) {
 			var pending []pendingRule
 
-			discoveryErr := cc.visitMarkdownInDir(dir, func(path string, baseFm *markdown.BaseFrontMatter) error {
+			if err := cc.visitMarkdownInDir(dir, func(path string, baseFm *markdown.BaseFrontMatter) error {
 				rule, err := cc.discoverPendingRule(path, baseFm)
 				if err != nil {
-					return err
+					if !sp.Lenient {
+						return err
+					}
+
+					cc.logger.Warn(
+						"skipping rule file after discovery failure",
+						"path", path,
+						"error", err,
+					)
+
+					return nil
 				}
 
 				pending = append(pending, rule)
 
 				return nil
-			})
-			if discoveryErr != nil {
-				if !sp.Lenient {
-					return discoveryErr
-				}
-
-				cc.logger.Warn("stopping rule discovery after error", "path", dir, "error", discoveryErr)
+			}); err != nil {
+				return err
 			}
 
 			if err := cc.bootstrapAndPublishRules(ctx, pending, sp.Lenient); err != nil {
