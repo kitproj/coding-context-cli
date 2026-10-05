@@ -168,3 +168,31 @@ func TestRun_AliasCompanionCreatedByEarlierBootstrap(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"01-setup-bootstrap", "02-alias-bootstrap"}, calls)
 }
+
+func TestLint_CompanionStatFailureStillCollectsRules(t *testing.T) {
+	t.Parallel()
+	for _, lenient := range []bool{false, true} {
+		t.Run(map[bool]string{false: "strict", true: "lenient"}[lenient], func(t *testing.T) {
+			dir := t.TempDir()
+			createTask(t, dir, "task", "", "TASK")
+			createRule(t, dir, ".agents/rules/01-rule.md", "", "FIRST_RULE")
+			createRule(t, dir, ".agents/rules/02-rule.md", "", "SECOND_RULE")
+			path := filepath.Join(dir, ".agents/rules/01-rule-bootstrap")
+			require.NoError(t, os.Symlink(filepath.Base(path), path))
+			option := WithSearchPaths("file://" + dir)
+			if lenient {
+				option = WithLenientSearchPaths("file://" + dir)
+			}
+			cc := New(option)
+			cc.cmdRunner = func(_ *exec.Cmd) error {
+				t.Fatal("lint must not execute a bootstrap")
+				return nil
+			}
+			result, err := cc.Lint(context.Background(), "task")
+			require.NoError(t, err, "lint must retain its existing non-executing companion lookup behavior")
+			require.Len(t, result.Rules, 2)
+			require.Contains(t, result.Prompt, "FIRST_RULE")
+			require.Contains(t, result.Prompt, "SECOND_RULE")
+		})
+	}
+}

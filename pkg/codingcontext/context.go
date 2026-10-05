@@ -969,10 +969,12 @@ func (cc *Context) runRuleBootstrap(ctx context.Context, rule pendingRule) error
 		companion := strings.TrimSuffix(path, filepath.Ext(path)) + "-bootstrap"
 		if _, err := os.Stat(companion); os.IsNotExist(err) {
 			path = rule.canonicalPath
-		} else if err != nil {
+		} else if err != nil && !cc.lintMode {
 			return fmt.Errorf("stat rule companion: %w", err)
 		}
 	}
+	// Lint retains rules even when a companion cannot be inspected. Delegate
+	// to its existing non-executing path instead of treating lookup as execution.
 	return cc.runBootstrapScript(ctx, path, rule.md.FrontMatter.Bootstrap)
 }
 
