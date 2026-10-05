@@ -1326,7 +1326,7 @@ This is a test task.
 		t.Errorf("task content not found in output")
 	}
 
-	// Verify order: rules should appear before task content
+	// Verify order: the requested task precedes supporting rules
 	ruleIdx := strings.Index(output, "# Test Rule")
 	taskIdx := strings.Index(output, "# Test Task")
 
@@ -1334,8 +1334,8 @@ This is a test task.
 		t.Fatalf("could not find all required sections in output")
 	}
 
-	if ruleIdx > taskIdx {
-		t.Errorf("rules should appear before task content")
+	if taskIdx > ruleIdx {
+		t.Errorf("task should appear before supporting rule content")
 	}
 }
 
@@ -1456,7 +1456,7 @@ Deploy instructions.
 		t.Errorf("task content not found in stdout")
 	}
 
-	// Verify the order: rule bootstrap -> rule content -> task content
+	// Bootstraps still run before output, while the task leads supporting rules.
 	ruleBootstrapIdx := strings.Index(output, "Running rule bootstrap")
 	ruleContentIdx := strings.Index(output, "# Setup Rule")
 	taskContentIdx := strings.Index(output, "# Deploy Task")
@@ -1465,8 +1465,8 @@ Deploy instructions.
 		t.Errorf("rule bootstrap should run before rule content")
 	}
 
-	if ruleContentIdx > taskContentIdx {
-		t.Errorf("rule content should appear before task content")
+	if taskContentIdx > ruleContentIdx {
+		t.Errorf("task content should appear before supporting rule content")
 	}
 }
 

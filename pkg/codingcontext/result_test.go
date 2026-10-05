@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
@@ -70,8 +71,24 @@ func TestResult_Prompt(t *testing.T) {
 				t.Errorf("Result.Name = %q, want %q", result.Name, tt.taskName)
 			}
 
-			if result.Prompt != tt.want {
-				t.Errorf("Result.Prompt = %q, want %q", result.Prompt, tt.want)
+			if len(result.Rules) == 0 {
+				if result.Prompt != tt.want {
+					t.Errorf("task-only prompt = %q, want %q", result.Prompt, tt.want)
+				}
+				return
+			}
+			// The requested task leads the prompt; supporting rules retain
+			// their discovery order and are included exactly once.
+			previous := strings.Index(result.Prompt, result.Task.Content)
+			if previous < 0 {
+				t.Fatal("missing requested task")
+			}
+			for _, rule := range result.Rules {
+				index := strings.Index(result.Prompt, rule.Content)
+				if index <= previous || strings.Count(result.Prompt, rule.Content) != 1 {
+					t.Fatalf("rule missing, repeated, or out of order: %q", rule.Content)
+				}
+				previous = index
 			}
 		})
 	}

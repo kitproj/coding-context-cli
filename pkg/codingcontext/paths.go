@@ -1,6 +1,9 @@
 package codingcontext
 
-import "path/filepath"
+import (
+	"path/filepath"
+	"slices"
+)
 
 // namespacedTaskSearchPaths returns task search paths for the given namespace.
 // Namespace task dir is searched first; global task dirs follow as fallback.
@@ -60,8 +63,16 @@ func namespacedSkillSearchPaths(dir, namespace string) []string {
 func rulePaths(dir string) []string {
 	var paths []string
 
-	// Iterate through all configured agents
-	for _, config := range getAgentsPaths() {
+	// Keep first-discovered rule aliases deterministic across agents while
+	// preserving each agent's instruction-before-nested-rule path order.
+	configs := getAgentsPaths()
+	agents := make([]Agent, 0, len(configs))
+	for agent := range configs {
+		agents = append(agents, agent)
+	}
+	slices.Sort(agents)
+	for _, agent := range agents {
+		config := configs[agent]
 		// Add each rule path for this agent
 		for _, rulePath := range config.rulesPaths {
 			paths = append(paths, filepath.Join(dir, rulePath))
