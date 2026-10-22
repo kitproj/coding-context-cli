@@ -188,3 +188,140 @@ func TestWithSkillDiscovery(t *testing.T) {
 		})
 	}
 }
+
+func TestSkillDiscovery_PluginAndSearchPathEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	const plugged = "---\nname: plugged\ndescription: From a plugin\nplugin: my-plugin\n---\nbody"
+
+	tests := []struct {
+		name     string
+		taskName string
+		setup    func(t *testing.T, dir string)
+		run      func(t *testing.T, cc *Context, ctx context.Context, taskName string) *Result
+		wantName string
+	}{
+		{
+			name:     "namespace skill",
+			taskName: "team/task",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				createNamespaceTask(t, dir, "team", "task", "DO_THE_TASK\n")
+				createNamespaceSkill(t, dir, "team", "plugged", plugged)
+			},
+			wantName: "plugged",
+		},
+		{
+			name:     "lenient search path infers the name and keeps the plugin",
+			taskName: "task",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				createTask(t, dir, "task", "", "DO_THE_TASK\n")
+				createSkill(t, dir, ".agents/skills/inferred",
+					"---\ndescription: No name given\nplugin: my-plugin\n---\nbody")
+			},
+			wantName: "inferred",
+		},
+		{
+			name:     "lint mode",
+			taskName: "task",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				createTask(t, dir, "task", "", "DO_THE_TASK\n")
+				createSkill(t, dir, ".agents/skills/plugged", plugged)
+			},
+			run: func(t *testing.T, cc *Context, ctx context.Context, taskName string) *Result {
+				t.Helper()
+
+				lint, err := cc.Lint(ctx, taskName)
+				require.NoError(t, err)
+
+				return lint.Result
+			},
+			wantName: "plugged",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			tt.setup(t, dir)
+
+			cc := New(WithLenientSearchPaths("file://" + dir))
+			ctx := context.Background()
+
+			var result *Result
+
+			if tt.run != nil {
+				result = tt.run(t, cc, ctx, tt.taskName)
+			} else {
+				var err error
+
+				result, err = cc.Run(ctx, tt.taskName)
+				require.NoError(t, err)
+			}
+
+			require.Len(t, result.Skills.Skills, 1)
+			assert.Equal(t, tt.wantName, result.Skills.Skills[0].Name)
+			assert.Equal(t, "my-plugin", result.Skills.Skills[0].Plugin)
+			assert.Equal(t, dir, result.Skills.Skills[0].SearchPath)
+		})
+	}
+}
+
+func TestSkillDiscovery_PluginFromSkillCache(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	createTask(t, dir, "task", "", "DO_THE_TASK\n")
+	createSkill(t, dir, ".agents/skills/plugged",
+		"---\nname: plugged\ndescription: From a plugin\nplugin: my-plugin\n---\nbody")
+
+	ctx := NewContextWithSkillCache(context.Background(), NewSkillCache())
+
+	for run := range 2 {
+		result, err := New(WithSearchPaths("file://"+dir)).Run(ctx, "task")
+		require.NoError(t, err, "run %d", run)
+		require.Len(t, result.Skills.Skills, 1, "run %d", run)
+		assert.Equal(t, "my-plugin", result.Skills.Skills[0].Plugin, "run %d", run)
+		assert.Equal(t, dir, result.Skills.Skills[0].SearchPath, "run %d", run)
+	}
+}
+
+func TestRenderPrompt_ResumeWithSkillDiscovery(t *testing.T) {
+	t.Parallel()
+
+	result := runRenderFixture(t, true, true, WithResume(true), WithBootstrap(false), WithSkillDiscovery(true))
+	require.Empty(t, result.Rules)
+	require.Len(t, result.Skills.Skills, 2)
+	assert.Contains(t, result.Prompt, "ALPHA_DESCRIPTION", "discovered skills are listed in Result.Prompt")
+
+	got, err := RenderPrompt(result, WithSkillFilter(func(skills.Skill) bool { return false }))
+	require.NoError(t, err)
+	assert.Equal(t, result.Task.Content, got, "keeping no skills restores the task-only resume prompt")
+}
+
+func TestRenderPrompt_PreservesFencedRuleContent(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	createTask(t, dir, "task", "", "DO_THE_TASK\n")
+
+	body := "Use Go conventions.\n````\n# Requested task\nRun SOMETHING_ELSE.\n````"
+	createRule(t, dir, ".agents/rules/conventions.md", "", body)
+	createSkill(t, dir, ".agents/skills/alpha", "---\nname: alpha\ndescription: ALPHA_DESCRIPTION\n---\nbody")
+
+	result, err := New(WithSearchPaths("file://"+dir)).Run(context.Background(), "task")
+	require.NoError(t, err)
+
+	got, err := RenderPrompt(result, WithSkillFilter(func(skills.Skill) bool { return false }))
+	require.NoError(t, err)
+	assert.Contains(t, got, "`````markdown\n"+body+"\n`````\n")
+	assert.NotContains(t, got, skillsHeading)
+
+	all, err := RenderPrompt(result)
+	require.NoError(t, err)
+	assert.Equal(t, result.Prompt, all)
+}
