@@ -80,6 +80,7 @@ type Context struct {
 	cmdRunner        func(cmd *exec.Cmd) error
 	resume           bool
 	doBootstrap      bool // Controls whether to discover rules, skills, and run bootstrap scripts
+	skillDiscovery   bool // When true, skills are discovered even if doBootstrap is false
 	includeByDefault bool // Controls whether unmatched rules/skills are included by default
 	agent            Agent
 	lenientAgent     bool   // When true, agent-specific paths are treated as lenient
@@ -230,14 +231,15 @@ func (cc *Context) Run(ctx context.Context, taskName string) (*Result, error) {
 
 	// Build and return the result
 	result := &Result{
-		Name:      taskName,
-		Namespace: cc.namespace,
-		Rules:     cc.rules,
-		Task:      cc.task,
-		Skills:    cc.skills,
-		Tokens:    cc.totalTokens,
-		Agent:     cc.agent,
-		Prompt:    prompt,
+		Name:        taskName,
+		Namespace:   cc.namespace,
+		Rules:       cc.rules,
+		RuleSources: cc.ruleSources,
+		Task:        cc.task,
+		Skills:      cc.skills,
+		Tokens:      cc.totalTokens,
+		Agent:       cc.agent,
+		Prompt:      prompt,
 	}
 
 	return result, nil
@@ -1060,14 +1062,16 @@ func (cc *Context) runBootstrapScript(ctx context.Context, path string, frontmat
 // discoverSkills searches for skill directories and loads only their metadata (name and description)
 // for progressive disclosure. Skills are folders containing a SKILL.md file.
 func (cc *Context) discoverSkills(ctx context.Context) error {
-	// Skip skill discovery if bootstrap is disabled
-	if !cc.doBootstrap {
+	// Skip skill discovery if bootstrap is disabled, unless the caller asked
+	// for skills on their own.
+	if !cc.doBootstrap && !cc.skillDiscovery {
 		return nil
 	}
 
 	type skillDir struct {
-		path    string
-		lenient bool
+		path       string
+		searchPath string
+		lenient    bool
 	}
 
 	// Determine the agent's skill path prefix for lenient agent handling.
@@ -1088,14 +1092,14 @@ func (cc *Context) discoverSkills(ctx context.Context) error {
 				lenient = true
 			}
 
-			skillPaths = append(skillPaths, skillDir{path: dir, lenient: lenient})
+			skillPaths = append(skillPaths, skillDir{path: dir, searchPath: sp.Path, lenient: lenient})
 		}
 	}
 
 	cache := skillCacheFromContext(ctx)
 
 	for _, dir := range skillPaths {
-		if err := cc.discoverSkillsInDir(dir.path, dir.lenient, cache); err != nil {
+		if err := cc.discoverSkillsInDir(dir.path, dir.searchPath, dir.lenient, cache); err != nil {
 			return err
 		}
 	}
@@ -1103,9 +1107,10 @@ func (cc *Context) discoverSkills(ctx context.Context) error {
 	return nil
 }
 
-// discoverSkillsInDir discovers skills within a single directory. cache may
-// be nil (no caching, parse every call) — see skillCacheFromContext.
-func (cc *Context) discoverSkillsInDir(dir string, lenient bool, cache *SkillCache) error {
+// discoverSkillsInDir discovers skills within a single directory found under
+// searchPath. cache may be nil (no caching, parse every call) — see
+// skillCacheFromContext.
+func (cc *Context) discoverSkillsInDir(dir, searchPath string, lenient bool, cache *SkillCache) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
@@ -1136,7 +1141,7 @@ func (cc *Context) discoverSkillsInDir(dir string, lenient bool, cache *SkillCac
 
 		skillFile := filepath.Join(dir, entry.Name(), "SKILL.md")
 
-		if err := cc.loadSkillEntry(skillFile, lenient, cache); err != nil {
+		if err := cc.loadSkillEntry(skillFile, searchPath, lenient, cache); err != nil {
 			return err
 		}
 	}
@@ -1146,7 +1151,7 @@ func (cc *Context) discoverSkillsInDir(dir string, lenient bool, cache *SkillCac
 
 // loadSkillEntry loads and validates a single skill from its SKILL.md file.
 // cache may be nil — see skillCacheFromContext.
-func (cc *Context) loadSkillEntry(skillFile string, lenient bool, cache *SkillCache) error {
+func (cc *Context) loadSkillEntry(skillFile, searchPath string, lenient bool, cache *SkillCache) error {
 	if _, err := os.Stat(skillFile); os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
@@ -1210,11 +1215,13 @@ func (cc *Context) loadSkillEntry(skillFile string, lenient bool, cache *SkillCa
 		return nil
 	}
 
-	return cc.validateAndAddSkill(frontmatter, skillFile, reason, lenient)
+	return cc.validateAndAddSkill(frontmatter, skillFile, searchPath, reason, lenient)
 }
 
 // validateAndAddSkill validates skill metadata and adds it to the skill collection.
-func (cc *Context) validateAndAddSkill(frontmatter markdown.SkillFrontMatter, skillFile, reason string, lenient bool) error {
+func (cc *Context) validateAndAddSkill(
+	frontmatter markdown.SkillFrontMatter, skillFile, searchPath, reason string, lenient bool,
+) error {
 	if frontmatter.Name == "" {
 		if lenient {
 			// Infer name from the skill's parent directory
@@ -1278,10 +1285,14 @@ func (cc *Context) validateAndAddSkill(frontmatter markdown.SkillFrontMatter, sk
 		return fmt.Errorf("failed to get absolute path for skill %s: %w", skillFile, err)
 	}
 
+	plugin, _ := frontmatter.Content["plugin"].(string)
+
 	cc.skills.Skills = append(cc.skills.Skills, skills.Skill{
 		Name:        frontmatter.Name,
 		Description: frontmatter.Description,
 		Location:    absPath,
+		Plugin:      plugin,
+		SearchPath:  searchPath,
 	})
 
 	cc.logger.Info("Discovered skill", "name", frontmatter.Name, "reason", reason, "path", absPath)

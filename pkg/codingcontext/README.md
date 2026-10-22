@@ -137,6 +137,9 @@ Result holds the assembled context from running a task:
 - `Task Markdown[TaskFrontMatter]` - Task file with frontmatter and content
 - `Tokens int` - Total estimated token count
 - `Agent Agent` - The agent used (from task frontmatter or option)
+- `Skills skills.AvailableSkills` - Discovered skills (metadata only). Each `skills.Skill` has `Name`, `Description`, `Location` (absolute path to `SKILL.md`), `Plugin` (the skill's `plugin` frontmatter value, if any) and `SearchPath` (the local search path it was found under). `Plugin` and `SearchPath` are not included in the prompt
+- `Prompt string` - Task-first prompt with delimited supporting rules and skill metadata
+- `RuleSources []string` - The path each rule was first discovered at, aligned with `Rules`
 
 **Methods:**
 - `MCPServers() map[string]MCPServerConfig` - Returns all MCP server configurations from rules as a map from rule ID to configuration
@@ -295,6 +298,7 @@ Creates a new Context with the given options.
 - `WithAgent(agent Agent)` - Set target agent (excludes that agent's own rules)
 - `WithResume(resume bool)` - Set resume selector to "true" (for filtering tasks by frontmatter resume field)
 - `WithBootstrap(doBootstrap bool)` - Control whether to discover rules, skills, and run bootstrap scripts (default: true)
+- `WithSkillDiscovery(enabled bool)` - Discover skills even when bootstrap is disabled (rules and bootstrap scripts stay off)
 - `WithUserPrompt(userPrompt string)` - Set user prompt to append to task
 - `WithManifestURL(manifestURL string)` - Set manifest URL for additional search paths
 - `WithLogger(logger *slog.Logger)` - Set logger
@@ -302,6 +306,15 @@ Creates a new Context with the given options.
 #### `(*Context) Run(ctx context.Context, taskName string) (*Result, error)`
 
 Executes the context assembly for the given task name and returns the assembled result structure with rule and task markdown files (including frontmatter and content).
+
+#### `RenderPrompt(r *Result, opts ...RenderOption) (string, error)`
+
+Renders the prompt for an existing `Result` without running discovery again. With no options it returns the same text as `Result.Prompt`.
+
+**Options:**
+- `WithSkillFilter(keep func(skills.Skill) bool)` - Keep a skill in the prompt only when `keep` returns true. Filtered skills stay in `Result.Skills`, so a caller can deliver them another way (for example through an agent's native skill support). When no rules and no skills remain, the prompt is the task content alone
+
+Returns `ErrRuleSourcesMismatch` if `RuleSources` is not aligned with `Rules`.
 
 #### `markdown.ParseMarkdownFile[T any](path string, frontmatter *T) (Markdown[T], error)`
 

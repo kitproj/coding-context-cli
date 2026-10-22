@@ -12,6 +12,12 @@ type Skill struct {
 	Name        string   `xml:"name"`
 	Description string   `xml:"description"`
 	Location    string   `xml:"location"` // Absolute path to the SKILL.md file
+	// Plugin is the skill's "plugin" frontmatter value, if any. It is not
+	// part of the prompt XML.
+	Plugin string `xml:"-"`
+	// SearchPath is the local search path the skill was discovered under. It
+	// is not part of the prompt XML.
+	SearchPath string `xml:"-"`
 }
 
 // AvailableSkills represents a collection of discovered skills.

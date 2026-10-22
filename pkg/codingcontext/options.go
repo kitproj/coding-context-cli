@@ -76,6 +76,16 @@ func WithBootstrap(doBootstrap bool) Option {
 	}
 }
 
+// WithSkillDiscovery discovers skills even when bootstrap is disabled, so a
+// caller that skips rules and bootstrap scripts on later runs can still see
+// each run's skills in Result.Skills. Discovered skills appear in
+// Result.Prompt; use RenderPrompt with WithSkillFilter to leave them out.
+func WithSkillDiscovery(enabled bool) Option {
+	return func(c *Context) {
+		c.skillDiscovery = enabled
+	}
+}
+
 // WithAgent sets the target agent, which excludes that agent's own rules.
 // Agent-specific paths are treated as strict (errors are fatal).
 // Mutually exclusive with WithLenientAgent.
