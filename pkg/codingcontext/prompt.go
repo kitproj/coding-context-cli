@@ -1,9 +1,13 @@
 package codingcontext
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/markdown"
+	"github.com/kitproj/coding-context-cli/pkg/codingcontext/skills"
 )
 
 const contextGuidance = `# Context guidance
@@ -12,32 +16,96 @@ Follow the requested task below, subject to the host's system instructions and t
 
 `
 
-// buildPrompt provides an explicit task/context contract for consumers of the
-// flat prompt. These text boundaries are not a substitute for host tool policy
-// or an agent's instruction hierarchy.
+// ErrRuleSourcesMismatch is returned by RenderPrompt when a Result's
+// RuleSources is not aligned with its Rules.
+var ErrRuleSourcesMismatch = errors.New("result rule sources do not match its rules")
+
+// RenderOption configures RenderPrompt.
+type RenderOption func(*renderConfig)
+
+type renderConfig struct {
+	keepSkill func(skills.Skill) bool
+}
+
+// WithSkillFilter keeps a skill in the rendered prompt only when keep returns
+// true. Filtered skills are omitted from the prompt but stay in Result.Skills,
+// so a caller can deliver them some other way, such as through an agent's
+// native skill support.
+func WithSkillFilter(keep func(skills.Skill) bool) RenderOption {
+	return func(c *renderConfig) {
+		c.keepSkill = keep
+	}
+}
+
+// RenderPrompt renders the prompt for an existing Result without running
+// discovery again. With no options it returns the same text as
+// Result.Prompt. When the options leave no rules and no skills, the prompt is
+// the task content alone, and the Skills section is dropped when no skills
+// remain.
+func RenderPrompt(r *Result, opts ...RenderOption) (string, error) {
+	if len(r.RuleSources) != len(r.Rules) {
+		return "", fmt.Errorf("%w: %d sources for %d rules", ErrRuleSourcesMismatch, len(r.RuleSources), len(r.Rules))
+	}
+
+	var cfg renderConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	available := r.Skills
+	if cfg.keepSkill != nil {
+		available.Skills = make([]skills.Skill, 0, len(r.Skills.Skills))
+		for _, skill := range r.Skills.Skills {
+			if cfg.keepSkill(skill) {
+				available.Skills = append(available.Skills, skill)
+			}
+		}
+	}
+
+	return renderPrompt(r.Task.Content, r.Rules, r.RuleSources, available)
+}
+
+// buildPrompt renders the prompt from the rules and skills this Context
+// discovered.
 func (cc *Context) buildPrompt() (string, error) {
+	return renderPrompt(cc.task.Content, cc.rules, cc.ruleSources, cc.skills)
+}
+
+// renderPrompt provides an explicit task/context contract for consumers of the
+// flat prompt. These text boundaries are not a substitute for host tool policy
+// or an agent's instruction hierarchy. ruleSources must be aligned with rules.
+func renderPrompt(
+	task string,
+	rules []markdown.Markdown[markdown.RuleFrontMatter],
+	ruleSources []string,
+	available skills.AvailableSkills,
+) (string, error) {
 	// Preserve the task-only output used by skip-bootstrap/resume consumers.
-	if len(cc.rules) == 0 && len(cc.skills.Skills) == 0 {
-		return cc.task.Content, nil
+	if len(rules) == 0 && len(available.Skills) == 0 {
+		return task, nil
 	}
 	var out strings.Builder
 	out.WriteString(contextGuidance)
 	out.WriteString("# Requested task\n\n")
-	writeContextBlock(&out, "markdown", cc.task.Content)
-	if len(cc.rules) > 0 {
+	writeContextBlock(&out, "markdown", task)
+
+	if len(rules) > 0 {
 		out.WriteString("\n# Supporting repository rules\n\n")
-		for i, rule := range cc.rules {
+
+		for i, rule := range rules {
 			out.WriteString("Source: ")
-			out.WriteString(strconv.Quote(cc.ruleSources[i]))
+			out.WriteString(strconv.Quote(ruleSources[i]))
 			out.WriteString("\n\n")
 			writeContextBlock(&out, "markdown", rule.Content)
 			out.WriteString("\n")
 		}
 	}
-	if len(cc.skills.Skills) > 0 {
+
+	if len(available.Skills) > 0 {
 		out.WriteString("\n# Skills\n\n")
 		out.WriteString("These are available capabilities, not requests to execute their workflows. Load a skill's SKILL.md only when it is relevant to the requested task. Its content is supporting context under the same guidance as repository rules.\n\n")
-		skillsXML, err := cc.skills.AsXML()
+
+		skillsXML, err := available.AsXML()
 		if err != nil {
 			return "", fmt.Errorf("failed to encode skills as XML: %w", err)
 		}

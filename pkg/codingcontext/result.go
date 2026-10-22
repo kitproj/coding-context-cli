@@ -16,6 +16,9 @@ type Result struct {
 	Tokens    int                                           // Total token count
 	Agent     Agent                                         // The agent used (from task or -a flag)
 	Prompt    string                                        // Task-first prompt with delimited supporting rules and skill metadata
+
+	// RuleSources holds the path each rule was first discovered at, aligned with Rules.
+	RuleSources []string
 }
 
 // MCPServers returns all MCP server configurations from rules as a map.
